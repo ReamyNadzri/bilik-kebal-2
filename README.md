@@ -1,93 +1,147 @@
-# bilik-kebal-2
+# VAULTIX
 
+VAULTIX is an academic resource bounty marketplace for legitimate, authorised learning materials. Students publish a structured request, contribute to a shared bounty, and reward the Hunter whose resource is selected after technical screening and human review.
 
+The first release is English-first and focused on UiTM. The architecture is designed to support additional Malaysian higher education institutions later.
 
-## Getting started
+> **Project status:** Pre-implementation specification and context review. The application has not been scaffolded or deployed yet.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## How VAULTIX Works
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+1. A user registers with any email address and verifies it.
+2. UiTM affiliation is verified through an approved institutional email domain or manual Sheriff review.
+3. A Commissioner creates a Wanted request, selects a 7-, 14-, or 30-day duration, and contributes RM1-RM50.
+4. Other verified Backers may add RM1-RM50 each to the bounty.
+5. A Hunter submits an eligible academic resource and declares the right to share it.
+6. The file remains private while automated checks produce evidence for a human Sheriff.
+7. The Sheriff selects the best valid claim. Submission time is used only as a tie-breaker.
+8. Successful contributors receive access, and the Owner processes the Hunter payout manually.
+9. Contributor-only access is the default. A resource may become free 48 hours after approval when the Hunter permits it and the Sheriff confirms the sharing rights.
+10. If a bounty expires without an approved claim, full-refund tasks are created for its successful contributions.
 
-## Add your files
+## Core Principles
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- Only legitimate resources that the uploader is authorised to share are allowed.
+- Confidential, leaked, unlawfully obtained, institution-restricted, malicious, deceptive, and privacy-invasive material is prohibited.
+- Automated screening never approves or finally rejects a claim without a human decision.
+- Unreviewed files remain in private quarantine.
+- Financial records are immutable, auditable, and idempotent.
+- Email verification and institution verification are separate trust states.
+- Only institution-verified users may transact, submit claims, or download entitled resources.
+- Payment, policy, security, accessibility, and error messages use clear language even when the interface applies themed terminology.
 
+## Initial Technology Direction
+
+VAULTIX uses a Supabase-centric modular-monolith architecture:
+
+| Area | Technology |
+| --- | --- |
+| Web application | Next.js App Router and TypeScript |
+| UI foundation | Tailwind CSS and accessible headless primitives |
+| Web hosting | Vercel |
+| Authentication | Supabase Auth |
+| Database | Supabase PostgreSQL |
+| Private files | Supabase Storage |
+| Lightweight backend | Supabase Edge Functions |
+| Durable jobs | Supabase Queues |
+| Scheduled jobs | Supabase Cron |
+| Transactional email | Resend |
+| Payment collection | ToyyibPay |
+| File screening | Separately deployable isolated worker |
+
+Cloudflare R2 is reserved as a future hybrid-storage option. Storage records use provider-independent object references so migration does not require rewriting the Claim or Entitlement domains.
+
+## Payment Model
+
+- Each contribution is between RM1 and RM50.
+- The payer bears the payment-provider charge on top of the contribution.
+- The default platform fee is 10% of the funded bounty.
+- The fee rate is snapshotted when a Wanted request is published.
+- ToyyibPay is used for collection in `Disabled`, `Sandbox`, or allowlisted `Live Limited` mode.
+- Payouts and refunds are processed manually by the Owner in the first release and recorded with their external references.
+- There is no general-purpose wallet or peer-to-peer balance transfer.
+
+## Supported Uploads
+
+The planned first release accepts files up to 50 MB in these formats:
+
+- PDF
+- DOCX
+- PPTX
+- XLSX
+- JPG
+- PNG
+- WEBP
+
+Archives, executables, macro-enabled Office files, password-protected files, and external-link-only submissions are not accepted.
+
+Public uploads remain disabled until the isolated scanning worker and safe-preview pipeline pass production-readiness checks.
+
+## Repository Contents
+
+```text
+.
+|-- context/
+|   |-- ai-workflow-rules.md
+|   |-- architecture.md
+|   |-- code-standards.md
+|   |-- progress-tracker.md
+|   |-- project-overview.md
+|   `-- ui-context.md
+|-- BILIK KEBAL 2 by afes.pdf
+`-- README.md
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/abefiwan-experts-studio/bilik-kebal-2.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
+The context files are the current source of truth:
 
-* [Set up project integrations](https://gitlab.com/abefiwan-experts-studio/bilik-kebal-2/-/settings/integrations)
+- [`project-overview.md`](context/project-overview.md) defines product behaviour, scope, and success criteria.
+- [`architecture.md`](context/architecture.md) defines system boundaries, providers, data flow, access control, and invariants.
+- [`ui-context.md`](context/ui-context.md) records the approved UI constraints and external design handoff requirements.
+- [`code-standards.md`](context/code-standards.md) defines implementation, security, database, testing, and organisation conventions.
+- [`ai-workflow-rules.md`](context/ai-workflow-rules.md) defines the patch-by-patch development and verification workflow.
+- [`progress-tracker.md`](context/progress-tracker.md) records completed decisions, next steps, and unresolved launch gates.
 
-## Collaborate with your team
+The original internal proposal is available as [`BILIK KEBAL 2 by afes.pdf`](BILIK%20KEBAL%202%20by%20afes.pdf). The current product name is VAULTIX; `Wanted` remains a marketplace feature term.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Getting Started
 
-## Test and Deploy
+There is no runnable application yet. Before implementation:
 
-Use the built-in continuous integration in GitLab.
+1. Read [`project-overview.md`](context/project-overview.md).
+2. Review the critical open questions in [`progress-tracker.md`](context/progress-tracker.md).
+3. Confirm the architecture and invariants in [`architecture.md`](context/architecture.md).
+4. Incorporate the external visual design into [`ui-context.md`](context/ui-context.md).
+5. Approve a patch-by-patch implementation plan.
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+Do not scaffold application code until the context set and implementation plan are approved.
 
-***
+## Critical Launch Gates
 
-# Editing this README
+Before public users or unrestricted live payments are enabled, the project must have:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+- A named legal operator and ToyyibPay merchant-account owner.
+- Approved Terms, Privacy Notice, content policy, takedown process, refund policy, and retention schedule.
+- Confirmed ToyyibPay live callback, fee, settlement, and refund behaviour.
+- Hosting terms and plans suitable for commercial use.
+- Database backup and recovery appropriate for financial records.
+- Custom SMTP with SPF, DKIM, and DMARC.
+- Verified UiTM domains and a documented manual institution-verification process.
+- An isolated production file scanner and safe-preview pipeline.
+- MFA and recovery controls for Owner and Sheriff accounts.
+- Monitoring, reconciliation, incident response, and a tested payment kill switch.
+- An approved visual handoff and accessibility review.
 
-## Suggestions for a good README
+## Development Workflow
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+- Work in small, independently verifiable patches.
+- Keep context documents synchronised with accepted behaviour.
+- Use sandbox providers by default.
+- Require explicit Owner action to enable live payments.
+- Add automated tests for every financial, access-control, lifecycle, and moderation invariant.
+- Never place secrets, private files, verification evidence, or bank information in the repository or logs.
 
-## Name
-Choose a self-explaining name for your project.
+See [`ai-workflow-rules.md`](context/ai-workflow-rules.md) for the complete workflow.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+## Licence
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+No open-source licence has been selected. Unless a licence is added, the repository should be treated as proprietary and all rights reserved.
