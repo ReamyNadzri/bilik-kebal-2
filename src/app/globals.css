@@ -451,3 +451,108 @@ p {
 .capability-list__state--blocked {
   color: var(--text-muted);
 }
+
+/* --------------------------------------------------------------------------
+   Forms
+   -------------------------------------------------------------------------- */
+
+.auth-form {
+  max-width: 28rem;
+}
+
+.auth-form__intro {
+  color: var(--text-muted);
+}
+
+.form-field {
+  margin-bottom: var(--space-5);
+}
+
+.form-field__label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-weight: 600;
+}
+
+.form-field__required {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.form-field__hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.form-field__error {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--state-error);
+}
+
+.form-field__input {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.form-field__input[aria-invalid="true"] {
+  border-color: var(--state-error);
+  border-width: var(--border-width-2);
+}
+
+.auth-form__submit {
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width-1) solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-form__submit:hover {
+  background: var(--text-primary);
+}
+
+.auth-form__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-5);
+}
+
+/* --------------------------------------------------------------------------
+   Error summary
+   -------------------------------------------------------------------------- */
+
+.error-summary {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: var(--border-width-2) solid var(--state-error);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.error-summary__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  color: var(--state-error);
+}
+
+.error-summary__list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.error-summary__list a {
+  color: var(--state-error);
+}

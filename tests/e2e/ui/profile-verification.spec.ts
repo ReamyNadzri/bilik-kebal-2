@@ -23,7 +23,8 @@ test.describe("profile verification status", () => {
     await expect(page.getByText("Email Verified")).toBeVisible();
     await expect(page.getByText("Institution Not Verified")).toBeVisible();
 
-    const restriction = page.getByRole("alert");
+    // Filtered: Next injects its own role="alert" route announcer.
+    const restriction = page.getByRole("alert").filter({ hasText: "Restricted" });
     await expect(restriction).toBeVisible();
     await expect(restriction).toContainText("institution verification");
   });
