@@ -16,7 +16,5 @@ export function failure<TCode extends string>(
   message: string,
   fieldErrors?: Record<string, string[]>,
 ): OperationResult<never, TCode> {
-  return fieldErrors
-    ? { ok: false, code, message, fieldErrors }
-    : { ok: false, code, message };
+  return fieldErrors ? { ok: false, code, message, fieldErrors } : { ok: false, code, message };
 }
