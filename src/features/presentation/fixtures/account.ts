@@ -39,3 +39,14 @@ export const EMAIL_VERIFIED_ONLY: AccountFixture = {
  * configuration once that question is closed.
  */
 export const APPROVED_INSTITUTION_DOMAINS: readonly string[] = [];
+
+/**
+ * The signed-in viewer for fixture screens.
+ *
+ * A plain student: email verified, no institution verification, no console
+ * role. Console access is a backend decision surfaced through the view model;
+ * the frontend only renders it.
+ */
+export const VIEWER = {
+  hasConsoleAccess: false,
+} as const;

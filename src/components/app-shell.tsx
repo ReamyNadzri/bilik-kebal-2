@@ -1,10 +1,15 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PRIMARY_NAV, type NavItemId } from "@/features/presentation/navigation";
+import { PRIMARY_NAV, type NavItem, type NavItemId } from "@/features/presentation/navigation";
 
 export interface AppShellProps {
   children: ReactNode;
   currentNavId?: NavItemId;
+  /**
+   * Extra destinations the viewer's role grants, supplied by the view model.
+   * The shell renders what it is given and decides no permission itself.
+   */
+  roleNav?: readonly NavItem[];
 }
 
 /**
@@ -15,7 +20,8 @@ export interface AppShellProps {
  * usable at 360 px. Introduce a client disclosure only when the navigation
  * outgrows a single row.
  */
-export function AppShell({ children, currentNavId }: AppShellProps) {
+export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps) {
+  const destinations = [...PRIMARY_NAV, ...roleNav];
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -27,7 +33,7 @@ export function AppShell({ children, currentNavId }: AppShellProps) {
 
         <nav aria-label="Primary" className="app-shell__nav">
           <ul className="app-shell__nav-list">
-            {PRIMARY_NAV.map((item) => (
+            {destinations.map((item) => (
               <li key={item.id}>
                 <Link
                   href={item.href}
