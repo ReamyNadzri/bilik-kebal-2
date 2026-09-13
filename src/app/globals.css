@@ -395,3 +395,59 @@ p {
 .trust-badge--rejected {
   border-color: var(--state-error);
 }
+
+/* --------------------------------------------------------------------------
+   Verification status
+   -------------------------------------------------------------------------- */
+
+.verification-status__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.capability-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-width-1) solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.capability-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width-1) solid var(--border-default);
+}
+
+.capability-list__item:last-child {
+  border-bottom: none;
+}
+
+/* Let a long capability name wrap within its own column so the state stays
+   on the same row and the right-hand column remains scannable at 360 px. */
+.capability-list__name {
+  flex: 1 1 60%;
+}
+
+/* Allowed and blocked are distinguished by their words and weight, so the
+   list stays readable without colour. */
+.capability-list__state {
+  flex: 0 0 auto;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.capability-list__state--allowed {
+  color: var(--state-success);
+}
+
+.capability-list__state--blocked {
+  color: var(--text-muted);
+}
