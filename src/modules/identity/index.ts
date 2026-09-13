@@ -9,3 +9,9 @@ export type {
   IdentityTrust,
   InstitutionVerificationState,
 } from "./domain/trust-state";
+export { ProfileRepository } from "./repositories/profile-repository";
+export type {
+  ProfileReader,
+  ProfileRecord,
+  ProfileViewModel,
+} from "./repositories/profile-repository";

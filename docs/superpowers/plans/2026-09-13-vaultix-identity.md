@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Enforce the distinction between email verification and institution verification in pure backend policy code before connecting Supabase persistence.
+**Goal:** Enforce the distinction between email verification and institution verification in backend policy code and Supabase persistence.
 
-**Architecture:** Identity policy is framework-independent and consumes a small trust-state value object. Supabase repositories and RLS will adopt these same states later; no route or UI may invent a second interpretation.
+**Architecture:** Identity policy is framework-independent and consumes a small trust-state value object. Supabase repositories and RLS use the same states; no route or UI may invent a second interpretation.
 
 **Tech Stack:** TypeScript strict, Vitest 5, Zod 4.6, Supabase PostgreSQL/RLS in the persistence units that follow.
 
@@ -35,7 +35,7 @@
 - Consumes: no database or framework dependency.
 - Produces: `EmailVerificationState`, `InstitutionVerificationState`, `IdentityTrust`, `canBrowseMetadata`, `canTransact`, `canSubmitClaim`, and `canDownload`.
 
-- [ ] **Step 1: Write failing trust-state tests**
+- [x] **Step 1: Write failing trust-state tests**
 
 ```ts
 import { describe, expect, test } from "vitest";
@@ -73,13 +73,13 @@ test("restriction overrides otherwise valid trust", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run: `pnpm test -- --reporter=dot src/modules/identity/domain`
 
 Expected: FAIL because the trust-state and policy modules do not exist.
 
-- [ ] **Step 3: Implement the discriminated states and policy**
+- [x] **Step 3: Implement the discriminated states and policy**
 
 ```ts
 export type EmailVerificationState = "unverified" | "verified";
@@ -94,13 +94,13 @@ export interface IdentityTrust {
 
 `canBrowseMetadata` returns `true` only for `email === "verified"`. The other three policies require a verified email, verified institution, and `restricted === false`. Keep the policy functions pure and return booleans; route/server operations will map `false` to a typed failure code at their boundary.
 
-- [ ] **Step 4: Verify GREEN and exhaustive exports**
+- [x] **Step 4: Verify GREEN and exhaustive exports**
 
 Run: `pnpm test -- --reporter=dot src/modules/identity/domain && pnpm typecheck`
 
 Expected: all identity tests pass and the public module exports the value types and policy functions.
 
-- [ ] **Step 5: Commit when Git access is available**
+- [x] **Step 5: Commit when Git access is available**
 
 ```text
 git add src/modules/identity
@@ -115,19 +115,21 @@ git commit -m "feat: enforce identity trust access policy"
 - Create: `supabase/config.toml`
 - Create: `supabase/migrations/<timestamp>_identity_foundation.sql`
 - Create: `tests/sql/identity_rls.sql`
+- Create: `src/lib/supabase/database.types.ts`
 - Create: `src/modules/identity/repositories/profile-repository.ts`
 - Create: `src/modules/identity/repositories/profile-repository.test.ts`
+- Modify: `package.json`
 
 **Interfaces:**
 - Consumes: Task 1 trust-state names and policy.
 - Produces: profile, institution-membership, verification-request, role-assignment and restriction persistence with RLS-tested reads/writes.
 
-- [ ] **Step 1: Write SQL/RLS acceptance tests for anonymous, email-verified, institution-verified, Institution Sheriff, Platform Sheriff, and Owner actors.**
-- [ ] **Step 2: Run the SQL tests against local Supabase and verify RED because migrations are absent.**
-- [ ] **Step 3: Add ordered append-only migration with constraints, indexes, RLS and safe security-definer boundaries.**
-- [ ] **Step 4: Implement repositories that return view models and never expose service-role clients to browser code.**
-- [ ] **Step 5: Verify SQL/RLS, repository integration, typecheck, lint and build.**
-- [ ] **Step 6: Commit the migration and repositories as one independently verifiable unit.**
+- [x] **Step 1: Write SQL/RLS acceptance tests for anonymous, email-verified, institution-verified, Institution Sheriff, Platform Sheriff, and Owner actors.**
+- [x] **Step 2: Run the SQL tests against local Supabase and verify RED because migrations are absent.**
+- [x] **Step 3: Add ordered append-only migration with constraints, indexes, RLS and safe security-definer boundaries.**
+- [x] **Step 4: Implement repositories that return view models and never expose service-role clients to browser code.**
+- [x] **Step 5: Verify SQL/RLS, repository integration, typecheck, lint and build.**
+- [x] **Step 6: Commit the migration and repositories as one independently verifiable unit.**
 
 ### Task 3: Authentication and verification operations
 

@@ -17,6 +17,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db": "supabase test db tests/sql --local",
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts && prettier --write src/lib/supabase/database.types.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
