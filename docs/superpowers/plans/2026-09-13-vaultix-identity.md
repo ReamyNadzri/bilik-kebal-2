@@ -146,17 +146,17 @@ git commit -m "feat: enforce identity trust access policy"
 - Consumes: Task 1 policy and Task 2 repositories.
 - Produces: typed registration, login, recovery, institution-domain verification, manual evidence review, role assignment and restriction operations.
 
-- [ ] **Step 1: Write failing service tests for registration, mandatory email verification, domain allowlist, manual evidence review, and restriction.**
-- [ ] **Step 2: Verify RED.**
-- [ ] **Step 3: Implement one-command service operations with authentication, authorisation, validation, persistence and audit events.**
-- [ ] **Step 4: Add recorded/synthetic Supabase fixtures; never call production Auth or send real email from tests.**
-- [ ] **Step 5: Verify cross-role E2E and failure states; publish contracts for Claude UI.**
-- [ ] **Step 6: Commit backend identity operations and contract fixtures.**
+- [x] **Step 1: Write failing service tests for registration, mandatory email verification, domain allowlist, manual evidence review, and restriction.**
+- [x] **Step 2: Verify RED.**
+- [x] **Step 3: Implement one-command service operations with authentication, authorisation, validation, persistence and audit events.**
+- [x] **Step 4: Add recorded/synthetic Supabase fixtures; never call production Auth or send real email from tests.**
+- [x] **Step 5: Verify cross-role E2E and failure states; publish contracts for Claude UI.**
+- [x] **Step 6: Commit backend identity operations and contract fixtures.**
 
 ## Phase Completion Gate
 
-- [ ] Trust-state policy tests cover all four permissions and restriction override.
-- [ ] RLS tests cover all required actor classes and cross-institution access.
-- [ ] Email and institution verification remain separate in database, service, and view models.
-- [ ] No service-role credential reaches browser code or logs.
-- [ ] Context tracker records the actual Supabase environment and unresolved launch gates.
+- [x] Trust-state policy tests cover all four permissions and restriction override.
+- [x] RLS tests cover all required actor classes and cross-institution access.
+- [x] Email and institution verification remain separate in database, service, and view models.
+- [x] No service-role credential reaches browser code or logs.
+- [x] Context tracker records the actual Supabase environment and unresolved launch gates.

@@ -80,6 +80,87 @@ export type Database = {
           },
         ];
       };
+      identity_audit_events: {
+        Row: {
+          actor_user_id: string;
+          details: Json;
+          event_type: string;
+          id: number;
+          institution_id: string | null;
+          occurred_at: string;
+          subject_user_id: string | null;
+        };
+        Insert: {
+          actor_user_id: string;
+          details?: Json;
+          event_type: string;
+          id?: never;
+          institution_id?: string | null;
+          occurred_at?: string;
+          subject_user_id?: string | null;
+        };
+        Update: {
+          actor_user_id?: string;
+          details?: Json;
+          event_type?: string;
+          id?: never;
+          institution_id?: string | null;
+          occurred_at?: string;
+          subject_user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "identity_audit_events_actor_user_id_fkey";
+            columns: ["actor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "identity_audit_events_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "identity_audit_events_subject_user_id_fkey";
+            columns: ["subject_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      institution_email_domains: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          domain: string;
+          institution_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          domain: string;
+          institution_id: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          domain?: string;
+          institution_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "institution_email_domains_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       institution_memberships: {
         Row: {
           created_at: string;
@@ -337,7 +418,19 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      restrict_account: {
+        Args: { reason_code: string; target_user_id: string };
+        Returns: string;
+      };
+      review_institution_verification_request: {
+        Args: {
+          decision: Database["public"]["Enums"]["verification_request_state"];
+          reason_code: string;
+          target_request_id: string;
+        };
+        Returns: string;
+      };
+      verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
       institution_role: "institution_sheriff";

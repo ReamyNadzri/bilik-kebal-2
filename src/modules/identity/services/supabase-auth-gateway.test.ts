@@ -1,0 +1,73 @@
+import { describe, expect, test, vi } from "vitest";
+
+import { SupabaseAuthGateway, type SupabaseAuthClient } from "./supabase-auth-gateway";
+
+function createClient(): SupabaseAuthClient {
+  return {
+    resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+    signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    signUp: vi.fn().mockResolvedValue({ error: null }),
+  };
+}
+
+describe("SupabaseAuthGateway", () => {
+  test("passes registration metadata and redirect to Supabase Auth", async () => {
+    const client = createClient();
+    const gateway = new SupabaseAuthGateway(client);
+
+    await expect(
+      gateway.register({
+        displayName: "Aina",
+        email: "aina@example.com",
+        emailRedirectTo: "https://vaultix.example/auth/callback",
+        password: "SecurePass123",
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    expect(client.signUp).toHaveBeenCalledWith({
+      email: "aina@example.com",
+      options: {
+        data: { display_name: "Aina" },
+        emailRedirectTo: "https://vaultix.example/auth/callback",
+      },
+      password: "SecurePass123",
+    });
+  });
+
+  test("maps provider codes without returning raw provider messages", async () => {
+    const client = createClient();
+    vi.mocked(client.signInWithPassword).mockResolvedValue({
+      error: {
+        code: "email_not_confirmed",
+        message: "raw provider detail",
+        status: 400,
+      },
+    });
+
+    await expect(
+      new SupabaseAuthGateway(client).signIn({
+        email: "aina@example.com",
+        password: "SecurePass123",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "email_not_verified" });
+  });
+
+  test("treats provider rate limits as retryable", async () => {
+    const client = createClient();
+    vi.mocked(client.resetPasswordForEmail).mockResolvedValue({
+      error: {
+        code: "over_email_send_rate_limit",
+        message: "raw provider detail",
+        status: 429,
+      },
+    });
+
+    await expect(
+      new SupabaseAuthGateway(client).sendPasswordRecovery({
+        email: "aina@example.com",
+        redirectTo: "https://vaultix.example/reset-password",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "rate_limited" });
+  });
+});

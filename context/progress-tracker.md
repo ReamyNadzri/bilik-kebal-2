@@ -4,11 +4,11 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phased MVP design review and implementation-plan preparation.
+- Phase 2 Identity backend complete on `codex/backend`; frontend remains provisional until integration.
 
 ## Current Goal
 
-- Review the written phased MVP design, then produce a task-by-task implementation plan for Claude Code or another agentic worker.
+- Integrate the typed identity operations with Claude's provisional UI, then begin Phase 3 only after the identity flow is accepted.
 
 ## Completed
 
@@ -31,21 +31,22 @@ Update this file after every meaningful implementation or specification change.
 - Selected Resend for custom transactional SMTP.
 - Selected Supabase Queues and Cron for durable background work and scheduled lifecycle tasks.
 - Assigned detailed visual design to a separate designer; recorded only product direction and accessibility constraints.
-- Populated all six context files. No application code or scaffold has been created.
+- Populated all six context files and completed the Phase 1 application foundation.
 - Renamed the product identity from WANTED to VAULTIX while retaining `Wanted` as a marketplace feature term.
 - Approved a six-phase full-MVP direction: Foundation; Identity and institution trust; Wanted marketplace and money; Claims and moderation; Fulfilment and operations; Hardening and controlled launch.
 - Approved a `pnpm`-managed single Next.js App Router modular monolith with Supabase as the source of truth and provider integrations behind typed adapters.
 - Wrote `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` as the phased MVP design handoff.
 - Assigned the complete provisional MVP frontend to Claude Code and backend/infrastructure implementation to Codex, with separate worktrees and Codex-owned shared contracts.
+- Implemented Phase 2 identity schema, RLS, Auth, email confirmation, domain fallback, manual evidence workflow, role-scoped review, account restriction, audit events, and private signed evidence uploads in the Codex backend worktree.
 
 ## In Progress
 
-- Preparation of coordinated frontend and backend implementation plans.
+- Contract integration: Claude should consume `docs/integration/identity-http-contract.md` and replace matching `FixtureNotice` flows with the real routes.
 
 ## Next Up
 
-1. Write and review the coordinated implementation plans in small vertical feature units.
-2. Initialise the repository/tooling and execute the plan phase by phase.
+1. Integrate and accept the Phase 2 identity journeys across both worktrees.
+2. Write and review the Phase 3 Wanted/ledger plan after identity integration.
 4. Incorporate the external visual design handoff into `ui-context.md` when it is available.
 5. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
@@ -90,3 +91,5 @@ Update this file after every meaningful implementation or specification change.
 - `Live Limited` may use real ToyyibPay payments for controlled tester accounts, with RM1-RM50 contributions and no platform-wide daily cap.
 - Public upload remains disabled until a production scanning worker is available.
 - The user approved phased full-MVP development and separate Claude frontend/Codex backend ownership. Application coding begins after the relevant phase plan is written.
+- Local Supabase project `vaultix` runs on API `55421`, DB `55422`, Studio `55423`, Mailpit `55424`; tests use synthetic accounts and never send real email.
+- Official institution email domains remain intentionally unseeded pending product approval; `example.test` was used only as a temporary local smoke fixture and is not part of migrations.
