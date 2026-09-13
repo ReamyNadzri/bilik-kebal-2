@@ -1,76 +1,145 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { SignInForm } from "./sign-in-form";
 
-function submit() {
-  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+const push = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+}));
+
+function fill(label: RegExp, value: string) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
-test("asks for an email address and a password", () => {
-  render(<SignInForm />);
+function submit() {
+  fireEvent.click(screen.getByRole("button", { name: /Sign in/ }));
+}
 
-  expect(screen.getByLabelText(/Email address/)).toBeInTheDocument();
-  expect(screen.getByLabelText(/Password/)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+function credentials() {
+  fill(/Email address/, "student@example.edu.my");
+  fill(/Password/, "a-long-passphrase");
+}
+
+function respondWith(body: unknown, ok = true) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok, json: async () => body } as unknown as Response),
+  );
+}
+
+beforeEach(() => {
+  push.mockReset();
+  vi.unstubAllGlobals();
 });
 
-test("summarises both problems when the form is empty", () => {
+test("does not call the operation until the fields are present", () => {
+  const fetchSpy = vi.fn();
+  vi.stubGlobal("fetch", fetchSpy);
+
   render(<SignInForm />);
   submit();
+
+  expect(fetchSpy).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert")).toHaveTextContent("There is a problem");
+});
+
+test("posts the credentials to the sign-in operation", async () => {
+  respondWith({ ok: true, data: { next: "profile" } });
+
+  render(<SignInForm />);
+  credentials();
+  submit();
+
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+  const [path, init] = vi.mocked(fetch).mock.calls[0]!;
+  expect(path).toBe("/api/auth/sign-in");
+  expect(init?.method).toBe("POST");
+  expect(JSON.parse(String(init?.body))).toEqual({
+    email: "student@example.edu.my",
+    password: "a-long-passphrase",
+  });
+});
+
+test("moves to the profile once the operation succeeds", async () => {
+  respondWith({ ok: true, data: { next: "profile" } });
+
+  render(<SignInForm />);
+  credentials();
+  submit();
+
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/profile"));
+});
+
+test("shows the operation's own message when credentials are refused", async () => {
+  respondWith({
+    ok: false,
+    code: "INVALID_CREDENTIALS",
+    message: "That email address and password do not match an account.",
+  });
+
+  render(<SignInForm />);
+  credentials();
+  submit();
+
+  await waitFor(() => expect(screen.getByText("You were not signed in")).toBeInTheDocument());
+  expect(
+    screen.getByText("That email address and password do not match an account."),
+  ).toBeInTheDocument();
+  expect(push).not.toHaveBeenCalled();
+});
+
+test("routes an unverified email to the verification screen instead of a field error", async () => {
+  respondWith({
+    ok: false,
+    code: "EMAIL_NOT_VERIFIED",
+    message: "Confirm your email address before signing in.",
+  });
+
+  render(<SignInForm />);
+  credentials();
+  submit();
+
+  await waitFor(() =>
+    expect(screen.getByText("Confirm your email address first")).toBeInTheDocument(),
+  );
+  expect(screen.getByRole("link", { name: "Resend the verification link" })).toHaveAttribute(
+    "href",
+    "/verify-email",
+  );
+});
+
+test("attaches the operation's field errors to their fields", async () => {
+  respondWith({
+    ok: false,
+    code: "VALIDATION_ERROR",
+    message: "Check the highlighted fields and try again.",
+    fieldErrors: { email: ["That is not a valid email address."] },
+  });
+
+  render(<SignInForm />);
+  credentials();
+  submit();
+
+  await waitFor(() =>
+    expect(document.getElementById("email-error")).toHaveTextContent(
+      "That is not a valid email address.",
+    ),
+  );
 
   const summary = screen.getByRole("alert");
-  const links = within(within(summary).getByRole("list")).getAllByRole("link");
-
-  expect(links).toHaveLength(2);
-  expect(links[0]).toHaveAttribute("href", "#email");
-  expect(links[1]).toHaveAttribute("href", "#password");
+  expect(within(summary).getByRole("link")).toHaveAttribute("href", "#email");
 });
 
-test("marks the failing fields invalid and describes each one", () => {
+test("reports an unreachable server as offline rather than as a refusal", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
   render(<SignInForm />);
+  credentials();
   submit();
 
-  const email = screen.getByLabelText(/Email address/);
-
-  expect(email).toHaveAttribute("aria-invalid", "true");
-  expect(email.getAttribute("aria-describedby")).toContain("email-error");
-
-  // The message appears twice by design — once in the summary, once beside the
-  // field — so assert on the field's own error element rather than by text.
-  expect(document.getElementById("email-error")).toHaveTextContent("Enter your email address.");
-  expect(document.getElementById("password-error")).toHaveTextContent("Enter your password.");
-});
-
-test("moves focus to the summary so the problem is not missed", () => {
-  render(<SignInForm />);
-  submit();
-
-  expect(screen.getByRole("alert")).toHaveFocus();
-});
-
-test("clears the summary once the fields are filled", () => {
-  render(<SignInForm />);
-  submit();
-  expect(screen.getByRole("alert")).toBeInTheDocument();
-
-  fireEvent.change(screen.getByLabelText(/Email address/), {
-    target: { value: "student@uitm.edu.my" },
-  });
-  fireEvent.change(screen.getByLabelText(/Password/), { target: { value: "a-long-passphrase" } });
-  submit();
-
-  expect(screen.queryByText("Enter your email address.")).not.toBeInTheDocument();
-});
-
-test("says no account is signed in because no backend is connected", () => {
-  render(<SignInForm />);
-
-  fireEvent.change(screen.getByLabelText(/Email address/), {
-    target: { value: "student@uitm.edu.my" },
-  });
-  fireEvent.change(screen.getByLabelText(/Password/), { target: { value: "a-long-passphrase" } });
-  submit();
-
-  expect(screen.getByRole("status")).toHaveTextContent(/not connected/i);
+  await waitFor(() => expect(screen.getByText("Offline")).toBeInTheDocument());
+  expect(push).not.toHaveBeenCalled();
 });
 
 test("offers recovery and registration routes", () => {

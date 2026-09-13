@@ -36,7 +36,7 @@ test.describe("authentication forms", () => {
     await page.setViewportSize(NARROW);
     await gotoHydrated(page, "/sign-in");
 
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: /Sign in/ }).click();
 
     const summary = errorSummary(page);
     await expect(summary).toBeVisible();
@@ -46,7 +46,7 @@ test.describe("authentication forms", () => {
 
   test("a summary link moves the caret to the field that failed", async ({ page }) => {
     await gotoHydrated(page, "/sign-in");
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: /Sign in/ }).click();
 
     await page.getByRole("link", { name: "Enter your password." }).click();
 
@@ -55,7 +55,7 @@ test.describe("authentication forms", () => {
 
   test("the failing field is marked invalid and describes its error", async ({ page }) => {
     await gotoHydrated(page, "/sign-in");
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: /Sign in/ }).click();
 
     const email = page.getByLabel(/Email address/);
 
@@ -67,7 +67,7 @@ test.describe("authentication forms", () => {
     await page.setViewportSize(NARROW);
     await gotoHydrated(page, "/sign-in");
 
-    const submit = page.getByRole("button", { name: "Sign in" });
+    const submit = page.getByRole("button", { name: /Sign in/ });
 
     for (let press = 0; press < 15; press += 1) {
       await page.keyboard.press("Tab");
@@ -81,16 +81,31 @@ test.describe("authentication forms", () => {
     throw new Error("Sign in button was not reachable within 15 tab presses");
   });
 
-  test("recovery does not disclose whether an account exists", async ({ page }) => {
+  // Runs without a configured Supabase, so recovery reaches the operation and
+  // is refused. What matters here is that neither outcome echoes the address
+  // back or says whether an account exists.
+  test("recovery never echoes the address, whatever the outcome", async ({ page }) => {
     await gotoHydrated(page, "/recover");
 
-    await page.getByLabel(/Email address/).fill("student@uitm.edu.my");
-    await page.getByRole("button", { name: "Send recovery link" }).click();
+    await page.getByLabel(/Email address/).fill("student@example.edu.my");
+    await page.getByRole("button", { name: /Send recovery link/ }).click();
 
-    const result = page.getByRole("status");
+    const outcome = page.locator(".ui-status");
 
-    await expect(result).toContainText("If an account exists");
-    await expect(result).not.toContainText("student@uitm.edu.my");
+    await expect(outcome).toBeVisible();
+    await expect(outcome).not.toContainText("student@example.edu.my");
+  });
+
+  test("the app degrades safely with no Supabase configured", async ({ page }) => {
+    await gotoHydrated(page, "/sign-in");
+
+    await page.getByLabel(/Email address/).fill("student@example.edu.my");
+    await page.getByLabel(/Password/).fill("a-long-passphrase");
+    await page.getByRole("button", { name: /Sign in/ }).click();
+
+    // Refused or unavailable, but never a crash and never a signed-in state.
+    await expect(page.locator(".ui-status")).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/sign-in");
   });
 
   test("registration rejects a mismatched confirmation", async ({ page }) => {
@@ -100,15 +115,8 @@ test.describe("authentication forms", () => {
     await page.getByLabel(/^Email address/).fill("student@uitm.edu.my");
     await page.getByLabel(/^Password/).fill("a-long-enough-passphrase");
     await page.getByLabel(/^Confirm password/).fill("a-different-passphrase");
-    await page.getByRole("button", { name: "Create account" }).click();
+    await page.getByRole("button", { name: /Create account/ }).click();
 
     await expect(page.locator("#confirm-password-error")).toContainText("does not match");
-  });
-
-  test("every auth screen is marked as fixture data", async ({ page }) => {
-    for (const path of ["/sign-in", "/sign-up", "/recover"]) {
-      await page.goto(path);
-      await expect(page.getByRole("note")).toContainText("Development only");
-    }
   });
 });

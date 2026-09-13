@@ -1,25 +1,35 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { UiStatus } from "./ui-status";
+import type { IdentityOperationCode, RegistrationResult } from "@/contracts";
+import { callOperation } from "@/features/presentation/call-operation";
+import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
 const MINIMUM_PASSWORD_LENGTH = 12;
 
+type Outcome =
+  | { kind: "idle" }
+  | { kind: "submitting" }
+  | { kind: "refused"; code: IdentityOperationCode; message: string };
+
 /**
- * Registration presentation.
+ * Registration, wired to POST /api/auth/sign-up.
  *
- * Fixture-only: presence, length and confirmation checks are presentational so
- * the states are reviewable. It creates no account and sends no email. The
- * copy states the product rule that an account alone does not permit
- * transacting — institution verification is a separate trust state.
+ * On success the operation answers `next: "verify_email"`, so the screen sends
+ * the user there rather than implying an account is ready to use. Creating an
+ * account grants neither the star emblem nor the right to transact —
+ * institution verification is a separate trust state.
  */
 export function SignUpForm() {
+  const router = useRouter();
   const [errors, setErrors] = useState<FieldError[]>([]);
-  const [attempted, setAttempted] = useState(false);
+  const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const summaryRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
 
@@ -29,15 +39,20 @@ export function SignUpForm() {
     }
   }, [errors]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
+    const displayName = String(form.get("display-name") ?? "").trim();
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const confirmation = String(form.get("confirm-password") ?? "");
 
     const found: FieldError[] = [];
+
+    if (displayName === "") {
+      found.push({ fieldId: "display-name", message: "Enter the name other students will see." });
+    }
 
     if (email === "") {
       found.push({ fieldId: "email", message: "Enter your email address." });
@@ -61,12 +76,40 @@ export function SignUpForm() {
       });
     }
 
-    setErrors(found);
-    setAttempted(true);
+    if (found.length > 0) {
+      setErrors(found);
+      setOutcome({ kind: "idle" });
+      return;
+    }
+
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
+
+    const result = (await callOperation<{ next: "verify_email" }, IdentityOperationCode>(
+      "/api/auth/sign-up",
+      { displayName, email, password },
+      "AUTH_UNAVAILABLE",
+    )) as RegistrationResult;
+
+    if (result.ok) {
+      router.push("/verify-email");
+      return;
+    }
+
+    const mapped = Object.entries(result.fieldErrors ?? {}).flatMap(([fieldId, messages]) =>
+      messages.map((message) => ({ fieldId, message })),
+    );
+
+    setErrors(mapped);
+    setOutcome({
+      kind: "refused",
+      code: result.code,
+      message: result.message === "" ? IDENTITY_MESSAGE[result.code] : result.message,
+    });
   }
 
   const errorFor = (fieldId: string) => errors.find((error) => error.fieldId === fieldId)?.message;
-  const submittedCleanly = attempted && errors.length === 0;
+  const submitting = outcome.kind === "submitting";
 
   return (
     <form
@@ -82,6 +125,25 @@ export function SignUpForm() {
         bounty, submitting a claim and downloading a resource each additionally require institution
         verification.
       </p>
+
+      {outcome.kind === "refused" && errors.length === 0 ? (
+        <UiStatus
+          kind={outcome.code === "AUTH_UNAVAILABLE" ? "offline" : "error"}
+          heading="No account was created"
+          message={outcome.message}
+        />
+      ) : null}
+
+      <FormField
+        id="display-name"
+        name="display-name"
+        type="text"
+        label="Display name"
+        hint="Shown to other students on your Wanted requests and claims."
+        autoComplete="nickname"
+        required
+        error={errorFor("display-name")}
+      />
 
       <FormField
         id="email"
@@ -114,17 +176,11 @@ export function SignUpForm() {
         error={errorFor("confirm-password")}
       />
 
-      <button className="auth-form__submit" type="submit">
-        Create account
+      <button className="auth-form__submit" type="submit" disabled={submitting}>
+        {submitting ? "Creating your account…" : "Create account"}
       </button>
 
-      {submittedCleanly ? (
-        <UiStatus
-          kind="offline"
-          heading="No account was created"
-          message="The form is valid, but this screen is not connected to a registration operation yet. No verification email was sent."
-        />
-      ) : null}
+      {submitting ? <UiStatus kind="loading" heading="Creating your account" /> : null}
 
       <p className="auth-form__links">
         <Link href="/sign-in">Already have an account?</Link>
