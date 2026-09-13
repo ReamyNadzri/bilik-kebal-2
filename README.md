@@ -81,13 +81,20 @@ Public uploads remain disabled until the isolated scanning worker and safe-previ
 
 ```text
 .
-|-- context/
+|-- context/                 # source-of-truth specification
 |   |-- ai-workflow-rules.md
 |   |-- architecture.md
 |   |-- code-standards.md
 |   |-- progress-tracker.md
 |   |-- project-overview.md
 |   `-- ui-context.md
+|-- docs/superpowers/        # MVP design, coordination and phase plans
+|-- src/
+|   |-- app/                 # routes, layouts, route handlers
+|   |-- components/          # product components
+|   |-- contracts/           # shared operation result contract
+|   |-- features/            # presentation-only modules
+|   `-- lib/config/          # validated server and public environment
 |-- BILIK KEBAL 2 by afes.pdf
 `-- README.md
 ```
@@ -105,15 +112,23 @@ The original internal proposal is available as [`BILIK KEBAL 2 by afes.pdf`](BIL
 
 ## Getting Started
 
-There is no runnable application yet. Before implementation:
+Requires Node.js 24 LTS and pnpm 11.3.0 (pinned through `packageManager`; enable it with `corepack enable`).
 
-1. Read [`project-overview.md`](context/project-overview.md).
-2. Review the critical open questions in [`progress-tracker.md`](context/progress-tracker.md).
-3. Confirm the architecture and invariants in [`architecture.md`](context/architecture.md).
-4. Incorporate the external visual design into [`ui-context.md`](context/ui-context.md).
-5. Approve a patch-by-patch implementation plan.
+```text
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm lint
+pnpm format:check
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
-Do not scaffold application code until the context set and implementation plan are approved.
+`pnpm test:watch` runs the unit suite in watch mode and `pnpm test:e2e` runs Playwright. CI runs the same lint, format, typecheck, test and build sequence on Node.js 24.
+
+Providers default to disabled: the application builds and runs with no payment credentials, and public uploads stay off until their launch gate passes.
+
+Before changing behaviour, read [`project-overview.md`](context/project-overview.md), [`architecture.md`](context/architecture.md), the current state in [`progress-tracker.md`](context/progress-tracker.md), and the phase plan under [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
 ## Critical Launch Gates
 

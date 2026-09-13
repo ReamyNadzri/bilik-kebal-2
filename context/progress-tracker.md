@@ -4,11 +4,11 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phased MVP design review and implementation-plan preparation.
+- Phase 1 Foundation implemented. Phase 2 Identity planning next.
 
 ## Current Goal
 
-- Review the written phased MVP design, then produce a task-by-task implementation plan for Claude Code or another agentic worker.
+- Merge the Phase 1 lanes, then write and approve the Phase 2 identity plan before any Supabase schema work.
 
 ## Completed
 
@@ -37,17 +37,22 @@ Update this file after every meaningful implementation or specification change.
 - Approved a `pnpm`-managed single Next.js App Router modular monolith with Supabase as the source of truth and provider integrations behind typed adapters.
 - Wrote `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` as the phased MVP design handoff.
 - Assigned the complete provisional MVP frontend to Claude Code and backend/infrastructure implementation to Codex, with separate worktrees and Codex-owned shared contracts.
+- **Phase 1 Task 1** — application baseline on `codex/backend` (`aa0ecda`): Next.js 16.3.5 App Router, React 19.3, TypeScript 6 strict, Tailwind 4.3, Vitest 5 + RTL, Playwright, Node 24 / pnpm 11.3.0 pins, Prettier and the `format` / `format:check` scripts.
+- **Phase 1 Task 2** — shared `OperationResult` contract with `success()` / `failure()` (`3da3016`).
+- **Phase 1 Task 3** — Zod-validated server and public environment boundaries (`16e1fa5`); `PAYMENT_MODE` defaults to `disabled`, `PUBLIC_UPLOADS_ENABLED` to `false`, and the public parser strips unknown keys so no server secret can reach the browser bundle.
+- **Phase 1 Task 4** — provisional accessible app shell on `codex/provisional-ui` (`7da61f0`): `AppShell` (skip link, `nav` labelled Primary, `main#main-content`), `UiStatus` across six states, presentation-only navigation module, and the provisional token layer with all thirteen required roles plus spacing, type, shape, elevation, focus and motion scales. All 23 colour pairings contrast-verified; recorded in `docs/superpowers/specs/2026-09-13-vaultix-provisional-ui.md`.
+- **Phase 1 Task 5** — CI workflow, contributor commands in `README.md`, and this tracker entry.
 
 ## In Progress
 
-- Preparation of coordinated frontend and backend implementation plans.
+- Merging `codex/provisional-ui` into `codex/backend` and then into `main`.
 
 ## Next Up
 
-1. Write and review the coordinated implementation plans in small vertical feature units.
-2. Initialise the repository/tooling and execute the plan phase by phase.
-4. Incorporate the external visual design handoff into `ui-context.md` when it is available.
-5. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
+1. Merge the Phase 1 lanes and confirm the gate passes on the merged tree.
+2. Write and approve `docs/superpowers/plans/2026-09-13-vaultix-identity.md` before any Supabase schema work.
+3. Incorporate the external visual design handoff into `ui-context.md` when it is available.
+4. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
 ## Open Questions
 
@@ -90,3 +95,7 @@ Update this file after every meaningful implementation or specification change.
 - `Live Limited` may use real ToyyibPay payments for controlled tester accounts, with RM1-RM50 contributions and no platform-wide daily cap.
 - Public upload remains disabled until a production scanning worker is available.
 - The user approved phased full-MVP development and separate Claude frontend/Codex backend ownership. Application coding begins after the relevant phase plan is written.
+- **Never run two agents in one checkout.** During Phase 1 both agents were active in `.worktrees/codex-backend`; the Claude lane overwrote five of Codex's untracked config files, which were unrecoverable because nothing was committed yet. Codex regenerated them. Verify the worktree is idle immediately before writing, not once at session start, and commit early so work is recoverable.
+- Codex completed Phase 1 Tasks 1-3 but hit a usage limit before running any `git commit`; the Claude lane finished the gate and committed all three on its behalf.
+- `.gitattributes` pins `eol=lf`. This machine has `core.autocrlf=true`, which checked out CRLF while Prettier expects LF, so `pnpm format:check` failed locally while CI would have passed.
+- `next dev` auto-generates `AGENTS.md` and an `@AGENTS.md` stub `CLAUDE.md` in whatever worktree it runs from. Do not commit that stub — it would overwrite the real project `CLAUDE.md` on merge.
