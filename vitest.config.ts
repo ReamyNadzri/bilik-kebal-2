@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    exclude: ["tests/e2e/**", "node_modules/**"],
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     // Domain and component tests live beside their source in src/.

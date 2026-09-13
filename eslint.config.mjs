@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     "test-results/**",
     ".worktrees/**",
+    "supabase/.branches/**",
+    "supabase/.temp/**",
   ]),
   {
     // Untrusted input is narrowed through validation, never through `any`.
