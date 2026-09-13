@@ -1,0 +1,16 @@
+.next
+out
+build
+coverage
+playwright-report
+test-results
+node_modules
+pnpm-lock.yaml
+.worktrees
+next-env.d.ts
+
+# Hand-authored source-of-truth documents are formatted by their authors,
+# not by a code formatter. See context/ai-workflow-rules.md.
+*.md
+context/
+docs/
