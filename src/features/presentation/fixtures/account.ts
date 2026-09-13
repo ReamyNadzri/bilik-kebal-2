@@ -50,3 +50,10 @@ export const APPROVED_INSTITUTION_DOMAINS: readonly string[] = [];
 export const VIEWER = {
   hasConsoleAccess: false,
 } as const;
+
+/**
+ * Address shown on the fixture verification screen. Deliberately an example
+ * domain: the approved institution domains are still an open question, and a
+ * realistic-looking one could be mistaken for a confirmed value.
+ */
+export const PENDING_VERIFICATION_ADDRESS = "student@example.edu.my";
