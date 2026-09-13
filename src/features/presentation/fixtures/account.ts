@@ -29,3 +29,13 @@ export const EMAIL_VERIFIED_ONLY: AccountFixture = {
     download: false,
   },
 };
+
+/**
+ * Approved institution email domains.
+ *
+ * Deliberately empty. "Confirm official UiTM email domains" is still an open
+ * question in context/progress-tracker.md, and the frontend must not present a
+ * guessed domain as an approved one. Populate this only from the reviewed
+ * configuration once that question is closed.
+ */
+export const APPROVED_INSTITUTION_DOMAINS: readonly string[] = [];
