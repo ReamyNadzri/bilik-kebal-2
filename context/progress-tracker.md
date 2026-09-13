@@ -55,22 +55,34 @@ Update this file after every meaningful implementation or specification change.
   (`d1f5d77`), `/profile/institution-verification` (`1f9d670`), role-aware navigation and the
   Sheriff Console landing (`102b7cb`), and `/verify-email` (`5633ed0`). Nine routes, 86 component
   tests and 29 Playwright UI tests.
+- **Identity read-contract gap analysis** — reviewed the published identity HTTP contract against
+  the four screens still carrying `FixtureNotice` and found every one of them blocked on a missing
+  read operation. Proposal written for Codex in
+  `docs/superpowers/specs/2026-09-14-vaultix-identity-read-contract.md`. No frontend code was
+  written, and no contract was forked.
 
 ## In Progress
 
-- Contract integration on `codex/integration-identity`: consume
-  `docs/integration/identity-http-contract.md` and replace each matching `FixtureNotice` flow with
-  the real route, one screen at a time.
+- Contract integration on `codex/integration-identity` is **blocked on the identity read contract**.
+  The authentication forms are connected (`f6f748d`, `17d47b7`), but `/profile`,
+  `/profile/institution-verification`, `/verify-email`, and `/console` cannot be connected, because
+  all nine published operations are `POST` mutations and none of them returns the trust state,
+  capabilities, institution list, console role, or review queue those screens render. The four
+  `FixtureNotice` markers stay until Codex publishes the reads proposed in
+  `docs/superpowers/specs/2026-09-14-vaultix-identity-read-contract.md`.
 
 ## Next Up
 
-1. Connect the authentication forms, then `/profile` and `/console`, then institution verification,
-   then `/verify-email` — each its own verifiable slice.
-2. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
+1. Codex implements the identity read contract (account view model, selectable institutions, Sheriff
+   review queue, reviewer evidence access, resend verification, and the `/verify-email` callback
+   redirect). Nothing else on the identity frontend can proceed first.
+2. Then connect `/profile`, institution verification, `/console`, and `/verify-email` — each its own
+   verifiable slice, each deleting its fixture and `FixtureNotice` in the same patch.
+3. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
    passing in CI.
-3. Write and review the Phase 3 Wanted/ledger plan after the identity journeys are accepted.
-4. Incorporate the external visual design handoff into `ui-context.md` when it is available.
-5. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
+4. Write and review the Phase 3 Wanted/ledger plan after the identity journeys are accepted.
+5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
+6. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
 ## Open Questions
 
@@ -129,3 +141,14 @@ Update this file after every meaningful implementation or specification change.
   elements in a Playwright strict-mode query.
 - Local Supabase project `vaultix` runs on API `55421`, DB `55422`, Studio `55423`, Mailpit `55424`; tests use synthetic accounts and never send real email.
 - Official institution email domains remain intentionally unseeded pending product approval; `example.test` was used only as a temporary local smoke fixture and is not part of migrations.
+- The published identity HTTP contract is **write-only**: all nine operations are `POST` mutations,
+  and the application's only `GET` is the Supabase OTP callback. A frontend screen cannot be
+  retired from its fixture by integration work alone if it renders state it cannot read. Check for
+  the read side of a contract before planning integration slices.
+- `ProfileReader` has no implementation because `ProfileRecord`'s four fields span four sources:
+  `public.profiles`, the session's `auth.users.email_confirmed_at`, `institution_memberships`, and
+  `account_restrictions`. It needs a composing reader in the identity module, not a table read.
+- `requestManualVerification` needs an `institutionId` UUID from the browser, and no operation
+  returns one — `verify-domain` supplies it only on success, which cannot happen while the domain
+  allowlist is empty. The evidence path is unreachable until an institution read exists. The UI must
+  not hardcode a UUID to work around this.
