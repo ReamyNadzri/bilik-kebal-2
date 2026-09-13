@@ -36,16 +36,16 @@ Update this file after every meaningful implementation or specification change.
 - Approved a six-phase full-MVP direction: Foundation; Identity and institution trust; Wanted marketplace and money; Claims and moderation; Fulfilment and operations; Hardening and controlled launch.
 - Approved a `pnpm`-managed single Next.js App Router modular monolith with Supabase as the source of truth and provider integrations behind typed adapters.
 - Wrote `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` as the phased MVP design handoff.
+- Assigned the complete provisional MVP frontend to Claude Code and backend/infrastructure implementation to Codex, with separate worktrees and Codex-owned shared contracts.
 
 ## In Progress
 
-- User review of `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` before the detailed implementation plan is written.
+- Preparation of coordinated frontend and backend implementation plans.
 
 ## Next Up
 
-1. Approve the written phased MVP design.
-2. Write and review the implementation plan in small vertical feature units.
-3. Initialise the repository/tooling and execute the plan phase by phase.
+1. Write and review the coordinated implementation plans in small vertical feature units.
+2. Initialise the repository/tooling and execute the plan phase by phase.
 4. Incorporate the external visual design handoff into `ui-context.md` when it is available.
 5. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
@@ -89,4 +89,4 @@ Update this file after every meaningful implementation or specification change.
 - The current approved storage choice is Supabase Storage. Cloudflare R2 is a future hybrid option, not a current dependency.
 - `Live Limited` may use real ToyyibPay payments for controlled tester accounts, with RM1-RM50 contributions and no platform-wide daily cap.
 - Public upload remains disabled until a production scanning worker is available.
-- The user approved phased full-MVP development. Application coding begins only after the written design and implementation plan have been reviewed.
+- The user approved phased full-MVP development and separate Claude frontend/Codex backend ownership. Application coding begins after the relevant phase plan is written.

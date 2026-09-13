@@ -2,7 +2,9 @@
 
 ## Ownership and Status
 
-The detailed visual system is owned by a separate designer and has not yet been delivered. Engineering must not invent final colours, typefaces, pixel assets, iconography, radii, or decorative treatments. This file records the approved product direction and the interface constraints that the design handoff must satisfy. Frontend implementation may begin with structural, accessible primitives only after the visual handoff is incorporated here.
+Claude Code owns a complete provisional frontend covering all MVP routes, flows, responsive layouts, accessibility states, and interaction states. The final visual system remains subject to a later approved design handoff. The provisional frontend must isolate temporary colours, typefaces, icons, radii, and decorative treatment behind semantic tokens so the final design can replace them without rewriting product components or business flows.
+
+Frontend implementation may proceed before the final visual handoff. Temporary visual choices are implementation aids, not approved brand assets. They must remain restrained, original, accessible, and clearly documented as provisional.
 
 ## Theme Direction
 
@@ -87,9 +89,19 @@ No component may hardcode a final colour value. Temporary development tokens mus
 - Safe document previews provide a text alternative or clear unsupported-preview message.
 - Verification stars, status badges, charts, and risk flags include text equivalents.
 
-## Visual Handoff Gate
+## Provisional Frontend Gate
 
-Before visual implementation is considered complete, the designated designer must provide and approve:
+Before a provisional MVP frontend unit is considered complete:
+
+1. All required success, empty, loading, validation, failure, restricted, expired, and offline states for that unit are represented.
+2. The flow works from 360 px upward and is operable by keyboard.
+3. Product components consume semantic tokens and do not hardcode final visual values.
+4. Money, policy, security, verification, moderation, and error information use clear English beside any themed terminology.
+5. Automated component or browser tests cover the unit's critical interaction and accessibility behaviour.
+
+## Final Visual Handoff Gate
+
+Before final visual implementation is considered complete, the designated designer must provide and approve:
 
 1. Colour tokens for light/dark behaviour, if more than one mode exists.
 2. Font files/licences and typography scale.

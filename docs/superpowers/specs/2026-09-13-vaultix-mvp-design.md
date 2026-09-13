@@ -1,7 +1,7 @@
 # VAULTIX Phased MVP Design
 
 **Date:** 2026-09-13  
-**Status:** Approved direction; written design awaiting final review  
+**Status:** Approved for phased implementation
 **Product scope:** Full UiTM-first VAULTIX MVP delivered in independently verifiable phases
 
 ## 1. Purpose
@@ -108,7 +108,7 @@ Tests that exercise a single domain live beside that domain. Shared test builder
 
 Create the reproducible application baseline: pinned Node and `pnpm` requirements, Next.js App Router, strict TypeScript, Tailwind, ESLint, formatting, Vitest, React Testing Library, Playwright, environment validation, semantic CSS variables, a minimal accessible shell, and continuous-integration commands.
 
-The shell uses neutral token values only. It must not invent the final brand treatment before the external visual handoff. Add server-only configuration boundaries that prevent secrets from being imported into Client Components.
+The shell uses provisional semantic token values only. Claude Code owns a complete provisional frontend across the MVP while Codex owns backend and infrastructure implementation. The provisional UI must cover real flows and states without treating temporary visual choices as final brand approval. Add server-only configuration boundaries that prevent secrets from being imported into Client Components.
 
 Phase acceptance:
 
@@ -183,7 +183,7 @@ Phase acceptance:
 
 Complete cross-domain E2E tests, accessibility verification, structured observability, reconciliation dashboards, provider health checks, backup/recovery documentation and drills, incident response, rate limits, security review, production configuration validation, and controlled live-limited payment readiness.
 
-Final visual tokens, assets, responsive states, and component designs are incorporated only from the approved external handoff. The original frontier theme must not imitate protected Red Dead Redemption assets or trade dress, and thematic presentation must not obscure money, policy, security, status, accessibility, or error information.
+Claude Code completes all MVP routes, responsive layouts, interaction states, and accessibility behaviour using provisional semantic tokens. Final visual tokens and assets are incorporated only from the approved external handoff. The original frontier theme must not imitate protected Red Dead Redemption assets or trade dress, and thematic presentation must not obscure money, policy, security, status, accessibility, or error information.
 
 Phase acceptance:
 
@@ -245,7 +245,7 @@ Safe defaults are:
 - payment mode `disabled`, with explicit sandbox enablement for local/test environments;
 - public uploads disabled;
 - synthetic scanner results restricted to automated tests and controlled fixtures;
-- neutral accessible visual tokens pending design handoff;
+- a complete provisional UI using neutral accessible semantic tokens pending final design handoff;
 - no automatic payout or refund execution;
 - UiTM taxonomy loaded from reviewed configuration rather than treated as authoritative until its maintainer and source are approved;
 - no public commercial launch on development-only hosting plans.
@@ -254,7 +254,7 @@ Safe defaults are:
 
 Each implementation unit starts with written acceptance criteria and ends by updating `context/progress-tracker.md`. Behavioural decisions update the owning context document in the same patch. Applied migrations remain immutable; corrections use new migrations.
 
-Claude Code or another implementing agent must read this design and all six context documents before executing the implementation plan. Implementation must follow the plan task by task, using small commits and stopping when a critical money, legal, privacy, ownership, public-exposure, irreversible-migration, or recurring-cost decision is unresolved.
+Claude Code and Codex must read this design and all six context documents before executing their assigned implementation plans. Claude Code owns provisional frontend routes, components, responsive behaviour, and frontend tests. Codex owns schemas, RLS, domain services, server operations, provider adapters, workers, audit, and backend tests. Codex publishes shared contracts before Claude integrates a flow. Both work in separate branches/worktrees, follow dependency order, use small commits, and stop when a critical money, legal, privacy, ownership, public-exposure, irreversible-migration, or recurring-cost decision is unresolved.
 
 ## 12. Completion Definition
 
