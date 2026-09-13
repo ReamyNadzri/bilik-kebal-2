@@ -84,3 +84,15 @@ test("reports that nothing was uploaded because no operation is connected", () =
   expect(screen.getByRole("status")).toHaveTextContent(/not connected/i);
   expect(screen.getByRole("status")).toHaveTextContent(/nothing was uploaded/i);
 });
+
+test("offers only the evidence types the upload operation accepts", () => {
+  render(<InstitutionVerification state="unverified" approvedDomains={[]} />);
+
+  const input = screen.getByLabelText(/Evidence/);
+
+  // The evidence allowlist is PDF, JPEG and PNG — narrower than the
+  // claim-upload allowlist, which also permits WEBP and Office formats.
+  expect(input).toHaveAttribute("accept", ".pdf,.jpg,.jpeg,.png");
+  expect(screen.getByText(/PDF, JPEG or PNG/)).toBeInTheDocument();
+  expect(screen.queryByText(/WEBP/i)).not.toBeInTheDocument();
+});

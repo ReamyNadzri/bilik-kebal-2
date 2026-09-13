@@ -22,6 +22,11 @@ export interface InstitutionVerificationProps {
 /**
  * Institution verification request presentation.
  *
+ * The evidence allowlist is PDF, JPEG and PNG, which is narrower than the
+ * claim-upload allowlist in context/project-overview.md. Offering a type the
+ * upload operation rejects would waste the user's attempt, so the two must not
+ * be conflated.
+ *
  * Fixture-only: it uploads nothing and decides nothing. Institution
  * verification is a trust state separate from email verification, and only a
  * Sheriff grants it (context/project-overview.md). The evidence route is
@@ -146,8 +151,8 @@ export function InstitutionVerification({
               name="evidence"
               type="file"
               label="Evidence of affiliation"
-              hint="A student card, enrolment letter or transcript. PDF, JPG, PNG or WEBP."
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              hint="A student card, enrolment letter or transcript. PDF, JPEG or PNG."
+              accept=".pdf,.jpg,.jpeg,.png"
               required
               error={errorFor("evidence")}
               onChange={(event: ChangeEvent<HTMLInputElement>) => {
