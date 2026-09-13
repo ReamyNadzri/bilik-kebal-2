@@ -4,11 +4,11 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Pre-implementation specification and context review.
+- Phased MVP design review and implementation-plan preparation.
 
 ## Current Goal
 
-- Review and approve the populated context set before writing an implementation plan or application code.
+- Review the written phased MVP design, then produce a task-by-task implementation plan for Claude Code or another agentic worker.
 
 ## Completed
 
@@ -33,17 +33,21 @@ Update this file after every meaningful implementation or specification change.
 - Assigned detailed visual design to a separate designer; recorded only product direction and accessibility constraints.
 - Populated all six context files. No application code or scaffold has been created.
 - Renamed the product identity from WANTED to VAULTIX while retaining `Wanted` as a marketplace feature term.
+- Approved a six-phase full-MVP direction: Foundation; Identity and institution trust; Wanted marketplace and money; Claims and moderation; Fulfilment and operations; Hardening and controlled launch.
+- Approved a `pnpm`-managed single Next.js App Router modular monolith with Supabase as the source of truth and provider integrations behind typed adapters.
+- Wrote `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` as the phased MVP design handoff.
 
 ## In Progress
 
-- User review of `project-overview.md`, `architecture.md`, `ui-context.md`, `code-standards.md`, `ai-workflow-rules.md`, and this tracker.
+- User review of `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` before the detailed implementation plan is written.
 
 ## Next Up
 
-1. Resolve the critical open decisions below.
-2. Incorporate the external visual design handoff into `ui-context.md`.
-3. Write and review the implementation plan in small vertical feature units.
-4. Initialise the repository/tooling only after explicit approval to begin implementation.
+1. Approve the written phased MVP design.
+2. Write and review the implementation plan in small vertical feature units.
+3. Initialise the repository/tooling and execute the plan phase by phase.
+4. Incorporate the external visual design handoff into `ui-context.md` when it is available.
+5. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
 ## Open Questions
 
@@ -79,10 +83,10 @@ Update this file after every meaningful implementation or specification change.
 
 ## Session Notes
 
-- The workspace is not currently a Git repository.
+- The workspace is a Git repository on `main`, tracking `origin/main` on GitLab.
 - The user authorised the assistant to choose safe non-critical technical defaults and only escalate critical product, money, legal, privacy, ownership, migration, or recurring-cost decisions.
 - The user wants patch-by-patch delivery and expects setup/navigation guidance for Supabase, Vercel, Cloudflare, Resend, and ToyyibPay when implementation begins.
 - The current approved storage choice is Supabase Storage. Cloudflare R2 is a future hybrid option, not a current dependency.
 - `Live Limited` may use real ToyyibPay payments for controlled tester accounts, with RM1-RM50 contributions and no platform-wide daily cap.
 - Public upload remains disabled until a production scanning worker is available.
-- Do not begin coding until the user explicitly approves the context and implementation plan.
+- The user approved phased full-MVP development. Application coding begins only after the written design and implementation plan have been reviewed.
