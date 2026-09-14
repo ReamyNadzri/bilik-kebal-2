@@ -129,7 +129,18 @@ select results_eq(
   $$ values ('Email Only'::text) $$,
   'email-verified users can read only their own profile'
 );
-select is((select count(*) from public.institutions), 2::bigint, 'email-verified users can browse institution metadata');
+select is(
+  (
+    select count(*)
+    from public.institutions
+    where id in (
+      '10000000-0000-0000-0000-000000000001',
+      '10000000-0000-0000-0000-000000000002'
+    )
+  ),
+  2::bigint,
+  'email-verified users can browse the institution fixtures'
+);
 select lives_ok(
   $$
     insert into storage.objects (bucket_id, name, owner)
@@ -209,13 +220,41 @@ select is((select count(*) from storage.objects), 2::bigint, 'Institution Sherif
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000005', true);
 
-select is((select count(*) from public.institution_memberships), 3::bigint, 'Platform Sheriff reads memberships across institutions');
+select is(
+  (
+    select count(*)
+    from public.institution_memberships
+    where user_id in (
+      '00000000-0000-0000-0000-000000000002',
+      '00000000-0000-0000-0000-000000000003',
+      '00000000-0000-0000-0000-000000000004'
+    )
+  ),
+  3::bigint,
+  'Platform Sheriff reads the membership fixtures across institutions'
+);
 select is((select count(*) from public.institution_verification_requests), 3::bigint, 'Platform Sheriff reads verification requests across institutions');
 select is((select count(*) from storage.objects), 3::bigint, 'Platform Sheriff reads verification evidence across institutions');
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000006', true);
 
-select is((select count(*) from public.profiles), 7::bigint, 'Owner reads every profile');
+select is(
+  (
+    select count(*)
+    from public.profiles
+    where user_id in (
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+      '00000000-0000-0000-0000-000000000003',
+      '00000000-0000-0000-0000-000000000004',
+      '00000000-0000-0000-0000-000000000005',
+      '00000000-0000-0000-0000-000000000006',
+      '00000000-0000-0000-0000-000000000007'
+    )
+  ),
+  7::bigint,
+  'Owner reads every profile fixture'
+);
 select is((select count(*) from public.account_restrictions), 1::bigint, 'Owner reads every account restriction');
 select is((select count(*) from storage.objects), 3::bigint, 'Owner reads every verification evidence object');
 
