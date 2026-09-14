@@ -418,6 +418,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      authorise_identity_evidence_read: {
+        Args: { target_request_id: string };
+        Returns: string;
+      };
       restrict_account: {
         Args: { reason_code: string; target_user_id: string };
         Returns: string;

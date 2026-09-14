@@ -4,9 +4,10 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 2 Identity backend complete on `codex/backend` (`175bc41`). The provisional Identity
-  frontend is complete on `codex/provisional-ui` (`b17490f`). Integration is under way on
-  `codex/integration-identity`; `codex/provisional-ui` is pinned at `b17490f` by the user.
+- Phase 2 Identity backend complete on `codex/backend` (`6433239`), including all six read-contract
+  operations. The provisional Identity frontend is complete on `codex/provisional-ui` (`b17490f`).
+  Integration is under way on `codex/integration-identity`; `codex/provisional-ui` is pinned at
+  `b17490f` by the user.
 
 ## Current Goal
 
@@ -72,6 +73,9 @@ Update this file after every meaningful implementation or specification change.
   read operation. Proposal written for Codex in
   `docs/superpowers/specs/2026-09-14-vaultix-identity-read-contract.md`. No frontend code was
   written, and no contract was forked.
+- **Phase 2 read contract** (`6433239`) — the six Identity read-contract operations: account view,
+  selectable institutions, scoped Sheriff queue, audited evidence read URL, verification resend, and
+  explicit callback outcomes.
 
 ## In Progress
 

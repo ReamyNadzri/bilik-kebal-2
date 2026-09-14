@@ -72,9 +72,23 @@ test.describe("local Supabase identity flow", () => {
       code: "EMAIL_NOT_VERIFIED",
     });
 
+    const rateLimitedResend = await request.post("/api/auth/resend-verification", { data: {} });
+    expect(rateLimitedResend.status()).toBe(429);
+    await expect(rateLimitedResend.json()).resolves.toMatchObject({
+      ok: false,
+      code: "AUTH_RATE_LIMITED",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+    const resend = await request.post("/api/auth/resend-verification", { data: {} });
+    expect(resend.status()).toBe(202);
+    await expect(resend.json()).resolves.toMatchObject({
+      ok: true,
+      data: { accepted: true },
+    });
+
     const confirmationUrl = await confirmationUrlFor(request, email);
     const confirmation = await request.get(confirmationUrl);
-    expect(confirmation.ok()).toBe(true);
+    expect(confirmation.url()).toContain("/verify-email?status=verified");
 
     const signIn = await request.post("/api/auth/sign-in", {
       data: { email, password },
@@ -117,6 +131,13 @@ test.describe("local Supabase identity flow", () => {
         signedUrl: expect.any(String),
         token: expect.any(String),
       },
+    });
+
+    const queue = await request.get("/api/identity/verification-requests?state=pending");
+    expect(queue.status()).toBe(403);
+    await expect(queue.json()).resolves.toMatchObject({
+      ok: false,
+      code: "NOT_AUTHORIZED",
     });
   });
 });

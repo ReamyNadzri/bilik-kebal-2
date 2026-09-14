@@ -10,7 +10,11 @@ export type {
   InstitutionVerificationState,
 } from "./domain/trust-state";
 export { ProfileRepository } from "./repositories/profile-repository";
-export { loadAccountViewModel, loadSelectableInstitutions } from "./loaders/identity-read";
+export {
+  loadAccountViewModel,
+  loadSelectableInstitutions,
+  loadVerificationReviewQueue,
+} from "./loaders/identity-read";
 export type {
   ProfileReader,
   ProfileRecord,

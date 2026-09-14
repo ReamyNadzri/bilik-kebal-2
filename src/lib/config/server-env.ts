@@ -17,6 +17,7 @@ const serverSchema = z.object({
   TOYYIBPAY_SANDBOX_SECRET: z.string().min(1).optional(),
   TOYYIBPAY_LIVE_SECRET: z.string().min(1).optional(),
   LIVE_TESTER_ALLOWLIST: z.string().min(1).optional(),
+  IDENTITY_PENDING_COOKIE_SECRET: z.string().min(32).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
@@ -38,4 +39,11 @@ export function parseServerEnv(input: Record<string, unknown>): ServerEnv {
   }
 
   return parsed;
+}
+
+export function getIdentityPendingCookieSecret(input: Record<string, unknown>): string {
+  const env = parseServerEnv(input);
+  if (env.IDENTITY_PENDING_COOKIE_SECRET) return env.IDENTITY_PENDING_COOKIE_SECRET;
+  if (env.NODE_ENV !== "production") return "vaultix-local-pending-cookie-secret";
+  throw new Error("IDENTITY_PENDING_COOKIE_SECRET is required in production");
 }

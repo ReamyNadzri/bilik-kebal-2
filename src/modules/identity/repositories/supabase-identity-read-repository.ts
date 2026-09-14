@@ -1,10 +1,18 @@
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { AccountViewModel, InstitutionOption } from "@/contracts/identity";
+import type {
+  AccountViewModel,
+  InstitutionOption,
+  VerificationQueueItem,
+} from "@/contracts/identity";
 import type { Database } from "@/lib/supabase/database.types";
 
 import type { AccountRecord } from "../services/account-view-service";
+import type {
+  EvidenceAuthorisation,
+  EvidenceReadRepository,
+} from "../services/review-read-service";
 
 export class IdentityReadError extends Error {
   constructor() {
@@ -13,7 +21,7 @@ export class IdentityReadError extends Error {
   }
 }
 
-export class SupabaseIdentityReadRepository {
+export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
   constructor(private readonly client: SupabaseClient<Database>) {}
 
   async readAccount(user: User): Promise<AccountRecord | null> {
@@ -116,5 +124,67 @@ export class SupabaseIdentityReadRepository {
     }
 
     return result.data;
+  }
+
+  async listPendingVerificationRequests(): Promise<VerificationQueueItem[]> {
+    const requests = await this.client
+      .from("institution_verification_requests")
+      .select("id, user_id, institution_id, state, created_at, evidence_delete_after")
+      .eq("state", "pending")
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    if (requests.error) {
+      throw new IdentityReadError();
+    }
+
+    const userIds = [...new Set(requests.data.map(({ user_id }) => user_id))];
+    const institutionIds = [...new Set(requests.data.map(({ institution_id }) => institution_id))];
+    const [profiles, institutions] = await Promise.all([
+      userIds.length
+        ? this.client.from("profiles").select("user_id, display_name").in("user_id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+      institutionIds.length
+        ? this.client.from("institutions").select("id, name").in("id", institutionIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (profiles.error || institutions.error) {
+      throw new IdentityReadError();
+    }
+
+    const namesByUser = new Map(profiles.data.map((row) => [row.user_id, row.display_name]));
+    const namesByInstitution = new Map(institutions.data.map((row) => [row.id, row.name]));
+
+    return requests.data.map((request) => ({
+      applicantDisplayName: namesByUser.get(request.user_id) ?? "Unknown applicant",
+      evidenceDeleteAfter: request.evidence_delete_after,
+      institutionId: request.institution_id,
+      institutionName: namesByInstitution.get(request.institution_id) ?? "Unknown institution",
+      requestId: request.id,
+      state: request.state,
+      submittedAt: request.created_at,
+    }));
+  }
+
+  async authoriseEvidenceRead(input: {
+    actorUserId: string;
+    requestId: string;
+  }): Promise<EvidenceAuthorisation> {
+    void input.actorUserId;
+    const result = await this.client.rpc("authorise_identity_evidence_read", {
+      target_request_id: input.requestId,
+    });
+
+    if (!result.error && result.data) {
+      return { objectPath: result.data, status: "authorised" };
+    }
+
+    const message = result.error?.message ?? "";
+    if (message.includes("EVIDENCE_EXPIRED")) return { status: "expired" };
+    if (message.includes("NOT_AUTHORIZED")) return { status: "not_authorized" };
+    if (message.includes("RECENT_AUTH_REQUIRED")) return { status: "recent_auth_required" };
+    if (message.includes("REQUEST_NOT_FOUND")) return { status: "not_found" };
+    throw new IdentityReadError();
   }
 }

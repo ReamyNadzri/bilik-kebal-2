@@ -12,6 +12,7 @@ export type IdentityOperationCode =
 export type VerificationOperationCode =
   | IdentityOperationCode
   | "DOMAIN_NOT_APPROVED"
+  | "EVIDENCE_EXPIRED"
   | "EVIDENCE_UPLOAD_UNAVAILABLE"
   | "NOT_AUTHORIZED"
   | "RECENT_AUTH_REQUIRED"
@@ -24,6 +25,8 @@ export type RegistrationResult = OperationResult<{ next: "verify_email" }, Ident
 export type SignInResult = OperationResult<{ next: "profile" }, IdentityOperationCode>;
 
 export type PasswordRecoveryResult = OperationResult<{ accepted: true }, IdentityOperationCode>;
+
+export type ResendVerificationResult = OperationResult<{ accepted: true }, IdentityOperationCode>;
 
 export type SignOutResult = OperationResult<{ signedOut: true }, "AUTH_UNAVAILABLE">;
 
@@ -81,6 +84,32 @@ export interface InstitutionOption {
 export type InstitutionOptionsResult = OperationResult<
   InstitutionOption[],
   "AUTH_REQUIRED" | "AUTH_UNAVAILABLE" | "EMAIL_NOT_VERIFIED"
+>;
+
+export interface VerificationQueueItem {
+  requestId: string;
+  institutionId: string;
+  institutionName: string;
+  applicantDisplayName: string;
+  state: "pending" | "approved" | "rejected";
+  submittedAt: string;
+  evidenceDeleteAfter: string;
+}
+
+export type VerificationQueueResult = OperationResult<
+  VerificationQueueItem[],
+  "AUTH_REQUIRED" | "AUTH_UNAVAILABLE" | "NOT_AUTHORIZED"
+>;
+
+export type EvidenceReadResult = OperationResult<
+  { signedUrl: string; expiresAt: string },
+  | "AUTH_REQUIRED"
+  | "AUTH_UNAVAILABLE"
+  | "EVIDENCE_EXPIRED"
+  | "NOT_AUTHORIZED"
+  | "RECENT_AUTH_REQUIRED"
+  | "REQUEST_NOT_FOUND"
+  | "VALIDATION_ERROR"
 >;
 
 export type ReviewVerificationResult = OperationResult<

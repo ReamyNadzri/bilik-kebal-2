@@ -21,6 +21,11 @@ export interface SupabaseAuthClient {
     email: string,
     options: { redirectTo: string },
   ): Promise<SupabaseAuthResponse>;
+  resend(input: {
+    email: string;
+    options: { emailRedirectTo: string };
+    type: "signup";
+  }): Promise<SupabaseAuthResponse>;
   signOut(): Promise<SupabaseAuthResponse>;
 }
 
@@ -79,6 +84,19 @@ export class SupabaseAuthGateway implements AuthGateway {
   }): Promise<AuthGatewayResult> {
     return toResult(
       await this.auth.resetPasswordForEmail(input.email, { redirectTo: input.redirectTo }),
+    );
+  }
+
+  async resendVerification(input: {
+    email: string;
+    emailRedirectTo: string;
+  }): Promise<AuthGatewayResult> {
+    return toResult(
+      await this.auth.resend({
+        email: input.email,
+        options: { emailRedirectTo: input.emailRedirectTo },
+        type: "signup",
+      }),
     );
   }
 
