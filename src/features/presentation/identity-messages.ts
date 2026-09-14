@@ -18,6 +18,8 @@ export const IDENTITY_MESSAGE: Record<VerificationOperationCode, string> = {
   VALIDATION_ERROR: "Check the highlighted fields and try again.",
   DOMAIN_NOT_APPROVED:
     "That email domain is not on the approved list, so a Sheriff must review your evidence.",
+  EVIDENCE_EXPIRED:
+    "That evidence has passed its retention period and has been deleted, so it can no longer be opened.",
   EVIDENCE_UPLOAD_UNAVAILABLE: "Evidence uploads are unavailable right now. Try again shortly.",
   NOT_AUTHORIZED: "Your account does not have permission for that action.",
   RECENT_AUTH_REQUIRED: "Sign in again to confirm it is you before continuing.",

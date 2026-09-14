@@ -76,23 +76,28 @@ Update this file after every meaningful implementation or specification change.
 - **Phase 2 read contract** (`6433239`) — the six Identity read-contract operations: account view,
   selectable institutions, scoped Sheriff queue, audited evidence read URL, verification resend, and
   explicit callback outcomes.
+- **Slice 2: `/profile/institution-verification` connected** — the screen loads the real institution
+  options and account state through `loadSelectableInstitutions` and `loadAccountViewModel`, runs the
+  automatic domain check, and completes the evidence sequence: signed upload URL, direct `PUT` to
+  storage, then the verification request. Its fixture and `FixtureNotice` are gone, leaving only
+  `/console` and `/verify-email`. `EMAIL_VERIFIED_ONLY` and `APPROVED_INSTITUTION_DOMAINS` were
+  deleted with the screen that used them.
 
 ## In Progress
 
-- Contract integration on `codex/integration-identity`. Codex published read contract 4.1 and 4.2 in
-  `57b11b9`, merged here as `2a91d7f`. Slice 1 (`/profile`) is complete. Slice 2
-  (`/profile/institution-verification`) is unblocked and next: 4.2 supplied the `institutionId`
-  source it was missing, and its three write operations have existed since `175bc41`.
-- Still blocked on Codex: read contract 4.3 (Sheriff review queue), 4.4 (reviewer evidence access),
-  4.5 (resend verification), and 4.6 (route the callback outcome to `/verify-email`). `/console` and
-  `/verify-email` keep their `FixtureNotice` until those land.
+- Contract integration on `codex/integration-identity`. The whole identity read contract is now
+  published (`57b11b9`, `6433239`) and merged here (`2a91d7f`, `06a1b01`). Slices 1 and 2 are
+  complete, so `/profile` and `/profile/institution-verification` run on real operations.
+- Nothing is blocked on Codex any more. Slice 3 (`/verify-email`, using the resend operation and the
+  callback outcomes) and Slice 4 (`/console`, using the scoped review queue and the audited evidence
+  read URL) are both ready to start. Those two screens keep their `FixtureNotice` until then.
 
 ## Next Up
 
-1. Slice 2: connect `/profile/institution-verification` — institution select from read contract 4.2,
-   automatic domain check, then the signed upload sequence. Unblocked now.
-2. Codex implements the remaining read contract: 4.3 review queue, 4.4 reviewer evidence access,
-   4.5 resend verification, 4.6 callback redirect. Slices 3 and 4 wait on these.
+1. Slice 3: connect `/verify-email` — wire the resend operation, keep deriving the outcome from the
+   query string, and keep an unknown value falling back to waiting rather than success.
+2. Slice 4: connect `/console` — the role-scoped review queue, the audited evidence viewer, and the
+   approve/reject decision with its reason code and confirmation.
 3. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
    passing in CI.
 4. Write and review the Phase 3 Wanted/ledger plan after the identity journeys are accepted.
@@ -160,6 +165,14 @@ Update this file after every meaningful implementation or specification change.
   elements in a Playwright strict-mode query.
 - Local Supabase project `vaultix` runs on API `55421`, DB `55422`, Studio `55423`, Mailpit `55424`; tests use synthetic accounts and never send real email.
 - Official institution email domains remain intentionally unseeded pending product approval; `example.test` was used only as a temporary local smoke fixture and is not part of migrations.
+- Supabase rate-limits outgoing mail per project, so end-to-end specs that register accounts compete
+  for one budget. Creating an account per test made `tests/e2e/identity/auth-flow.spec.ts` fail
+  intermittently when the suites ran in parallel; the UI specs now create one confirmed account per
+  gated group and sign in again for each test, which costs no email.
+- Running the Supabase-gated e2e specs locally needs both the stack up and a gitignored `.env.local`
+  holding `NEXT_PUBLIC_SUPABASE_URL`, the publishable key from `supabase status`, and
+  `IDENTITY_PENDING_COOKIE_SECRET`. Without it the dev server has no Supabase configuration and every
+  identity screen renders its unavailable state instead.
 - The published identity HTTP contract is **write-only**: all nine operations are `POST` mutations,
   and the application's only `GET` is the Supabase OTP callback. A frontend screen cannot be
   retired from its fixture by integration work alone if it renders state it cannot read. Check for
