@@ -2279,3 +2279,239 @@ a:hover {
     grid-column: 1 / -1;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Wanted creation workspace
+
+   An intake sheet: numbered sections on paper, each a block of the case file
+   rather than a row in a settings panel. The money section is the one that
+   raises its voice, and only on the review sheet.
+   -------------------------------------------------------------------------- */
+
+.draft-form__provenance {
+  margin-bottom: var(--space-5);
+  padding: var(--space-2) var(--space-3);
+  border-left: var(--border-width-3) solid var(--accent-brass-ink);
+  background: var(--bg-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.draft-form__section {
+  position: relative;
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  counter-increment: draft-section;
+}
+
+.draft-form {
+  counter-reset: draft-section;
+}
+
+.draft-form__section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-lg);
+}
+
+/* A brass index number per section: the case file's own numbering, and the
+   only decoration on the intake sheet. */
+.draft-form__section-heading::before {
+  content: counter(draft-section);
+  flex: 0 0 auto;
+  min-width: 1.75rem;
+  padding: 0 var(--space-2);
+  background: var(--bounty-plate-bg);
+  border: var(--border-width-1) solid var(--accent-brass);
+  border-radius: var(--radius-sm);
+  color: var(--bounty-value);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.draft-form__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 var(--space-5);
+}
+
+@media (min-width: 40rem) {
+  .draft-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Fields outside the two-column block keep a readable measure rather than
+   stretching the full width of the sheet. */
+.draft-form__section > .form-field {
+  max-width: 46rem;
+}
+
+.draft-form__textarea {
+  resize: vertical;
+  min-height: 7rem;
+}
+
+.draft-form__fieldset {
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  border: 0;
+}
+
+.draft-form__legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  font-weight: 600;
+}
+
+.draft-form__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+/* Each choice is its own hit area at least 44 px tall, so a thumb on a narrow
+   screen does not have to find a 16 px box. */
+.draft-form__choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.draft-form__choice:hover {
+  border-color: var(--accent-primary);
+}
+
+.draft-form__choice:has(input:checked) {
+  border-color: var(--accent-primary);
+  border-width: var(--border-width-2);
+  font-weight: 600;
+}
+
+.draft-form__amount {
+  max-width: 22rem;
+}
+
+.draft-form__amount-row {
+  display: flex;
+  align-items: stretch;
+}
+
+/* The unit sits outside the input so the typed value stays a plain number and
+   the field never has to parse a currency symbol. */
+.draft-form__currency {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-right: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: var(--bg-subtle);
+  font-weight: 700;
+}
+
+.draft-form__amount-row .form-field__input {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.draft-form__amount-echo {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.draft-form__policy {
+  margin-top: var(--space-4);
+}
+
+.draft-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+/* --------------------------------------------------------------------------
+   Review sheet
+   -------------------------------------------------------------------------- */
+
+.draft-review__panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+@media (min-width: 62rem) {
+  .draft-review__panels {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+}
+
+.draft-review__case {
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.draft-review__title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-2xl);
+}
+
+.draft-review__description {
+  margin-bottom: var(--space-4);
+}
+
+.draft-review__summary {
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-5);
+  margin-bottom: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.draft-review__summary dt {
+  font-size: var(--text-sm);
+}
+
+.draft-review__summary dd {
+  font-size: var(--text-base);
+}
+
+.draft-review__ledger {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.draft-review__duplicates,
+.draft-review__outcome {
+  margin-bottom: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: var(--border-width-1) solid var(--border-strong);
+}
+
+.draft-review__duplicates h3,
+.draft-review__outcome h3 {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-3);
+}

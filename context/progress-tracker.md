@@ -117,6 +117,11 @@ Update this file after every meaningful implementation or specification change.
 - The shell now carries two navigation landmarks — marketplace destinations and account utilities —
   plus the single `Post a Wanted` action. `main` became the parchment sheet, so the Phase 2 Identity
   screens inherit the theme without being edited.
+- `/wanted/new` is now a full creation workspace rather than a requirement explainer. It reads the
+  **real** `AccountViewModel` and gates the form on `capabilities.transact`, never on a trust state
+  recomputed in the browser; the trust states only choose the wording of the refusal. The form,
+  validation, review step and duplicate suggestions are frontend-only: nothing is persisted, and the
+  review step ends in a statement rather than a Publish, Pay or Save Draft control.
 
 ## Next Up
 
@@ -156,6 +161,39 @@ Update this file after every meaningful implementation or specification change.
   role assignment outside the database.
 - Define the final legal metadata-retention periods after professional review.
 
+## Wanted Creation Workspace — What Is Fixture-Backed
+
+Real on this screen: the identity read (`loadAccountViewModel`), and therefore every eligibility
+state — signed out, identity unavailable, email unverified, restricted, institution unverified,
+institution pending, and eligible.
+
+Fixture-backed, behind `src/features/marketplace/taxonomy-source.ts` and
+`duplicate-suggestions.ts`:
+
+- the campus, faculty, programme, course, session, resource-type, language and tag vocabularies;
+- the duplicate suggestions shown on the review step;
+- the Board records those suggestions link to.
+
+The taxonomy fixture states in its own copy that it is development data and not a reviewed
+institutional catalogue, and the screen carries a `FixtureNotice`. Nothing on this screen writes,
+and no draft, duplicate-check token, bill or payment exists.
+
+Known gaps recorded rather than worked around:
+
+- **No duplicate-check token.** The backend design issues a server token that the publication
+  request must carry, and fails with `DUPLICATE_CHECK_REQUIRED` without it. The frontend has no
+  equivalent and does not pretend to; suggestions here are advisory only.
+- **The eligible form cannot be browser-tested end to end.** It needs an institution-verified,
+  unrestricted session, and institution membership cannot be granted outside the database. The
+  Playwright suite therefore drives the workspace through a development-only harness at
+  `/wanted/new/preview`, and exercises the real `/wanted/new` for its refusal path. The harness
+  renders the not-found page in a production build — verified against a real `next start` server,
+  where every form control is absent — though Next serves that body with a 200 rather than a 404,
+  so the guarantee is the absent content, not the status line. Seeding a verified test identity is
+  a backend prerequisite before this harness can be deleted.
+- **The 10% platform fee shown on the review step is the product default**, not a snapshot. The
+  authoritative rate is snapshotted by the backend when a request is published.
+
 ## Backend Contracts the Marketplace Frontend Needs
 
 Recorded for Codex. Every marketplace screen reads through one replaceable seam,
@@ -175,6 +213,18 @@ component, and no permission is decided there.
    by default.
 6. A `next` parameter on `/sign-in`, so a protected action can return the reader to where they were.
    Until it exists, protected actions link plainly and say what they unlock.
+7. `ListTaxonomyResult` from `GET /api/marketplace/taxonomy`, carrying the campus, faculty,
+   programme, course, session, resource-type, language and tag vocabularies with the hierarchy the
+   database enforces, so the creation form can stop shipping its own options.
+8. `CreateWantedDraftInput` / `UpdateWantedDraftInput`, so the workspace can persist a draft instead
+   of holding it in component state.
+9. `SuggestWantedDuplicatesInput` and its server-issued token, so the review step performs the real
+   duplicate check rather than a frontend approximation.
+10. `PrepareWantedPublicationInput`, so the review step can end in a real action. While payment mode
+    is disabled it returns `PAYMENT_UNAVAILABLE`, which the screen should render as the honest
+    refusal it already describes.
+11. A seeded institution-verified, unrestricted test identity, so the eligible creation flow can be
+    covered by browser tests and `/wanted/new/preview` can be deleted.
 
 Until these land, every marketplace screen keeps its `FixtureNotice`. Relative times are measured
 against a fixed `FIXTURE_NOW`, which is deterministic and avoids a hydration mismatch; real closing
