@@ -82,21 +82,23 @@ Update this file after every meaningful implementation or specification change.
   storage, then the verification request. Its fixture and `FixtureNotice` are gone, leaving only
   `/console` and `/verify-email`. `EMAIL_VERIFIED_ONLY` and `APPROVED_INSTITUTION_DOMAINS` were
   deleted with the screen that used them.
+- **Slice 3: `/verify-email` connected** — the four callback outcomes are the real ones Codex routes
+  to, the address comes from the signed pending-verification cookie rather than a fixture, and
+  "Resend the link" calls the resend operation with no browser-chosen recipient. An unrecognised
+  `status` still falls back to waiting, never to success. Its `FixtureNotice` is gone, leaving only
+  `/console`, and `PENDING_VERIFICATION_ADDRESS` was deleted with it.
 
 ## In Progress
 
 - Contract integration on `codex/integration-identity`. The whole identity read contract is now
   published (`57b11b9`, `6433239`) and merged here (`2a91d7f`, `06a1b01`). Slices 1 and 2 are
   complete, so `/profile` and `/profile/institution-verification` run on real operations.
-- Nothing is blocked on Codex any more. Slice 3 (`/verify-email`, using the resend operation and the
-  callback outcomes) and Slice 4 (`/console`, using the scoped review queue and the audited evidence
-  read URL) are both ready to start. Those two screens keep their `FixtureNotice` until then.
+- Slice 3 is complete. Slice 4 (`/console`, using the scoped review queue, the audited evidence read
+  URL and the review decision) is the last one; `/console` keeps its `FixtureNotice` until then.
 
 ## Next Up
 
-1. Slice 3: connect `/verify-email` — wire the resend operation, keep deriving the outcome from the
-   query string, and keep an unknown value falling back to waiting rather than success.
-2. Slice 4: connect `/console` — the role-scoped review queue, the audited evidence viewer, and the
+1. Slice 4: connect `/console` — the role-scoped review queue, the audited evidence viewer, and the
    approve/reject decision with its reason code and confirmation.
 3. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
    passing in CI.

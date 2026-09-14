@@ -1,38 +1,105 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TrustBadge } from "./trust-badge";
 import { UiStatus } from "./ui-status";
+import type { IdentityOperationCode, ResendVerificationResult } from "@/contracts";
+import { callOperation } from "@/features/presentation/call-operation";
+import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 
 export type EmailVerificationStatus = "pending" | "verified" | "expired" | "invalid";
 
 export interface EmailVerificationProps {
   status: EmailVerificationStatus;
-  address: string;
+  /**
+   * The address awaiting confirmation, read server-side from the signed,
+   * HTTP-only pending-verification cookie. `null` when this browser holds no
+   * pending sign-up, in which case the resend operation has no recipient and
+   * is not offered.
+   */
+  address: string | null;
 }
 
+type Resend =
+  | { kind: "idle" }
+  | { kind: "sending" }
+  | { kind: "sent" }
+  | { kind: "failed"; code: IdentityOperationCode; message: string };
+
 /**
- * Email verification outcome presentation.
+ * Email verification outcome, and the resend operation.
  *
- * Fixture-only: it sends nothing and verifies nothing. Verifying an email
- * proves control of an address. It does not grant the star emblem and does not
- * permit transacting — institution verification is a separate trust state
- * (context/project-overview.md). Saying so here stops the success screen from
- * implying an access it did not grant.
+ * Verifying an email proves control of an address. It does not grant the star
+ * emblem and does not permit transacting — institution verification is a
+ * separate trust state (context/project-overview.md). Saying so on the success
+ * path stops it from implying an access it did not grant.
+ *
+ * The outcome arrives in the query string because the flow lands here from an
+ * emailed link; the page resolves it and an unrecognised value falls back to
+ * waiting, never to success.
  */
 export function EmailVerification({ status, address }: EmailVerificationProps) {
-  const [resendAttempted, setResendAttempted] = useState(false);
+  const [resend, setResend] = useState<Resend>({ kind: "idle" });
+  const [announcement, setAnnouncement] = useState("");
+  /**
+   * aria-disabled is advisory: it stops neither a click nor an Enter key, and
+   * repeat activations can arrive in one tick before React re-renders. The
+   * handler refuses the repeat itself.
+   */
+  const busyRef = useRef(false);
 
-  const canResend = status === "pending" || status === "expired";
+  const canResend = (status === "pending" || status === "expired") && address !== null;
+  const sending = resend.kind === "sending";
+
+  async function handleResend() {
+    if (busyRef.current) {
+      return;
+    }
+
+    busyRef.current = true;
+    setResend({ kind: "sending" });
+
+    try {
+      const result = (await callOperation<{ accepted: true }, IdentityOperationCode>(
+        "/api/auth/resend-verification",
+        {},
+        "AUTH_UNAVAILABLE",
+      )) as ResendVerificationResult;
+
+      if (result.ok) {
+        setResend({ kind: "sent" });
+        // Deliberately not the sentence shown on screen: a live region that
+        // repeats visible text is read twice.
+        setAnnouncement("Verification link sent.");
+        return;
+      }
+
+      setResend({
+        kind: "failed",
+        code: result.code,
+        message: result.message === "" ? IDENTITY_MESSAGE[result.code] : result.message,
+      });
+    } finally {
+      busyRef.current = false;
+    }
+  }
 
   return (
     <section className="email-verification">
+      <p className="visually-hidden" data-testid="resend-announcer" aria-live="polite">
+        {announcement}
+      </p>
+
       {status === "pending" ? (
         <UiStatus
           kind="offline"
           heading="Check your email"
-          message={`A verification link was sent to ${address}. Open it to confirm the address belongs to you.`}
+          message={
+            address === null
+              ? "Open the verification link that was emailed to you to confirm the address belongs to you."
+              : `A verification link was sent to ${address}. Open it to confirm the address belongs to you.`
+          }
         />
       ) : null}
 
@@ -40,7 +107,11 @@ export function EmailVerification({ status, address }: EmailVerificationProps) {
         <UiStatus
           kind="expired"
           heading="That verification link has expired"
-          message={`Request a new link for ${address}. The old one can no longer be used.`}
+          message={
+            address === null
+              ? "The old link can no longer be used. Create your account again to receive a new one."
+              : `Request a new link for ${address}. The old one can no longer be used.`
+          }
         />
       ) : null}
 
@@ -76,19 +147,36 @@ export function EmailVerification({ status, address }: EmailVerificationProps) {
           <button
             className="auth-form__submit"
             type="button"
-            onClick={() => setResendAttempted(true)}
+            onClick={handleResend}
+            aria-disabled={sending ? true : undefined}
           >
             Resend the link
           </button>
 
-          {resendAttempted ? (
+          {sending ? <UiStatus kind="loading" heading="Sending a new link" /> : null}
+
+          {resend.kind === "sent" ? (
+            <p className="email-verification__sent">
+              If that address still needs a link, one is on its way. Check your inbox and your spam
+              folder.
+            </p>
+          ) : null}
+
+          {resend.kind === "failed" ? (
             <UiStatus
-              kind="error"
-              heading="No email was sent"
-              message="This screen is not connected to a verification operation yet, so no message was delivered."
+              kind={resend.code === "AUTH_UNAVAILABLE" ? "offline" : "error"}
+              heading="No new link was sent"
+              message={resend.message}
             />
           ) : null}
         </>
+      ) : null}
+
+      {(status === "pending" || status === "expired") && address === null ? (
+        <p className="auth-form__links">
+          <Link href="/sign-up">Create an account</Link>
+          <Link href="/sign-in">Sign in</Link>
+        </p>
       ) : null}
     </section>
   );
