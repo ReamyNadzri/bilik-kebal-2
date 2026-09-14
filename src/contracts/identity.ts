@@ -42,6 +42,47 @@ export type EvidenceUploadResult = OperationResult<
   VerificationOperationCode
 >;
 
+export interface AccountViewModel {
+  displayName: string;
+  trust: {
+    email: "unverified" | "verified";
+    institution: "unverified" | "pending" | "verified" | "rejected";
+    restricted: boolean;
+  };
+  capabilities: {
+    browseMetadata: boolean;
+    transact: boolean;
+    submitClaim: boolean;
+    download: boolean;
+  };
+  institution: { id: string; name: string } | null;
+  latestVerificationRequest: {
+    requestId: string;
+    state: "pending" | "approved" | "rejected";
+    submittedAt: string;
+    decidedAt: string | null;
+    reasonCode: string | null;
+    evidenceDeleteAfter: string;
+  } | null;
+  console: { hasAccess: boolean };
+}
+
+export type AccountViewResult = OperationResult<
+  AccountViewModel,
+  "AUTH_REQUIRED" | "AUTH_UNAVAILABLE"
+>;
+
+export interface InstitutionOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export type InstitutionOptionsResult = OperationResult<
+  InstitutionOption[],
+  "AUTH_REQUIRED" | "AUTH_UNAVAILABLE" | "EMAIL_NOT_VERIFIED"
+>;
+
 export type ReviewVerificationResult = OperationResult<
   { status: "approved" | "rejected" },
   VerificationOperationCode
