@@ -13,34 +13,56 @@
    ========================================================================== */
 
 :root {
-  /* Surfaces */
-  --bg-base: #faf8f5;
-  --bg-surface: #ffffff;
-  --bg-subtle: #f1ede7;
+  /* Surfaces — the ground is dark timber and the content is paper laid on it.
+     See docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md §2.1. */
+  --bg-base: #211a14;
+  --bg-board: #493323;
+  --bg-canvas: #e9d8af;
+  --bg-surface: #fff8e8;
+  --bg-subtle: #dfcfa5;
 
   /* Text */
-  --text-primary: #1f1b16;
-  --text-muted: #5c544a;
-  --text-on-accent: #ffffff;
+  --text-primary: #211a14;
+  --text-muted: #655a4b;
+  --text-on-accent: #fff8e8;
+  --text-on-dark: #e9d8af;
+  --text-on-dark-muted: #c6b48c;
 
   /* Accents */
-  --accent-primary: #7a4e1d;
-  --accent-secondary: #2f5d50;
+  --accent-primary: #74421f;
+  --accent-primary-hover: #5c3417;
+  --accent-secondary: #135a56;
+  /* Brass is never text on a light ground: #b88a32 on paper is 2.95:1.
+     It marks rules and edges on dark surfaces; --accent-brass-ink carries
+     words on paper. */
+  --accent-brass: #b88a32;
+  --accent-brass-ink: #8a6620;
 
   /* Lines and focus */
-  --border-default: #c6bbaa;
-  --border-strong: #8e8272;
-  --focus-ring: #0f52d9;
+  --border-default: #8e7a5c;
+  --border-strong: #7d6a4f;
+  --border-subtle: #c4b18a;
+  /* No single hue clears 3:1 on both paper and timber, so focus is two bands:
+     the ring carries light grounds, the halo carries dark ones. */
+  --focus-ring: #1e63e6;
+  --focus-ring-contrast: #fff8e8;
 
   /* States */
-  --state-error: #b3261e;
-  --state-warning: #8a5300;
-  --state-success: #1b5e36;
+  --state-error: #8f2d27;
+  --state-warning: #7e4a00;
+  --state-success: #135a56;
   --state-info: #14557a;
 
-  /* Type families — display family deferred to the handoff */
+  /* Money */
+  --bounty-plate-bg: #211a14;
+  --bounty-value: #cfa043;
+
+  /* Type families — a printed field ledger. Locally available stacks only;
+     a page that shows money does not take a network dependency on a font. */
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --font-display: var(--font-ui);
+  --font-display:
+    Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, serif;
   --font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
 
   /* Type scale */
@@ -51,9 +73,11 @@
   --text-xl: 1.375rem;
   --text-2xl: 1.75rem;
   --text-3xl: 2.25rem;
-  --leading-tight: 1.25;
+  --text-4xl: 3rem;
+  --leading-tight: 1.15;
   --leading-normal: 1.55;
   --leading-relaxed: 1.7;
+  --measure: 68ch;
 
   /* Spacing — 4px base */
   --space-1: 0.25rem;
@@ -72,10 +96,11 @@
   --radius-pill: 999px;
   --border-width-1: 1px;
   --border-width-2: 2px;
+  --border-width-3: 4px;
 
-  /* Elevation */
-  --shadow-sm: 0 1px 2px rgb(31 27 22 / 0.08);
-  --shadow-md: 0 2px 8px rgb(31 27 22 / 0.12);
+  /* Elevation — one warm low shadow. Cards never lift on hover. */
+  --shadow-sm: 0 1px 2px rgb(33 26 20 / 0.12);
+  --shadow-md: 0 2px 6px rgb(33 26 20 / 0.18);
 
   /* Focus */
   --focus-ring-width: 2px;
@@ -85,6 +110,9 @@
   --motion-fast: 120ms;
   --motion-base: 200ms;
   --motion-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* Layout */
+  --shell-width: 78rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -109,7 +137,13 @@
 
 body {
   margin: 0;
-  background: var(--bg-base);
+  /* Timber grain: two low-amplitude gradients rather than an image asset, so
+     the ground has depth without a download or a decorative <img>. */
+  background-color: var(--bg-base);
+  background-image:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.012) 0 2px, rgb(0 0 0 / 0.02) 2px 5px),
+    linear-gradient(180deg, #2a2017 0%, #211a14 40%, #1b150f 100%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--text-base);
@@ -129,6 +163,7 @@ h4 {
 
 h1 {
   font-size: var(--text-3xl);
+  letter-spacing: -0.01em;
 }
 
 h2 {
@@ -147,9 +182,28 @@ p {
   margin: 0 0 var(--space-4);
 }
 
+/* Prose stays inside a comfortable measure. Grids and cards opt out. */
+main p,
+main li {
+  max-width: var(--measure);
+}
+
+a {
+  color: var(--accent-primary);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--accent-primary-hover);
+}
+
+/* Two bands, because no single hue clears 3:1 against both paper and timber:
+   on a light ground the blue ring carries it, on dark the paper halo does. */
 :focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+  box-shadow: 0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width))
+    var(--focus-ring-contrast);
 }
 
 /* Available to assistive technology, absent from the visual layout. Used for
@@ -197,6 +251,10 @@ p {
 
 /* --------------------------------------------------------------------------
    Application shell
+
+   The header and footer are timber rails; everything between them is a
+   parchment sheet. Every screen in the product, including the Identity screens
+   written before this direction, inherits the theme by sitting on that sheet.
    -------------------------------------------------------------------------- */
 
 .app-shell {
@@ -209,69 +267,212 @@ p {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3) var(--space-5);
-  padding: var(--space-4);
-  background: var(--bg-surface);
-  border-bottom: var(--border-width-1) solid var(--border-default);
+  gap: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--bg-board);
+  background-image: linear-gradient(180deg, #543c2a 0%, #493323 55%, #3b2919 100%);
+  border-bottom: var(--border-width-2) solid var(--accent-brass);
 }
 
 .app-shell__wordmark {
+  position: relative;
+  flex: 0 0 auto;
   font-family: var(--font-display);
   font-size: var(--text-xl);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.16em;
+  color: var(--text-on-dark);
+  text-decoration: none;
 }
 
-.app-shell__nav-list {
+.app-shell__wordmark:hover {
+  color: var(--bg-surface);
+}
+
+/* A brass underscore under the wordmark: the product's one signature mark. */
+.app-shell__wordmark-rule {
+  display: block;
+  height: 2px;
+  margin-top: 2px;
+  margin-right: 0.16em;
+  background: linear-gradient(90deg, var(--accent-brass) 0%, rgb(184 138 50 / 0.15) 100%);
+}
+
+/* `display: contents` so the header's own flex row lays out the two navigation
+   landmarks and the action directly. It lets the wordmark and the one action
+   share the first band at 360 px instead of costing a row each, without
+   wrapping either in a container that would need its own layout rules. */
+.shell-nav {
+  display: contents;
+}
+
+/* Marketplace destinations take the room; account utilities are pushed to the
+   far end and set smaller. The hierarchy is also structural: two nav
+   landmarks, so it is as clear to a screen reader as it is on screen. */
+.shell-nav__account {
+  position: relative;
+  margin-left: auto;
+  padding-left: var(--space-5);
+}
+
+.shell-nav__account::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1.4em;
+  width: 1px;
+  transform: translateY(-50%);
+  background: var(--accent-brass);
+  opacity: 0.55;
+}
+
+.shell-nav__list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  gap: var(--space-1) var(--space-5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.app-shell__nav-link {
-  display: inline-block;
-  padding: var(--space-1) 0;
-  color: var(--text-muted);
+.shell-nav__account .shell-nav__list {
+  gap: var(--space-1) var(--space-4);
+}
+
+.shell-nav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-1);
+  color: var(--text-on-dark-muted);
   text-decoration: none;
   border-bottom: var(--border-width-2) solid transparent;
 }
 
-.app-shell__nav-link:hover {
-  color: var(--text-primary);
+.shell-nav__account .shell-nav__link {
+  font-size: var(--text-sm);
 }
 
-/* Current page is marked by weight and rule, never by colour alone. */
-.app-shell__nav-link[aria-current="page"] {
-  color: var(--text-primary);
+.shell-nav__link:hover {
+  color: var(--bg-surface);
+}
+
+/* Current page is marked by weight and a brass rule, never by colour alone. */
+.shell-nav__link[aria-current="page"] {
+  color: var(--bg-surface);
   font-weight: 600;
-  border-bottom-color: var(--accent-primary);
+  border-bottom-color: var(--accent-brass);
+}
+
+.shell-nav__post {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 45rem) {
+  .app-shell__header {
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  /* The wordmark and the one action share the first band; the two navigation
+     landmarks take a band each below it. Three rows, no disclosure button, and
+     no JavaScript needed to reach anything. */
+  .app-shell__wordmark {
+    order: 0;
+    font-size: var(--text-lg);
+    letter-spacing: 0.12em;
+  }
+
+  .shell-nav__post {
+    order: 1;
+    margin-left: auto;
+    padding-inline: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .shell-nav__primary {
+    order: 2;
+    flex: 1 1 100%;
+    padding-top: var(--space-1);
+    border-top: var(--border-width-1) solid rgb(184 138 50 / 0.35);
+  }
+
+  .shell-nav__account {
+    order: 3;
+    flex: 1 1 100%;
+    margin-left: 0;
+    padding-left: 0;
+  }
+
+  .shell-nav__account::before {
+    display: none;
+  }
+
+  .shell-nav__link {
+    min-height: 2.5rem;
+  }
 }
 
 .app-shell__main {
   flex: 1;
   width: 100%;
-  max-width: 64rem;
+  max-width: var(--shell-width);
   margin-inline: auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-7);
 }
 
 .app-shell__main:focus {
   outline: none;
 }
 
+/* The sheet: paper-coloured, edged, sitting on the timber ground. */
+.app-shell__sheet {
+  padding: var(--space-4) var(--space-5) var(--space-7);
+  background-color: var(--bg-canvas);
+  background-image:
+    radial-gradient(circle at 12% 8%, rgb(255 248 232 / 0.55) 0%, transparent 45%),
+    radial-gradient(circle at 88% 92%, rgb(255 248 232 / 0.35) 0%, transparent 40%);
+  border: var(--border-width-1) solid #2d2016;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 30rem) {
+  .app-shell__main {
+    padding: var(--space-3) var(--space-2) var(--space-6);
+  }
+
+  .app-shell__sheet {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+}
+
 .app-shell__footer {
-  padding: var(--space-4);
-  border-top: var(--border-width-1) solid var(--border-default);
-  color: var(--text-muted);
+  padding: var(--space-5) var(--space-4);
+  border-top: var(--border-width-2) solid var(--accent-brass);
+  background: var(--bg-board);
+  color: var(--text-on-dark-muted);
   font-size: var(--text-sm);
 }
 
-.app-shell__footer p {
-  max-width: 64rem;
+.app-shell__footer-line,
+.app-shell__dev-marker {
+  max-width: var(--shell-width);
   margin: 0 auto;
+}
+
+.app-shell__footer-line {
+  color: var(--text-on-dark);
+}
+
+/* Quiet, and absent from a production build. Not product content. */
+.app-shell__dev-marker {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-on-dark-muted);
+  opacity: 0.75;
 }
 
 /* --------------------------------------------------------------------------
@@ -342,18 +543,26 @@ p {
 
 /* --------------------------------------------------------------------------
    Development fixture marker
+
+   Restrained on purpose: it must be unmistakable in review without competing
+   with the screen it is marking.
    -------------------------------------------------------------------------- */
 
 .fixture-notice {
-  margin-bottom: var(--space-5);
-  padding: var(--space-3) var(--space-4);
-  border: var(--border-width-2) dashed var(--state-warning);
-  border-radius: var(--radius-md);
-  background: var(--bg-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-1) dashed var(--state-warning);
+  border-radius: var(--radius-sm);
+  background: transparent;
 }
 
 .fixture-notice__label {
-  margin: 0 0 var(--space-1);
+  margin: 0;
+  flex: 0 0 auto;
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -363,8 +572,10 @@ p {
 
 .fixture-notice__message {
   margin: 0;
+  flex: 1 1 16rem;
+  max-width: var(--measure);
   font-size: var(--text-sm);
-  color: var(--text-primary);
+  color: var(--text-muted);
 }
 
 /* --------------------------------------------------------------------------
@@ -784,4 +995,550 @@ p {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+
+   Three weights, one shape. The filled leather button is the primary action
+   and there is at most one per region.
+   -------------------------------------------------------------------------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width-1) solid transparent;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button--primary {
+  background: var(--accent-primary);
+  border-color: #3d2210;
+  color: var(--text-on-accent);
+  box-shadow: inset 0 1px 0 rgb(255 248 232 / 0.18);
+}
+
+.button--primary:hover {
+  background: var(--accent-primary-hover);
+  color: var(--text-on-accent);
+}
+
+.button--secondary {
+  background: var(--bg-surface);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.button--secondary:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary-hover);
+}
+
+.button--quiet {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--accent-primary);
+}
+
+.button--quiet:hover {
+  background: var(--bg-surface);
+  color: var(--accent-primary-hover);
+}
+
+/* --------------------------------------------------------------------------
+   Index grid
+
+   Label and value pairs, the way an archive card reads. Used instead of a
+   middle-dot meta string so a reader hears the label with its value rather
+   than three unattributed fragments.
+   -------------------------------------------------------------------------- */
+
+.index-grid {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0 var(--space-4);
+  margin: 0;
+}
+
+.index-grid dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.index-grid dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------------------
+   Bounty plate
+
+   The one place the interface raises its voice. A dark plate with brass
+   numerals: brass on paper is 2.95:1 and cannot carry text, and a dark block
+   on a pale card is the fastest thing on it to find.
+   -------------------------------------------------------------------------- */
+
+.bounty-plate {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bounty-plate-bg);
+  border: var(--border-width-2) solid var(--accent-brass);
+  /* Notched top corners: a hung index tag, not a coin and not a rounded pill. */
+  clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+  box-shadow: inset 0 1px 0 rgb(207 160 67 / 0.35);
+  line-height: 1;
+}
+
+.bounty-plate__unit {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--accent-brass);
+}
+
+.bounty-plate__value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--bounty-value);
+}
+
+.bounty-plate--large {
+  padding: var(--space-3) var(--space-6);
+}
+
+.bounty-plate--large .bounty-plate__unit {
+  font-size: var(--text-sm);
+}
+
+.bounty-plate--large .bounty-plate__value {
+  font-size: var(--text-4xl);
+}
+
+/* --------------------------------------------------------------------------
+   Status stamp
+
+   Every stamp carries its word. Tone is accompanied by a border treatment, so
+   the states stay distinct in greyscale and for a colour-blind reader.
+   -------------------------------------------------------------------------- */
+
+.status-stamp {
+  display: inline-block;
+  padding: 0.125rem var(--space-2);
+  border: var(--border-width-1) solid currentcolor;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-stamp--solid {
+  border-style: solid;
+}
+
+.status-stamp--dashed {
+  border-style: dashed;
+}
+
+.status-stamp--doubled {
+  border-style: double;
+  border-width: 3px;
+  padding-block: 0;
+}
+
+.status-stamp--neutral {
+  color: var(--text-primary);
+}
+
+.status-stamp--muted {
+  color: var(--text-muted);
+}
+
+.status-stamp--info {
+  color: var(--state-info);
+}
+
+.status-stamp--success {
+  color: var(--state-success);
+}
+
+.status-stamp--warning {
+  color: var(--state-warning);
+}
+
+.status-stamp--danger {
+  color: var(--state-error);
+}
+
+/* --------------------------------------------------------------------------
+   Wanted cards
+   -------------------------------------------------------------------------- */
+
+.wanted-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.wanted-card {
+  display: flex;
+}
+
+.wanted-card__frame {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-3) + var(--border-width-3));
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.wanted-card__frame:hover {
+  border-color: var(--accent-primary);
+}
+
+/* The brass index tab: the card's one piece of brass on a light ground, and
+   the reason the card needs no coloured header band. */
+.wanted-card__tab {
+  position: absolute;
+  inset-block: -1px;
+  left: -1px;
+  width: var(--border-width-3);
+  background: linear-gradient(180deg, var(--accent-brass) 0%, #8a6620 100%);
+}
+
+.wanted-card__head {
+  min-width: 0;
+}
+
+.wanted-card__course {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: 0 0 var(--space-1);
+  max-width: none;
+}
+
+.wanted-card__course-code {
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+}
+
+.wanted-card__course-name {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.wanted-card__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+
+.wanted-card__title a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.wanted-card__title a:hover {
+  color: var(--accent-primary-hover);
+  text-decoration: underline;
+}
+
+.wanted-card__frame .index-grid {
+  grid-column: 1 / -1;
+}
+
+.wanted-card__foot {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.wanted-card__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  max-width: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.wanted-card__closing--urgent {
+  color: var(--state-warning);
+  font-weight: 600;
+}
+
+.wanted-card__action {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Homepage
+   -------------------------------------------------------------------------- */
+
+.home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  margin-bottom: var(--space-7);
+}
+
+@media (min-width: 64rem) {
+  .home-hero {
+    grid-template-columns: minmax(20rem, 29rem) minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+}
+
+.home-hero__heading {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-3xl);
+  max-width: 18ch;
+}
+
+@media (min-width: 64rem) {
+  .home-hero__heading {
+    font-size: var(--text-4xl);
+  }
+}
+
+.home-hero__lede {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+  max-width: 42ch;
+}
+
+.home-search {
+  margin-bottom: var(--space-4);
+}
+
+.home-search__label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.home-search__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.home-search__input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.home-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  max-width: none;
+}
+
+.trust-ladder {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-left-width: var(--border-width-3);
+  border-left-color: var(--accent-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.trust-ladder__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  font-family: var(--font-ui);
+  font-weight: 700;
+}
+
+.trust-ladder .index-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.trust-ladder .index-grid dt {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.trust-ladder .index-grid dd {
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+}
+
+.trust-ladder__note {
+  margin: var(--space-1) 0 0;
+  padding-top: var(--space-2);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.home-hero__board-heading,
+.home-steps__heading {
+  margin-bottom: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+}
+
+.home-hero__board-more {
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (min-width: 64rem) {
+  .wanted-grid--preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.home-steps {
+  padding-top: var(--space-6);
+  border-top: var(--border-width-1) solid var(--border-strong);
+}
+
+/* Numbered because the content genuinely is a sequence, which is the only
+   reason to number anything. */
+.home-steps__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.home-steps__step {
+  position: relative;
+  max-width: none;
+  padding-left: var(--space-7);
+  counter-increment: step;
+}
+
+.home-steps__step::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--bounty-plate-bg);
+  border: var(--border-width-1) solid var(--accent-brass);
+  border-radius: var(--radius-pill);
+  color: var(--bounty-value);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-steps__step-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.home-steps__step p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Post a Wanted requirements
+   -------------------------------------------------------------------------- */
+
+.lede {
+  font-size: var(--text-lg);
+  color: var(--text-muted);
+}
+
+.requirement-panel {
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.requirement-panel h2 {
+  font-size: var(--text-lg);
+}
+
+.requirement-panel__list {
+  margin: 0 0 var(--space-5);
+  padding-left: var(--space-5);
+}
+
+.requirement-panel__list li {
+  margin-bottom: var(--space-3);
+}
+
+.requirement-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  max-width: none;
+}
+
+.policy-note {
+  padding: var(--space-4);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-left-width: var(--border-width-3);
+  border-left-color: var(--state-info);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: var(--text-sm);
 }

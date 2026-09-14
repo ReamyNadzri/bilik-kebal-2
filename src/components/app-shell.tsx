@@ -1,10 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PRIMARY_NAV, type NavItem, type NavItemId } from "@/features/presentation/navigation";
+import { ShellNav } from "./shell-nav";
+import type { NavItem, NavItemId } from "@/features/presentation/navigation";
 
 export interface AppShellProps {
   children: ReactNode;
-  currentNavId?: NavItemId;
+  /**
+   * Overrides the route-derived current destination. The navigation works out
+   * the active item from the path on its own; this exists so a test or a
+   * server-rendered preview can state it directly.
+   */
+  currentNavId?: NavItemId | null;
   /**
    * Extra destinations the viewer's role grants, supplied by the view model.
    * The shell renders what it is given and decides no permission itself.
@@ -13,15 +19,19 @@ export interface AppShellProps {
 }
 
 /**
- * Application frame: skip link, primary navigation, main landmark, footer.
+ * Application frame: skip link, navigation, main landmark, footer.
  *
- * Deliberately a Server Component. The provisional navigation wraps instead of
- * collapsing into a disclosure menu, so the shell needs no JavaScript to stay
- * usable at 360 px. Introduce a client disclosure only when the navigation
- * outgrows a single row.
+ * The frame is a Server Component; only the navigation hydrates, because
+ * marking the current destination needs the path. The layout at 360 px stacks
+ * into bands rather than collapsing behind a disclosure button, so the shell
+ * still needs no JavaScript to be usable.
+ *
+ * `main` is the parchment sheet the whole product is written on
+ * (docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md
+ * §2.1). Every screen, including the Identity screens built before this
+ * direction existed, inherits the theme by sitting inside it.
  */
 export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps) {
-  const destinations = [...PRIMARY_NAV, ...roleNav];
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -29,31 +39,28 @@ export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps
       </a>
 
       <header className="app-shell__header">
-        <span className="app-shell__wordmark">VAULTIX</span>
+        <Link className="app-shell__wordmark" href="/">
+          VAULTIX
+          <span className="app-shell__wordmark-rule" aria-hidden="true" />
+        </Link>
 
-        <nav aria-label="Primary" className="app-shell__nav">
-          <ul className="app-shell__nav-list">
-            {destinations.map((item) => (
-              <li key={item.id}>
-                <Link
-                  href={item.href}
-                  className="app-shell__nav-link"
-                  aria-current={currentNavId === item.id ? "page" : undefined}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <ShellNav currentNavId={currentNavId} roleNav={roleNav} />
       </header>
 
       <main id="main-content" tabIndex={-1} className="app-shell__main">
-        {children}
+        <div className="app-shell__sheet">{children}</div>
       </main>
 
       <footer className="app-shell__footer">
-        <p>Provisional interface. Final visual design pending external handoff.</p>
+        <p className="app-shell__footer-line">
+          VAULTIX is an academic resource bounty marketplace for Malaysian university students. A
+          Sheriff reviews every claim before anyone gains access or is paid.
+        </p>
+        {process.env.NODE_ENV === "production" ? null : (
+          <p className="app-shell__dev-marker">
+            Development build. Visual design is provisional and pending the external handoff.
+          </p>
+        )}
       </footer>
     </div>
   );
