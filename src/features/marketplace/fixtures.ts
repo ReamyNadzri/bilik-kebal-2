@@ -1,6 +1,8 @@
 import { toSen } from "./money";
 import type {
+  ClaimSummary,
   CommissionerPresentation,
+  HuntOpportunity,
   TaxonomyOption,
   WantedDetail,
   WantedSummary,
@@ -290,6 +292,114 @@ export const WANTED: readonly WantedSummary[] = [
     status: "closed",
     postedAt: "2026-08-25T09:00:00.000Z",
     closesAt: "2026-09-13T09:00:00.000Z",
+  },
+] as const;
+
+function wantedFixture(id: string): WantedSummary {
+  const wanted = WANTED.find((item) => item.id === id);
+
+  if (wanted === undefined) {
+    throw new Error(`Hunt fixture refers to an unknown Wanted: ${id}`);
+  }
+
+  return wanted;
+}
+
+export const HUNTS: readonly HuntOpportunity[] = [
+  {
+    ...wantedFixture("csc584-tutorial-solutions"),
+    activeClaimCount: 3,
+    eligibility: "institution-verified",
+  },
+  {
+    ...wantedFixture("law416-case-summaries"),
+    activeClaimCount: 5,
+    eligibility: "faculty-match-preferred",
+  },
+  {
+    ...wantedFixture("ctu551-lecture-notes"),
+    activeClaimCount: 1,
+    eligibility: "institution-verified",
+  },
+  {
+    ...wantedFixture("mat183-revision-set"),
+    activeClaimCount: 7,
+    eligibility: "faculty-match-preferred",
+  },
+] as const;
+
+export const CLAIMS: readonly ClaimSummary[] = [
+  {
+    id: "claim-draft",
+    wantedId: "csc584-tutorial-solutions",
+    wantedTitle: "Tutorial solutions for sets 1 to 6",
+    courseCode: "CSC584",
+    courseName: "Machine Learning",
+    status: "draft",
+    submittedAt: null,
+  },
+  {
+    id: "claim-screening",
+    wantedId: "csc510-final-exam-notes",
+    wantedTitle: "Final exam notes and summary for chapters 1 to 12",
+    courseCode: "CSC510",
+    courseName: "Database Systems",
+    status: "screening",
+    submittedAt: "2026-09-14T08:00:00.000Z",
+  },
+  {
+    id: "claim-needs-information",
+    wantedId: "bio220-lab-report-guide",
+    wantedTitle: "Lab report structure and marking guide",
+    courseCode: "BIO220",
+    courseName: "Cell Biology",
+    status: "needs-information",
+    submittedAt: "2026-09-13T09:00:00.000Z",
+  },
+  {
+    id: "claim-under-review",
+    wantedId: "law416-case-summaries",
+    wantedTitle: "Case summary pack for the whole syllabus",
+    courseCode: "LAW416",
+    courseName: "Malaysian Legal System",
+    status: "under-review",
+    submittedAt: "2026-09-12T09:00:00.000Z",
+  },
+  {
+    id: "claim-not-selected",
+    wantedId: "csc510-midterm-revision",
+    wantedTitle: "Midterm revision notes for chapters 1 to 6",
+    courseCode: "CSC510",
+    courseName: "Database Systems",
+    status: "not-selected",
+    submittedAt: "2026-09-10T09:00:00.000Z",
+  },
+  {
+    id: "claim-approved",
+    wantedId: "bel422-writing-samples",
+    wantedTitle: "Academic writing samples with lecturer feedback",
+    courseCode: "BEL422",
+    courseName: "English for Academic Purposes",
+    status: "approved",
+    submittedAt: "2026-09-09T09:00:00.000Z",
+  },
+  {
+    id: "claim-rejected",
+    wantedId: "acc406-past-year-scheme",
+    wantedTitle: "Past year answer scheme from 2022 to 2024",
+    courseCode: "ACC406",
+    courseName: "Financial Reporting",
+    status: "rejected",
+    submittedAt: "2026-09-08T09:00:00.000Z",
+  },
+  {
+    id: "claim-quarantined",
+    wantedId: "phy210-past-year-answers",
+    wantedTitle: "Past year questions and answers from 2021 to 2025",
+    courseCode: "PHY210",
+    courseName: "Physics for Engineers",
+    status: "quarantined",
+    submittedAt: "2026-09-07T09:00:00.000Z",
   },
 ] as const;
 

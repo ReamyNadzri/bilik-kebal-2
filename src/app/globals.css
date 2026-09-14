@@ -1663,6 +1663,7 @@ a:hover {
   margin: 0;
 }
 
+
 .board-filters__disclosure {
   border: var(--border-width-1) solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -2005,4 +2006,239 @@ a:hover {
    evenly instead of leaving an empty fourth column. */
 .wanted-detail__similar .wanted-grid {
   grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+}
+
+/* --------------------------------------------------------------------------
+   Hunt workspace
+
+   Open opportunities use compact posted notices; personal claims use a
+   quieter ledger. They share the paper sheet but remain visually distinct so
+   a Hunter never mistakes a public bounty for one of their private records.
+   -------------------------------------------------------------------------- */
+
+.hunt-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  padding-bottom: var(--space-5);
+  border-bottom: var(--border-width-1) solid var(--border-strong);
+}
+
+.hunt-title h1,
+.hunt-title p {
+  margin-bottom: 0;
+}
+
+.hunt-title > p:last-child {
+  max-width: 48rem;
+  color: var(--text-muted);
+}
+
+.hunt-workspace {
+  display: grid;
+  gap: var(--space-8);
+  padding-top: var(--space-4);
+}
+
+.hunt-jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-1) solid var(--border-subtle);
+}
+
+.hunt-jump a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hunt-jump a:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary-hover);
+}
+
+.hunt-section {
+  scroll-margin-top: var(--space-6);
+}
+
+.hunt-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.hunt-section__head h2,
+.hunt-section__head p {
+  margin-bottom: 0;
+}
+
+.hunt-section__head > p {
+  max-width: 38rem;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.hunt-grid,
+.claim-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hunt-card,
+.claim-card {
+  min-width: 0;
+  max-width: none;
+}
+
+.hunt-card article {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  height: 100%;
+  padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--space-4) + var(--border-width-3));
+  overflow: hidden;
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.hunt-card article::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: var(--border-width-3);
+  background: linear-gradient(180deg, var(--accent-brass) 0%, #8a6620 100%);
+}
+
+.hunt-card__head,
+.claim-card__head,
+.claim-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.hunt-card__course,
+.claim-card__course,
+.hunt-card__resource,
+.claim-card__next,
+.claim-card__foot p {
+  margin: 0;
+  max-width: none;
+}
+
+.hunt-card__course {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.hunt-card__course strong,
+.claim-card__course strong {
+  font-family: var(--font-ui);
+  letter-spacing: 0.06em;
+}
+
+.hunt-card h3,
+.claim-card h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.hunt-card__resource {
+  width: fit-content;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.hunt-card .bounty-plate {
+  justify-self: start;
+}
+
+.hunt-card__facts {
+  padding-top: var(--space-2);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.hunt-card .wanted-card__action {
+  position: relative;
+  z-index: 1;
+  justify-self: start;
+  margin-top: auto;
+}
+
+.claim-list {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.claim-card article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border-width-1) solid var(--border-subtle);
+  border-left: var(--border-width-3) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+}
+
+.claim-card__course,
+.claim-card__foot {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.claim-card__next {
+  font-size: var(--text-sm);
+}
+
+@media (min-width: 48rem) {
+  .hunt-title {
+    grid-template-columns: minmax(12rem, 0.7fr) minmax(20rem, 1fr);
+    align-items: end;
+  }
+
+  .hunt-title h1 {
+    grid-column: 1;
+  }
+
+  .hunt-title > p:last-child {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .claim-card article {
+    grid-template-columns: minmax(13rem, 0.8fr) minmax(18rem, 1.2fr);
+    align-items: center;
+    column-gap: var(--space-5);
+  }
+
+  .claim-card__head,
+  .claim-card__foot {
+    grid-column: 1 / -1;
+  }
 }

@@ -110,6 +110,13 @@ Update this file after every meaningful implementation or specification change.
   `docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md`: an organised academic
   bounty ledger, paper case files on a dark timber board, brass reserved for the money. Every value
   is provisional and the Final Visual Handoff Gate still applies.
+- Four marketplace routes are built and fixture-backed: `/` (marketplace homepage), `/board`
+  (searchable, filterable, URL-addressed Wanted Board), `/wanted/[id]` (Wanted detail) and `/claims`
+  (Hunt and claim ledger). `/wanted/new` was added as a requirement explainer so the shell's one
+  prominent action does not lead to a 404; it is deliberately not a creation form.
+- The shell now carries two navigation landmarks — marketplace destinations and account utilities —
+  plus the single `Post a Wanted` action. `main` became the parchment sheet, so the Phase 2 Identity
+  screens inherit the theme without being edited.
 
 ## Next Up
 
@@ -149,6 +156,30 @@ Update this file after every meaningful implementation or specification change.
   role assignment outside the database.
 - Define the final legal metadata-retention periods after professional review.
 
+## Backend Contracts the Marketplace Frontend Needs
+
+Recorded for Codex. Every marketplace screen reads through one replaceable seam,
+`src/features/marketplace/wanted-source.ts` and `hunt-source.ts`; nothing below it is imported by a
+component, and no permission is decided there.
+
+1. `listWanted(query)` — filtered, sorted, cursor-paginated Board read. Gross bounty in integer sen,
+   backer count, lifecycle state, closing instant, taxonomy labels. No file data.
+2. `readWanted(id)` — Wanted detail including the fee-rate snapshot taken at publication, the policy
+   version, activity events and duplicate/similar suggestions.
+3. `listHuntOpportunities()` — open Wanteds scoped to what the viewer may claim, carrying the
+   eligibility reason when they may not.
+4. `listMyClaims()` — the viewer's claims across the eight lifecycle states, exposing no other
+   claimant beyond a competition count.
+5. A viewer capability view model carrying the authoritative `canBrowseMetadata`, `canTransact` and
+   `canSubmitClaim` decisions, so the frontend stops routing every protected action to verification
+   by default.
+6. A `next` parameter on `/sign-in`, so a protected action can return the reader to where they were.
+   Until it exists, protected actions link plainly and say what they unlock.
+
+Until these land, every marketplace screen keeps its `FixtureNotice`. Relative times are measured
+against a fixed `FIXTURE_NOW`, which is deterministic and avoids a hydration mismatch; real closing
+times must arrive with a server-rendered reference instant.
+
 ## Architecture Decisions
 
 - **Supabase-centric first:** one managed platform reduces initial setup and operational burden. Storage records include a provider field so R2 can be introduced later without rewriting Claim or Entitlement logic.
@@ -171,6 +202,15 @@ Update this file after every meaningful implementation or specification change.
 - Public upload remains disabled until a production scanning worker is available.
 - The user approved phased full-MVP development and separate Claude frontend/Codex backend ownership. Application coding begins after the relevant phase plan is written.
 - **Never run two agents in one checkout.** During Phase 1 both agents were active in `.worktrees/codex-backend`; the Claude lane overwrote five of Codex's untracked config files, which were unrecoverable because nothing was committed yet. Codex regenerated them. Verify the worktree is idle immediately before writing, not once at session start, and commit early so work is recoverable.
+- **The two-agents-in-one-checkout failure recurred.** During the marketplace-first phase a second
+  agent was writing into `.worktrees/claude-ui` at the same time as this session. It committed this
+  session's in-progress Board and detail files as `3ca1a6b` before they were finished, so the filter
+  disclosure marker and the Playwright suite were left out of that commit, and it was concurrently
+  editing `globals.css` and `fixtures.ts` — both files this session was also editing. Nothing was
+  lost, but only because neither agent happened to write the same hunk at the same moment. The user
+  stopped the second agent and this session verified a full minute of filesystem quiet before
+  resuming. Check `git log` and file mtimes, not just `git status`, before assuming a worktree is
+  yours alone.
 - Codex completed Phase 1 Tasks 1-3 but hit a usage limit before running any `git commit`; the Claude lane finished the gate and committed all three on its behalf.
 - `.gitattributes` pins `eol=lf`. This machine has `core.autocrlf=true`, which checked out CRLF while Prettier expects LF, so `pnpm format:check` failed locally while CI would have passed.
 - `next dev` used to write `AGENTS.md` and an `@AGENTS.md` stub `CLAUDE.md` into whichever worktree it ran from; committing that stub would have overwritten the real project `CLAUDE.md`. `next.config.ts` now sets `agentRules: false`, which stops it at the source.
