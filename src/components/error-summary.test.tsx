@@ -45,7 +45,12 @@ test("following an error link moves focus into the field, not merely to it", () 
     </>,
   );
 
+  const field = document.getElementById("email")!;
+  const scrollIntoView = vi.fn();
+  Object.defineProperty(field, "scrollIntoView", { value: scrollIntoView });
+
   fireEvent.click(screen.getByRole("link", { name: "Enter your email address." }));
 
-  expect(document.getElementById("email")).toHaveFocus();
+  expect(field).toHaveFocus();
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
 });
