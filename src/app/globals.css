@@ -653,3 +653,135 @@ p {
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* --------------------------------------------------------------------------
+   Sheriff Console
+   -------------------------------------------------------------------------- */
+
+/* Two panes where there is room. Below that the detail replaces the list
+   rather than stacking under it, so the decision controls are never an
+   unpredictable distance down the page (context/ui-context.md: urgent triage
+   stays functional from 360 px). */
+.review-console__panes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+@media (min-width: 900px) {
+  .review-console__panes {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* Cards, never a horizontally scrolling table: a narrow screen must keep the
+   essential actions reachable rather than clipping them. */
+.review-queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-queue__item + .review-queue__item {
+  margin-top: var(--space-2);
+}
+
+.review-queue__row {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: var(--border-width-1) solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.review-queue__row:hover {
+  border-color: var(--border-strong);
+}
+
+/* The selected row is marked by a rule and weight, not by colour alone. */
+.review-queue__row[aria-current="true"] {
+  border-left-width: var(--border-width-2);
+  border-left-color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.review-queue__name {
+  font-size: var(--text-base);
+}
+
+.review-queue__institution,
+.review-queue__date {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.review-console__disclaimer,
+.review-console__decided {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.review-console__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.review-console__confirm {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-left-width: var(--border-width-2);
+  border-left-color: var(--state-warning);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+/* The viewer covers the page: someone else's identity document should not sit
+   beside other work, and a full-width frame is the readable one at 360 px. */
+.evidence-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-base);
+}
+
+.evidence-viewer__bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.evidence-viewer__bar p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.evidence-viewer__frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.evidence-viewer__fallback {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

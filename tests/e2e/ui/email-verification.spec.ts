@@ -116,47 +116,26 @@ test.describe("email verification, pending sign-up", () => {
   });
 
   /**
-   * Asserts both resend outcomes from one registration. The immediate attempt
-   * is refused by Supabase's minimum interval between messages, which costs no
-   * mail; only the second attempt sends one.
+   * Asserts the success path only. Supabase enforces a one-second minimum
+   * between messages (supabase/config.toml, auth.email.max_frequency), and the
+   * time between the registration above and the first click includes a page
+   * navigation, so whether an immediate resend is refused is a race rather than
+   * a property. The refusal copy is pinned precisely by the component test,
+   * which drives that outcome directly.
    */
-  test("reports a rate-limited resend, then succeeds once the interval passes", async ({
-    page,
-  }) => {
+  test("resends the link and announces it without repeating the visible text", async ({ page }) => {
     await registerPending(page);
 
+    // Comfortably past the one-second minimum, so the resend is not refused.
+    await page.waitForTimeout(1_500);
+
     await page.goto("/verify-email");
-
     await page.getByRole("button", { name: "Resend the link" }).click();
-    await expect(page.getByText(/No new link was sent/)).toBeVisible();
 
-    await page.waitForTimeout(1_200);
-
-    await page.getByRole("button", { name: "Resend the link" }).click();
     await expect(page.getByText(/on its way/i)).toBeVisible();
 
-    // The announcement is deliberately worded differently from the visible
-    // sentence, so a screen reader is not read the same thing twice.
     const announcer = page.getByTestId("resend-announcer");
     await expect(announcer).toHaveText(/sent/i);
     await expect(announcer).not.toHaveText(/on its way/i);
-  });
-});
-
-test.describe("Sheriff Console", () => {
-  test("refuses a viewer without the role and says the server enforces it", async ({ page }) => {
-    await page.goto("/console");
-
-    const refusal = page.getByRole("alert").filter({ hasText: "Restricted" });
-
-    await expect(refusal).toBeVisible();
-    await expect(page.getByText(/checked on the server/i)).toBeVisible();
-    await expect(page.getByRole("list", { name: "Review queues" })).toHaveCount(0);
-  });
-
-  test("does not advertise the console to a viewer whose role lacks it", async ({ page }) => {
-    await page.goto("/profile");
-
-    await expect(page.getByRole("link", { name: "Sheriff Console" })).toHaveCount(0);
   });
 });

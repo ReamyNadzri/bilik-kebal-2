@@ -87,19 +87,25 @@ Update this file after every meaningful implementation or specification change.
   "Resend the link" calls the resend operation with no browser-chosen recipient. An unrecognised
   `status` still falls back to waiting, never to success. Its `FixtureNotice` is gone, leaving only
   `/console`, and `PENDING_VERIFICATION_ADDRESS` was deleted with it.
+- **Slice 4: `/console` connected** — the Sheriff Console loads the role-scoped pending queue through
+  `loadVerificationReviewQueue`, opens evidence through the audited short-lived read URL, and records
+  approve/reject through the review operation with a confirmation and its consequences. Its
+  `FixtureNotice` is gone, so no screen carries one and `src/features/presentation/fixtures/` was
+  deleted. The `FixtureNotice` component itself is kept: coordination plan section 5 still requires
+  that marker for the screens later phases will add.
 
 ## In Progress
 
 - Contract integration on `codex/integration-identity`. The whole identity read contract is now
   published (`57b11b9`, `6433239`) and merged here (`2a91d7f`, `06a1b01`). Slices 1 and 2 are
   complete, so `/profile` and `/profile/institution-verification` run on real operations.
-- Slice 3 is complete. Slice 4 (`/console`, using the scoped review queue, the audited evidence read
-  URL and the review decision) is the last one; `/console` keeps its `FixtureNotice` until then.
+- All four Phase 2 identity screens are connected to real operations. No screen is fixture-backed and
+  no `FixtureNotice` remains in `src/app/`. Phase 2 integration is complete pending review.
 
 ## Next Up
 
-1. Slice 4: connect `/console` — the role-scoped review queue, the audited evidence viewer, and the
-   approve/reject decision with its reason code and confirmation.
+1. Review the completed Phase 2 identity integration, then decide whether `codex/integration-identity`
+   merges toward `main`.
 3. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
    passing in CI.
 4. Write and review the Phase 3 Wanted/ledger plan after the identity journeys are accepted.
@@ -128,6 +134,10 @@ Update this file after every meaningful implementation or specification change.
   Slice 1 states the restriction as a fact and offers no remedy, because inventing an appeal
   route or a contact address would promise something that does not exist. The restricted
   notice on `/profile` gains an action only once this is answered.
+- Decide how a Sheriff or Owner role is seeded for local and CI end-to-end runs. The console's
+  refused and unauthenticated paths are covered end to end, and every authorised path is covered by
+  component tests, but no automated run exercises a real authorised queue because nothing grants a
+  role assignment outside the database.
 - Define the final legal metadata-retention periods after professional review.
 
 ## Architecture Decisions
@@ -175,6 +185,13 @@ Update this file after every meaningful implementation or specification change.
   holding `NEXT_PUBLIC_SUPABASE_URL`, the publishable key from `supabase status`, and
   `IDENTITY_PENDING_COOKIE_SECRET`. Without it the dev server has no Supabase configuration and every
   identity screen renders its unavailable state instead.
+- `tests/e2e/identity/auth-flow.spec.ts` is intermittently red at the line expecting the first resend
+  to return 429. Supabase enforces a one-second minimum between messages, and that test puts a
+  sign-in round trip between sign-up and the resend, so whether the call lands inside the window is
+  timing rather than behaviour. It fails in isolation as well as in a full run, and the file has not
+  been touched since `6433239`. Codex owns the fix; asserting the refusal needs two calls in quick
+  succession rather than one call assumed to be quick. The UI specs deliberately assert only the
+  resend success path for the same reason.
 - The published identity HTTP contract is **write-only**: all nine operations are `POST` mutations,
   and the application's only `GET` is the Supabase OTP callback. A frontend screen cannot be
   retired from its fixture by integration work alone if it renders state it cannot read. Check for
