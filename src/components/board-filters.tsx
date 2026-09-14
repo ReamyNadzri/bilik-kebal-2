@@ -53,17 +53,23 @@ export interface BoardFiltersProps {
  */
 export function BoardFilters({ filters }: BoardFiltersProps) {
   const applied = countActiveFilters(filters);
+  const appliedLabel =
+    applied === 0 ? "No filters applied" : `${applied} filter${applied === 1 ? "" : "s"} applied`;
 
   return (
     <form className="board-filters" id={BOARD_FORM_ID} action="/board" method="get">
+      {/* The rail's caption at desktop, where the disclosure summary is not
+          rendered. Exactly one of the two is displayed at any width, so the
+          count is never announced twice. */}
+      <p className="board-filters__caption">
+        <span className="board-filters__summary-label">Filters</span>
+        <span className="board-filters__summary-count">{appliedLabel}</span>
+      </p>
+
       <details className="board-filters__disclosure" open={applied > 0}>
         <summary className="board-filters__summary">
           <span className="board-filters__summary-label">Filters</span>
-          <span className="board-filters__summary-count">
-            {applied === 0
-              ? "No filters applied"
-              : `${applied} filter${applied === 1 ? "" : "s"} applied`}
-          </span>
+          <span className="board-filters__summary-count">{appliedLabel}</span>
         </summary>
 
         <div className="board-filters__body">

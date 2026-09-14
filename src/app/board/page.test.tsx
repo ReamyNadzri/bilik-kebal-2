@@ -135,16 +135,36 @@ describe("filters", () => {
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveValue("closed");
   });
 
+  /**
+   * The count is rendered twice — once as the rail's caption for wide screens
+   * and once inside the disclosure summary for narrow ones. Only one is
+   * displayed at any width, but a DOM-only test sees both, so these assert
+   * that the wording exists rather than that it is unique.
+   */
   test("says in text how many filters are applied", async () => {
     await renderBoard({ campus: "arau", status: "closed" });
 
-    expect(screen.getByText(/2 filters applied/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/2 filters applied/i).length).toBeGreaterThan(0);
   });
 
   test("says so in the singular for one filter", async () => {
     await renderBoard({ campus: "arau" });
 
-    expect(screen.getByText(/1 filter applied/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/1 filter applied/i).length).toBeGreaterThan(0);
+  });
+
+  test("says when nothing is applied rather than leaving the count blank", async () => {
+    await renderBoard();
+
+    expect(screen.getAllByText("No filters applied").length).toBeGreaterThan(0);
+  });
+
+  test("words the wide and narrow counts identically so they cannot drift", async () => {
+    await renderBoard({ campus: "arau" });
+
+    const counts = screen.getAllByText(/filter.? applied/i).map((node) => node.textContent);
+
+    expect(new Set(counts).size).toBe(1);
   });
 
   test("offers no clear action when there is nothing to clear", async () => {

@@ -85,9 +85,12 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
             )}
           </p>
 
-          <Link className="wanted-card__action" href={href}>
+          <Link
+            className="wanted-card__action"
+            href={href}
+            aria-label={`View this Wanted: ${wanted.title}`}
+          >
             View this Wanted
-            <span className="visually-hidden">{`: ${wanted.title}`}</span>
           </Link>
         </div>
       </article>

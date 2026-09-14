@@ -1663,6 +1663,24 @@ a:hover {
   margin: 0;
 }
 
+/* Swapped with the disclosure summary at the rail's breakpoint. Only the
+   displayed one reaches the accessibility tree, so the count is never
+   duplicated. */
+.board-filters__caption {
+  display: none;
+  margin: 0 0 var(--space-2);
+  max-width: none;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  font-weight: 700;
+}
+
+@media (min-width: 52rem) {
+  .board-filters__caption {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
 
 .board-filters__disclosure {
   border: var(--border-width-1) solid var(--border-strong);
@@ -1685,6 +1703,25 @@ a:hover {
   font-size: var(--text-sm);
   font-weight: 400;
   color: var(--text-muted);
+}
+
+/* `display: flex` on a summary removes the browser's own disclosure marker, so
+   the affordance is redrawn here. Decorative only: the expanded state is
+   already conveyed natively by details/summary. */
+.board-filters__summary::after {
+  content: "";
+  margin-left: auto;
+  align-self: center;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+
+.board-filters__disclosure[open] > .board-filters__summary::after {
+  transform: translateY(2px) rotate(-135deg);
 }
 
 .board-filters__body {
