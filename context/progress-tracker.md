@@ -55,6 +55,18 @@ Update this file after every meaningful implementation or specification change.
   (`d1f5d77`), `/profile/institution-verification` (`1f9d670`), role-aware navigation and the
   Sheriff Console landing (`102b7cb`), and `/verify-email` (`5633ed0`). Nine routes, 86 component
   tests and 29 Playwright UI tests.
+- **Identity screen design specification** (`ae64567`) — state matrices for all ten required states
+  across the four identity screens, responsive behaviour from 360 px, keyboard and focus flows,
+  screen-reader and live-region rules, the institution-verification step flow, and the Sheriff queue
+  and private evidence viewer, in
+  `docs/superpowers/specs/2026-09-14-vaultix-identity-screen-design.md`.
+- **Slice 1: `/profile` connected** (on `2a91d7f`) — the screen reads the real account through the
+  Codex-published `loadAccountViewModel` and renders `AccountViewModel`. Its fixture and
+  `FixtureNotice` are gone; the other three screens keep theirs. Account restriction is now a third
+  trust axis in `VerificationStatus`, so a restricted but institution-verified account is no longer
+  told to verify an institution it has already verified. Unauthenticated and identity-unavailable
+  are separate explicit states, `/profile` is `force-dynamic` so user-specific data cannot enter a
+  shared cache, and at most one `role="alert"` renders per update.
 - **Identity read-contract gap analysis** — reviewed the published identity HTTP contract against
   the four screens still carrying `FixtureNotice` and found every one of them blocked on a missing
   read operation. Proposal written for Codex in
@@ -63,21 +75,20 @@ Update this file after every meaningful implementation or specification change.
 
 ## In Progress
 
-- Contract integration on `codex/integration-identity` is **blocked on the identity read contract**.
-  The authentication forms are connected (`f6f748d`, `17d47b7`), but `/profile`,
-  `/profile/institution-verification`, `/verify-email`, and `/console` cannot be connected, because
-  all nine published operations are `POST` mutations and none of them returns the trust state,
-  capabilities, institution list, console role, or review queue those screens render. The four
-  `FixtureNotice` markers stay until Codex publishes the reads proposed in
-  `docs/superpowers/specs/2026-09-14-vaultix-identity-read-contract.md`.
+- Contract integration on `codex/integration-identity`. Codex published read contract 4.1 and 4.2 in
+  `57b11b9`, merged here as `2a91d7f`. Slice 1 (`/profile`) is complete. Slice 2
+  (`/profile/institution-verification`) is unblocked and next: 4.2 supplied the `institutionId`
+  source it was missing, and its three write operations have existed since `175bc41`.
+- Still blocked on Codex: read contract 4.3 (Sheriff review queue), 4.4 (reviewer evidence access),
+  4.5 (resend verification), and 4.6 (route the callback outcome to `/verify-email`). `/console` and
+  `/verify-email` keep their `FixtureNotice` until those land.
 
 ## Next Up
 
-1. Codex implements the identity read contract (account view model, selectable institutions, Sheriff
-   review queue, reviewer evidence access, resend verification, and the `/verify-email` callback
-   redirect). Nothing else on the identity frontend can proceed first.
-2. Then connect `/profile`, institution verification, `/console`, and `/verify-email` — each its own
-   verifiable slice, each deleting its fixture and `FixtureNotice` in the same patch.
+1. Slice 2: connect `/profile/institution-verification` — institution select from read contract 4.2,
+   automatic domain check, then the signed upload sequence. Unblocked now.
+2. Codex implements the remaining read contract: 4.3 review queue, 4.4 reviewer evidence access,
+   4.5 resend verification, 4.6 callback redirect. Slices 3 and 4 wait on these.
 3. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
    passing in CI.
 4. Write and review the Phase 3 Wanted/ledger plan after the identity journeys are accepted.
@@ -102,6 +113,10 @@ Update this file after every meaningful implementation or specification change.
 - Select the exact error-tracking provider and retention settings.
 - Select the scanner container host and document-conversion toolchain.
 - Define the initial moderation reason-code catalogue and institution-specific policy flags.
+- Define how an account restriction is lifted, and what a restricted user may be told about it.
+  Slice 1 states the restriction as a fact and offers no remedy, because inventing an appeal
+  route or a contact address would promise something that does not exist. The restricted
+  notice on `/profile` gains an action only once this is answered.
 - Define the final legal metadata-retention periods after professional review.
 
 ## Architecture Decisions

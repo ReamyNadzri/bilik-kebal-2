@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { TrustBadge, type EmailBadgeState, type InstitutionBadgeState } from "./trust-badge";
 import { UiStatus } from "./ui-status";
@@ -6,11 +7,19 @@ import type { AccountCapabilities } from "@/features/presentation/account-capabi
 export interface VerificationStatusProps {
   email: EmailBadgeState;
   institution: InstitutionBadgeState;
+  /**
+   * Whether the account carries an active restriction.
+   *
+   * A third trust axis, independent of the two verification states: a
+   * restricted account can be both email- and institution-verified and still
+   * be unable to act. It must never be folded into the institution state.
+   */
+  restricted: boolean;
   capabilities: AccountCapabilities;
 }
 
 /**
- * Presents the two trust states and what the account may currently do.
+ * Presents the trust states and what the account may currently do.
  *
  * It renders the capabilities the backend granted; it never derives them.
  * Email verification alone permits browsing. Funding, claiming and
@@ -24,7 +33,7 @@ const CAPABILITY_LABEL: { key: keyof AccountCapabilities; label: string }[] = [
   { key: "download", label: "Download an entitled resource" },
 ];
 
-const RESTRICTION_MESSAGE: Record<InstitutionBadgeState, string> = {
+const INSTITUTION_MESSAGE: Record<InstitutionBadgeState, string> = {
   unverified:
     "You can browse Wanted metadata. Funding a bounty, submitting a claim and downloading a resource each require institution verification.",
   pending:
@@ -35,8 +44,60 @@ const RESTRICTION_MESSAGE: Record<InstitutionBadgeState, string> = {
     "Some actions are unavailable on this account. Browsing Wanted metadata is still permitted.",
 };
 
-export function VerificationStatus({ email, institution, capabilities }: VerificationStatusProps) {
+/**
+ * Deliberately states the fact and nothing more. How a restriction is lifted
+ * is not defined in the accepted product behaviour, and inventing an appeal
+ * route or a contact address here would promise a remedy that does not exist
+ * (context/ai-workflow-rules.md: do not infer moderation behaviour).
+ */
+const RESTRICTED_MESSAGE =
+  "This account has been restricted, so any action shown below as Not allowed is unavailable while the restriction stands.";
+
+interface Notice {
+  heading: string;
+  message: string;
+  action?: ReactNode;
+}
+
+/**
+ * At most one notice, so at most one `role="alert"` enters the accessibility
+ * tree per render. Two interrupting announcements in one update queue, and the
+ * second usually clips the first.
+ *
+ * A restriction outranks a missing institution verification: verifying would
+ * not restore the blocked actions, so offering it as the remedy would mislead.
+ */
+function noticeFor(
+  restricted: boolean,
+  institution: InstitutionBadgeState,
+  blockedCount: number,
+): Notice | null {
+  if (restricted) {
+    return { heading: "This account is restricted", message: RESTRICTED_MESSAGE };
+  }
+
+  if (blockedCount === 0) {
+    return null;
+  }
+
+  return {
+    heading: "Institution verification required for this action",
+    message: INSTITUTION_MESSAGE[institution],
+    action:
+      institution === "verified" ? undefined : (
+        <Link href="/profile/institution-verification">Verify your institution</Link>
+      ),
+  };
+}
+
+export function VerificationStatus({
+  email,
+  institution,
+  restricted,
+  capabilities,
+}: VerificationStatusProps) {
   const blocked = CAPABILITY_LABEL.filter(({ key }) => !capabilities[key]);
+  const notice = noticeFor(restricted, institution, blocked.length);
 
   return (
     <section className="verification-status">
@@ -47,16 +108,12 @@ export function VerificationStatus({ email, institution, capabilities }: Verific
         <TrustBadge kind="institution" state={institution} />
       </div>
 
-      {blocked.length === 0 ? null : (
+      {notice === null ? null : (
         <UiStatus
           kind="restricted"
-          heading="Institution verification required for this action"
-          message={RESTRICTION_MESSAGE[institution]}
-          action={
-            institution === "verified" ? undefined : (
-              <Link href="/profile/institution-verification">Verify your institution</Link>
-            )
-          }
+          heading={notice.heading}
+          message={notice.message}
+          action={notice.action}
         />
       )}
 

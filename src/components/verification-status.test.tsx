@@ -19,7 +19,12 @@ const FULL_ACCESS: AccountCapabilities = {
 
 test("shows both trust states as separate badges", () => {
   render(
-    <VerificationStatus email="verified" institution="unverified" capabilities={BROWSE_ONLY} />,
+    <VerificationStatus
+      email="verified"
+      institution="unverified"
+      restricted={false}
+      capabilities={BROWSE_ONLY}
+    />,
   );
 
   expect(screen.getByText("Email Verified")).toBeInTheDocument();
@@ -40,6 +45,7 @@ test("labels every institution state", () => {
       <VerificationStatus
         email="verified"
         institution={state as InstitutionBadgeState}
+        restricted={false}
         capabilities={capabilities}
       />,
     );
@@ -51,7 +57,12 @@ test("labels every institution state", () => {
 
 test("announces the restriction when transacting is blocked", () => {
   render(
-    <VerificationStatus email="verified" institution="unverified" capabilities={BROWSE_ONLY} />,
+    <VerificationStatus
+      email="verified"
+      institution="unverified"
+      restricted={false}
+      capabilities={BROWSE_ONLY}
+    />,
   );
 
   const alert = screen.getByRole("alert");
@@ -61,7 +72,14 @@ test("announces the restriction when transacting is blocked", () => {
 });
 
 test("says plainly that browsing is allowed while transacting is not", () => {
-  render(<VerificationStatus email="verified" institution="pending" capabilities={BROWSE_ONLY} />);
+  render(
+    <VerificationStatus
+      email="verified"
+      institution="pending"
+      restricted={false}
+      capabilities={BROWSE_ONLY}
+    />,
+  );
 
   const capabilities = screen.getByRole("list", { name: "Account capabilities" });
 
@@ -72,7 +90,12 @@ test("says plainly that browsing is allowed while transacting is not", () => {
 
 test("states each capability in text, never by colour alone", () => {
   render(
-    <VerificationStatus email="verified" institution="unverified" capabilities={BROWSE_ONLY} />,
+    <VerificationStatus
+      email="verified"
+      institution="unverified"
+      restricted={false}
+      capabilities={BROWSE_ONLY}
+    />,
   );
 
   const capabilities = screen.getByRole("list", { name: "Account capabilities" });
@@ -88,7 +111,14 @@ test("states each capability in text, never by colour alone", () => {
 });
 
 test("drops the restriction notice once every capability is granted", () => {
-  render(<VerificationStatus email="verified" institution="verified" capabilities={FULL_ACCESS} />);
+  render(
+    <VerificationStatus
+      email="verified"
+      institution="verified"
+      restricted={false}
+      capabilities={FULL_ACCESS}
+    />,
+  );
 
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   expect(screen.getByRole("list", { name: "Account capabilities" })).toBeInTheDocument();
@@ -96,7 +126,12 @@ test("drops the restriction notice once every capability is granted", () => {
 
 test("keeps a single heading hierarchy under the page title", () => {
   render(
-    <VerificationStatus email="verified" institution="unverified" capabilities={BROWSE_ONLY} />,
+    <VerificationStatus
+      email="verified"
+      institution="unverified"
+      restricted={false}
+      capabilities={BROWSE_ONLY}
+    />,
   );
 
   const headings = screen.getAllByRole("heading");
@@ -108,11 +143,99 @@ test("keeps a single heading hierarchy under the page title", () => {
 
 test("exposes the verification action to the keyboard", () => {
   render(
-    <VerificationStatus email="verified" institution="unverified" capabilities={BROWSE_ONLY} />,
+    <VerificationStatus
+      email="verified"
+      institution="unverified"
+      restricted={false}
+      capabilities={BROWSE_ONLY}
+    />,
   );
 
   const action = screen.getByRole("link", { name: "Verify your institution" });
 
   expect(action).toHaveAttribute("href", "/profile/institution-verification");
   expect(action).not.toHaveAttribute("tabindex", "-1");
+});
+
+/**
+ * Account restriction is a trust axis of its own, independent of the email and
+ * institution states. The three combine: a restricted account can be fully
+ * verified and still be unable to act.
+ */
+test("reports a restriction on an otherwise fully verified account", () => {
+  render(
+    <VerificationStatus
+      email="verified"
+      institution="verified"
+      restricted
+      capabilities={BROWSE_ONLY}
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "This account is restricted" })).toBeInTheDocument();
+});
+
+test("does not tell a restricted, institution-verified account to verify its institution", () => {
+  render(
+    <VerificationStatus
+      email="verified"
+      institution="verified"
+      restricted
+      capabilities={BROWSE_ONLY}
+    />,
+  );
+
+  expect(screen.queryByRole("link", { name: "Verify your institution" })).not.toBeInTheDocument();
+  expect(screen.getByRole("alert")).not.toHaveTextContent(/verify your institution/i);
+});
+
+/**
+ * A restriction outranks a missing institution verification: verifying would
+ * not restore the blocked actions, so offering it as the remedy would mislead.
+ */
+test("prefers the restriction message when the account is both restricted and unverified", () => {
+  render(
+    <VerificationStatus
+      email="verified"
+      institution="unverified"
+      restricted
+      capabilities={BROWSE_ONLY}
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "This account is restricted" })).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Verify your institution" })).not.toBeInTheDocument();
+});
+
+test("renders exactly one alert whatever the combination of trust states", () => {
+  render(
+    <VerificationStatus
+      email="unverified"
+      institution="rejected"
+      restricted
+      capabilities={{
+        browseMetadata: false,
+        transact: false,
+        submitClaim: false,
+        download: false,
+      }}
+    />,
+  );
+
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
+});
+
+test("keeps the badges truthful when the account is restricted", () => {
+  render(
+    <VerificationStatus
+      email="verified"
+      institution="verified"
+      restricted
+      capabilities={BROWSE_ONLY}
+    />,
+  );
+
+  // A restriction does not revoke the verifications; it blocks what they allow.
+  expect(screen.getByText("Email Verified")).toBeInTheDocument();
+  expect(screen.getByText("Institution Verified")).toBeInTheDocument();
 });

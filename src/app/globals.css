@@ -587,3 +587,53 @@ p {
   margin: 0;
   font-size: var(--text-sm);
 }
+
+/* --------------------------------------------------------------------------
+   Account summary
+   -------------------------------------------------------------------------- */
+
+.account-summary,
+.account-summary__request,
+.account-summary__console {
+  margin-bottom: var(--space-6);
+}
+
+/* Two columns where there is room, stacked below it. Grid rather than a table:
+   these are name/value pairs, not tabular data, and they must stack at 360 px
+   instead of clipping (context/ui-context.md). */
+.account-summary__details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+@media (min-width: 600px) {
+  .account-summary__details {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.account-summary__details dt {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.account-summary__details dd {
+  margin: 0 0 var(--space-3);
+  /* Institution and reason values come from data, so a long one must wrap
+     rather than push the page wider than the viewport. */
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 600px) {
+  .account-summary__details dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+.account-summary__request p {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
