@@ -8,6 +8,11 @@ Update this file after every meaningful implementation or specification change.
   operations. The provisional Identity frontend is complete on `codex/provisional-ui` (`b17490f`).
   Integration is under way on `codex/integration-identity`; `codex/provisional-ui` is pinned at
   `b17490f` by the user.
+- The user approved a marketplace-first frontend pivot on `codex/integration-identity`. VAULTIX must
+  read as an academic resource bounty marketplace before it reads as an authentication application,
+  so `/`, `/board`, `/wanted/[id]` and `/claims` are built ahead of their Phase 3 backend behind one
+  replaceable frontend fixture seam. The Identity integration above is unaffected and stays connected
+  to its real operations.
 
 ## Current Goal
 
@@ -101,6 +106,10 @@ Update this file after every meaningful implementation or specification change.
   complete, so `/profile` and `/profile/institution-verification` run on real operations.
 - All four Phase 2 identity screens are connected to real operations. No screen is fixture-backed and
   no `FixtureNotice` remains in `src/app/`. Phase 2 integration is complete pending review.
+- Marketplace-first frontend phase. The approved temporary visual direction is recorded in
+  `docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md`: an organised academic
+  bounty ledger, paper case files on a dark timber board, brass reserved for the money. Every value
+  is provisional and the Final Visual Handoff Gate still applies.
 
 ## Next Up
 
