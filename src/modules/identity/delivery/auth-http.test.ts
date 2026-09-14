@@ -50,6 +50,25 @@ describe("executeJsonOperation", () => {
 
     expect(response.status).toBe(202);
   });
+
+  test("runs a server-side result hook without changing the response contract", async () => {
+    const onResult = vi.fn();
+    const response = await executeJsonOperation(
+      new Request("https://vaultix.example/api/auth/sign-up", {
+        body: JSON.stringify({ email: "aina@example.com" }),
+        method: "POST",
+      }),
+      vi.fn().mockResolvedValue({ ok: true, data: { next: "verify_email" } }),
+      202,
+      onResult,
+    );
+
+    expect(onResult).toHaveBeenCalledWith(
+      { ok: true, data: { next: "verify_email" } },
+      { email: "aina@example.com" },
+    );
+    expect(response.status).toBe(202);
+  });
 });
 
 describe("safeNextPath", () => {

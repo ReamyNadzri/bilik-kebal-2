@@ -5,6 +5,7 @@ import { SupabaseAuthGateway, type SupabaseAuthClient } from "./supabase-auth-ga
 function createClient(): SupabaseAuthClient {
   return {
     resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+    resend: vi.fn().mockResolvedValue({ error: null }),
     signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     signUp: vi.fn().mockResolvedValue({ error: null }),
@@ -69,5 +70,22 @@ describe("SupabaseAuthGateway", () => {
         redirectTo: "https://vaultix.example/reset-password",
       }),
     ).resolves.toEqual({ ok: false, reason: "rate_limited" });
+  });
+
+  test("uses Supabase signup resend without exposing provider output", async () => {
+    const client = createClient();
+    const gateway = new SupabaseAuthGateway(client);
+
+    await expect(
+      gateway.resendVerification({
+        email: "aina@example.com",
+        emailRedirectTo: "https://vaultix.example/auth/callback",
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(client.resend).toHaveBeenCalledWith({
+      email: "aina@example.com",
+      options: { emailRedirectTo: "https://vaultix.example/auth/callback" },
+      type: "signup",
+    });
   });
 });

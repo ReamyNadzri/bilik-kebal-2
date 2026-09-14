@@ -18,6 +18,7 @@ const statusByCode: Readonly<Record<string, number>> = {
   AUTH_UNAVAILABLE: 503,
   EMAIL_NOT_VERIFIED: 403,
   EVIDENCE_UPLOAD_UNAVAILABLE: 503,
+  EVIDENCE_EXPIRED: 410,
   INVALID_CREDENTIALS: 401,
   NOT_AUTHORIZED: 403,
   RECENT_AUTH_REQUIRED: 401,
@@ -31,6 +32,7 @@ export async function executeJsonOperation(
   request: Request,
   operation: (input: unknown) => Promise<HttpOperationResult>,
   successStatus = 200,
+  onResult?: (result: HttpOperationResult, input: unknown) => Promise<void>,
 ): Promise<Response> {
   let input: unknown;
 
@@ -48,6 +50,7 @@ export async function executeJsonOperation(
   }
 
   const result = await operation(input);
+  await onResult?.(result, input);
   return operationResponse(result, successStatus);
 }
 

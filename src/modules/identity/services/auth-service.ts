@@ -4,6 +4,7 @@ import type {
   IdentityOperationCode,
   PasswordRecoveryResult,
   RegistrationResult,
+  ResendVerificationResult,
   SignInResult,
   SignOutResult,
 } from "@/contracts/identity";
@@ -57,6 +58,7 @@ export interface AuthGateway {
   }): Promise<AuthGatewayResult>;
   signIn(input: { email: string; password: string }): Promise<AuthGatewayResult>;
   sendPasswordRecovery(input: { email: string; redirectTo: string }): Promise<AuthGatewayResult>;
+  resendVerification(input: { email: string; emailRedirectTo: string }): Promise<AuthGatewayResult>;
   signOut(): Promise<AuthGatewayResult>;
 }
 
@@ -163,6 +165,18 @@ export class AuthService {
     }
 
     return success({ accepted: true as const });
+  }
+
+  async resendVerification(email: unknown): Promise<ResendVerificationResult> {
+    const parsed = emailSchema.safeParse(email);
+    if (!parsed.success) {
+      return failure("AUTH_UNAVAILABLE", "Verification email could not be resent. Try again.");
+    }
+    const result = await this.gateway.resendVerification({
+      email: parsed.data,
+      emailRedirectTo: new URL("/auth/callback", this.appUrl).toString(),
+    });
+    return result.ok ? success({ accepted: true as const }) : providerFailure(result.reason);
   }
 
   async signOut(): Promise<SignOutResult> {

@@ -4,7 +4,7 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 2 Identity backend complete on `codex/backend`; frontend remains provisional until integration.
+- Phase 2 Identity read-contract backend implementation is complete pending final gate and commit; frontend remains provisional until integration.
 
 ## Current Goal
 
@@ -38,6 +38,7 @@ Update this file after every meaningful implementation or specification change.
 - Wrote `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` as the phased MVP design handoff.
 - Assigned the complete provisional MVP frontend to Claude Code and backend/infrastructure implementation to Codex, with separate worktrees and Codex-owned shared contracts.
 - Implemented Phase 2 identity schema, RLS, Auth, email confirmation, domain fallback, manual evidence workflow, role-scoped review, account restriction, audit events, and private signed evidence uploads in the Codex backend worktree.
+- Implemented the six Identity read-contract operations: account view, selectable institutions, scoped Sheriff queue, audited evidence read URL, verification resend, and explicit callback outcomes.
 
 ## In Progress
 

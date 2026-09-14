@@ -7,6 +7,7 @@ function createGateway(): AuthGateway {
     register: vi.fn().mockResolvedValue({ ok: true }),
     signIn: vi.fn().mockResolvedValue({ ok: true }),
     sendPasswordRecovery: vi.fn().mockResolvedValue({ ok: true }),
+    resendVerification: vi.fn().mockResolvedValue({ ok: true }),
     signOut: vi.fn().mockResolvedValue({ ok: true }),
   };
 }
@@ -98,5 +99,18 @@ describe("AuthService", () => {
       code: "AUTH_UNAVAILABLE",
       message: "Authentication is temporarily unavailable. Try again.",
     });
+  });
+
+  test("resends confirmation to the server-resolved pending address", async () => {
+    const gateway = createGateway();
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    const result = await service.resendVerification("AINA@example.com");
+
+    expect(gateway.resendVerification).toHaveBeenCalledWith({
+      email: "aina@example.com",
+      emailRedirectTo: "https://vaultix.example/auth/callback",
+    });
+    expect(result).toEqual({ ok: true, data: { accepted: true } });
   });
 });

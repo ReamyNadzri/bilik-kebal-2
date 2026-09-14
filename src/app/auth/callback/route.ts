@@ -2,6 +2,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 import { safeNextPath } from "@/modules/identity/delivery/auth-http";
+import { resolveAuthCallbackPath } from "@/modules/identity/delivery/auth-callback";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const allowedOtpTypes: ReadonlySet<string> = new Set([
@@ -27,7 +28,11 @@ export async function GET(request: Request): Promise<Response> {
       : { error: new Error("Missing authentication callback parameters") };
 
   const destination = new URL(
-    result.error ? "/sign-in?error=verification_failed" : next,
+    resolveAuthCallbackPath({
+      errorCode: result.error ? ((result.error as { code?: string }).code ?? "invalid") : null,
+      next,
+      otpType: type,
+    }),
     requestUrl.origin,
   );
   const response = NextResponse.redirect(destination);
