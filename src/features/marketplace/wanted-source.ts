@@ -1,5 +1,6 @@
-import { FIXTURE_NOW, WANTED } from "./fixtures";
-import type { MarketplaceResult, WantedSummary } from "./types";
+import { applyBoardFilters } from "./filters";
+import { FIXTURE_NOW, WANTED, findWantedDetail } from "./fixtures";
+import type { BoardFilters, MarketplaceResult, WantedDetail, WantedSummary } from "./types";
 
 /**
  * The replaceable seam between marketplace screens and their data.
@@ -66,4 +67,54 @@ export function listFeaturedWanted(
   const open = WANTED.filter((wanted) => wanted.status !== "closed");
 
   return { status: "ready", data: open.slice(0, limit) };
+}
+
+/**
+ * The filtered, sorted Board.
+ *
+ * The filtering happens in `filters.ts` because a fixture has to do here what
+ * the Board read will do on the server. When that read arrives, the filters go
+ * with the request and this function forwards them instead.
+ */
+export function listWanted(
+  filters: BoardFilters,
+  preview: PreviewState | null = null,
+): MarketplaceResult<readonly WantedSummary[]> {
+  if (preview === "unavailable") {
+    return { status: "unavailable" };
+  }
+
+  const source = preview === "empty" ? [] : WANTED;
+
+  return { status: "ready", data: applyBoardFilters(source, filters, FIXTURE_NOW) };
+}
+
+/** How many Wanteds exist before any filter is applied. */
+export function countAllWanted(preview: PreviewState | null = null): number {
+  return preview === "empty" ? 0 : WANTED.length;
+}
+
+/**
+ * One Wanted in full.
+ *
+ * `null` means no request has that public identifier, which the page turns
+ * into a 404 rather than an error: a mistyped address is not a failure of the
+ * marketplace.
+ */
+export function readWanted(
+  id: string,
+  preview: PreviewState | null = null,
+): MarketplaceResult<WantedDetail | null> {
+  if (preview === "unavailable") {
+    return { status: "unavailable" };
+  }
+
+  return { status: "ready", data: findWantedDetail(id) };
+}
+
+/** The Wanteds suggested beside a request, resolved from their identifiers. */
+export function readSimilarWanted(detail: WantedDetail): readonly WantedSummary[] {
+  return detail.similarIds
+    .map((id) => WANTED.find((wanted) => wanted.id === id))
+    .filter((wanted): wanted is WantedSummary => wanted !== undefined);
 }

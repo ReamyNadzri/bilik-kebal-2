@@ -1095,7 +1095,7 @@ a:hover {
   justify-content: center;
   gap: 0;
   margin: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2) var(--space-2);
   background: var(--bounty-plate-bg);
   border: var(--border-width-2) solid var(--accent-brass);
   /* Notched top corners: a hung index tag, not a coin and not a rounded pill. */
@@ -1113,7 +1113,7 @@ a:hover {
 
 .bounty-plate__value {
   font-family: var(--font-display);
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: 700;
   color: var(--bounty-value);
 }
@@ -1260,6 +1260,7 @@ a:hover {
   margin: 0;
   font-size: var(--text-lg);
   line-height: var(--leading-tight);
+  overflow-wrap: break-word;
 }
 
 .wanted-card__title a {
@@ -1270,6 +1271,13 @@ a:hover {
 .wanted-card__title a:hover {
   color: var(--accent-primary-hover);
   text-decoration: underline;
+}
+
+/* The plate keeps its own height rather than stretching to the head row: a
+   two-line course name would otherwise elongate it and break the alignment
+   down a column of cards. */
+.wanted-card__frame > .bounty-plate {
+  align-self: start;
 }
 
 .wanted-card__frame .index-grid {
@@ -1541,4 +1549,460 @@ a:hover {
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
   font-size: var(--text-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Wanted Board
+
+   Search and sort read first, then the filter rail, then the results. The
+   controls are one GET form spread across those regions, joined by the `form`
+   attribute, so the reading order is not forced to follow the form's markup.
+   -------------------------------------------------------------------------- */
+
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 52rem) {
+  .board {
+    grid-template-columns: 15rem minmax(0, 1fr);
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+
+  .board__head {
+    grid-column: 1 / -1;
+  }
+}
+
+.board__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-1) solid var(--border-strong);
+}
+
+.board__search {
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+.board__search-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.board__search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.board__search-input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.board__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.board__count {
+  margin: 0;
+  font-weight: 700;
+}
+
+.board__sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  max-width: none;
+}
+
+.board__sort-label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.board__sort-select,
+.board-filters__select {
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Filter rail
+   -------------------------------------------------------------------------- */
+
+.board-filters {
+  margin: 0;
+}
+
+.board-filters__disclosure {
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.board-filters__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.board-filters__summary-count {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.board-filters__body {
+  padding: var(--space-3);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.board-filters__field {
+  margin: 0 0 var(--space-3);
+  max-width: none;
+}
+
+.board-filters__label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.board-filters__select {
+  width: 100%;
+}
+
+.board-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-1);
+}
+
+.board-filters__clear {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+/* At the rail's own width the disclosure becomes a static panel. Both the
+   legacy child-hiding model and the newer ::details-content model are
+   overridden, so the rail is open whichever the engine implements. */
+@media (min-width: 52rem) {
+  .board-filters__disclosure > .board-filters__summary {
+    display: none;
+  }
+
+  .board-filters__disclosure::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
+
+  .board-filters__disclosure > .board-filters__body {
+    display: block;
+    border-top: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Wanted detail
+   -------------------------------------------------------------------------- */
+
+.back-link {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.wanted-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+/* The DOM order is header, ledger, case file, similar requests, which is the
+   single-column order a phone needs. Explicit placement — never `order` — puts
+   the case file back on the left at desktop, so the tab order never disagrees
+   with what is on screen.
+
+   Deliberately not sticky: the similar-request cards span both columns below
+   the fold, and a stuck ledger paints over them as they scroll past. */
+@media (min-width: 62rem) {
+  .wanted-detail {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+
+  .wanted-detail__header,
+  .wanted-detail__similar {
+    grid-column: 1 / -1;
+  }
+
+  .wanted-detail__ledger {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .wanted-detail__case {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+
+.wanted-detail__header {
+  margin-bottom: var(--space-1);
+}
+
+.wanted-detail__case {
+  min-width: 0;
+}
+
+.wanted-detail__masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  max-width: none;
+}
+
+.wanted-detail__posted {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.wanted-detail__title {
+  margin-bottom: var(--space-3);
+  max-width: 26ch;
+}
+
+.wanted-detail__description {
+  font-size: var(--text-lg);
+}
+
+.wanted-detail__facts {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-left-width: var(--border-width-3);
+  border-left-color: var(--accent-brass);
+  border-radius: var(--radius-sm);
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-5);
+}
+
+.wanted-detail__facts dt {
+  font-size: var(--text-sm);
+}
+
+.wanted-detail__facts dd {
+  font-size: var(--text-base);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.tag-row__tag {
+  max-width: none;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  font-size: var(--text-sm);
+}
+
+.wanted-detail__section {
+  margin-bottom: var(--space-5);
+}
+
+.wanted-detail__section h2,
+.wanted-detail__similar h2 {
+  font-size: var(--text-xl);
+  margin-bottom: var(--space-3);
+}
+
+/* --------------------------------------------------------------------------
+   Activity
+   -------------------------------------------------------------------------- */
+
+.activity {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: var(--border-width-2) solid var(--border-subtle);
+}
+
+.activity__event {
+  position: relative;
+  max-width: none;
+  padding: 0 0 var(--space-3) var(--space-5);
+}
+
+.activity__event::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--border-width-2) * -1 - 3px);
+  top: 0.5em;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-brass-ink);
+}
+
+.activity__when {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.activity__what {
+  font-size: var(--text-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Bounty ledger
+   -------------------------------------------------------------------------- */
+
+.wanted-detail__ledger {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ledger-panel {
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.ledger-panel:first-child {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  background: var(--bg-subtle);
+}
+
+.ledger-panel__backers,
+.ledger-panel__closing {
+  margin: 0;
+  max-width: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.ledger-panel__closing {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ledger-panel__action {
+  display: flex;
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
+.ledger-panel__note {
+  margin: var(--space-3) 0 0;
+  max-width: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.ledger-panel__heading {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.ledger-panel__body {
+  margin: 0 0 var(--space-3);
+  max-width: none;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.ledger-panel__body:last-child {
+  margin-bottom: 0;
+}
+
+.ledger-panel__commissioner {
+  margin: 0 0 var(--space-3);
+  max-width: none;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.ledger-panel__trust {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: var(--space-3);
+}
+
+.ledger-panel__trust dt {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ledger-panel__trust dd {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.wanted-detail__similar-note {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* auto-fit rather than auto-fill: three suggestions should share the width
+   evenly instead of leaving an empty fourth column. */
+.wanted-detail__similar .wanted-grid {
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
 }
