@@ -20,8 +20,8 @@ export interface PersistWantedDraft {
 }
 
 export interface WantedRepository {
-  listPublicWanted?(query: ListWantedQuery): Promise<WantedSummary[]>;
-  readPublicWanted?(publicId: string): Promise<WantedDetail | null>;
+  listPublicWanted(query: ListWantedQuery): Promise<WantedSummary[]>;
+  readPublicWanted(publicId: string): Promise<WantedDetail | null>;
   taxonomyMatchesInstitution(
     institutionId: string,
     values: ValidatedWantedDraftInput,

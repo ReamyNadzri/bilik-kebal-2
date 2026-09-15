@@ -13,7 +13,7 @@ export class WantedReadService {
     if (!actor.emailVerified)
       return failure("EMAIL_NOT_VERIFIED", "Verify your email to browse Wanteds.");
     try {
-      return success((await this.repository.listPublicWanted?.(query)) ?? []);
+      return success(await this.repository.listPublicWanted(query));
     } catch {
       return failure(
         "MARKETPLACE_UNAVAILABLE",
@@ -26,7 +26,7 @@ export class WantedReadService {
     if (!actor.emailVerified)
       return failure("EMAIL_NOT_VERIFIED", "Verify your email to browse Wanteds.");
     try {
-      const wanted = (await this.repository.readPublicWanted?.(publicId)) ?? null;
+      const wanted = await this.repository.readPublicWanted(publicId);
       return wanted ? success(wanted) : failure("WANTED_NOT_FOUND", "Wanted request not found.");
     } catch {
       return failure(

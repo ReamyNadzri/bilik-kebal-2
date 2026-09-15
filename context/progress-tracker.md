@@ -45,6 +45,9 @@ Update this file after every meaningful implementation or specification change.
 - Published `docs/integration/marketplace-http-contract.md`; Phase 3A never confirms payment or opens a Wanted.
 - Claude connected taxonomy, draft persistence, duplicate checks and publication preparation to the Phase 3A operations in `fed4576`.
 - Implemented Phase 3B contribution intents, ToyyibPay bill creation and form callback verification, service-role event recording, one-use token consumption, immutable balanced ledger entries, first-contribution Wanted activation, outbox events and reconciliation reads.
+- Implemented public Wanted Board and detail operations (`26a0427` plus follow-up hardening): safe
+  public DTOs, email-verification gate, integer-sen bounty aggregation, distinct backer counts,
+  taxonomy and public activity, validated query enums, and deterministic sorting.
 - Added functional pgTAP coverage for atomic intent creation, pending callbacks, successful balanced posting and idempotent callback replay.
 
 ## In Progress
@@ -54,7 +57,8 @@ Update this file after every meaningful implementation or specification change.
 ## Next Up
 
 1. Hand `docs/integration/money-http-contract.md` to Claude for the payment redirect/waiting UI slice.
-2. Implement public Board/detail read models now that confirmed contributions can create real open Wanted records.
+2. Connect `/`, `/board`, and `/wanted/[id]` to the public Wanted read operations while preserving
+   signed-out, email-unverified, unavailable, empty and not-found states.
 3. Add operator reconciliation UI and provider-status polling only after its access and operational workflow are specified.
 4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
 5. Incorporate the external visual design handoff into `ui-context.md` when it is available.

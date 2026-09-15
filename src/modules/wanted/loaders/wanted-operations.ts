@@ -8,6 +8,7 @@ import type { ListWantedQuery, ListWantedResult, ReadWantedResult } from "@/cont
 import { failure } from "@/contracts/operation-result";
 import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SupabaseIdentityReadRepository } from "@/modules/identity/repositories/supabase-identity-read-repository";
 import type { WantedActor } from "../domain/wanted-policy";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
@@ -115,7 +116,8 @@ async function readContext() {
     data: { user },
   } = await client.auth.getUser();
   const actor = user ? { emailVerified: Boolean(user.email_confirmed_at) } : null;
-  return { actor, service: new WantedReadService(new SupabaseWantedRepository(client)) };
+  const readClient = actor ? createSupabaseAdminClient() : client;
+  return { actor, service: new WantedReadService(new SupabaseWantedRepository(readClient)) };
 }
 
 export async function listPublicWanted(query: ListWantedQuery): Promise<ListWantedResult> {

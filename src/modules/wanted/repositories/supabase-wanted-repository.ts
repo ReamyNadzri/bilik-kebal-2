@@ -8,6 +8,7 @@ import type {
 } from "@/contracts/marketplace";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
+import { sortWantedSummaries } from "../domain/wanted-read-query";
 import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./wanted-repository";
 
 type Client = SupabaseClient<Database>;
@@ -72,7 +73,7 @@ export class SupabaseWantedRepository implements WantedRepository {
     if (query.query) request = request.ilike("title", `%${query.query.replace(/[%_]/g, "\\$&")}%`);
     const { data, error } = await request;
     if (error) throw error;
-    return this.toSummaries(data ?? []);
+    return sortWantedSummaries(await this.toSummaries(data ?? []), query.sort);
   }
 
   async readPublicWanted(publicId: string): Promise<WantedDetail | null> {

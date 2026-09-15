@@ -51,6 +51,8 @@ function stored(
 
 function repository(overrides: Partial<WantedRepository> = {}): WantedRepository {
   return {
+    listPublicWanted: vi.fn().mockResolvedValue([]),
+    readPublicWanted: vi.fn().mockResolvedValue(null),
     taxonomyMatchesInstitution: vi.fn().mockResolvedValue(true),
     createDraft: vi.fn(async ({ values }) => stored(values)),
     findDraft: vi.fn(async () =>
