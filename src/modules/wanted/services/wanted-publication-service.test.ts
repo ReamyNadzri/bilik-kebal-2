@@ -42,6 +42,8 @@ const draft: StoredWantedDraft = {
 
 function repository(overrides: Partial<WantedRepository> = {}): WantedRepository {
   return {
+    listPublicWanted: vi.fn().mockResolvedValue([]),
+    readPublicWanted: vi.fn().mockResolvedValue(null),
     taxonomyMatchesInstitution: vi.fn().mockResolvedValue(true),
     createDraft: vi.fn(),
     findDraft: vi.fn().mockResolvedValue(draft),

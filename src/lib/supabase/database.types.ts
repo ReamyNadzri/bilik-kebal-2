@@ -162,6 +162,122 @@ export type Database = {
           },
         ];
       };
+      contribution_intents: {
+        Row: {
+          amount_sen: number;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          paid_at: string | null;
+          payer_user_id: string;
+          provider: string;
+          provider_bill_id: string;
+          status: Database["public"]["Enums"]["contribution_intent_status"];
+          updated_at: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          amount_sen: number;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          paid_at?: string | null;
+          payer_user_id: string;
+          provider: string;
+          provider_bill_id: string;
+          status?: Database["public"]["Enums"]["contribution_intent_status"];
+          updated_at?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          amount_sen?: number;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          paid_at?: string | null;
+          payer_user_id?: string;
+          provider?: string;
+          provider_bill_id?: string;
+          status?: Database["public"]["Enums"]["contribution_intent_status"];
+          updated_at?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contribution_intents_payer_user_id_fkey";
+            columns: ["payer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "contribution_intents_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      contributions: {
+        Row: {
+          amount_sen: number;
+          contribution_intent_id: string;
+          contributor_user_id: string;
+          created_at: string;
+          id: string;
+          provider_event_id: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          amount_sen: number;
+          contribution_intent_id: string;
+          contributor_user_id: string;
+          created_at?: string;
+          id?: string;
+          provider_event_id: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          amount_sen?: number;
+          contribution_intent_id?: string;
+          contributor_user_id?: string;
+          created_at?: string;
+          id?: string;
+          provider_event_id?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contributions_contribution_intent_id_fkey";
+            columns: ["contribution_intent_id"];
+            isOneToOne: true;
+            referencedRelation: "contribution_intents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contributions_contributor_user_id_fkey";
+            columns: ["contributor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "contributions_provider_event_id_fkey";
+            columns: ["provider_event_id"];
+            isOneToOne: true;
+            referencedRelation: "provider_events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contributions_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       courses: {
         Row: {
           active: boolean;
@@ -563,6 +679,97 @@ export type Database = {
         };
         Relationships: [];
       };
+      ledger_entries: {
+        Row: {
+          account_code: string;
+          created_at: string;
+          credit_sen: number;
+          debit_sen: number;
+          id: string;
+          transaction_id: string;
+        };
+        Insert: {
+          account_code: string;
+          created_at?: string;
+          credit_sen?: number;
+          debit_sen?: number;
+          id?: string;
+          transaction_id: string;
+        };
+        Update: {
+          account_code?: string;
+          created_at?: string;
+          credit_sen?: number;
+          debit_sen?: number;
+          id?: string;
+          transaction_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "ledger_transactions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ledger_transactions: {
+        Row: {
+          contribution_id: string | null;
+          created_at: string;
+          id: string;
+          kind: string;
+        };
+        Insert: {
+          contribution_id?: string | null;
+          created_at?: string;
+          id?: string;
+          kind: string;
+        };
+        Update: {
+          contribution_id?: string | null;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ledger_transactions_contribution_id_fkey";
+            columns: ["contribution_id"];
+            isOneToOne: true;
+            referencedRelation: "contributions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      money_outbox: {
+        Row: {
+          aggregate_id: string;
+          created_at: string;
+          event_type: string;
+          id: string;
+          payload: Json;
+          published_at: string | null;
+        };
+        Insert: {
+          aggregate_id: string;
+          created_at?: string;
+          event_type: string;
+          id?: string;
+          payload: Json;
+          published_at?: string | null;
+        };
+        Update: {
+          aggregate_id?: string;
+          created_at?: string;
+          event_type?: string;
+          id?: string;
+          payload?: Json;
+          published_at?: string | null;
+        };
+        Relationships: [];
+      };
       platform_role_assignments: {
         Row: {
           assigned_at: string;
@@ -671,6 +878,42 @@ export type Database = {
           },
         ];
       };
+      provider_events: {
+        Row: {
+          amount_sen: number;
+          id: string;
+          payload_hash: string;
+          processed_at: string | null;
+          provider: string;
+          provider_bill_id: string;
+          provider_transaction_id: string;
+          received_at: string;
+          status: string;
+        };
+        Insert: {
+          amount_sen: number;
+          id?: string;
+          payload_hash: string;
+          processed_at?: string | null;
+          provider: string;
+          provider_bill_id: string;
+          provider_transaction_id: string;
+          received_at?: string;
+          status: string;
+        };
+        Update: {
+          amount_sen?: number;
+          id?: string;
+          payload_hash?: string;
+          processed_at?: string | null;
+          provider?: string;
+          provider_bill_id?: string;
+          provider_transaction_id?: string;
+          received_at?: string;
+          status?: string;
+        };
+        Relationships: [];
+      };
       resource_types: {
         Row: {
           active: boolean;
@@ -736,6 +979,7 @@ export type Database = {
           consumed_at: string | null;
           created_at: string;
           criteria_hash: string;
+          draft_updated_at: string | null;
           expires_at: string;
           id: string;
           token_hash: string;
@@ -745,6 +989,7 @@ export type Database = {
           consumed_at?: string | null;
           created_at?: string;
           criteria_hash: string;
+          draft_updated_at?: string | null;
           expires_at: string;
           id?: string;
           token_hash: string;
@@ -754,6 +999,7 @@ export type Database = {
           consumed_at?: string | null;
           created_at?: string;
           criteria_hash?: string;
+          draft_updated_at?: string | null;
           expires_at?: string;
           id?: string;
           token_hash?: string;
@@ -985,6 +1231,17 @@ export type Database = {
         Args: { target_request_id: string };
         Returns: string;
       };
+      create_contribution_intent: {
+        Args: {
+          amount_sen: number;
+          draft_id: string;
+          intent_expires_at: string;
+          provider: string;
+          provider_bill_id: string;
+          token_hash_hex: string;
+        };
+        Returns: string;
+      };
       create_wanted_draft: {
         Args: {
           academic_session_id: string;
@@ -998,6 +1255,28 @@ export type Database = {
           resource_type_id: string;
           tag_ids: string[];
           title: string;
+        };
+        Returns: string;
+      };
+      list_unresolved_provider_events: {
+        Args: { max_rows?: number };
+        Returns: {
+          id: string;
+          provider: string;
+          provider_bill_id: string;
+          provider_transaction_id: string;
+          reason: string;
+          received_at: string;
+        }[];
+      };
+      record_verified_contribution: {
+        Args: {
+          amount_sen: number;
+          payload_hash_hex: string;
+          provider_bill_id: string;
+          provider_name: string;
+          provider_status: string;
+          provider_transaction_id: string;
         };
         Returns: string;
       };
@@ -1042,6 +1321,7 @@ export type Database = {
       verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
+      contribution_intent_status: "pending" | "paid" | "failed" | "expired";
       institution_role: "institution_sheriff";
       institution_verification_method: "domain" | "manual";
       institution_verification_state: "unverified" | "pending" | "verified" | "rejected";
@@ -1173,6 +1453,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      contribution_intent_status: ["pending", "paid", "failed", "expired"],
       institution_role: ["institution_sheriff"],
       institution_verification_method: ["domain", "manual"],
       institution_verification_state: ["unverified", "pending", "verified", "rejected"],

@@ -5,19 +5,20 @@ Update this file after every meaningful implementation or specification change.
 ## Current Phase
 
 - Phase 2 Identity is complete on both lanes and integrated on `codex/integration-identity`.
-  Phase 3A Wanted core backend is implemented on `codex/backend`; Phase 3B money and ledger is the
-  next backend slice. `codex/provisional-ui` is pinned at `b17490f` by the user.
+  Phase 3A Wanted core and Phase 3B money/ledger are implemented on `codex/backend`, along with the
+  public Wanted Board and detail read operations. `codex/provisional-ui` is pinned at `b17490f` by
+  the user.
 - The user approved a marketplace-first frontend pivot on `codex/integration-identity`. VAULTIX must
   read as an academic resource bounty marketplace before it reads as an authentication application,
-  so `/`, `/board`, `/wanted/[id]` and `/claims` are built ahead of their Phase 3 backend behind one
+  so `/`, `/board`, `/wanted/[id]` and `/claims` were built ahead of their Phase 3 backend behind one
   replaceable frontend fixture seam. The Identity integration above is unaffected and stays connected
   to its real operations.
 
 ## Current Goal
 
-- Connect Claude's provisional Wanted workspace to the Phase 3A HTTP contract, retiring each
-  fixture and its `FixtureNotice` in the same slice that connects it, while Codex designs the
-  trusted ToyyibPay and immutable-ledger boundary for Phase 3B.
+- Connect `/`, `/board` and `/wanted/[id]` to the public Wanted read operations, retiring each
+  fixture and its `FixtureNotice` in the same slice that connects it, while Codex finishes the
+  Phase 3B gate and hands over `docs/integration/money-http-contract.md` for the payment slice.
 
 ## Completed
 
@@ -115,6 +116,16 @@ Update this file after every meaningful implementation or specification change.
   documented in `docs/integration/marketplace-http-contract.md`. Phase 3A never confirms payment and
   never opens a Wanted.
 
+- **Phase 3B backend** -- contribution intents, ToyyibPay bill creation and form-callback
+  verification, service-role event recording, one-use token consumption, immutable balanced ledger
+  entries, first-contribution Wanted activation, outbox events and reconciliation reads, with
+  functional pgTAP coverage for atomic intent creation, pending callbacks, successful balanced
+  posting and idempotent callback replay.
+- **Public Wanted read operations** (`26a0427`, hardened in `7b5231f`) -- safe public DTOs, an
+  email-verification gate, integer-sen bounty aggregation, distinct backer counts, taxonomy and
+  public activity, validated query enums and deterministic sorting. Documented in
+  `docs/integration/marketplace-http-contract.md`.
+
 ## In Progress
 
 - Marketplace-first frontend phase. The approved temporary visual direction is recorded in
@@ -123,22 +134,19 @@ Update this file after every meaningful implementation or specification change.
   is provisional and the Final Visual Handoff Gate still applies.
 - All four Phase 2 identity screens are connected to real operations, so no identity screen is
   fixture-backed. Phase 2 integration is complete pending review.
-- Four marketplace routes remain fixture-backed: `/` (marketplace homepage), `/board` (searchable,
-  filterable, URL-addressed Wanted Board), `/wanted/[id]` (Wanted detail) and `/claims` (Hunt and
-  claim ledger). Each keeps its `FixtureNotice` until its own read contract exists.
 - Phase 3C is complete for `/wanted/new`: the workspace consumes the real taxonomy, draft,
-  duplicate-check and publication operations, and both payment refusals are honest. The other three
-  marketplace routes still wait on their read contracts.
+  duplicate-check and publication operations, and both payment refusals are honest.
+- Codex is running the final unit, database, format, lint, type and production-build gates for
+  Phase 3B.
 
 ## Next Up
 
-1. Integrate and accept the Phase 3A Wanted-creation journey, then decide whether
+1. Integrate and accept the marketplace journeys end to end, then decide whether
    `codex/integration-identity` merges toward `main`.
-2. Implement Phase 3B bill intents, verified ToyyibPay callbacks, contributions, immutable balanced
-   ledger, activation and reconciliation.
-3. Implement public Board and detail read models once confirmed contributions can create real open
-   Wanted records, and decide what every screen shows with no session and no configured Supabase so
-   the gate keeps passing in CI.
+2. Hand `docs/integration/money-http-contract.md` to Claude for the payment redirect and waiting UI
+   slice.
+3. Add operator reconciliation UI and provider-status polling only after their access and
+   operational workflow are specified.
 4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
 5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
 6. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
@@ -326,6 +334,7 @@ times must arrive with a server-rendered reference instant.
 - Production marketplace taxonomy remains intentionally empty until an authoritative UiTM source and maintainer are approved.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
+- Phase 3B migrations `202609150004` through `202609150009` are applied locally without resetting the demo database; the follow-up migrations preserve the actually applied callback hardening history, and the money pgTAP suite exercises the real RPC paths.
 - Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.
 - Playwright's `webServer` has `reuseExistingServer` on outside CI, so any other project already
   holding port 3000 silently becomes the system under test and every assertion runs against the

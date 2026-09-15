@@ -1,6 +1,8 @@
 interface MarketplaceHttpResult {
   ok: boolean;
   code?: string;
+  message?: string;
+  [key: string]: unknown;
 }
 
 const statusByCode: Readonly<Record<string, number>> = {
@@ -16,6 +18,9 @@ const statusByCode: Readonly<Record<string, number>> = {
   DUPLICATE_CHECK_EXPIRED: 409,
   PAYMENT_DISABLED: 503,
   PAYMENT_UNAVAILABLE: 503,
+  MONEY_UNAVAILABLE: 503,
+  PAYMENT_CALLBACK_INVALID: 400,
+  PAYMENT_PROVIDER_REJECTED: 200,
   MARKETPLACE_UNAVAILABLE: 503,
   AMOUNT_OUT_OF_RANGE: 422,
   VALIDATION_ERROR: 422,
