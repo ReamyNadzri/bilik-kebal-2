@@ -104,4 +104,4 @@ Update this file after every meaningful implementation or specification change.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
 - Claude's provisional Wanted workspace is commit `60e4566`; it remains fixture-backed until its branch consumes the Phase 3A contract.
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
-- Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, and documentation commit `4d52562` (subsequently amended for the final token boundary).
+- Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.
