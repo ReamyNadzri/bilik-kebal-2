@@ -1,0 +1,13 @@
+# Normalise line endings so a Windows working tree and Linux CI agree.
+# Without this, core.autocrlf=true checks out CRLF locally while Prettier and
+# the repository itself use LF, and `pnpm format:check` fails only on Windows.
+* text=auto eol=lf
+
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
