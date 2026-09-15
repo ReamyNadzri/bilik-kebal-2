@@ -3,7 +3,13 @@
 import type { MouseEvent, Ref } from "react";
 
 export interface FieldError {
-  fieldId: string;
+  /**
+   * The control this failure names. Absent when the refusal belongs to no
+   * single one — a hierarchy checked as a whole, say — in which case the entry
+   * is listed without a link rather than dropped or blamed on an arbitrary
+   * field.
+   */
+  fieldId?: string | undefined;
   message: string;
 }
 
@@ -49,11 +55,15 @@ export function ErrorSummary({ errors, ref }: ErrorSummaryProps) {
       <h2 className="error-summary__heading">There is a problem</h2>
 
       <ul className="error-summary__list">
-        {errors.map((error) => (
-          <li key={error.fieldId}>
-            <a href={`#${error.fieldId}`} onClick={focusField(error.fieldId)}>
-              {error.message}
-            </a>
+        {errors.map((error, index) => (
+          <li key={`${error.fieldId ?? ""}-${index}`}>
+            {error.fieldId === undefined ? (
+              error.message
+            ) : (
+              <a href={`#${error.fieldId}`} onClick={focusField(error.fieldId)}>
+                {error.message}
+              </a>
+            )}
           </li>
         ))}
       </ul>

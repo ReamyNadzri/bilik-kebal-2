@@ -1,20 +1,71 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { WantedDraftWorkspace } from "./wanted-draft-workspace";
-import { WANTED } from "@/features/marketplace/fixtures";
-import { loadWantedTaxonomy, type WantedTaxonomy } from "@/features/marketplace/taxonomy-source";
+import type {
+  CreateWantedDraftResult,
+  MarketplaceOperationCode,
+  PrepareWantedPublicationResult,
+  SuggestWantedDuplicatesResult,
+  WantedDuplicateSuggestion,
+} from "@/contracts/marketplace";
+import { aTaxonomy, TAXONOMY_ID } from "@/features/marketplace/test-support/taxonomy";
+import { aWanted } from "@/features/marketplace/test-support/wanted";
 
-function taxonomy(): WantedTaxonomy {
-  const result = loadWantedTaxonomy();
+const saveWantedDraft = vi.hoisted(() => vi.fn());
+const checkWantedDuplicates = vi.hoisted(() => vi.fn());
+const requestWantedPublication = vi.hoisted(() => vi.fn());
 
-  if (result.status !== "ready") {
-    throw new Error("taxonomy fixture unavailable");
-  }
+vi.mock("@/features/marketplace/draft-operations", () => ({
+  saveWantedDraft,
+  checkWantedDuplicates,
+  requestWantedPublication,
+}));
 
-  return result.data;
+const DRAFT_ID = "6d0f2b1a-7a6f-4a2a-9f3c-6e6f2e0f5a11";
+const TOKEN = "nonce.signature";
+
+function savedDraft(): CreateWantedDraftResult {
+  return {
+    ok: true,
+    data: {
+      id: DRAFT_ID,
+      state: "draft",
+      updatedAt: "2026-09-15T09:00:00.000Z",
+      values: {} as never,
+    },
+  };
 }
 
-function renderWorkspace() {
-  return render(<WantedDraftWorkspace taxonomy={taxonomy()} board={WANTED} />);
+function checked(suggestions: WantedDuplicateSuggestion[] = []): SuggestWantedDuplicatesResult {
+  return {
+    ok: true,
+    data: { token: TOKEN, expiresAt: "2026-09-15T09:15:00.000Z", suggestions },
+  };
+}
+
+function refused(
+  code: MarketplaceOperationCode,
+  message: string,
+  fieldErrors?: Record<string, string[]>,
+): CreateWantedDraftResult & PrepareWantedPublicationResult & SuggestWantedDuplicatesResult {
+  return (
+    fieldErrors === undefined
+      ? { ok: false, code, message }
+      : { ok: false, code, message, fieldErrors }
+  ) as never;
+}
+
+beforeEach(() => {
+  saveWantedDraft.mockReset().mockResolvedValue(savedDraft());
+  checkWantedDuplicates.mockReset().mockResolvedValue(checked());
+  requestWantedPublication
+    .mockReset()
+    .mockResolvedValue(
+      refused("PAYMENT_DISABLED", "Payments are currently disabled; your draft remains editable."),
+    );
+});
+
+function renderWorkspace(mode: "live" | "preview" = "live") {
+  return render(<WantedDraftWorkspace taxonomy={aTaxonomy()} mode={mode} />);
 }
 
 function set(label: string | RegExp, value: string) {
@@ -22,26 +73,32 @@ function set(label: string | RegExp, value: string) {
 }
 
 function review() {
-  fireEvent.click(screen.getByRole("button", { name: "Review request" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Review request/ }));
 }
 
 /** Fills every field with a draft that should pass validation. */
 function fillValidDraft() {
   set(/^Title/, "Final exam notes for the whole syllabus");
-  set(/^Campus/, "shah-alam");
-  set(/^Faculty or college/, "fskm");
-  set(/^Programme/, "cs");
-  set(/^Course/, "csc510");
-  set(/^Academic session/, "2024-2025-sem2");
-  set(/^Resource type/, "lecture-notes");
-  set(/^Language/, "english");
+  set(/^Campus/, TAXONOMY_ID.campus);
+  set(/^Faculty or college/, TAXONOMY_ID.faculty);
+  set(/^Programme/, TAXONOMY_ID.programme);
+  set(/^Course/, TAXONOMY_ID.course);
+  set(/^Academic session/, TAXONOMY_ID.session);
+  set(/^Resource type/, TAXONOMY_ID.resourceType);
+  set(/^Language/, TAXONOMY_ID.language);
   set(
     /^What the resource needs to cover/,
     "Complete notes covering every chapter, with the key diagrams and worked examples.",
   );
   fireEvent.click(screen.getByRole("radio", { name: /14 days/ }));
-  set(/^Your first contribution/, "10");
+  set(/^Your first contribution/, "12.50");
   fireEvent.click(screen.getByRole("checkbox", { name: /content policy/i }));
+}
+
+async function reachReview() {
+  fillValidDraft();
+  review();
+  await screen.findByRole("heading", { name: "Review your request" });
 }
 
 describe("the intake form", () => {
@@ -74,326 +131,532 @@ describe("the intake form", () => {
     const duration = screen.getByRole("group", { name: /How long/ });
 
     expect(within(duration).getAllByRole("radio")).toHaveLength(3);
-    expect(within(duration).getByRole("radio", { name: /7 days/ })).toBeInTheDocument();
-    expect(within(duration).getByRole("radio", { name: /14 days/ })).toBeInTheDocument();
-    expect(within(duration).getByRole("radio", { name: /30 days/ })).toBeInTheDocument();
   });
 
-  test("states the contribution range beside the amount", () => {
+  test("narrows programme by faculty and course by programme", () => {
     renderWorkspace();
 
-    expect(screen.getByText(/RM1 to RM50/)).toBeInTheDocument();
-  });
+    expect(within(screen.getByLabelText(/^Programme/)).getAllByRole("option")).toHaveLength(1);
 
-  test("says the options are development fixtures, not an institutional catalogue", () => {
-    renderWorkspace();
+    set(/^Faculty or college/, TAXONOMY_ID.faculty);
 
-    expect(screen.getByText(/not a reviewed institutional catalogue/i)).toBeInTheDocument();
-  });
-});
+    expect(within(screen.getByLabelText(/^Programme/)).getAllByRole("option")).toHaveLength(2);
+    expect(within(screen.getByLabelText(/^Course/)).getAllByRole("option")).toHaveLength(1);
 
-describe("the academic hierarchy", () => {
-  test("offers no programme until a faculty is chosen", () => {
-    renderWorkspace();
+    set(/^Programme/, TAXONOMY_ID.programme);
 
-    const programme = screen.getByLabelText(/^Programme/);
-
-    expect(within(programme).queryByRole("option", { name: /Bachelor of Computer Science/ })).toBe(
-      null,
-    );
-  });
-
-  test("narrows programmes to the chosen faculty", () => {
-    renderWorkspace();
-    set(/^Faculty or college/, "fskm");
-
-    const programme = screen.getByLabelText(/^Programme/);
-
-    expect(
-      within(programme).getByRole("option", { name: "Bachelor of Computer Science" }),
-    ).toBeInTheDocument();
-    expect(within(programme).queryByRole("option", { name: "Bachelor of Accountancy" })).toBe(null);
-  });
-
-  test("narrows courses to the chosen programme", () => {
-    renderWorkspace();
-    set(/^Faculty or college/, "fskm");
-    set(/^Programme/, "cs");
-
-    const course = screen.getByLabelText(/^Course/);
-
-    expect(
-      within(course).getByRole("option", { name: /CSC510 Database Systems/ }),
-    ).toBeInTheDocument();
-    expect(within(course).queryByRole("option", { name: /ACC406/ })).toBe(null);
+    expect(within(screen.getByLabelText(/^Course/)).getAllByRole("option")).toHaveLength(2);
   });
 
   test("clears a programme and course that no longer belong when the faculty changes", () => {
     renderWorkspace();
-    set(/^Faculty or college/, "fskm");
-    set(/^Programme/, "cs");
-    set(/^Course/, "csc510");
 
-    set(/^Faculty or college/, "law");
+    set(/^Faculty or college/, TAXONOMY_ID.faculty);
+    set(/^Programme/, TAXONOMY_ID.programme);
+    set(/^Course/, TAXONOMY_ID.course);
+    set(/^Faculty or college/, TAXONOMY_ID.otherFaculty);
 
     expect(screen.getByLabelText(/^Programme/)).toHaveValue("");
     expect(screen.getByLabelText(/^Course/)).toHaveValue("");
   });
-});
 
-describe("validation", () => {
-  test("refuses an empty draft and says what is wrong", () => {
+  test("names the course by the code a student searches for", () => {
     renderWorkspace();
-    review();
 
-    expect(screen.getByRole("alert")).toHaveTextContent("There is a problem");
+    set(/^Faculty or college/, TAXONOMY_ID.faculty);
+    set(/^Programme/, TAXONOMY_ID.programme);
+
+    expect(
+      within(screen.getByLabelText(/^Course/)).getByRole("option", {
+        name: "CSC510 Database Systems",
+      }),
+    ).toBeInTheDocument();
   });
 
-  test("renders exactly one alerting region, never competing ones", () => {
+  test("says the options are reviewed institutional records, not invented ones", () => {
+    renderWorkspace();
+
+    expect(screen.getByText(/reviewed institutional records/i)).toBeInTheDocument();
+  });
+
+  test("never claims the harness options are reviewed institutional records", () => {
+    renderWorkspace("preview");
+
+    expect(screen.queryByText(/reviewed institutional records/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/not a reviewed institutional catalogue/i)).toBeInTheDocument();
+  });
+});
+
+describe("local validation before anything is sent", () => {
+  test("summarises the failures and takes focus to the summary", async () => {
     renderWorkspace();
     review();
+
+    const summary = await screen.findByRole("alert");
+
+    expect(summary).toHaveTextContent("There is a problem");
+    await waitFor(() => expect(summary).toHaveFocus());
+  });
+
+  test("sends nothing to the server when the form is incomplete", async () => {
+    renderWorkspace();
+    review();
+
+    await screen.findByRole("alert");
+
+    expect(saveWantedDraft).not.toHaveBeenCalled();
+    expect(checkWantedDuplicates).not.toHaveBeenCalled();
+  });
+
+  test("keeps everything already entered", async () => {
+    renderWorkspace();
+    set(/^Title/, "Past year answers with working");
+    review();
+
+    await screen.findByRole("alert");
+
+    expect(screen.getByLabelText(/^Title/)).toHaveValue("Past year answers with working");
+  });
+
+  test("renders exactly one alerting region", async () => {
+    renderWorkspace();
+    review();
+
+    await screen.findByRole("alert");
 
     expect(screen.getAllByRole("alert")).toHaveLength(1);
   });
+});
 
-  test("moves focus to the summary so a keyboard reader lands on the problem", () => {
+describe("persisting the draft", () => {
+  test("creates the draft through the published operation on the first review", async () => {
     renderWorkspace();
-    review();
+    await reachReview();
 
-    expect(document.activeElement).toBe(screen.getByRole("alert"));
-  });
-
-  test("links each failure to the field that caused it", () => {
-    renderWorkspace();
-    review();
-
-    const summary = screen.getByRole("alert");
-
-    expect(within(summary).getByRole("link", { name: /Enter a title/ })).toHaveAttribute(
-      "href",
-      "#wanted-title",
+    expect(saveWantedDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Final exam notes for the whole syllabus",
+        courseId: TAXONOMY_ID.course,
+        academicSessionId: TAXONOMY_ID.session,
+        durationDays: 14,
+        policyAccepted: true,
+      }),
+      null,
     );
+  });
+
+  test("sends no money with the draft, because a draft holds none", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    const [input] = saveWantedDraft.mock.calls[0] as [Record<string, unknown>, string | null];
+
+    expect(input).not.toHaveProperty("contributionSen");
+    expect(input).not.toHaveProperty("initialContributionSen");
+  });
+
+  test("updates the same draft rather than creating a second one", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
+    set(/^Title/, "Final exam notes with every worked example");
+    review();
+
+    await screen.findByRole("heading", { name: "Review your request" });
+
+    expect(saveWantedDraft).toHaveBeenLastCalledWith(expect.anything(), DRAFT_ID);
+  });
+
+  test("reports a server field error against the control that must change", async () => {
+    saveWantedDraft.mockResolvedValue(
+      refused("VALIDATION_ERROR", "Check the highlighted Wanted details.", {
+        title: ["Title is already used by another draft"],
+      }),
+    );
+    renderWorkspace();
+    fillValidDraft();
+    review();
+
+    const summary = await screen.findByRole("alert");
+
     expect(
-      within(summary).getByRole("link", { name: /Accept the content policy/ }),
-    ).toHaveAttribute("href", "#wanted-policy");
-  });
-
-  test("marks the failing field itself, not only the summary", () => {
-    renderWorkspace();
-    review();
-
-    expect(screen.getByLabelText(/^Title/)).toHaveAttribute("aria-invalid", "true");
-  });
-
-  test("keeps everything already entered", () => {
-    renderWorkspace();
-    set(/^Title/, "Past year answers with working");
-    set(/^Your first contribution/, "25");
-    review();
-
-    expect(screen.getByLabelText(/^Title/)).toHaveValue("Past year answers with working");
-    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("25");
-  });
-
-  test("stays on the form when the draft is not valid", () => {
-    renderWorkspace();
-    review();
-
+      within(summary).getByRole("link", { name: "Title is already used by another draft" }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Review your request" })).not.toBeInTheDocument();
   });
 
-  test("refuses a contribution outside the approved range", () => {
+  test("keeps a whole-selection refusal it cannot attach to one control", async () => {
+    saveWantedDraft.mockResolvedValue(
+      refused("VALIDATION_ERROR", "Choose active catalogue values.", {
+        taxonomy: ["One or more selections are unavailable or do not belong together."],
+      }),
+    );
     renderWorkspace();
     fillValidDraft();
-    set(/^Your first contribution/, "75");
     review();
 
-    expect(
-      within(screen.getByRole("alert")).getByRole("link", { name: /between RM1 and RM50/ }),
-    ).toBeInTheDocument();
+    const summary = await screen.findByRole("alert");
+
+    expect(summary).toHaveTextContent(/do not belong together/);
   });
 
-  test("clears the summary once the draft passes", () => {
+  test("keeps every entered value when the server refuses the draft", async () => {
+    saveWantedDraft.mockResolvedValue(
+      refused("VALIDATION_ERROR", "Check it.", { title: ["Too short"] }),
+    );
     renderWorkspace();
-    review();
     fillValidDraft();
     review();
 
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await screen.findByRole("alert");
+
+    expect(screen.getByLabelText(/^Title/)).toHaveValue("Final exam notes for the whole syllabus");
+    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12.50");
+    expect(screen.getByRole("checkbox", { name: /content policy/i })).toBeChecked();
+  });
+
+  test.each([
+    ["AUTH_REQUIRED", /sign in/i],
+    ["EMAIL_NOT_VERIFIED", /verify your email/i],
+    ["INSTITUTION_VERIFICATION_REQUIRED", /institution/i],
+    ["ACCOUNT_RESTRICTED", /restricted/i],
+    ["NOT_AUTHORIZED", /permission/i],
+  ] as const)("refuses honestly when the account is not eligible: %s", async (code, wording) => {
+    saveWantedDraft.mockResolvedValue(refused(code, ""));
+    renderWorkspace();
+    fillValidDraft();
+    review();
+
+    const alert = await screen.findByRole("alert");
+
+    expect(alert).toHaveTextContent(wording);
+    expect(screen.queryByRole("heading", { name: "Review your request" })).not.toBeInTheDocument();
+  });
+
+  test("says the workspace is unavailable rather than blaming the draft", async () => {
+    saveWantedDraft.mockResolvedValue(refused("MARKETPLACE_UNAVAILABLE", ""));
+    renderWorkspace();
+    fillValidDraft();
+    review();
+
+    expect(await screen.findByText(/unavailable right now/i)).toBeInTheDocument();
+  });
+
+  test("says a draft that can no longer be edited has moved on", async () => {
+    saveWantedDraft.mockResolvedValue(
+      refused("DRAFT_NOT_EDITABLE", "This Wanted can no longer be edited as a draft."),
+    );
+    renderWorkspace();
+    fillValidDraft();
+    review();
+
+    expect(await screen.findByText(/no longer be edited as a draft/i)).toBeInTheDocument();
+  });
+
+  test("announces progress without repeating the visible refusal", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    expect(screen.getByTestId("draft-announcer")).toHaveAttribute("aria-live", "polite");
+  });
+
+  test("ignores a second review while one is still in flight", async () => {
+    let release: (value: CreateWantedDraftResult) => void = () => {};
+    saveWantedDraft.mockReturnValue(
+      new Promise<CreateWantedDraftResult>((resolve) => {
+        release = resolve;
+      }),
+    );
+    renderWorkspace();
+    fillValidDraft();
+    review();
+    review();
+
+    release(savedDraft());
+    await screen.findByRole("heading", { name: "Review your request" });
+
+    expect(saveWantedDraft).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("the review step", () => {
-  function reachReview() {
+describe("checking for similar requests", () => {
+  test("runs the server check for the saved draft before review is shown", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    expect(checkWantedDuplicates).toHaveBeenCalledWith(DRAFT_ID);
+  });
+
+  test("says nothing looks similar when the server found nothing", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    expect(screen.getByText(/No published request looks like yours/i)).toBeInTheDocument();
+  });
+
+  test("shows what the server ranked as similar, and why", async () => {
+    checkWantedDuplicates.mockResolvedValue(
+      checked([
+        {
+          wanted: aWanted({ id: "csc510-past-year", title: "Past year questions" }),
+          reasons: ["same_course", "similar_title"],
+        },
+      ]),
+    );
+    renderWorkspace();
+    await reachReview();
+
+    const list = screen.getByRole("list", { name: "Requests that already look similar" });
+
+    expect(within(list).getByRole("link", { name: "Past year questions" })).toHaveAttribute(
+      "href",
+      "/wanted/csc510-past-year",
+    );
+    expect(within(list).getByText(/same course/i)).toBeInTheDocument();
+    expect(screen.getByText(/advisory and does not stop you/i)).toBeInTheDocument();
+  });
+
+  test("offers the route that resolves a refusal the check itself reported", async () => {
+    checkWantedDuplicates.mockResolvedValue(refused("ACCOUNT_RESTRICTED", ""));
     renderWorkspace();
     fillValidDraft();
     review();
-  }
 
-  test("is reached only with a valid draft", () => {
-    reachReview();
+    const alert = await screen.findByRole("alert");
 
-    expect(screen.getByRole("heading", { name: "Review your request" })).toBeInTheDocument();
+    expect(alert).toHaveTextContent(/draft is saved/i);
+    expect(alert).toHaveTextContent(/restricted/i);
+    expect(within(alert).getByRole("link", { name: "Open your profile" })).toHaveAttribute(
+      "href",
+      "/profile",
+    );
   });
 
-  test("shows the title and description that were entered", () => {
-    reachReview();
+  test("keeps the saved draft when the check itself fails, and says so", async () => {
+    checkWantedDuplicates.mockResolvedValue(refused("MARKETPLACE_UNAVAILABLE", ""));
+    renderWorkspace();
+    fillValidDraft();
+    review();
 
-    expect(screen.getByText("Final exam notes for the whole syllabus")).toBeInTheDocument();
-    expect(screen.getByText(/Complete notes covering every chapter/)).toBeInTheDocument();
+    const alert = await screen.findByRole("alert");
+
+    expect(alert).toHaveTextContent(/draft (is|has been) saved/i);
+    expect(screen.queryByRole("heading", { name: "Review your request" })).not.toBeInTheDocument();
+  });
+});
+
+describe("asking to publish", () => {
+  test("carries the server's opaque token and the contribution in integer sen", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    await waitFor(() =>
+      expect(requestWantedPublication).toHaveBeenCalledWith(DRAFT_ID, TOKEN, 1250),
+    );
   });
 
-  test("shows every academic choice as a label, not an identifier", () => {
-    reachReview();
+  test("refuses honestly when payments are switched off", async () => {
+    renderWorkspace();
+    await reachReview();
 
-    const summary = screen.getByRole("group", { name: /Request summary/ });
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
 
-    expect(within(summary).getByText("UiTM Shah Alam")).toBeInTheDocument();
     expect(
-      within(summary).getByText("Faculty of Computer and Mathematical Sciences"),
-    ).toBeInTheDocument();
-    expect(within(summary).getByText("Bachelor of Computer Science")).toBeInTheDocument();
-    expect(within(summary).getByText("CSC510 Database Systems")).toBeInTheDocument();
-    expect(within(summary).getByText("Semester 2, 2024/2025")).toBeInTheDocument();
-    expect(within(summary).getByText("Lecture notes")).toBeInTheDocument();
-    expect(within(summary).getByText("English")).toBeInTheDocument();
+      await screen.findByRole("heading", { name: /Payments are switched off/i }),
+    ).toBeVisible();
+    expect(screen.getByText(/have not been charged/i)).toBeInTheDocument();
+    expect(screen.getByText(/draft is saved and still editable/i)).toBeInTheDocument();
   });
 
-  test("shows the requested duration", () => {
-    reachReview();
+  test("refuses honestly when payment cannot be prepared", async () => {
+    requestWantedPublication.mockResolvedValue(
+      refused("PAYMENT_UNAVAILABLE", "Payment preparation is temporarily unavailable."),
+    );
+    renderWorkspace();
+    await reachReview();
 
-    expect(screen.getByText("14 days")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Payment could not be prepared/i }),
+    ).toBeVisible();
+    expect(screen.getByText(/have not been charged/i)).toBeInTheDocument();
   });
 
-  test("shows the contribution formatted from integer sen", () => {
-    reachReview();
+  test.each(["PAYMENT_DISABLED", "PAYMENT_UNAVAILABLE"] as const)(
+    "never claims a payment, a publication or an open Wanted: %s",
+    async (code) => {
+      requestWantedPublication.mockResolvedValue(refused(code, ""));
+      renderWorkspace();
+      await reachReview();
 
-    expect(screen.getByText("Your first contribution RM 10")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+      await screen.findByRole("heading", { name: /Payment/i });
+
+      const text = document.body.textContent ?? "";
+
+      expect(text).not.toMatch(/successfully|payment (received|complete|confirmed)/i);
+      expect(text).not.toMatch(/your request is (live|open|published)/i);
+      expect(text).not.toMatch(/\bpaid\b/i);
+    },
+  );
+
+  test("asks for a fresh check when the token is no longer usable", async () => {
+    requestWantedPublication.mockResolvedValue(
+      refused("DUPLICATE_CHECK_EXPIRED", "Run the duplicate check again before continuing."),
+    );
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    expect(await screen.findByRole("button", { name: /Check again/i })).toBeVisible();
   });
 
-  test("explains the fee, the policy and the access basis", () => {
-    reachReview();
+  test("runs a fresh check when asked, and offers payment again", async () => {
+    requestWantedPublication.mockResolvedValueOnce(refused("DUPLICATE_CHECK_REQUIRED", ""));
+    renderWorkspace();
+    await reachReview();
 
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Check again/i }));
+
+    await waitFor(() => expect(checkWantedDuplicates).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole("button", { name: /Continue to payment/ })).toBeVisible();
+  });
+
+  test("returns an amount the server rejects to the field that holds it", async () => {
+    requestWantedPublication.mockResolvedValue(
+      refused("VALIDATION_ERROR", "Check the contribution and duplicate check.", {
+        initialContributionSen: ["Too small"],
+      }),
+    );
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    const summary = await screen.findByRole("alert");
+
+    expect(within(summary).getByRole("link", { name: "Too small" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12.50");
+  });
+
+  test("says a payment out of range is out of range", async () => {
+    requestWantedPublication.mockResolvedValue(refused("AMOUNT_OUT_OF_RANGE", ""));
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    const summary = await screen.findByRole("alert");
+
+    expect(within(summary).getByText(/between RM1 and RM50/)).toBeInTheDocument();
+  });
+
+  test("never presents an awaiting-payment draft as an open Wanted", async () => {
+    requestWantedPublication.mockResolvedValue({
+      ok: true,
+      data: { draftId: DRAFT_ID, state: "awaiting_payment", paymentRequired: true },
+    });
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    expect(await screen.findByText(/no payment has been taken/i)).toBeInTheDocument();
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/your request is (live|open|published)/i);
+  });
+
+  test("ignores a second publication request while one is in flight", async () => {
+    let release: (value: PrepareWantedPublicationResult) => void = () => {};
+    requestWantedPublication.mockReturnValue(
+      new Promise<PrepareWantedPublicationResult>((resolve) => {
+        release = resolve;
+      }),
+    );
+    renderWorkspace();
+    await reachReview();
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
+
+    release(refused("PAYMENT_DISABLED", ""));
+    await screen.findByRole("heading", { name: /Payments are switched off/i });
+
+    expect(requestWantedPublication).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the review sheet", () => {
+  test("shows the money, the fee and the access basis in plain English", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    expect(screen.getByText("Your first contribution RM 12.50")).toBeInTheDocument();
     expect(screen.getByText(/10% platform fee/)).toBeInTheDocument();
-    expect(screen.getByText(/snapshotted when the request is published/i)).toBeInTheDocument();
     expect(screen.getByText(/contributors only/i)).toBeInTheDocument();
   });
 
-  test("warns plainly that nothing has been created", () => {
-    reachReview();
+  test("returns to the form with every value preserved", async () => {
+    renderWorkspace();
+    await reachReview();
 
-    expect(
-      screen.getByText(/No request, draft, contribution or payment has been created/i),
-    ).toBeInTheDocument();
-  });
-
-  test("returns to the form with every value still in place", () => {
-    reachReview();
     fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
 
     expect(screen.getByLabelText(/^Title/)).toHaveValue("Final exam notes for the whole syllabus");
-    expect(screen.getByLabelText(/^Course/)).toHaveValue("csc510");
-    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("10");
+    expect(screen.getByLabelText(/^Course/)).toHaveValue(TAXONOMY_ID.course);
+    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12.50");
     expect(screen.getByRole("radio", { name: /14 days/ })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /content policy/i })).toBeChecked();
   });
-});
 
-describe("duplicate suggestions", () => {
-  function reachReview() {
+  test("accepts no file on this screen", async () => {
     renderWorkspace();
-    fillValidDraft();
-    review();
-  }
+    await reachReview();
 
-  test("are shown on the review step before anything can be finished", () => {
-    reachReview();
-
-    expect(
-      screen.getByRole("list", { name: /requests that already look similar/i }),
-    ).toBeInTheDocument();
-  });
-
-  test("lead to the existing Wanted rather than describing it in place", () => {
-    reachReview();
-
-    const list = screen.getByRole("list", { name: /requests that already look similar/i });
-
-    // A card offers its title and its action as two links to the same request,
-    // so the title is matched exactly rather than by substring.
-    expect(
-      within(list).getByRole("link", { name: "Past year questions from 2019 to 2024" }),
-    ).toHaveAttribute("href", "/wanted/csc510-past-year-questions");
-    expect(
-      within(list).getByRole("link", {
-        name: "View this Wanted: Past year questions from 2019 to 2024",
-      }),
-    ).toHaveAttribute("href", "/wanted/csc510-past-year-questions");
-  });
-
-  test("say they are advisory rather than a block", () => {
-    reachReview();
-
-    expect(screen.getByText(/advisory/i)).toBeInTheDocument();
-  });
-
-  test("do not stop the reader from continuing", () => {
-    reachReview();
-
-    expect(screen.getByRole("button", { name: "Back to edit" })).toBeEnabled();
+    expect(document.querySelectorAll('input[type="file"]')).toHaveLength(0);
   });
 });
 
-describe("what the workspace must never do", () => {
-  function reachReview() {
-    renderWorkspace();
+describe("the development preview harness", () => {
+  test("creates, checks and pays nothing", async () => {
+    renderWorkspace("preview");
     fillValidDraft();
     review();
-  }
 
-  test("offers no publish, pay or save-draft action", () => {
-    reachReview();
+    await screen.findByRole("heading", { name: "Review your request" });
 
-    for (const control of screen.getAllByRole("button")) {
-      expect(control).not.toHaveAccessibleName(/publish|pay|checkout|save draft|submit/i);
-    }
+    expect(saveWantedDraft).not.toHaveBeenCalled();
+    expect(checkWantedDuplicates).not.toHaveBeenCalled();
+    expect(requestWantedPublication).not.toHaveBeenCalled();
   });
 
-  test("says publishing waits on the real payment operation", () => {
-    reachReview();
+  test("says plainly that nothing was saved, checked or paid", async () => {
+    renderWorkspace("preview");
+    fillValidDraft();
+    review();
+
+    await screen.findByRole("heading", { name: "Review your request" });
 
     expect(
-      screen.getByText(/Publishing becomes available when the payment operation is connected/i),
+      screen.getByText(/No draft, duplicate check, contribution or payment has been created/i),
     ).toBeInTheDocument();
   });
 
-  /**
-   * Phrased as unambiguous success claims rather than as bare verbs. The screen
-   * must be able to say "No request ... has been created", which is a denial;
-   * what it must never say is that something succeeded.
-   */
-  test("never claims anything was saved, submitted or paid", () => {
-    reachReview();
+  test("offers no control that would look like publishing or paying", async () => {
+    renderWorkspace("preview");
+    fillValidDraft();
+    review();
 
-    const page = document.body.textContent ?? "";
+    await screen.findByRole("heading", { name: "Review your request" });
 
-    for (const claim of [
-      /successfully/i,
-      /payment (received|complete|confirmed)/i,
-      /thank you for your contribution/i,
-      /draft saved/i,
-      /your request is (live|open|published)/i,
-      /we have (saved|received|published)/i,
-    ]) {
-      expect(page).not.toMatch(claim);
+    for (const name of [/Continue to payment/i, /publish/i, /^pay/i, /checkout/i, /save draft/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     }
-  });
-
-  test("states the denial explicitly rather than staying silent about it", () => {
-    reachReview();
-
-    expect(
-      screen.getByText(/No request, draft, contribution or payment has been created/i),
-    ).toBeInTheDocument();
   });
 });

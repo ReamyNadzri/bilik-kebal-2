@@ -1,23 +1,23 @@
+import type { Sen } from "@/contracts/marketplace";
+
 /**
  * Money at the presentation edge.
  *
  * `context/architecture.md` makes integer sen an invariant: floating point is
  * forbidden for financial values, and money is branded at the type level. This
- * module is the frontend's local expression of that rule while the marketplace
- * is fixture-backed.
+ * module is where that rule meets presentation.
  *
- * Replace `Sen` with the contract type when Codex publishes a branded money
- * type in `src/contracts/`. The brand is deliberately structural so that swap
- * is a type change rather than a rewrite of every call site.
+ * `Sen` is now the contract's branded money type, re-exported so presentation
+ * code keeps one import for money while the brand itself lives with the
+ * operations that produce it. A value from the marketplace contract and a
+ * value built here are the same type, so neither needs casting into the other.
  *
  * No component performs arithmetic on money. Values arrive as sen and are
  * formatted exactly once, here.
  */
 
-declare const senBrand: unique symbol;
-
-/** A whole number of sen. 100 sen is RM 1. */
-export type Sen = number & { readonly [senBrand]: true };
+/** A whole number of sen. 100 sen is RM 1. Owned by `src/contracts/`. */
+export type { Sen };
 
 /**
  * Narrows an integer to `Sen`, refusing anything that could only have come

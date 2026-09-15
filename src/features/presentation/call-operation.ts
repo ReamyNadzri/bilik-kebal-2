@@ -17,10 +17,12 @@ export async function callOperation<TData, TCode extends string>(
   path: string,
   body: unknown,
   unavailableCode: TCode,
+  /** `PUT` addresses an existing resource; everything else is a `POST`. */
+  method: "POST" | "PUT" = "POST",
 ): Promise<OperationResult<TData, TCode>> {
   try {
     const response = await fetch(path, {
-      method: "POST",
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });

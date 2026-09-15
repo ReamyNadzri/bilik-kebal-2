@@ -99,6 +99,14 @@ Update this file after every meaningful implementation or specification change.
   deleted. The `FixtureNotice` component itself is kept: coordination plan section 5 still requires
   that marker for the screens later phases will add.
 
+- **Phase 3C Wanted-creation integration** -- `/wanted/new` connected to the Phase 3A contract:
+  the institution-scoped taxonomy read, draft create and update, the server duplicate check, and the
+  publication request carrying the opaque one-use token. Every documented auth, trust, validation,
+  duplicate-token and payment code is handled, form input and focus survive every failure, and
+  `PAYMENT_DISABLED` / `PAYMENT_UNAVAILABLE` are honest refusals that never show payment success or
+  an open Wanted. `taxonomy-source.ts` and `duplicate-suggestions.ts` were deleted with the
+  `FixtureNotice` on that route. `Sen` is now re-exported from `src/contracts/marketplace`, so
+  presentation and contract money are one type.
 - **Phase 3A backend** -- marketplace contracts, private RLS-protected Wanted storage and
   institution-scoped taxonomy reads; atomic private draft create/update with server-derived
   Commissioner identity, active taxonomy validation and owner-only editable-draft enforcement;
@@ -118,9 +126,9 @@ Update this file after every meaningful implementation or specification change.
 - Four marketplace routes remain fixture-backed: `/` (marketplace homepage), `/board` (searchable,
   filterable, URL-addressed Wanted Board), `/wanted/[id]` (Wanted detail) and `/claims` (Hunt and
   claim ledger). Each keeps its `FixtureNotice` until its own read contract exists.
-- Phase 3C: connecting `/wanted/new` to the Phase 3A contract in
-  `docs/integration/marketplace-http-contract.md`, preserving the explicit payment-unavailable
-  state as an honest refusal.
+- Phase 3C is complete for `/wanted/new`: the workspace consumes the real taxonomy, draft,
+  duplicate-check and publication operations, and both payment refusals are honest. The other three
+  marketplace routes still wait on their read contracts.
 
 ## Next Up
 
@@ -163,38 +171,49 @@ Update this file after every meaningful implementation or specification change.
   role assignment outside the database.
 - Define the final legal metadata-retention periods after professional review.
 
-## Wanted Creation Workspace — What Is Fixture-Backed
+## Wanted Creation Workspace — Connected to Phase 3A
 
-Real on this screen: the identity read (`loadAccountViewModel`), and therefore every eligibility
-state — signed out, identity unavailable, email unverified, restricted, institution unverified,
-institution pending, and eligible.
+`/wanted/new` runs on the real backend. The identity read is `loadAccountViewModel`, so every
+eligibility state is real — signed out, identity unavailable, email unverified, restricted,
+institution unverified, institution pending, eligible. The option lists come from the
+institution-scoped taxonomy operation, and the workspace persists through the published Phase 3A
+routes (`docs/integration/marketplace-http-contract.md`):
 
-Fixture-backed, behind `src/features/marketplace/taxonomy-source.ts` and
-`duplicate-suggestions.ts`:
+- **Review request** saves the draft — `POST /api/marketplace/wanted/drafts` the first time, then
+  `PUT /api/marketplace/wanted/drafts/:id` — and runs
+  `POST /api/marketplace/wanted/duplicate-suggestions` on the saved draft.
+- **Continue to payment** carries the opaque one-use token that check issued to
+  `POST /api/marketplace/wanted/drafts/:id/publication`, with the contribution in integer sen.
 
-- the campus, faculty, programme, course, session, resource-type, language and tag vocabularies;
-- the duplicate suggestions shown on the review step;
-- the Board records those suggestions link to.
+No fixture remains on `/wanted/new`, and its `FixtureNotice` is gone.
+`src/features/marketplace/taxonomy-source.ts` and `duplicate-suggestions.ts` were deleted with it.
 
-The taxonomy fixture states in its own copy that it is development data and not a reviewed
-institutional catalogue, and the screen carries a `FixtureNotice`. Nothing on this screen writes,
-and no draft, duplicate-check token, bill or payment exists.
+What the screen may never claim, and is tested for: it never reports a payment, a publication or an
+open Wanted. `PAYMENT_DISABLED` and `PAYMENT_UNAVAILABLE` are honest refusals that state the draft
+is saved, no payment was started, nothing was charged and no Wanted was opened. An `awaiting_payment`
+success — which Phase 3A cannot produce — is presented as waiting for payment, never as a live
+request.
 
 Known gaps recorded rather than worked around:
 
-- **No duplicate-check token.** The backend design issues a server token that the publication
-  request must carry, and fails with `DUPLICATE_CHECK_REQUIRED` without it. The frontend has no
-  equivalent and does not pretend to; suggestions here are advisory only.
-- **The eligible form cannot be browser-tested end to end.** It needs an institution-verified,
-  unrestricted session, and institution membership cannot be granted outside the database. The
-  Playwright suite therefore drives the workspace through a development-only harness at
-  `/wanted/new/preview`, and exercises the real `/wanted/new` for its refusal path. The harness
-  renders the not-found page in a production build — verified against a real `next start` server,
-  where every form control is absent — though Next serves that body with a 200 rather than a 404,
-  so the guarantee is the absent content, not the status line. Seeding a verified test identity is
-  a backend prerequisite before this harness can be deleted.
+- **The eligible form still cannot be browser-tested end to end.** It needs an institution-verified,
+  unrestricted session, and institution membership cannot be granted outside the database or seeded
+  for CI. The Playwright suite therefore drives the workspace through the development-only harness at
+  `/wanted/new/preview`, and exercises the real `/wanted/new` for its refusal path. The harness runs
+  the workspace in `preview` mode: it validates and previews only, saves nothing, asks the server for
+  nothing, issues no token and offers no control that leads to payment, and it says so on the review
+  sheet. Its option lists are the only fixture left, in
+  `src/features/marketplace/preview-taxonomy.ts`, and the route keeps a `FixtureNotice` naming exactly
+  them. The harness renders the not-found page in a production build — verified against a real
+  `next start` server, where every form control is absent — though Next serves that body with a 200
+  rather than a 404, so the guarantee is the absent content, not the status line. Seeding a verified
+  test identity is a backend prerequisite before this harness and `preview-taxonomy.ts` can be
+  deleted together.
 - **The 10% platform fee shown on the review step is the product default**, not a snapshot. The
   authoritative rate is snapshotted by the backend when a request is published.
+- **Duplicate suggestions are empty in practice** until Phase 3B, because nothing can reach `open`
+  without a verified contribution. The non-empty path is covered by component tests against the
+  contract shape.
 
 ## Backend Contracts the Marketplace Frontend Needs
 
@@ -308,3 +327,15 @@ times must arrive with a server-rendered reference instant.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
 - Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.
+- Playwright's `webServer` has `reuseExistingServer` on outside CI, so any other project already
+  holding port 3000 silently becomes the system under test and every assertion runs against the
+  wrong application. During the Phase 3C run an unrelated local project held 3000, and the whole
+  creation suite failed against its 404 page. Run the suite with `PORT` and `PLAYWRIGHT_BASE_URL`
+  pointing at a free port when that happens.
+- `tests/e2e/identity/auth-flow.spec.ts` follows a Supabase confirmation link built from
+  `NEXT_PUBLIC_APP_URL`, so that opt-in spec only passes with the application on the port that
+  variable names. It is Codex-owned and self-skips unless `VAULTIX_SUPABASE_E2E=1` is set.
+- `ErrorSummary` now accepts an entry with no `fieldId` and lists it without a link, because the
+  marketplace `VALIDATION_ERROR` can carry a `taxonomy` failure that belongs to the campus, faculty,
+  programme, course and session judged together rather than to any one control. Dropping it would
+  refuse a reader with no explanation; attaching it to one select would blame the wrong field.

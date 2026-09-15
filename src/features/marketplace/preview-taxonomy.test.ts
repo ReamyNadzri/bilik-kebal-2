@@ -1,12 +1,9 @@
-import {
-  coursesFor,
-  loadWantedTaxonomy,
-  programmesFor,
-  type WantedTaxonomy,
-} from "./taxonomy-source";
+import { loadPreviewTaxonomy } from "./preview-taxonomy";
+import { coursesFor, programmesFor } from "./taxonomy";
+import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
 
-function ready(): WantedTaxonomy {
-  const result = loadWantedTaxonomy();
+function ready(): MarketplaceTaxonomy {
+  const result = loadPreviewTaxonomy();
 
   if (result.status !== "ready") {
     throw new Error(`Expected a ready taxonomy, got ${result.status}`);
@@ -15,7 +12,7 @@ function ready(): WantedTaxonomy {
   return result.data;
 }
 
-describe("reading the taxonomy", () => {
+describe("reading the harness taxonomy", () => {
   test("offers every vocabulary the creation form needs", () => {
     const taxonomy = ready();
 
@@ -23,17 +20,18 @@ describe("reading the taxonomy", () => {
     expect(taxonomy.faculties.length).toBeGreaterThan(0);
     expect(taxonomy.programmes.length).toBeGreaterThan(0);
     expect(taxonomy.courses.length).toBeGreaterThan(0);
-    expect(taxonomy.sessions.length).toBeGreaterThan(0);
+    expect(taxonomy.academicSessions.length).toBeGreaterThan(0);
     expect(taxonomy.resourceTypes.length).toBeGreaterThan(0);
     expect(taxonomy.languages.length).toBeGreaterThan(0);
+    expect(taxonomy.tags.length).toBeGreaterThan(5);
   });
 
   test("says so when the taxonomy cannot be read, rather than offering nothing", () => {
-    expect(loadWantedTaxonomy("unavailable")).toEqual({ status: "unavailable" });
+    expect(loadPreviewTaxonomy("unavailable")).toEqual({ status: "unavailable" });
   });
 
   test("can answer with a published but empty vocabulary", () => {
-    const result = loadWantedTaxonomy("empty");
+    const result = loadPreviewTaxonomy("empty");
 
     expect(result.status).toBe("ready");
     if (result.status === "ready") {
@@ -43,7 +41,7 @@ describe("reading the taxonomy", () => {
   });
 
   test("is deterministic, so the same options appear on every render", () => {
-    expect(loadWantedTaxonomy()).toEqual(loadWantedTaxonomy());
+    expect(loadPreviewTaxonomy()).toEqual(loadPreviewTaxonomy());
   });
 });
 
@@ -73,10 +71,6 @@ describe("the hierarchy the backend enforces", () => {
     expect(narrowed.every((programme) => programme.facultyId === faculty.id)).toBe(true);
   });
 
-  test("offers no programme until a faculty is chosen", () => {
-    expect(programmesFor(ready(), null)).toEqual([]);
-  });
-
   test("narrows courses to the chosen programme", () => {
     const taxonomy = ready();
     const programme = taxonomy.programmes[0]!;
@@ -85,29 +79,46 @@ describe("the hierarchy the backend enforces", () => {
     expect(narrowed.length).toBeGreaterThan(0);
     expect(narrowed.every((course) => course.programmeId === programme.id)).toBe(true);
   });
-
-  test("offers no course until a programme is chosen", () => {
-    expect(coursesFor(ready(), null)).toEqual([]);
-  });
-
-  test("offers nothing for an identifier that is not in the taxonomy", () => {
-    expect(programmesFor(ready(), "not-a-faculty")).toEqual([]);
-    expect(coursesFor(ready(), "not-a-programme")).toEqual([]);
-  });
 });
 
-describe("what the fixture may claim", () => {
-  test("labels itself as development options rather than an institutional catalogue", () => {
-    expect(ready().provenance).toMatch(/not a reviewed|development/i);
+describe("what the harness options must be shaped like", () => {
+  test("identifies every option with a UUID, because the contract accepts nothing else", () => {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const taxonomy = ready();
+
+    for (const group of [
+      taxonomy.campuses,
+      taxonomy.faculties,
+      taxonomy.programmes,
+      taxonomy.courses,
+      taxonomy.academicSessions,
+      taxonomy.resourceTypes,
+      taxonomy.languages,
+      taxonomy.tags,
+    ]) {
+      expect(group.every((option) => uuid.test(option.id))).toBe(true);
+    }
   });
 
-  test("never presents itself as the official UiTM catalogue", () => {
-    expect(ready().provenance).not.toMatch(/official|authoritative|approved catalogue/i);
+  test("gives every option a distinct identifier", () => {
+    const taxonomy = ready();
+    const ids = [
+      ...taxonomy.campuses,
+      ...taxonomy.faculties,
+      ...taxonomy.programmes,
+      ...taxonomy.courses,
+      ...taxonomy.academicSessions,
+      ...taxonomy.resourceTypes,
+      ...taxonomy.languages,
+      ...taxonomy.tags,
+    ].map((option) => option.id);
+
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
-  test("carries a course code and a name for every course", () => {
+  test("carries a course code and a label for every course", () => {
     expect(
-      ready().courses.every((course) => course.code.length > 0 && course.name.length > 0),
+      ready().courses.every((course) => course.code.length > 0 && course.label.length > 0),
     ).toBe(true);
   });
 });

@@ -1,35 +1,31 @@
-import { loadWantedTaxonomy, type WantedTaxonomy } from "./taxonomy-source";
+import { aTaxonomy, TAXONOMY_ID } from "./test-support/taxonomy";
 import {
   DURATION_DAYS,
   MAX_CONTRIBUTION_SEN,
   MIN_CONTRIBUTION_SEN,
   emptyDraft,
+  toDraftInput,
   validateDraft,
   type WantedDraftValues,
 } from "./wanted-draft";
+import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
 
-function taxonomy(): WantedTaxonomy {
-  const result = loadWantedTaxonomy();
-
-  if (result.status !== "ready") {
-    throw new Error("taxonomy fixture unavailable");
-  }
-
-  return result.data;
+function taxonomy(): MarketplaceTaxonomy {
+  return aTaxonomy();
 }
 
 function aDraft(overrides: Partial<WantedDraftValues> = {}): WantedDraftValues {
   return {
     ...emptyDraft(),
     title: "Final exam notes for the whole syllabus",
-    campusId: "shah-alam",
-    facultyId: "fskm",
-    programmeId: "cs",
-    courseId: "csc510",
-    sessionId: "2024-2025-sem2",
-    resourceTypeId: "lecture-notes",
-    languageId: "english",
-    tagIds: ["final-exam"],
+    campusId: TAXONOMY_ID.campus,
+    facultyId: TAXONOMY_ID.faculty,
+    programmeId: TAXONOMY_ID.programme,
+    courseId: TAXONOMY_ID.course,
+    sessionId: TAXONOMY_ID.session,
+    resourceTypeId: TAXONOMY_ID.resourceType,
+    languageId: TAXONOMY_ID.language,
+    tagIds: [TAXONOMY_ID.tag],
     description:
       "Looking for complete notes covering every chapter, with the key diagrams and worked examples.",
     durationDays: "14",
@@ -87,7 +83,7 @@ describe("a complete draft", () => {
     const result = validateDraft(aDraft(), taxonomy());
 
     expect(result.draft?.course.code).toBe("CSC510");
-    expect(result.draft?.course.name).toBe("Database Systems");
+    expect(result.draft?.course.label).toBe("Database Systems");
   });
 });
 
@@ -149,25 +145,35 @@ describe("the title and description", () => {
 
 describe("the academic hierarchy", () => {
   test("refuses a programme that does not belong to the chosen faculty", () => {
-    expect(errorFor({ facultyId: "law", programmeId: "cs" }, "wanted-programme")).toMatch(
-      /chosen faculty/i,
-    );
+    expect(
+      errorFor(
+        { facultyId: TAXONOMY_ID.otherFaculty, programmeId: TAXONOMY_ID.programme },
+        "wanted-programme",
+      ),
+    ).toMatch(/chosen faculty/i);
   });
 
   test("refuses a course that does not belong to the chosen programme", () => {
-    expect(errorFor({ programmeId: "cs", courseId: "acc406" }, "wanted-course")).toMatch(
-      /chosen programme/i,
-    );
+    expect(
+      errorFor(
+        { programmeId: TAXONOMY_ID.programme, courseId: TAXONOMY_ID.otherCourse },
+        "wanted-course",
+      ),
+    ).toMatch(/chosen programme/i);
   });
 
   test("refuses an option that is not in the taxonomy at all", () => {
-    expect(errorFor({ campusId: "oxford" }, "wanted-campus")).toBeDefined();
-    expect(errorFor({ resourceTypeId: "mp3" }, "wanted-resource-type")).toBeDefined();
-    expect(errorFor({ languageId: "klingon" }, "wanted-language")).toBeDefined();
+    const absent = "00000000-0000-4000-8000-000000000000";
+
+    expect(errorFor({ campusId: absent }, "wanted-campus")).toBeDefined();
+    expect(errorFor({ resourceTypeId: absent }, "wanted-resource-type")).toBeDefined();
+    expect(errorFor({ languageId: absent }, "wanted-language")).toBeDefined();
   });
 
   test("refuses a tag that is not in the controlled vocabulary", () => {
-    expect(errorFor({ tagIds: ["not-a-tag"] }, "wanted-tags")).toBeDefined();
+    expect(
+      errorFor({ tagIds: ["00000000-0000-4000-8000-000000000000"] }, "wanted-tags"),
+    ).toBeDefined();
   });
 
   test("accepts a draft with no tags, because tags are optional", () => {
@@ -232,5 +238,49 @@ describe("the first contribution", () => {
 
   test("refuses a negative amount", () => {
     expect(errorFor({ contribution: "-5" }, "wanted-contribution")).toBeDefined();
+  });
+});
+
+describe("the body sent to the draft operation", () => {
+  test("carries exactly the fields the published contract accepts", () => {
+    const draft = validateDraft(aDraft(), taxonomy()).draft!;
+
+    expect(toDraftInput(draft)).toEqual({
+      campusId: TAXONOMY_ID.campus,
+      facultyId: TAXONOMY_ID.faculty,
+      programmeId: TAXONOMY_ID.programme,
+      courseId: TAXONOMY_ID.course,
+      academicSessionId: TAXONOMY_ID.session,
+      resourceTypeId: TAXONOMY_ID.resourceType,
+      languageId: TAXONOMY_ID.language,
+      tagIds: [TAXONOMY_ID.tag],
+      title: "Final exam notes for the whole syllabus",
+      description:
+        "Looking for complete notes covering every chapter, with the key diagrams and worked examples.",
+      durationDays: 14,
+      policyAccepted: true,
+    });
+  });
+
+  test("sends no money, because a draft holds none", () => {
+    const draft = validateDraft(aDraft(), taxonomy()).draft!;
+
+    expect(toDraftInput(draft)).not.toHaveProperty("contributionSen");
+    expect(toDraftInput(draft)).not.toHaveProperty("initialContributionSen");
+  });
+
+  test("sends no identity the server derives from the session", () => {
+    const body: Record<string, unknown> = toDraftInput(
+      validateDraft(aDraft(), taxonomy()).draft!,
+    ) as unknown as Record<string, unknown>;
+
+    expect(body).not.toHaveProperty("commissionerUserId");
+    expect(body).not.toHaveProperty("institutionId");
+  });
+
+  test("sends the identifiers, never the labels a browser could have edited", () => {
+    const body = toDraftInput(validateDraft(aDraft(), taxonomy()).draft!);
+
+    expect(JSON.stringify(body)).not.toMatch(/Faculty of Computing|Database Systems|CSC510/);
   });
 });

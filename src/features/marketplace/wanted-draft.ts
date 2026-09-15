@@ -1,11 +1,11 @@
 import { sen, type Sen } from "./money";
-import {
-  coursesFor,
-  programmesFor,
-  type CourseOption,
-  type WantedTaxonomy,
-} from "./taxonomy-source";
-import type { TaxonomyOption } from "./types";
+import { coursesFor, programmesFor } from "./taxonomy";
+import type {
+  CourseOption,
+  MarketplaceTaxonomy,
+  TaxonomyItem,
+  WantedDraftInput,
+} from "@/contracts/marketplace";
 
 /**
  * Frontend validation for a Wanted draft.
@@ -17,8 +17,11 @@ import type { TaxonomyOption } from "./types";
  * that the backend is stricter, and nothing may be added that the backend does
  * not also enforce.
  *
- * The limits mirror the Phase 3 backend design: exactly 7, 14 or 30 days, and
- * a first contribution of 100–5,000 sen.
+ * The limits mirror the published contract
+ * (docs/integration/marketplace-http-contract.md): exactly 7, 14 or 30 days,
+ * and a first contribution of 100–5,000 sen. The contribution is validated
+ * here but is not part of a draft — it travels only with the publication
+ * request, because a draft holds no money.
  */
 
 /** The only durations a Wanted may be published with. */
@@ -56,14 +59,14 @@ export interface WantedDraftValues {
 export interface ValidatedDraft {
   readonly title: string;
   readonly description: string;
-  readonly campus: TaxonomyOption;
-  readonly faculty: TaxonomyOption;
-  readonly programme: TaxonomyOption;
+  readonly campus: TaxonomyItem;
+  readonly faculty: TaxonomyItem;
+  readonly programme: TaxonomyItem;
   readonly course: CourseOption;
-  readonly session: TaxonomyOption;
-  readonly resourceType: TaxonomyOption;
-  readonly language: TaxonomyOption;
-  readonly tags: readonly TaxonomyOption[];
+  readonly session: TaxonomyItem;
+  readonly resourceType: TaxonomyItem;
+  readonly language: TaxonomyItem;
+  readonly tags: readonly TaxonomyItem[];
   readonly durationDays: DurationDays;
   readonly contributionSen: Sen;
 }
@@ -96,8 +99,33 @@ export function emptyDraft(): WantedDraftValues {
   };
 }
 
-function find(options: readonly TaxonomyOption[], id: string): TaxonomyOption | undefined {
+function find(options: readonly TaxonomyItem[], id: string): TaxonomyItem | undefined {
   return options.find((option) => option.id === id);
+}
+
+/**
+ * The body `POST`/`PUT .../drafts` accepts, built from a draft that already
+ * passed validation.
+ *
+ * Identifiers only. A label the browser is holding is a rendering of a server
+ * record, never an authority over one, and the contribution is absent because
+ * a draft carries no money.
+ */
+export function toDraftInput(draft: ValidatedDraft): WantedDraftInput {
+  return {
+    campusId: draft.campus.id,
+    facultyId: draft.faculty.id,
+    programmeId: draft.programme.id,
+    courseId: draft.course.id,
+    academicSessionId: draft.session.id,
+    resourceTypeId: draft.resourceType.id,
+    languageId: draft.language.id,
+    tagIds: draft.tags.map((tag) => tag.id),
+    title: draft.title,
+    description: draft.description,
+    durationDays: draft.durationDays,
+    policyAccepted: true,
+  };
 }
 
 /**
@@ -138,7 +166,7 @@ export function parseRinggitToSen(raw: string): AmountParse {
  */
 export function validateDraft(
   values: WantedDraftValues,
-  taxonomy: WantedTaxonomy,
+  taxonomy: MarketplaceTaxonomy,
 ): DraftValidation {
   const errors: DraftFieldError[] = [];
   const fail = (fieldId: string, message: string) => errors.push({ fieldId, message });
@@ -186,7 +214,7 @@ export function validateDraft(
     );
   }
 
-  const session = find(taxonomy.sessions, values.sessionId);
+  const session = find(taxonomy.academicSessions, values.sessionId);
   if (session === undefined) {
     fail("wanted-session", "Choose the academic session this request covers.");
   }
@@ -271,7 +299,7 @@ export function validateDraft(
       session,
       resourceType,
       language,
-      tags: tags.filter((tag): tag is TaxonomyOption => tag !== undefined),
+      tags: tags.filter((tag): tag is TaxonomyItem => tag !== undefined),
       durationDays,
       contributionSen: sen(contributionSen),
     },

@@ -54,3 +54,26 @@ test("following an error link moves focus into the field, not merely to it", () 
   expect(field).toHaveFocus();
   expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
 });
+
+/**
+ * A server may refuse for a reason that belongs to no single control — the
+ * whole taxonomy hierarchy judged together, for instance. Dropping it would
+ * leave a reader refused with no explanation, and attaching it to an arbitrary
+ * field would blame the wrong one.
+ */
+test("lists a failure that names no field, without a link", () => {
+  render(
+    <ErrorSummary
+      errors={[
+        { fieldId: "email", message: "Enter your email address." },
+        { message: "One or more selections do not belong together." },
+      ]}
+    />,
+  );
+
+  const list = within(screen.getByRole("alert")).getByRole("list");
+
+  expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+  expect(within(list).getAllByRole("link")).toHaveLength(1);
+  expect(list).toHaveTextContent("One or more selections do not belong together.");
+});

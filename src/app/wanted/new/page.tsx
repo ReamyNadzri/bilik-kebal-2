@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FixtureNotice } from "@/components/fixture-notice";
 import { UiStatus } from "@/components/ui-status";
 import { WantedDraftWorkspace } from "@/components/wanted-draft-workspace";
 import type { AccountViewModel } from "@/contracts";
-import { WANTED } from "@/features/marketplace/fixtures";
-import { loadWantedTaxonomy } from "@/features/marketplace/taxonomy-source";
-import { readPreviewState } from "@/features/marketplace/wanted-source";
+import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
 import { loadAccountViewModel } from "@/modules/identity";
+import { loadMarketplaceTaxonomy } from "@/modules/taxonomy/loaders/taxonomy-read";
 
 export const metadata: Metadata = {
   title: "Post a Wanted | VAULTIX",
@@ -18,10 +16,6 @@ export const metadata: Metadata = {
  * shared cache (context/code-standards.md).
  */
 export const dynamic = "force-dynamic";
-
-interface PostWantedPageProps {
-  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
 
 type Outcome =
   | { kind: "account"; account: AccountViewModel }
@@ -42,6 +36,28 @@ async function readAccount(): Promise<Outcome> {
   } catch {
     // The reason belongs in server logs, never in a page a browser reads.
     return { kind: "unavailable" };
+  }
+}
+
+/**
+ * Reads the institution-scoped taxonomy through the operation behind
+ * `GET /api/marketplace/taxonomy`.
+ *
+ * Every failure the contract documents — `AUTH_REQUIRED`,
+ * `EMAIL_NOT_VERIFIED`, `MARKETPLACE_UNAVAILABLE` — and any thrown read become
+ * one thing here: the options could not be read. The eligibility gate above
+ * has already told the reader anything they can act on, and a form offering no
+ * campus because a read failed would look like an institution with no
+ * campuses. An empty catalogue is a different, successful state and is kept
+ * separate.
+ */
+async function readTaxonomy(): Promise<MarketplaceTaxonomy | null> {
+  try {
+    const result = await loadMarketplaceTaxonomy();
+
+    return result.ok ? result.data : null;
+  } catch {
+    return null;
   }
 }
 
@@ -103,15 +119,15 @@ function refusal(account: AccountViewModel): Refusal {
 /**
  * The Wanted creation workspace.
  *
- * Nothing on this screen is persisted. The draft, duplicate-check and
- * publication operations are Phase 3 backend work that has not landed, so the
- * form validates and previews only, and says so plainly.
+ * The identity read and the taxonomy read are both real, and the workspace
+ * persists its draft, runs the duplicate check and asks to prepare payment
+ * through the published Phase 3A operations
+ * (docs/integration/marketplace-http-contract.md).
  *
- * The identity read is real: eligibility comes from the published account view
- * model rather than from a trust state recomputed in the browser.
+ * Nothing here can report a payment or open a Wanted. Phase 3A installs no
+ * adapter that could, and only a verified provider callback ever will.
  */
-export default async function PostWantedPage({ searchParams }: PostWantedPageProps) {
-  const preview = readPreviewState((await searchParams)["preview"]);
+export default async function PostWantedPage() {
   const outcome = await readAccount();
 
   if (outcome.kind === "unauthenticated") {
@@ -160,28 +176,26 @@ export default async function PostWantedPage({ searchParams }: PostWantedPagePro
     );
   }
 
-  const taxonomy = loadWantedTaxonomy(preview);
+  const taxonomy = await readTaxonomy();
 
   return (
     <>
-      <FixtureNotice screen="This creation workspace" />
-
       <h1>Post a Wanted</h1>
 
       <p className="lede">
         Describe what your class needs, choose how long the request stays open, and start the bounty
         with your own contribution. A Sheriff reviews every claim before any resource is released or
-        any bounty is paid.
+        any bounty is released to a Hunter.
       </p>
 
-      {taxonomy.status === "unavailable" ? (
+      {taxonomy === null ? (
         <UiStatus
           kind="offline"
           heading="The course list could not be loaded"
           message="Campuses and courses are unavailable right now, so the form cannot be filled in accurately. Nothing has been created. Try again shortly."
           action={<Link href="/wanted/new">Try again</Link>}
         />
-      ) : taxonomy.data.courses.length === 0 ? (
+      ) : taxonomy.courses.length === 0 ? (
         <UiStatus
           kind="empty"
           heading="No courses have been published yet"
@@ -189,7 +203,7 @@ export default async function PostWantedPage({ searchParams }: PostWantedPagePro
           action={<Link href="/board">Browse the Wanted Board</Link>}
         />
       ) : (
-        <WantedDraftWorkspace taxonomy={taxonomy.data} board={WANTED} />
+        <WantedDraftWorkspace taxonomy={taxonomy} />
       )}
     </>
   );
