@@ -4,11 +4,11 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 2 Identity read-contract backend implementation is complete pending final gate and commit; frontend remains provisional until integration.
+- Phase 3A Wanted core backend is implemented; Phase 3B money/ledger is the next backend slice.
 
 ## Current Goal
 
-- Integrate the typed identity operations with Claude's provisional UI, then begin Phase 3 only after the identity flow is accepted.
+- Connect Claude's provisional Wanted workspace to the Phase 3A HTTP contract while designing the trusted ToyyibPay and immutable-ledger boundary for Phase 3B.
 
 ## Completed
 
@@ -39,17 +39,23 @@ Update this file after every meaningful implementation or specification change.
 - Assigned the complete provisional MVP frontend to Claude Code and backend/infrastructure implementation to Codex, with separate worktrees and Codex-owned shared contracts.
 - Implemented Phase 2 identity schema, RLS, Auth, email confirmation, domain fallback, manual evidence workflow, role-scoped review, account restriction, audit events, and private signed evidence uploads in the Codex backend worktree.
 - Implemented the six Identity read-contract operations: account view, selectable institutions, scoped Sheriff queue, audited evidence read URL, verification resend, and explicit callback outcomes.
+- Published Phase 3A marketplace contracts, private RLS-protected Wanted storage and institution-scoped taxonomy reads.
+- Implemented atomic private draft create/update operations, server-derived Commissioner identity, active taxonomy validation and owner-only editable-draft enforcement.
+- Implemented public-only duplicate ranking, 15-minute opaque one-use duplicate-check tokens and a private publication snapshot transaction for the future money module.
+- Published `docs/integration/marketplace-http-contract.md`; Phase 3A never confirms payment or opens a Wanted.
 
 ## In Progress
 
-- Contract integration: Claude should consume `docs/integration/identity-http-contract.md` and replace matching `FixtureNotice` flows with the real routes.
+- Claude should consume `docs/integration/marketplace-http-contract.md`, replace fixture taxonomy/component-state drafts, and preserve the explicit payment-unavailable state.
 
 ## Next Up
 
-1. Integrate and accept the Phase 2 identity journeys across both worktrees.
-2. Write and review the Phase 3 Wanted/ledger plan after identity integration.
-4. Incorporate the external visual design handoff into `ui-context.md` when it is available.
-5. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
+1. Implement Phase 3B bill intents, verified ToyyibPay callbacks, contributions, immutable balanced ledger, activation and reconciliation.
+2. Integrate and accept the Phase 3A Wanted-creation journey across both worktrees.
+3. Implement public Board/detail read models once confirmed contributions can create real open Wanted records.
+4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
+5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
+6. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
 ## Open Questions
 
@@ -94,3 +100,7 @@ Update this file after every meaningful implementation or specification change.
 - The user approved phased full-MVP development and separate Claude frontend/Codex backend ownership. Application coding begins after the relevant phase plan is written.
 - Local Supabase project `vaultix` runs on API `55421`, DB `55422`, Studio `55423`, Mailpit `55424`; tests use synthetic accounts and never send real email.
 - Official institution email domains remain intentionally unseeded pending product approval; `example.test` was used only as a temporary local smoke fixture and is not part of migrations.
+- Production marketplace taxonomy remains intentionally empty until an authoritative UiTM source and maintainer are approved.
+- Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
+- Claude's provisional Wanted workspace is commit `60e4566`; it remains fixture-backed until its branch consumes the Phase 3A contract.
+- ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
