@@ -4,6 +4,7 @@ import type {
   SuggestWantedDuplicatesResult,
   UpdateWantedDraftResult,
 } from "@/contracts/marketplace";
+import type { ListWantedQuery, ListWantedResult, ReadWantedResult } from "@/contracts/marketplace";
 import { failure } from "@/contracts/operation-result";
 import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,6 +13,7 @@ import type { WantedActor } from "../domain/wanted-policy";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
 import { WantedDraftService } from "../services/wanted-draft-service";
 import { WantedPublicationService } from "../services/wanted-publication-service";
+import { WantedReadService } from "../services/wanted-read-service";
 
 async function context(): Promise<{
   actor: WantedActor | null;
@@ -104,5 +106,38 @@ export async function prepareWantedPublication(
     return loaded.publicationService.preparePublication(loaded.actor, trustedInput);
   } catch {
     return unavailable();
+  }
+}
+
+async function readContext() {
+  const client = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  const actor = user ? { emailVerified: Boolean(user.email_confirmed_at) } : null;
+  return { actor, service: new WantedReadService(new SupabaseWantedRepository(client)) };
+}
+
+export async function listPublicWanted(query: ListWantedQuery): Promise<ListWantedResult> {
+  try {
+    const loaded = await readContext();
+    return loaded.service.list(loaded.actor, query);
+  } catch {
+    return failure(
+      "MARKETPLACE_UNAVAILABLE",
+      "The Wanted Board is temporarily unavailable. Try again.",
+    );
+  }
+}
+
+export async function readPublicWanted(id: string): Promise<ReadWantedResult> {
+  try {
+    const loaded = await readContext();
+    return loaded.service.read(loaded.actor, id);
+  } catch {
+    return failure(
+      "MARKETPLACE_UNAVAILABLE",
+      "The Wanted request is temporarily unavailable. Try again.",
+    );
   }
 }

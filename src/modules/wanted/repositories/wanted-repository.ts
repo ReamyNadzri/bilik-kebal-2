@@ -1,4 +1,10 @@
-import type { ValidatedWantedDraftInput, WantedDraftView } from "@/contracts/marketplace";
+import type {
+  ListWantedQuery,
+  ValidatedWantedDraftInput,
+  WantedDraftView,
+  WantedDetail,
+  WantedSummary,
+} from "@/contracts/marketplace";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
 
 export interface StoredWantedDraft extends WantedDraftView {
@@ -14,6 +20,8 @@ export interface PersistWantedDraft {
 }
 
 export interface WantedRepository {
+  listPublicWanted?(query: ListWantedQuery): Promise<WantedSummary[]>;
+  readPublicWanted?(publicId: string): Promise<WantedDetail | null>;
   taxonomyMatchesInstitution(
     institutionId: string,
     values: ValidatedWantedDraftInput,
