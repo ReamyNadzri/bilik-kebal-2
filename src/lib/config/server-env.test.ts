@@ -1,4 +1,8 @@
-import { getMarketplaceTokenSecret, parseServerEnv } from "./server-env";
+import {
+  getMarketplaceTokenSecret,
+  getToyyibPayCallbackSecret,
+  parseServerEnv,
+} from "./server-env";
 
 test("defaults risky providers to disabled", () => {
   const env = parseServerEnv({ NODE_ENV: "test" });
@@ -23,4 +27,16 @@ test("requires a dedicated marketplace token secret in production", () => {
       MARKETPLACE_TOKEN_SECRET: "a-secure-marketplace-token-secret-value",
     }),
   ).toBe("a-secure-marketplace-token-secret-value");
+});
+
+test("never fabricates a ToyyibPay callback secret while payments are disabled", () => {
+  expect(() => getToyyibPayCallbackSecret({ NODE_ENV: "test" })).toThrow(
+    /ToyyibPay callback secret/,
+  );
+  expect(
+    getToyyibPayCallbackSecret({
+      NODE_ENV: "test",
+      TOYYIBPAY_SANDBOX_SECRET: "sandbox-secret",
+    }),
+  ).toBe("sandbox-secret");
 });

@@ -4,11 +4,11 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 3A Wanted core backend is implemented; Phase 3B money/ledger is the next backend slice.
+- Phase 3B money/ledger implementation is implemented and under final verification; Claude has connected the Phase 3A Wanted-creation workspace.
 
 ## Current Goal
 
-- Connect Claude's provisional Wanted workspace to the Phase 3A HTTP contract while designing the trusted ToyyibPay and immutable-ledger boundary for Phase 3B.
+- Finish the complete backend gate and commit the trusted ToyyibPay and immutable-ledger boundary for Claude's payment integration slice.
 
 ## Completed
 
@@ -43,16 +43,19 @@ Update this file after every meaningful implementation or specification change.
 - Implemented atomic private draft create/update operations, server-derived Commissioner identity, active taxonomy validation and owner-only editable-draft enforcement.
 - Implemented public-only duplicate ranking, HMAC-authenticated 15-minute one-use duplicate-check tokens and a private publication snapshot transaction for the future money module.
 - Published `docs/integration/marketplace-http-contract.md`; Phase 3A never confirms payment or opens a Wanted.
+- Claude connected taxonomy, draft persistence, duplicate checks and publication preparation to the Phase 3A operations in `fed4576`.
+- Implemented Phase 3B contribution intents, ToyyibPay bill creation and form callback verification, service-role event recording, one-use token consumption, immutable balanced ledger entries, first-contribution Wanted activation, outbox events and reconciliation reads.
+- Added functional pgTAP coverage for atomic intent creation, pending callbacks, successful balanced posting and idempotent callback replay.
 
 ## In Progress
 
-- Claude should consume `docs/integration/marketplace-http-contract.md`, replace fixture taxonomy/component-state drafts, and preserve the explicit payment-unavailable state.
+- Run final unit, database, format, lint, type and production-build gates for Phase 3B.
 
 ## Next Up
 
-1. Implement Phase 3B bill intents, verified ToyyibPay callbacks, contributions, immutable balanced ledger, activation and reconciliation.
-2. Integrate and accept the Phase 3A Wanted-creation journey across both worktrees.
-3. Implement public Board/detail read models once confirmed contributions can create real open Wanted records.
+1. Hand `docs/integration/money-http-contract.md` to Claude for the payment redirect/waiting UI slice.
+2. Implement public Board/detail read models now that confirmed contributions can create real open Wanted records.
+3. Add operator reconciliation UI and provider-status polling only after its access and operational workflow are specified.
 4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
 5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
 6. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
@@ -104,4 +107,5 @@ Update this file after every meaningful implementation or specification change.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
 - Claude's provisional Wanted workspace is commit `60e4566`; it remains fixture-backed until its branch consumes the Phase 3A contract.
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
+- Phase 3B migrations `202609150004` through `202609150009` are applied locally without resetting the demo database; the follow-up migrations preserve the actually applied callback hardening history, and the money pgTAP suite exercises the real RPC paths.
 - Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.

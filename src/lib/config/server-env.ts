@@ -16,6 +16,10 @@ const serverSchema = z.object({
   PUBLIC_UPLOADS_ENABLED: booleanEnv,
   TOYYIBPAY_SANDBOX_SECRET: z.string().min(1).optional(),
   TOYYIBPAY_LIVE_SECRET: z.string().min(1).optional(),
+  TOYYIBPAY_MERCHANT_CODE: z.string().min(1).optional(),
+  TOYYIBPAY_CATEGORY_CODE: z.string().min(1).optional(),
+  TOYYIBPAY_CALLBACK_URL: z.string().url().optional(),
+  TOYYIBPAY_RETURN_URL: z.string().url().optional(),
   LIVE_TESTER_ALLOWLIST: z.string().min(1).optional(),
   IDENTITY_PENDING_COOKIE_SECRET: z.string().min(32).optional(),
   MARKETPLACE_TOKEN_SECRET: z.string().min(32).optional(),
@@ -54,4 +58,14 @@ export function getMarketplaceTokenSecret(input: Record<string, unknown>): strin
   if (env.MARKETPLACE_TOKEN_SECRET) return env.MARKETPLACE_TOKEN_SECRET;
   if (env.NODE_ENV !== "production") return "vaultix-local-marketplace-token-secret";
   throw new Error("MARKETPLACE_TOKEN_SECRET is required in production");
+}
+
+export function getToyyibPayCallbackSecret(input: Record<string, unknown>): string {
+  const env = parseServerEnv(input);
+  const secret =
+    env.PAYMENT_MODE === "live_limited"
+      ? env.TOYYIBPAY_LIVE_SECRET
+      : (env.TOYYIBPAY_SANDBOX_SECRET ?? env.TOYYIBPAY_LIVE_SECRET);
+  if (secret) return secret;
+  throw new Error("A ToyyibPay callback secret is required to verify provider events");
 }
