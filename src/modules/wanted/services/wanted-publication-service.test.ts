@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import type { ValidatedWantedDraftInput } from "@/contracts/marketplace";
 import type { WantedActor } from "../domain/wanted-policy";
@@ -5,6 +6,10 @@ import type { StoredWantedDraft, WantedRepository } from "../repositories/wanted
 import { WantedPublicationService } from "./wanted-publication-service";
 
 const draftId = "00000000-0000-4000-8000-000000000001";
+const nonce = "x".repeat(43);
+const validToken = `${nonce}.${createHmac("sha256", "vaultix-local-marketplace-token-secret")
+  .update(nonce)
+  .digest("hex")}`;
 const actor: WantedActor = {
   userId: "00000000-0000-4000-8000-000000000002",
   emailVerified: true,
@@ -54,16 +59,34 @@ describe("WantedPublicationService", () => {
     const service = new WantedPublicationService(repo, {
       now: () => new Date("2026-09-15T00:00:00.000Z"),
       token: () => "x".repeat(43),
+      tokenSecret: "test-marketplace-token-secret-32-chars",
       paymentAvailability: "ready",
     });
     const result = await service.suggestDuplicates(actor, { draftId });
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: true,
-      data: { token: "x".repeat(43), expiresAt: "2026-09-15T00:15:00.000Z", suggestions: [] },
+      data: { expiresAt: "2026-09-15T00:15:00.000Z", suggestions: [] },
     });
+    expect(result.ok && result.data.token).toMatch(/^x{43}\.[0-9a-f]{64}$/);
     expect(repo.storeDuplicateCheck).toHaveBeenCalledWith(
       expect.objectContaining({ draftId, tokenHash: expect.not.stringContaining("x".repeat(20)) }),
     );
+  });
+
+  it("refuses a forged client-created token before the publication transaction", async () => {
+    const repo = repository();
+    const service = new WantedPublicationService(repo, {
+      paymentAvailability: "ready",
+      tokenSecret: "test-marketplace-token-secret-32-chars",
+    });
+    expect(
+      await service.preparePublication(actor, {
+        draftId,
+        duplicateCheckToken: "client-created-token-without-a-valid-signature",
+        initialContributionSen: 100,
+      }),
+    ).toMatchObject({ ok: false, code: "DUPLICATE_CHECK_REQUIRED" });
+    expect(repo.preparePublication).not.toHaveBeenCalled();
   });
 
   it("preserves the editable draft when payments are disabled", async () => {
@@ -72,7 +95,7 @@ describe("WantedPublicationService", () => {
     expect(
       await service.preparePublication(actor, {
         draftId,
-        duplicateCheckToken: "x".repeat(43),
+        duplicateCheckToken: validToken,
         initialContributionSen: 100,
       }),
     ).toMatchObject({ ok: false, code: "PAYMENT_DISABLED" });
@@ -84,7 +107,7 @@ describe("WantedPublicationService", () => {
     expect(
       await service.preparePublication(actor, {
         draftId,
-        duplicateCheckToken: "x".repeat(43),
+        duplicateCheckToken: validToken,
         initialContributionSen: amount,
       }),
     ).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
@@ -101,7 +124,7 @@ describe("WantedPublicationService", () => {
       });
       const result = await service.preparePublication(actor, {
         draftId,
-        duplicateCheckToken: "x".repeat(43),
+        duplicateCheckToken: validToken,
         initialContributionSen: amount,
       });
       expect(result).toMatchObject({ ok: true, data: { draftId, state: "awaiting_payment" } });
@@ -126,7 +149,7 @@ describe("WantedPublicationService", () => {
     expect(
       await service.preparePublication(actor, {
         draftId,
-        duplicateCheckToken: "x".repeat(43),
+        duplicateCheckToken: validToken,
         initialContributionSen: 100,
       }),
     ).toMatchObject({ ok: false, code });

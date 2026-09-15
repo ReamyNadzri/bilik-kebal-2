@@ -41,7 +41,7 @@ Update this file after every meaningful implementation or specification change.
 - Implemented the six Identity read-contract operations: account view, selectable institutions, scoped Sheriff queue, audited evidence read URL, verification resend, and explicit callback outcomes.
 - Published Phase 3A marketplace contracts, private RLS-protected Wanted storage and institution-scoped taxonomy reads.
 - Implemented atomic private draft create/update operations, server-derived Commissioner identity, active taxonomy validation and owner-only editable-draft enforcement.
-- Implemented public-only duplicate ranking, 15-minute opaque one-use duplicate-check tokens and a private publication snapshot transaction for the future money module.
+- Implemented public-only duplicate ranking, HMAC-authenticated 15-minute one-use duplicate-check tokens and a private publication snapshot transaction for the future money module.
 - Published `docs/integration/marketplace-http-contract.md`; Phase 3A never confirms payment or opens a Wanted.
 
 ## In Progress
@@ -104,3 +104,4 @@ Update this file after every meaningful implementation or specification change.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
 - Claude's provisional Wanted workspace is commit `60e4566`; it remains fixture-backed until its branch consumes the Phase 3A contract.
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
+- Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, and documentation commit `4d52562` (subsequently amended for the final token boundary).

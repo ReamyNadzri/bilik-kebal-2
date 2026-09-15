@@ -5,7 +5,7 @@ import type {
   UpdateWantedDraftResult,
 } from "@/contracts/marketplace";
 import { failure } from "@/contracts/operation-result";
-import { parseServerEnv } from "@/lib/config/server-env";
+import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SupabaseIdentityReadRepository } from "@/modules/identity/repositories/supabase-identity-read-repository";
 import type { WantedActor } from "../domain/wanted-policy";
@@ -28,6 +28,7 @@ async function context(): Promise<{
   const env = parseServerEnv(process.env);
   const publicationService = new WantedPublicationService(repository, {
     paymentAvailability: env.PAYMENT_MODE === "disabled" ? "disabled" : "unavailable",
+    tokenSecret: getMarketplaceTokenSecret(process.env),
   });
   if (error || !user) return { actor: null, draftService, publicationService };
   const account = await new SupabaseIdentityReadRepository(client).readAccount(user);

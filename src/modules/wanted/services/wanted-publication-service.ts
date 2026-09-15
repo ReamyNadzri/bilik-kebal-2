@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   duplicateSuggestionInputSchema,
   publicationInputSchema,
@@ -16,6 +16,7 @@ interface PublicationOptions {
   paymentAvailability: "disabled" | "unavailable" | "ready";
   feeRateBasisPoints?: number;
   policyVersion?: string;
+  tokenSecret?: string;
 }
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -27,6 +28,7 @@ export class WantedPublicationService {
   private readonly paymentAvailability: PublicationOptions["paymentAvailability"];
   private readonly feeRateBasisPoints: number;
   private readonly policyVersion: string;
+  private readonly tokenSecret: string;
 
   constructor(
     private readonly repository: WantedRepository,
@@ -37,6 +39,7 @@ export class WantedPublicationService {
     this.paymentAvailability = options.paymentAvailability;
     this.feeRateBasisPoints = options.feeRateBasisPoints ?? 1000;
     this.policyVersion = options.policyVersion ?? "2026-09-15.1";
+    this.tokenSecret = options.tokenSecret ?? "vaultix-local-marketplace-token-secret";
   }
 
   async suggestDuplicates(
@@ -50,7 +53,8 @@ export class WantedPublicationService {
     try {
       const draft = await this.editableDraft(actor!, parsed.data.draftId);
       if (!draft.ok) return draft.result;
-      const issuedToken = this.token();
+      const nonce = this.token();
+      const issuedToken = `${nonce}.${this.sign(nonce)}`;
       const expiresAt = new Date(this.now().getTime() + 15 * 60_000).toISOString();
       await this.repository.storeDuplicateCheck({
         criteriaHash: criteriaHash(draft.value),
@@ -98,6 +102,9 @@ export class WantedPublicationService {
         "Payment preparation is temporarily unavailable; your draft remains editable.",
       );
     }
+    if (!this.hasValidSignature(parsed.data.duplicateCheckToken)) {
+      return failure("DUPLICATE_CHECK_REQUIRED", "Run a fresh duplicate check for this draft.");
+    }
     try {
       const draft = await this.editableDraft(actor!, parsed.data.draftId);
       if (!draft.ok) return draft.result;
@@ -139,6 +146,20 @@ export class WantedPublicationService {
     return denial
       ? failure(denial, "Your account is not eligible for this marketplace operation.")
       : null;
+  }
+
+  private sign(nonce: string): string {
+    return createHmac("sha256", this.tokenSecret).update(nonce).digest("hex");
+  }
+
+  private hasValidSignature(token: string): boolean {
+    const [nonce, signature, extra] = token.split(".");
+    if (!nonce || !signature || extra !== undefined || !/^[0-9a-f]{64}$/.test(signature)) {
+      return false;
+    }
+    const expected = Buffer.from(this.sign(nonce), "hex");
+    const received = Buffer.from(signature, "hex");
+    return expected.length === received.length && timingSafeEqual(expected, received);
   }
 
   private async editableDraft(actor: WantedActor, draftId: string) {

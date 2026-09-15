@@ -75,8 +75,9 @@ Success is `200`:
 }
 ```
 
-The token lasts 15 minutes. Only its SHA-256 hash and a hash of the current draft criteria are
-stored. Suggestions contain public Wanted summaries only; no private draft or Commissioner
+The token lasts 15 minutes and carries a server HMAC that prevents a browser from minting its own
+check. Production requires `MARKETPLACE_TOKEN_SECRET` with at least 32 characters. Only the token's
+SHA-256 hash and a hash of the current draft criteria are stored. Suggestions contain public Wanted summaries only; no private draft or Commissioner
 identity is returned. The current rank favours same course, then resource type, session and
 normalised title overlap. Issuing a token is not idempotent: a retry produces a new token.
 
