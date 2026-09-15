@@ -985,6 +985,22 @@ export type Database = {
         Args: { target_request_id: string };
         Returns: string;
       };
+      create_wanted_draft: {
+        Args: {
+          academic_session_id: string;
+          campus_id: string;
+          course_id: string;
+          description: string;
+          duration_days: number;
+          faculty_id: string;
+          language_id: string;
+          programme_id: string;
+          resource_type_id: string;
+          tag_ids: string[];
+          title: string;
+        };
+        Returns: string;
+      };
       restrict_account: {
         Args: { reason_code: string; target_user_id: string };
         Returns: string;
@@ -994,6 +1010,23 @@ export type Database = {
           decision: Database["public"]["Enums"]["verification_request_state"];
           reason_code: string;
           target_request_id: string;
+        };
+        Returns: string;
+      };
+      update_wanted_draft: {
+        Args: {
+          academic_session_id: string;
+          campus_id: string;
+          course_id: string;
+          description: string;
+          draft_id: string;
+          duration_days: number;
+          faculty_id: string;
+          language_id: string;
+          programme_id: string;
+          resource_type_id: string;
+          tag_ids: string[];
+          title: string;
         };
         Returns: string;
       };

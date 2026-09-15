@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(22);
+select plan(24);
 
 select has_table('public', 'campuses', 'campus taxonomy exists');
 select has_table('public', 'faculties', 'faculty taxonomy exists');
@@ -14,6 +14,8 @@ select has_table('public', 'languages', 'language taxonomy exists');
 select has_table('public', 'tags', 'tag taxonomy exists');
 select has_table('public', 'wanted_requests', 'Wanted requests exist');
 select has_table('public', 'wanted_duplicate_checks', 'duplicate-check records exist');
+select has_function('public', 'create_wanted_draft', 'atomic Wanted draft creation is exposed');
+select has_function('public', 'update_wanted_draft', 'atomic owner-only draft updates are exposed');
 
 select results_eq(
   $$
