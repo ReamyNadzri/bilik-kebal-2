@@ -1,283 +1,234 @@
 import { render, screen, within } from "@testing-library/react";
 import WantedDetailPage from "./page";
+import type { WantedDetail } from "@/contracts/marketplace";
+import { toSen } from "@/features/marketplace/money";
+import { aWanted } from "@/features/marketplace/test-support/wanted";
 
-const notFound = vi.hoisted(() => vi.fn(() => new Error("NEXT_NOT_FOUND")));
+const listPublicWanted = vi.hoisted(() => vi.fn());
+const readPublicWanted = vi.hoisted(() => vi.fn());
+const notFound = vi.hoisted(() =>
+  vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
+);
 
-vi.mock("next/navigation", () => ({
-  notFound: () => {
-    throw notFound();
-  },
+vi.mock("@/modules/wanted/loaders/wanted-operations", () => ({
+  listPublicWanted,
+  readPublicWanted,
 }));
 
-async function renderWanted(id = "csc510-final-exam-notes", params: Record<string, string> = {}) {
-  return render(
-    await WantedDetailPage({
-      params: Promise.resolve({ id }),
-      searchParams: Promise.resolve(params),
-    }),
-  );
+vi.mock("next/navigation", () => ({ notFound }));
+
+function aDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
+  return {
+    ...aWanted({ id: "csc510-final-exam-notes", grossBountySen: toSen(85), backerCount: 6 }),
+    description: "Complete notes covering every chapter, with worked examples.",
+    faculty: "Faculty of Computing",
+    programme: "Bachelor of Computer Science",
+    language: "English",
+    tags: ["Final exam", "Summary notes"],
+    commissioner: { displayName: "A classmate", emailVerified: true, institutionVerified: true },
+    feeRateBasisPoints: 1000,
+    policyVersion: "2026-09-15.1",
+    activity: [{ id: "event-1", at: "2026-09-12T09:00:00.000Z", summary: "Request published" }],
+    similarIds: [],
+    ...overrides,
+  };
 }
 
-/**
- * The case file, excluding the similar-request cards, which are articles of
- * their own and repeat the same kinds of words.
- */
-function caseFile() {
-  return within(
-    screen.getByRole("article", { name: "Final exam notes and summary for chapters 1 to 12" }),
-  );
+beforeEach(() => {
+  readPublicWanted.mockReset().mockResolvedValue({ ok: true, data: aDetail() });
+  notFound.mockClear();
+});
+
+async function renderPage(id = "csc510-final-exam-notes") {
+  return render(await WantedDetailPage({ params: Promise.resolve({ id }) }));
 }
 
-function ledger() {
-  return within(screen.getByRole("complementary", { name: "Bounty and actions" }));
-}
+describe("reading one request", () => {
+  test("asks by the opaque public identifier from the address", async () => {
+    await renderPage("csc510-final-exam-notes");
 
-describe("the request", () => {
-  test("leads with the request title", async () => {
-    await renderWanted();
-
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: "Final exam notes and summary for chapters 1 to 12",
-      }),
-    ).toBeInTheDocument();
+    expect(readPublicWanted).toHaveBeenCalledWith("csc510-final-exam-notes");
   });
 
-  test("shows the lifecycle status and how long it has been posted", async () => {
-    await renderWanted();
+  test("shows the request, its course and its description", async () => {
+    await renderPage();
 
-    // The similar-request cards carry stamps of their own, so the request's own
-    // stamp is identified by the context it names rather than by its word.
-    expect(screen.getByText("This Wanted status:").parentElement).toHaveTextContent("Open");
-    expect(screen.getByText("Posted 3 days ago")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Final exam notes and summary for chapters 1 to 12",
+    );
+    expect(screen.getByText(/Complete notes covering every chapter/)).toBeInTheDocument();
   });
 
-  test("shows what the Commissioner asked for", async () => {
-    await renderWanted();
+  test("renders the bounty from integer sen and the backer count", async () => {
+    await renderPage();
 
-    expect(screen.getByText(/Looking for complete notes or a summary/)).toBeInTheDocument();
+    expect(screen.getByText("Total bounty RM 85")).toBeInTheDocument();
+    expect(screen.getByText("6 backers")).toBeInTheDocument();
   });
 
-  test("lists the academic metadata a Hunter needs to judge the request", async () => {
-    await renderWanted();
+  test("keeps sen precision for a part-Ringgit bounty", async () => {
+    readPublicWanted.mockResolvedValue({
+      ok: true,
+      data: aDetail({ grossBountySen: toSen(12.5) }),
+    });
+    await renderPage();
 
-    const details = screen.getByRole("group", { name: "Full request details" });
-
-    expect(within(details).getByText("CSC510 Database Systems")).toBeInTheDocument();
-    expect(within(details).getByText("UiTM Shah Alam")).toBeInTheDocument();
-    expect(
-      within(details).getByText("Faculty of Computer and Mathematical Sciences"),
-    ).toBeInTheDocument();
-    expect(within(details).getByText("Bachelor of Computer Science")).toBeInTheDocument();
-    expect(within(details).getByText("Semester 2, 2024/2025")).toBeInTheDocument();
-    expect(within(details).getByText("Lecture notes")).toBeInTheDocument();
-    expect(within(details).getByText("English")).toBeInTheDocument();
+    expect(screen.getByText("Total bounty RM 12.50")).toBeInTheDocument();
   });
 
-  test("shows the tags the Commissioner chose", async () => {
-    await renderWanted();
+  test("shows the snapshotted fee rate and policy version", async () => {
+    readPublicWanted.mockResolvedValue({
+      ok: true,
+      data: aDetail({ feeRateBasisPoints: 750, policyVersion: "2026-09-15.1" }),
+    });
+    await renderPage();
 
-    const tags = screen.getByRole("list", { name: /tags/i });
+    expect(screen.getByText(/7\.5% platform fee/)).toBeInTheDocument();
+    expect(screen.getByText(/2026-09-15\.1/)).toBeInTheDocument();
+  });
+
+  test("shows the publication and closing times", async () => {
+    await renderPage();
+
+    expect(document.querySelector('time[datetime="2026-09-11T09:00:00.000Z"]')).not.toBeNull();
+    expect(document.querySelector('time[datetime="2026-09-17T00:00:00.000Z"]')).not.toBeNull();
+  });
+
+  test("lists the public activity", async () => {
+    await renderPage();
+
+    const activity = screen.getByRole("list", { name: "Activity on this Wanted" });
+
+    expect(within(activity).getByText("Request published")).toBeInTheDocument();
+  });
+
+  test("lists the tags", async () => {
+    await renderPage();
+
+    const tags = screen.getByRole("list", { name: "Tags" });
 
     expect(within(tags).getByText("Final exam")).toBeInTheDocument();
     expect(within(tags).getByText("Summary notes")).toBeInTheDocument();
   });
 
-  test("summarises what has happened to the bounty so far", async () => {
-    await renderWanted();
+  test("carries no development fixture marker", async () => {
+    await renderPage();
 
-    const activity = screen.getByRole("list", { name: /activity/i });
-
-    expect(
-      within(activity).getByText("Wanted published with the first contribution"),
-    ).toBeInTheDocument();
-    expect(within(activity).getAllByRole("listitem").length).toBeGreaterThan(1);
+    expect(screen.queryByText("Development only")).not.toBeInTheDocument();
   });
 });
 
-describe("the bounty ledger", () => {
-  test("shows the gross bounty and who is behind it", async () => {
-    await renderWanted();
+describe("the Commissioner as the reader sees them", () => {
+  test("shows only the safe display name", async () => {
+    await renderPage();
 
-    expect(ledger().getByText("Total bounty RM 85")).toBeInTheDocument();
-    expect(ledger().getByText("6 backers")).toBeInTheDocument();
+    expect(screen.getByText("A classmate")).toBeInTheDocument();
   });
 
-  test("shows how long is left in a form precise enough to act on", async () => {
-    await renderWanted();
+  test("keeps the two trust states separate rather than merging them", async () => {
+    readPublicWanted.mockResolvedValue({
+      ok: true,
+      data: aDetail({
+        commissioner: {
+          displayName: "A classmate",
+          emailVerified: true,
+          institutionVerified: false,
+        },
+      }),
+    });
+    await renderPage();
 
-    expect(screen.getByText("2 days 15 hours left")).toBeInTheDocument();
+    expect(screen.getByText(/This proves control of an email/)).toBeInTheDocument();
+    expect(screen.getByText(/This permits funding a/)).toBeInTheDocument();
   });
 
-  test("states the contribution range", async () => {
-    await renderWanted();
+  test("exposes no email address, contributor identity or internal row identifier", async () => {
+    const { container } = await renderPage();
+    const shown = container.textContent ?? "";
 
-    expect(screen.getByText(/RM1 to RM50 per Backer/i)).toBeInTheDocument();
-  });
-
-  test("explains the fee, and that its rate was fixed at publication", async () => {
-    await renderWanted();
-
-    expect(screen.getByText(/10% platform fee/i)).toBeInTheDocument();
-    expect(screen.getByText(/fixed when this Wanted was published/i)).toBeInTheDocument();
-  });
-
-  test("says the provider fee is paid on top of the contribution", async () => {
-    await renderWanted();
-
-    expect(screen.getByText(/payment provider adds its own charge/i)).toBeInTheDocument();
+    expect(shown).not.toMatch(/@/);
+    expect(shown).not.toMatch(/user_id|commissioner_user_id|institution_id|storage|bucket/i);
+    expect(shown).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   });
 });
 
-describe("actions", () => {
-  test("offers backing the request", async () => {
-    await renderWanted();
+describe("the requests suggested beside it", () => {
+  test("shows nothing when the operation supplied no identifiers", async () => {
+    await renderPage();
 
-    expect(screen.getByRole("link", { name: /^Back this Wanted/ })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /similar/i })).not.toBeInTheDocument();
   });
 
-  test("offers claiming the request", async () => {
-    await renderWanted();
+  test("links each supplied identifier to its own request", async () => {
+    readPublicWanted.mockImplementation(async (id: string) =>
+      id === "csc510-final-exam-notes"
+        ? { ok: true, data: aDetail({ similarIds: ["csc510-past-year"] }) }
+        : { ok: true, data: aDetail({ id, title: "Past year questions" }) },
+    );
+    await renderPage();
 
-    expect(screen.getByRole("link", { name: /^Submit a Claim/ })).toBeInTheDocument();
-  });
-
-  test("routes a protected action to verification rather than pretending it worked", async () => {
-    await renderWanted();
-
-    expect(screen.getByRole("link", { name: /^Back this Wanted/ })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Past year questions" })).toHaveAttribute(
       "href",
-      "/profile/institution-verification",
-    );
-  });
-
-  test("says why the action is not available rather than disabling it silently", async () => {
-    await renderWanted();
-
-    expect(screen.getByText(/Both actions need institution verification/i)).toBeInTheDocument();
-    expect(screen.getByText(/payment is disabled in this build/i)).toBeInTheDocument();
-  });
-
-  test("offers no control that downloads, pays or decides", async () => {
-    await renderWanted();
-
-    for (const control of [...screen.getAllByRole("link"), ...screen.queryAllByRole("button")]) {
-      expect(control).not.toHaveAccessibleName(/download|pay|checkout|approve|reject/i);
-    }
-  });
-
-  test("names no file, object key or bucket anywhere in the markup", async () => {
-    const { container } = await renderWanted();
-
-    expect(container.innerHTML).not.toMatch(
-      /\.pdf|\.docx|\.pptx|object_key|objectKey|bucket|signed url|storage\//i,
+      "/wanted/csc510-past-year",
     );
   });
 });
 
-describe("trust and policy", () => {
-  test("presents the Commissioner without exposing anything private", async () => {
-    const { container } = await renderWanted();
+describe("a request that is not there", () => {
+  test("renders the real not-found page rather than an offline error", async () => {
+    readPublicWanted.mockResolvedValue({ ok: false, code: "WANTED_NOT_FOUND", message: "no" });
 
-    expect(screen.getByText("A verified student")).toBeInTheDocument();
-    expect(container.innerHTML).not.toMatch(/@|matric|student id|phone/i);
-  });
-
-  test("separates what email verification proves from what institution verification permits", async () => {
-    await renderWanted();
-
-    expect(screen.getByText(/proves control of an email address/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/permits funding a bounty, submitting a claim and downloading/i),
-    ).toBeInTheDocument();
-  });
-
-  test("says institution verification is not a quality guarantee", async () => {
-    await renderWanted();
-
-    expect(screen.getByText(/does not guarantee the quality of any resource/i)).toBeInTheDocument();
-  });
-
-  test("says a human Sheriff decides before access or reward", async () => {
-    await renderWanted();
-
-    expect(
-      caseFile().getByText(/A Sheriff must approve a claim before any resource is released/i),
-    ).toBeInTheDocument();
-    expect(ledger().getByText(/No automated check can approve a claim/i)).toBeInTheDocument();
-  });
-
-  test("states the content policy the request is bound by", async () => {
-    await renderWanted();
-
-    expect(screen.getByText(/only material the Hunter is allowed to share/i)).toBeInTheDocument();
-  });
-
-  test("previews no unverified file", async () => {
-    await renderWanted();
-
-    expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    expect(screen.queryByText(/preview/i)).not.toBeInTheDocument();
-  });
-});
-
-describe("similar requests", () => {
-  test("suggests other requests for the same course", async () => {
-    await renderWanted();
-
-    const similar = screen.getByRole("list", { name: /similar wanted requests/i });
-
-    expect(within(similar).getAllByRole("listitem").length).toBeGreaterThan(0);
-  });
-
-  test("links a suggestion through to its own page", async () => {
-    await renderWanted();
-
-    const similar = screen.getByRole("list", { name: /similar wanted requests/i });
-
-    expect(
-      within(similar).getByRole("link", { name: /View this Wanted: Past year questions/ }),
-    ).toHaveAttribute("href", "/wanted/csc510-past-year-questions");
-  });
-
-  test("never suggests the request being read", async () => {
-    await renderWanted();
-
-    const similar = screen.getByRole("list", { name: /similar wanted requests/i });
-
-    expect(
-      within(similar).queryByText("Final exam notes and summary for chapters 1 to 12"),
-    ).not.toBeInTheDocument();
-  });
-});
-
-describe("states the reader can reach", () => {
-  test("returns to the Board", async () => {
-    await renderWanted();
-
-    expect(screen.getByRole("link", { name: /Back to the Wanted Board/ })).toHaveAttribute(
-      "href",
-      "/board",
-    );
-  });
-
-  test("says the request could not be read rather than showing it as missing", async () => {
-    await renderWanted("csc510-final-exam-notes", { preview: "unavailable" });
-
-    expect(
-      screen.getByRole("heading", { name: "This Wanted could not be loaded" }),
-    ).toBeInTheDocument();
-  });
-
-  test("treats an unknown identifier as not found, not as a failure", async () => {
-    await expect(renderWanted("no-such-request")).rejects.toThrow();
+    await expect(renderPage("never-existed")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
 });
 
-test("marks the screen as fixture-backed while Phase 3 has no operations", async () => {
-  await renderWanted();
+describe("when the request cannot be read", () => {
+  test("says so without blaming the account, and does not call not-found", async () => {
+    readPublicWanted.mockResolvedValue({
+      ok: false,
+      code: "MARKETPLACE_UNAVAILABLE",
+      message: "connect ECONNREFUSED 127.0.0.1:54322",
+    });
+    const { container } = await renderPage();
 
-  expect(screen.getByText("Development only")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "This Wanted could not be loaded" }),
+    ).toBeInTheDocument();
+    expect(notFound).not.toHaveBeenCalled();
+    expect(container.textContent).not.toMatch(/ECONNREFUSED|127\.0\.0\.1|supabase/i);
+  });
+
+  test("asks a signed-out visitor to sign in", async () => {
+    readPublicWanted.mockResolvedValue({ ok: false, code: "AUTH_REQUIRED", message: "no" });
+    await renderPage();
+
+    expect(
+      screen.getByRole("heading", { name: "Sign in to read this request" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
+  });
+
+  test("sends an unverified email address to verification", async () => {
+    readPublicWanted.mockResolvedValue({ ok: false, code: "EMAIL_NOT_VERIFIED", message: "no" });
+    await renderPage();
+
+    expect(
+      screen.getByRole("heading", { name: "Verify your email to read this request" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /email verification/i })).toHaveAttribute(
+      "href",
+      "/verify-email",
+    );
+  });
+});
+
+test("claims no payment, entitlement or file access", async () => {
+  const { container } = await renderPage();
+  const shown = container.textContent ?? "";
+
+  expect(shown).not.toMatch(/successfully|payment (received|complete|confirmed)/i);
+  expect(shown).not.toMatch(/download now|your file is|you now have access/i);
 });

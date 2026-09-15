@@ -16,9 +16,9 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Goal
 
-- Connect `/`, `/board` and `/wanted/[id]` to the public Wanted read operations, retiring each
-  fixture and its `FixtureNotice` in the same slice that connects it, while Codex finishes the
-  Phase 3B gate and hands over `docs/integration/money-http-contract.md` for the payment slice.
+- Accept the connected marketplace journeys, then take the Phase 3B payment slice from
+  `docs/integration/money-http-contract.md` once Codex hands it over. `/claims` is the last
+  fixture-backed screen and waits for Phase 4.
 
 ## Completed
 
@@ -125,6 +125,18 @@ Update this file after every meaningful implementation or specification change.
   email-verification gate, integer-sen bounty aggregation, distinct backer counts, taxonomy and
   public activity, validated query enums and deterministic sorting. Documented in
   `docs/integration/marketplace-http-contract.md`.
+- **Marketplace read integration** -- `/`, `/board` and `/wanted/[id]` connected to those
+  operations. The homepage asks for the newest requests and has explicit signed-out,
+  email-unverified, unavailable, empty and populated states. The Board translates its URL state into
+  the published `ListWantedQuery` -- `q` to `query`, `session` to `academicSessionId`,
+  `highest-bounty` to `highest_bounty`, `ending-soon` to `ending_soon` -- and selects and orders
+  nothing itself; its filter catalogue comes from the institution-scoped taxonomy operation, and an
+  empty filtered result stays a successful read. The detail page reads by opaque public identifier,
+  renders the safe Commissioner name with the two trust states separate, the bounty in integer sen,
+  the snapshotted fee rate and policy version, the public activity, the tags and any similar
+  requests, and maps `WANTED_NOT_FOUND` to the real Next not-found page. The three routes carry no
+  `FixtureNotice`, and `src/features/marketplace/types.ts` re-exports `WantedSummary` and
+  `WantedDetail` from the contract instead of restating them.
 
 ## In Progress
 
@@ -136,6 +148,9 @@ Update this file after every meaningful implementation or specification change.
   fixture-backed. Phase 2 integration is complete pending review.
 - Phase 3C is complete for `/wanted/new`: the workspace consumes the real taxonomy, draft,
   duplicate-check and publication operations, and both payment refusals are honest.
+- `/`, `/board` and `/wanted/[id]` are connected to the public Wanted read operations and carry no
+  `FixtureNotice`. `/claims` is the only screen still fixture-backed and keeps its marker: Claims
+  and moderation are Phase 4 and have no read contract yet.
 - Codex is running the final unit, database, format, lint, type and production-build gates for
   Phase 3B.
 
@@ -179,7 +194,12 @@ Update this file after every meaningful implementation or specification change.
   role assignment outside the database.
 - Define the final legal metadata-retention periods after professional review.
 
-## Wanted Creation Workspace — Connected to Phase 3A
+## What Is Still Fixture-Backed
+
+Only `/claims` and the `/wanted/new/preview` harness. Every other marketplace screen reads a
+published operation, and the sections below record what each one consumes.
+
+### `/wanted/new` — connected to Phase 3A
 
 `/wanted/new` runs on the real backend. The identity read is `loadAccountViewModel`, so every
 eligibility state is real — signed out, identity unavailable, email unverified, restricted,
@@ -202,6 +222,19 @@ is saved, no payment was started, nothing was charged and no Wanted was opened. 
 success — which Phase 3A cannot produce — is presented as waiting for payment, never as a live
 request.
 
+### `/`, `/board` and `/wanted/[id]` — connected to the public reads
+
+All three read through `src/features/marketplace/wanted-source.ts`, which calls the Codex-owned
+server loaders directly. A server component asking its own `GET /api/marketplace/wanted` route for
+data would need an absolute origin and hand-forwarded cookies to reach the same function, and those
+route handlers are two-line delegations to exactly those loaders.
+
+Their browser coverage is the refusal path, because no email-verified session can be seeded for CI.
+The populated, empty, filtered, not-found and unavailable states are covered against the contract in
+the page tests instead. Note that authentication is decided before existence, so an anonymous
+visitor asking for any detail address is asked to sign in rather than shown a 404 — which is the
+safer order, since differing answers would tell a stranger which requests exist.
+
 Known gaps recorded rather than worked around:
 
 - **The eligible form still cannot be browser-tested end to end.** It needs an institution-verified,
@@ -222,6 +255,35 @@ Known gaps recorded rather than worked around:
 - **Duplicate suggestions are empty in practice** until Phase 3B, because nothing can reach `open`
   without a verified contribution. The non-empty path is covered by component tests against the
   contract shape.
+
+### `/claims` — the last one
+
+`/claims` reads `src/features/marketplace/fixtures.ts` through `hunt-source.ts` and keeps its
+`FixtureNotice`. Claims and moderation are Phase 4 and have no published read contract, so the
+marker stays until one exists. `fixture-preview.ts` holds the development-only `?preview=` states
+that surface its unavailable and empty presentations; the connected routes reach both for real and
+need none of it.
+
+When `fixtures.ts` was trimmed, `findWantedDetail`, the detail-extras table, the `WANTED` list's
+public exports and the four fixture vocabularies went with it — only `FIXTURE_NOW`, `HUNTS` and
+`CLAIMS` are exported now.
+
+### Backend observations from the read integration
+
+Recorded for Codex rather than worked around in the frontend:
+
+- `readPublicWanted` always returns `similarIds: []`. The detail page resolves and links whatever
+  identifiers arrive, capped at four, so the section appears the moment the operation supplies any.
+- `WantedDetail.commissioner.emailVerified` is the literal `true` rather than a read of the
+  account's state. It is very likely correct, since publishing requires a verified email, but it is
+  asserted rather than observed.
+- `listPublicWanted` includes `expired` rows in the detail read and maps them through
+  `toSummaries`, where only `reviewing` is special-cased — so an expired request presents as `open`,
+  `ending-soon` or `well-funded` and never as `closed`, although `closed` is in the contract's own
+  status union.
+- `query` matches `title` only. The Board's search field promised course, campus, semester and
+  resource type, so its placeholder and hint were narrowed to what the server actually searches
+  rather than re-implementing selection in the browser.
 
 ## Backend Contracts the Marketplace Frontend Needs
 

@@ -1,15 +1,13 @@
 import { toSen } from "./money";
-import type {
-  ClaimSummary,
-  CommissionerPresentation,
-  HuntOpportunity,
-  TaxonomyOption,
-  WantedDetail,
-  WantedSummary,
-} from "./types";
+import type { ClaimSummary, HuntOpportunity, WantedSummary } from "./types";
 
 /**
- * Development fixture data for the Wanted marketplace.
+ * Development fixture data for the Hunt workspace.
+ *
+ * `/`, `/board` and `/wanted/[id]` read the published public Wanted
+ * operations, so nothing here feeds them any more. What remains backs
+ * `/claims`, which is Phase 4 Claims and moderation work with no contract to
+ * consume yet, and that route says so with a `FixtureNotice`.
  *
  * Every record here is invented. No course, campus, request, bounty, backer
  * count or person is real, and nothing is read from or written to a database.
@@ -38,45 +36,8 @@ import type {
  */
 export const FIXTURE_NOW = "2026-09-14T09:00:00.000Z";
 
-export const CAMPUSES: readonly TaxonomyOption[] = [
-  { id: "shah-alam", label: "UiTM Shah Alam" },
-  { id: "puncak-alam", label: "UiTM Puncak Alam" },
-  { id: "segamat", label: "UiTM Segamat" },
-  { id: "arau", label: "UiTM Arau" },
-  { id: "samarahan", label: "UiTM Kota Samarahan" },
-  { id: "permatang-pauh", label: "UiTM Permatang Pauh" },
-] as const;
-
-export const COURSES: readonly TaxonomyOption[] = [
-  { id: "acc406", label: "ACC406 Financial Reporting" },
-  { id: "bel422", label: "BEL422 English for Academic Purposes" },
-  { id: "bio220", label: "BIO220 Cell Biology" },
-  { id: "csc510", label: "CSC510 Database Systems" },
-  { id: "csc584", label: "CSC584 Machine Learning" },
-  { id: "ctu551", label: "CTU551 Islamic Thought and Civilisation" },
-  { id: "eco415", label: "ECO415 Economic Statistics" },
-  { id: "law416", label: "LAW416 Malaysian Legal System" },
-  { id: "mat183", label: "MAT183 Calculus I" },
-  { id: "phy210", label: "PHY210 Physics for Engineers" },
-] as const;
-
-export const RESOURCE_TYPES: readonly TaxonomyOption[] = [
-  { id: "past-year-answers", label: "Past year answers" },
-  { id: "lecture-notes", label: "Lecture notes" },
-  { id: "study-pack", label: "Study pack" },
-  { id: "case-notes", label: "Case notes" },
-  { id: "revision-set", label: "Revision set" },
-  { id: "lab-support-notes", label: "Lab support notes" },
-] as const;
-
-export const SESSIONS: readonly TaxonomyOption[] = [
-  { id: "2025-2026-sem1", label: "Semester 1, 2025/2026" },
-  { id: "2024-2025-sem2", label: "Semester 2, 2024/2025" },
-  { id: "2024-2025-sem1", label: "Semester 1, 2024/2025" },
-] as const;
-
 /** Ordered newest first, which is the Board's default sort. */
-export const WANTED: readonly WantedSummary[] = [
+const WANTED: readonly WantedSummary[] = [
   {
     id: "csc584-tutorial-solutions",
     title: "Tutorial solutions for sets 1 to 6",
@@ -402,139 +363,3 @@ export const CLAIMS: readonly ClaimSummary[] = [
     submittedAt: "2026-09-07T09:00:00.000Z",
   },
 ] as const;
-
-/**
- * The parts of a Wanted that only its own page shows.
- *
- * Held separately from the summaries so a Board read never carries detail it
- * does not render. Requests without an entry fall back to a composed default,
- * so every card on the Board links to a page that works.
- */
-type DetailExtras = Omit<WantedDetail, keyof WantedSummary | "similarIds">;
-
-const DEFAULT_COMMISSIONER: CommissionerPresentation = {
-  displayName: "A verified student",
-  emailVerified: true,
-  institutionVerified: true,
-};
-
-/** 10% platform fee, snapshotted at publication (context/project-overview.md). */
-const FEE_RATE_BASIS_POINTS = 1000;
-
-const POLICY_VERSION = "2026-09-01";
-
-const DETAIL: Readonly<Record<string, DetailExtras>> = {
-  "csc510-final-exam-notes": {
-    description:
-      "Looking for complete notes or a summary covering every chapter, with the key formulas, the ER and normalisation diagrams, and the points that keep coming up in past papers. Handwritten or typed is fine as long as it is legible and covers the whole syllabus.",
-    faculty: "Faculty of Computer and Mathematical Sciences",
-    programme: "Bachelor of Computer Science",
-    language: "English",
-    tags: ["Final exam", "Summary notes", "Diagrams"],
-    commissioner: DEFAULT_COMMISSIONER,
-    feeRateBasisPoints: FEE_RATE_BASIS_POINTS,
-    policyVersion: POLICY_VERSION,
-    activity: [
-      {
-        id: "a1",
-        at: "2026-09-11T09:00:00.000Z",
-        summary: "Wanted published with the first contribution",
-      },
-      { id: "a2", at: "2026-09-12T04:30:00.000Z", summary: "A Backer joined the bounty" },
-      { id: "a3", at: "2026-09-13T10:15:00.000Z", summary: "Three Backers joined the bounty" },
-      { id: "a4", at: "2026-09-14T04:00:00.000Z", summary: "A Backer joined the bounty" },
-    ],
-  },
-  "acc406-past-year-scheme": {
-    description:
-      "Answer schemes for the past three years, ideally with the working shown rather than final figures alone. Lecturer-released schemes only. Please do not submit anything taken from a paid tutorial centre.",
-    faculty: "Faculty of Accountancy",
-    programme: "Bachelor of Accountancy",
-    language: "English",
-    tags: ["Past year", "Answer scheme"],
-    commissioner: DEFAULT_COMMISSIONER,
-    feeRateBasisPoints: FEE_RATE_BASIS_POINTS,
-    policyVersion: POLICY_VERSION,
-    activity: [
-      {
-        id: "a1",
-        at: "2026-09-08T09:00:00.000Z",
-        summary: "Wanted published with the first contribution",
-      },
-      { id: "a2", at: "2026-09-10T02:00:00.000Z", summary: "Eleven Backers joined the bounty" },
-      {
-        id: "a3",
-        at: "2026-09-13T06:00:00.000Z",
-        summary: "A claim was submitted and entered screening",
-      },
-    ],
-  },
-  "mat183-revision-set": {
-    description:
-      "A revision set covering limits, differentiation and integration, with worked solutions rather than answers only. Tutorial questions with full working would help more than a formula list.",
-    faculty: "Faculty of Computer and Mathematical Sciences",
-    programme: "Foundation in Science",
-    language: "English",
-    tags: ["Revision", "Worked solutions"],
-    commissioner: DEFAULT_COMMISSIONER,
-    feeRateBasisPoints: FEE_RATE_BASIS_POINTS,
-    policyVersion: POLICY_VERSION,
-    activity: [
-      {
-        id: "a1",
-        at: "2026-09-09T09:00:00.000Z",
-        summary: "Wanted published with the first contribution",
-      },
-      { id: "a2", at: "2026-09-11T08:00:00.000Z", summary: "Ten Backers joined the bounty" },
-    ],
-  },
-};
-
-/**
- * Requests a reader should check before funding this one.
- *
- * Same course first, then the same kind of resource. Duplicate suggestions are
- * a product requirement before publishing (context/project-overview.md); the
- * same list is useful to a Backer deciding where their RM10 does most good.
- */
-function similarTo(wanted: WantedSummary): readonly string[] {
-  const sameCourse = WANTED.filter(
-    (other) => other.id !== wanted.id && other.courseId === wanted.courseId,
-  );
-  const sameType = WANTED.filter(
-    (other) =>
-      other.id !== wanted.id &&
-      other.courseId !== wanted.courseId &&
-      other.resourceTypeId === wanted.resourceTypeId,
-  );
-
-  return [...sameCourse, ...sameType].slice(0, 3).map((other) => other.id);
-}
-
-export function findWantedDetail(id: string): WantedDetail | null {
-  const summary = WANTED.find((wanted) => wanted.id === id);
-
-  if (summary === undefined) {
-    return null;
-  }
-
-  const extras: DetailExtras = DETAIL[id] ?? {
-    description: `A request for ${summary.resourceType.toLowerCase()} covering ${summary.courseCode} ${summary.courseName}. The Commissioner has not added further detail.`,
-    faculty: "Not stated",
-    programme: "Not stated",
-    language: "English",
-    tags: [],
-    commissioner: DEFAULT_COMMISSIONER,
-    feeRateBasisPoints: FEE_RATE_BASIS_POINTS,
-    policyVersion: POLICY_VERSION,
-    activity: [
-      {
-        id: `${summary.id}-published`,
-        at: summary.postedAt,
-        summary: "Wanted published with the first contribution",
-      },
-    ],
-  };
-
-  return { ...summary, ...extras, similarIds: similarTo(summary) };
-}

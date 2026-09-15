@@ -3,8 +3,8 @@ import Link from "next/link";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { HuntWorkspace } from "@/components/hunt-workspace";
 import { UiStatus } from "@/components/ui-status";
+import { fixtureNow, readPreviewState } from "@/features/marketplace/fixture-preview";
 import { listClaims, listHunts } from "@/features/marketplace/hunt-source";
-import { marketplaceNow, readPreviewState } from "@/features/marketplace/wanted-source";
 
 export const metadata: Metadata = {
   title: "Hunt | VAULTIX",
@@ -40,7 +40,7 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
           action={<Link href="/claims">Try again</Link>}
         />
       ) : (
-        <HuntWorkspace hunts={hunts.data} claims={claims.data} now={marketplaceNow()} />
+        <HuntWorkspace hunts={hunts.data} claims={claims.data} now={fixtureNow()} />
       )}
     </>
   );

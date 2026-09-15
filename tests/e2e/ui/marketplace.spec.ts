@@ -1,25 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * The marketplace surfaces: homepage, Board and Wanted detail.
+ * The marketplace surfaces: homepage, Board, Wanted detail and Hunt.
  *
- * These are fixture-backed and need no Supabase, so they run in every
- * environment. What they prove that a component test cannot: the `GET` forms
- * really navigate, the URL really carries the Board's state, and nothing
- * overflows a 360 px viewport.
+ * `/`, `/board` and `/wanted/[id]` now read the published public Wanted
+ * operations, which refuse a viewer without a verified email. No session can be
+ * seeded for CI, so these runs exercise the real refusal on every one of them —
+ * the state a first-time visitor actually meets — plus the shell, the keyboard
+ * path and 360 px. The populated, empty, filtered and not-found states are
+ * covered against the contract in the page tests, which is where they can be
+ * driven without inventing a session.
+ *
+ * `/claims` is still Phase 4 fixture work, so its own flows run in full here.
  */
 
 const NARROW = { width: 360, height: 760 };
-
-/**
- * The applied-filter count is rendered twice — as the rail's caption for wide
- * screens and inside the disclosure summary for narrow ones — and exactly one
- * is displayed at any width. Asserting on the displayed one is the point:
- * it proves the right variant is showing for this viewport.
- */
-function filterCount(page: Page, text: string | RegExp) {
-  return page.getByText(text).filter({ visible: true });
-}
+const WIDE = { width: 1440, height: 900 };
 
 async function overflows(page: Page): Promise<boolean> {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
@@ -36,24 +32,33 @@ test.describe("homepage", () => {
     await expect(page.getByLabel(/password/i)).toHaveCount(0);
   });
 
-  test("shows live requests above the fold at desktop", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  test("explains the loop and both verification steps even when it cannot list requests", async ({
+    page,
+  }) => {
+    await page.setViewportSize(WIDE);
     await page.goto("/");
 
-    const preview = page.getByRole("list", { name: "Open Wanted requests" });
-
-    await expect(preview.getByRole("listitem")).toHaveCount(4);
-    await expect(preview.getByRole("listitem").first()).toBeInViewport();
-  });
-
-  test("keeps the verification explanation above the fold at desktop", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/");
-
+    await expect(page.getByRole("heading", { name: "How VAULTIX works" })).toBeVisible();
     await expect(page.getByText(/Verify your institution to fund a bounty/)).toBeInViewport();
   });
 
-  test("searching from the homepage lands on a filtered Board", async ({ page }) => {
+  test("asks a visitor with no session to sign in before listing requests", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { name: "Sign in to see open requests" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute(
+      "href",
+      "/sign-in",
+    );
+  });
+
+  test("carries no development fixture marker", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
+  });
+
+  test("searching from the homepage lands on the Board carrying the search", async ({ page }) => {
     await page.goto("/");
 
     await page.getByRole("searchbox", { name: "Search Wanted requests" }).fill("calculus");
@@ -71,6 +76,17 @@ test.describe("homepage", () => {
     await expect(page).toHaveURL(/\/board$/);
   });
 
+  test("reaches the sign-in action by keyboard alone", async ({ page }) => {
+    await page.goto("/");
+
+    const signIn = page.getByRole("link", { name: "Sign in", exact: true });
+    await signIn.focus();
+
+    await expect(signIn).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/sign-in$/);
+  });
+
   test("fits 360 px without horizontal overflow", async ({ page }) => {
     await page.setViewportSize(NARROW);
     await page.goto("/");
@@ -80,104 +96,57 @@ test.describe("homepage", () => {
 });
 
 test.describe("Wanted Board", () => {
-  test("carries a filter into the address so the view can be shared", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  test("refuses a visitor with no session and offers sign-in", async ({ page }) => {
     await page.goto("/board");
 
-    await page.getByLabel("Campus").selectOption("arau");
-    await page.getByRole("button", { name: "Apply filters" }).click();
-
-    await expect(page).toHaveURL(/campus=arau/);
-    await expect(filterCount(page, "1 filter applied")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Wanted Board" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to browse the Board" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute(
+      "href",
+      "/sign-in",
+    );
   });
 
-  test("restores the applied filter from the address", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/board?campus=arau&status=closed");
+  test("shows no request list to a viewer it has refused", async ({ page }) => {
+    await page.goto("/board");
 
-    await expect(page.getByLabel("Campus")).toHaveValue("arau");
-    await expect(page.getByLabel("Status")).toHaveValue("closed");
-    await expect(filterCount(page, "2 filters applied")).toBeVisible();
+    await expect(page.getByRole("list", { name: "Wanted requests" })).toHaveCount(0);
   });
 
-  test("changing the sort keeps the filters rather than dropping them", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/board?campus=shah-alam");
+  /**
+   * The address is the Board's state, so it must survive the round trip even
+   * when the read is refused: the reader signs in and returns to the view they
+   * asked for, not to an unfiltered Board.
+   */
+  test("keeps the filters in the address while the read is refused", async ({ page }) => {
+    await page.goto("/board?q=calculus&campus=any-campus&sort=ending-soon");
 
-    await page.getByLabel("Sort by").selectOption("highest-bounty");
-    await page.getByRole("button", { name: "Apply filters" }).click();
-
-    await expect(page).toHaveURL(/campus=shah-alam/);
-    await expect(page).toHaveURL(/sort=highest-bounty/);
-  });
-
-  test("clearing the filters keeps the search text", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/board?q=notes&campus=arau");
-
-    await page.getByRole("link", { name: "Clear all filters" }).click();
-
-    await expect(page).toHaveURL(/\/board\?q=notes$/);
+    await expect(page).toHaveURL(/q=calculus/);
+    await expect(page).toHaveURL(/campus=any-campus/);
+    await expect(page).toHaveURL(/sort=ending-soon/);
   });
 
   test("the back button returns to the previous view of the Board", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/board");
-    await page.goto("/board?campus=arau");
+    await page.goto("/board?q=calculus");
 
     await page.goBack();
 
     await expect(page).toHaveURL(/\/board$/);
-    await expect(page.getByText("12 Wanted requests")).toBeVisible();
   });
 
-  test("a card leads through to its Wanted", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/board?q=csc510%20final");
-
-    await page.getByRole("link", { name: /View this Wanted: Final exam notes/ }).click();
-
-    await expect(page).toHaveURL(/\/wanted\/csc510-final-exam-notes$/);
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: "Final exam notes and summary for chapters 1 to 12",
-      }),
-    ).toBeVisible();
-  });
-
-  test("offers a way out of a search that matched nothing", async ({ page }) => {
-    await page.goto("/board?q=zzzz");
-
-    await expect(
-      page.getByRole("heading", { name: "No request matches this search" }),
-    ).toBeVisible();
-
-    await page.getByRole("link", { name: "Clear the search and filters" }).click();
-
-    await expect(page).toHaveURL(/\/board$/);
-  });
-
-  test("filters collapse into a keyboard-operable disclosure at 360 px", async ({ page }) => {
-    await page.setViewportSize(NARROW);
+  test("carries no development fixture marker", async ({ page }) => {
     await page.goto("/board");
 
-    await expect(filterCount(page, "No filters applied")).toBeVisible();
-    await expect(page.getByLabel("Campus")).toBeHidden();
-
-    const summary = page.locator("summary", { hasText: "Filters" });
-    await summary.focus();
-    await page.keyboard.press("Enter");
-
-    await expect(page.getByLabel("Campus")).toBeVisible();
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
   });
 
-  test("opens the filters already expanded when some are applied", async ({ page }) => {
-    await page.setViewportSize(NARROW);
-    await page.goto("/board?campus=arau");
+  test("leaks no contributor, ledger or provider detail to a refused viewer", async ({ page }) => {
+    await page.goto("/board");
 
-    await expect(page.getByLabel("Campus")).toBeVisible();
-    await expect(filterCount(page, "1 filter applied")).toBeVisible();
+    const shown = (await page.getByRole("main").textContent()) ?? "";
+
+    expect(shown).not.toMatch(/toyyibpay|ledger|contributor|service_role|bucket/i);
   });
 
   test("fits 360 px without horizontal overflow", async ({ page }) => {
@@ -189,33 +158,24 @@ test.describe("Wanted Board", () => {
 });
 
 test.describe("Wanted detail", () => {
-  test("shows the bounty, the policy and both actions", async ({ page }) => {
+  /**
+   * Authentication is decided before existence, so an anonymous visitor is
+   * asked to sign in whatever identifier they typed. That is the safer order:
+   * a 404 for one address and a refusal for another would tell a stranger
+   * which requests exist.
+   */
+  test("refuses a visitor with no session rather than revealing whether it exists", async ({
+    page,
+  }) => {
     await page.goto("/wanted/csc510-final-exam-notes");
 
-    await expect(page.getByText("Total bounty RM 85")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Back this Wanted" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Submit a Claim" })).toBeVisible();
-    await expect(page.getByText(/A Sheriff must approve a claim/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to read this request" })).toBeVisible();
   });
 
-  test("routes a protected action to verification instead of faking it", async ({ page }) => {
-    await page.goto("/wanted/csc510-final-exam-notes");
+  test("answers the same way for an address that was never real", async ({ page }) => {
+    await page.goto("/wanted/no-such-request-at-all");
 
-    await page.getByRole("link", { name: "Back this Wanted" }).click();
-
-    await expect(page).toHaveURL(/\/profile\/institution-verification$/);
-  });
-
-  test("a similar request leads to its own page", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/wanted/csc510-final-exam-notes");
-
-    await page
-      .getByRole("list", { name: "Similar Wanted requests" })
-      .getByRole("link", { name: /View this Wanted: Past year questions/ })
-      .click();
-
-    await expect(page).toHaveURL(/\/wanted\/csc510-past-year-questions$/);
+    await expect(page.getByRole("heading", { name: "Sign in to read this request" })).toBeVisible();
   });
 
   test("returns to the Board", async ({ page }) => {
@@ -226,22 +186,10 @@ test.describe("Wanted detail", () => {
     await expect(page).toHaveURL(/\/board$/);
   });
 
-  test("answers an unknown request with a not-found page", async ({ page }) => {
-    const response = await page.goto("/wanted/no-such-request");
-
-    expect(response?.status()).toBe(404);
-  });
-
-  test("puts the bounty and the actions under the title at 360 px", async ({ page }) => {
-    await page.setViewportSize(NARROW);
+  test("carries no development fixture marker", async ({ page }) => {
     await page.goto("/wanted/csc510-final-exam-notes");
 
-    const title = await page.getByRole("heading", { level: 1 }).boundingBox();
-    const bounty = await page.getByText("Total bounty RM 85").boundingBox();
-    const description = await page.getByText(/Looking for complete notes/).boundingBox();
-
-    expect(bounty!.y).toBeGreaterThan(title!.y);
-    expect(bounty!.y).toBeLessThan(description!.y);
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
   });
 
   test("fits 360 px without horizontal overflow", async ({ page }) => {
@@ -254,7 +202,7 @@ test.describe("Wanted detail", () => {
 
 test.describe("shell", () => {
   test("marks the Board as the current destination", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize(WIDE);
     await page.goto("/board");
 
     await expect(page.getByRole("link", { name: "Wanted Board", exact: true })).toHaveAttribute(
@@ -264,7 +212,7 @@ test.describe("shell", () => {
   });
 
   test("keeps the Board marked while reading one of its Wanteds", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize(WIDE);
     await page.goto("/wanted/csc510-final-exam-notes");
 
     await expect(page.getByRole("link", { name: "Wanted Board", exact: true })).toHaveAttribute(
@@ -305,6 +253,13 @@ test.describe("shell", () => {
 });
 
 test.describe("Hunt", () => {
+  test("still says it is fixture-backed, because Claims is Phase 4", async ({ page }) => {
+    await page.goto("/claims");
+
+    await expect(page.getByRole("main").getByText("Development only")).toBeVisible();
+    await expect(page.getByText(/The Hunt workspace/)).toBeVisible();
+  });
+
   test("offers open hunts and a separate claim ledger", async ({ page }) => {
     await page.goto("/claims");
 
@@ -314,7 +269,7 @@ test.describe("Hunt", () => {
   });
 
   test("a hunt leads through to its Wanted", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize(WIDE);
     await page.goto("/claims");
 
     await page
@@ -359,7 +314,7 @@ test.describe("Hunt", () => {
   });
 
   test("marks Hunt as the current destination", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.setViewportSize(WIDE);
     await page.goto("/claims");
 
     await expect(page.getByRole("link", { name: "Hunt", exact: true })).toHaveAttribute(

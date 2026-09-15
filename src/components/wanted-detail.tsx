@@ -169,6 +169,13 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
             permitted. A Sheriff must approve a claim before any resource is released or any bounty
             is paid.
           </p>
+          {/* The version this request was published under, not whatever the
+              policy says today. Snapshotting is an invariant
+              (context/architecture.md), so the version travels with the Wanted
+              and a later revision cannot be applied to it retroactively. */}
+          <p className="wanted-detail__policy-version">
+            Content policy version {wanted.policyVersion}, fixed when this request was published.
+          </p>
         </section>
 
         <section className="wanted-detail__section">

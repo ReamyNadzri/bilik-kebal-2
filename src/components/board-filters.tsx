@@ -1,6 +1,7 @@
 import Link from "next/link";
+import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
 import { BOARD_STATUSES, boardHref, countActiveFilters } from "@/features/marketplace/filters";
-import { CAMPUSES, COURSES, RESOURCE_TYPES, SESSIONS } from "@/features/marketplace/fixtures";
+import { courseLabel } from "@/features/marketplace/taxonomy";
 import type { BoardFilters as Filters, TaxonomyOption } from "@/features/marketplace/types";
 
 export const BOARD_FORM_ID = "board-filters";
@@ -35,6 +36,12 @@ function FilterSelect({ name, label, anyLabel, options, value }: FilterSelectPro
 
 export interface BoardFiltersProps {
   readonly filters: Filters;
+  /**
+   * The institution's published catalogue, or `null` when it could not be
+   * read. The selects it feeds are withdrawn rather than shown empty: a
+   * dropdown offering no campus reads as an institution with no campuses.
+   */
+  readonly taxonomy: MarketplaceTaxonomy | null;
 }
 
 /**
@@ -46,12 +53,16 @@ export interface BoardFiltersProps {
  * `form` attribute, so the whole Board submits as one request rather than
  * losing the filters whenever the sort changes.
  *
+ * Options come from the institution-scoped taxonomy operation. Status offers
+ * only the two values the published query accepts; the other lifecycle words a
+ * card can show are presentations the server derives, not filters.
+ *
  * At 360 px the rail collapses into a disclosure whose summary reports the
  * applied count in words. At the rail's own breakpoint the summary is removed
  * and the body is forced open in CSS, so the same markup serves both without a
  * second copy of the controls.
  */
-export function BoardFilters({ filters }: BoardFiltersProps) {
+export function BoardFilters({ filters, taxonomy }: BoardFiltersProps) {
   const applied = countActiveFilters(filters);
   const appliedLabel =
     applied === 0 ? "No filters applied" : `${applied} filter${applied === 1 ? "" : "s"} applied`;
@@ -73,34 +84,47 @@ export function BoardFilters({ filters }: BoardFiltersProps) {
         </summary>
 
         <div className="board-filters__body">
-          <FilterSelect
-            name="campus"
-            label="Campus"
-            anyLabel="All campuses"
-            options={CAMPUSES}
-            value={filters.campusId}
-          />
-          <FilterSelect
-            name="course"
-            label="Course"
-            anyLabel="All courses"
-            options={COURSES}
-            value={filters.courseId}
-          />
-          <FilterSelect
-            name="resource"
-            label="Resource type"
-            anyLabel="All resource types"
-            options={RESOURCE_TYPES}
-            value={filters.resourceTypeId}
-          />
-          <FilterSelect
-            name="session"
-            label="Academic session"
-            anyLabel="All sessions"
-            options={SESSIONS}
-            value={filters.sessionId}
-          />
+          {taxonomy === null ? (
+            <p className="board-filters__unavailable">
+              The campus, course, resource and session filter lists could not be loaded, so only the
+              search, status and order are available. The Board itself is unaffected.
+            </p>
+          ) : (
+            <>
+              <FilterSelect
+                name="campus"
+                label="Campus"
+                anyLabel="All campuses"
+                options={taxonomy.campuses}
+                value={filters.campusId}
+              />
+              <FilterSelect
+                name="course"
+                label="Course"
+                anyLabel="All courses"
+                options={taxonomy.courses.map((course) => ({
+                  id: course.id,
+                  label: courseLabel(course),
+                }))}
+                value={filters.courseId}
+              />
+              <FilterSelect
+                name="resource"
+                label="Resource type"
+                anyLabel="All resource types"
+                options={taxonomy.resourceTypes}
+                value={filters.resourceTypeId}
+              />
+              <FilterSelect
+                name="session"
+                label="Academic session"
+                anyLabel="All sessions"
+                options={taxonomy.academicSessions}
+                value={filters.sessionId}
+              />
+            </>
+          )}
+
           <FilterSelect
             name="status"
             label="Status"

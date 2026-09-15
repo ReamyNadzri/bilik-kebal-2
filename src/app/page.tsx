@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FixtureNotice } from "@/components/fixture-notice";
 import { UiStatus } from "@/components/ui-status";
 import { WantedCard } from "@/components/wanted-card";
-import {
-  listFeaturedWanted,
-  marketplaceNow,
-  readPreviewState,
-} from "@/features/marketplace/wanted-source";
+import { listFeaturedWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
 
 export const metadata: Metadata = {
   title: "VAULTIX — academic resource bounties",
@@ -15,9 +10,12 @@ export const metadata: Metadata = {
     "Post what your class needs, build a shared bounty, and reward an authorised resource after review.",
 };
 
-interface HomePageProps {
-  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
+/**
+ * Reads the caller's session through the public Wanted operation, so it is
+ * rendered per request and never enters a shared cache
+ * (context/code-standards.md).
+ */
+export const dynamic = "force-dynamic";
 
 const STEPS = [
   {
@@ -45,21 +43,24 @@ const STEPS = [
  * proposition, the search, both actions and live requests, and authentication
  * appears nowhere on it.
  *
- * Everything shown is fixture data behind
- * `src/features/marketplace/wanted-source.ts`. No figure on this page is a
- * claim about the real platform: there are no user counts, payout totals or
- * success rates, because none of them exist yet and inventing them would be a
- * lie told on the most-read screen.
+ * The requests shown are real, read through the published public Wanted
+ * operation. No figure on this page is a claim about the platform beyond them:
+ * there are no user counts, payout totals or success rates, because none of
+ * them exist yet and inventing them would be a lie told on the most-read
+ * screen.
+ *
+ * Browsing needs a verified email and nothing more, so an unverified viewer is
+ * sent to email verification and never asked for an institution they do not
+ * need. The proposition and the explanation of the loop are shown in every
+ * state: a refusal is a reason the list is missing, not a reason to hide what
+ * VAULTIX is.
  */
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const preview = readPreviewState((await searchParams).preview);
-  const featured = listFeaturedWanted(preview);
+export default async function HomePage() {
+  const featured = await listFeaturedWanted();
   const now = marketplaceNow();
 
   return (
     <>
-      <FixtureNotice screen="The Wanted requests below" />
-
       <section className="home-hero">
         <div className="home-hero__pitch">
           <h1 className="home-hero__heading">Find the notes worth hunting for.</h1>
@@ -78,7 +79,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 id="home-search-query"
                 name="q"
                 type="search"
-                placeholder="Search course, campus, semester, or resource type"
+                placeholder="Search request titles"
               />
               {/* The visible word starts the accessible name, so voice control
                   still works while the shorter label leaves the placeholder
@@ -123,7 +124,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div className="home-hero__board">
           <h2 className="home-hero__board-heading">Open on the Board now</h2>
 
-          {featured.status === "unavailable" ? (
+          {featured.status === "signed-out" ? (
+            <UiStatus
+              kind="restricted"
+              heading="Sign in to see open requests"
+              message="Reading what other students need takes a verified email address, so the requests are shown once you are signed in."
+              action={<Link href="/sign-in">Sign in</Link>}
+            />
+          ) : featured.status === "email-unverified" ? (
+            <UiStatus
+              kind="restricted"
+              heading="Verify your email to browse"
+              message="Browsing the Board needs a verified email address. Funding a bounty or claiming a request needs institution verification as well, but not for reading."
+              action={<Link href="/verify-email">Go to email verification</Link>}
+            />
+          ) : featured.status !== "ready" ? (
             <UiStatus
               kind="offline"
               heading="Open requests could not be loaded"
