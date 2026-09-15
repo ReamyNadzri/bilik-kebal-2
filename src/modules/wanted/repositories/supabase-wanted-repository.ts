@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ValidatedWantedDraftInput } from "@/contracts/marketplace";
 import type { Database } from "@/lib/supabase/database.types";
+import type { DuplicateCandidate } from "../domain/duplicate-ranking";
 import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./wanted-repository";
 
 type Client = SupabaseClient<Database>;
@@ -147,5 +148,101 @@ export class SupabaseWantedRepository implements WantedRepository {
     const draft = await this.findDraft(input.draftId, input.commissionerUserId);
     if (!draft) throw new Error("Updated Wanted draft could not be read");
     return draft;
+  }
+
+  async listDuplicateCandidates(draft: StoredWantedDraft): Promise<DuplicateCandidate[]> {
+    const wanted = await this.client
+      .from("wanted_requests")
+      .select(
+        "public_id, title, course_id, campus_id, resource_type_id, academic_session_id, status, published_at, closes_at",
+      )
+      .eq("institution_id", draft.institutionId)
+      .in("status", ["open", "reviewing"])
+      .neq("id", draft.id)
+      .limit(50);
+    if (wanted.error) throw wanted.error;
+    if (wanted.data.length === 0) return [];
+
+    const unique = (values: string[]) => [...new Set(values)];
+    const [courses, campuses, resourceTypes, sessions] = await Promise.all([
+      this.client
+        .from("courses")
+        .select("id, code, name")
+        .in("id", unique(wanted.data.map(({ course_id }) => course_id))),
+      this.client
+        .from("campuses")
+        .select("id, name")
+        .in("id", unique(wanted.data.map(({ campus_id }) => campus_id))),
+      this.client
+        .from("resource_types")
+        .select("id, name")
+        .in("id", unique(wanted.data.map(({ resource_type_id }) => resource_type_id))),
+      this.client
+        .from("academic_sessions")
+        .select("id, name")
+        .in("id", unique(wanted.data.map(({ academic_session_id }) => academic_session_id))),
+    ]);
+    if (courses.error || campuses.error || resourceTypes.error || sessions.error) {
+      throw courses.error ?? campuses.error ?? resourceTypes.error ?? sessions.error;
+    }
+    const byId = <T extends { id: string }>(rows: T[]) => new Map(rows.map((row) => [row.id, row]));
+    const courseById = byId(courses.data);
+    const campusById = byId(campuses.data);
+    const typeById = byId(resourceTypes.data);
+    const sessionById = byId(sessions.data);
+
+    return wanted.data.flatMap((row) => {
+      const course = courseById.get(row.course_id);
+      const campus = campusById.get(row.campus_id);
+      const resourceType = typeById.get(row.resource_type_id);
+      const session = sessionById.get(row.academic_session_id);
+      if (!course || !campus || !resourceType || !session || !row.published_at || !row.closes_at) {
+        return [];
+      }
+      return [
+        {
+          academicSessionId: row.academic_session_id,
+          courseId: row.course_id,
+          resourceTypeId: row.resource_type_id,
+          wanted: {
+            backerCount: 0,
+            campus: campus.name,
+            campusId: row.campus_id,
+            closesAt: row.closes_at,
+            courseCode: course.code,
+            courseId: row.course_id,
+            courseName: course.name,
+            grossBountySen: 0 as never,
+            id: row.public_id,
+            postedAt: row.published_at,
+            resourceType: resourceType.name,
+            resourceTypeId: row.resource_type_id,
+            session: session.name,
+            sessionId: row.academic_session_id,
+            status: row.status === "reviewing" ? ("reviewing" as const) : ("open" as const),
+            title: row.title,
+          },
+        },
+      ];
+    });
+  }
+
+  async storeDuplicateCheck(input: {
+    draftId: string;
+    tokenHash: string;
+    criteriaHash: string;
+    expiresAt: string;
+  }): Promise<void> {
+    const { error } = await this.client.rpc("record_wanted_duplicate_check", {
+      criteria_hash_hex: input.criteriaHash,
+      draft_id: input.draftId,
+      expires_at: input.expiresAt,
+      token_hash_hex: input.tokenHash,
+    });
+    if (error) throw error;
+  }
+
+  async preparePublication(): Promise<"prepared" | "required" | "expired"> {
+    throw new Error("The Phase 3B trusted money adapter is not installed");
   }
 }

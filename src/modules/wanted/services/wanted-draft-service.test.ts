@@ -61,6 +61,9 @@ function repository(overrides: Partial<WantedRepository> = {}): WantedRepository
       } as ValidatedWantedDraftInput),
     ),
     updateDraft: vi.fn(async ({ values }) => stored(values)),
+    listDuplicateCandidates: vi.fn().mockResolvedValue([]),
+    storeDuplicateCheck: vi.fn().mockResolvedValue(undefined),
+    preparePublication: vi.fn().mockResolvedValue("required"),
     ...overrides,
   };
 }

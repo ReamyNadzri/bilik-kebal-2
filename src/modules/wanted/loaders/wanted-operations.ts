@@ -1,19 +1,35 @@
-import type { CreateWantedDraftResult, UpdateWantedDraftResult } from "@/contracts/marketplace";
+import type {
+  CreateWantedDraftResult,
+  PrepareWantedPublicationResult,
+  SuggestWantedDuplicatesResult,
+  UpdateWantedDraftResult,
+} from "@/contracts/marketplace";
 import { failure } from "@/contracts/operation-result";
+import { parseServerEnv } from "@/lib/config/server-env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SupabaseIdentityReadRepository } from "@/modules/identity/repositories/supabase-identity-read-repository";
 import type { WantedActor } from "../domain/wanted-policy";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
 import { WantedDraftService } from "../services/wanted-draft-service";
+import { WantedPublicationService } from "../services/wanted-publication-service";
 
-async function context(): Promise<{ actor: WantedActor | null; service: WantedDraftService }> {
+async function context(): Promise<{
+  actor: WantedActor | null;
+  draftService: WantedDraftService;
+  publicationService: WantedPublicationService;
+}> {
   const client = await createSupabaseServerClient();
   const {
     data: { user },
     error,
   } = await client.auth.getUser();
-  const service = new WantedDraftService(new SupabaseWantedRepository(client));
-  if (error || !user) return { actor: null, service };
+  const repository = new SupabaseWantedRepository(client);
+  const draftService = new WantedDraftService(repository);
+  const env = parseServerEnv(process.env);
+  const publicationService = new WantedPublicationService(repository, {
+    paymentAvailability: env.PAYMENT_MODE === "disabled" ? "disabled" : "unavailable",
+  });
+  if (error || !user) return { actor: null, draftService, publicationService };
   const account = await new SupabaseIdentityReadRepository(client).readAccount(user);
   return {
     actor: account
@@ -31,7 +47,8 @@ async function context(): Promise<{ actor: WantedActor | null; service: WantedDr
           restricted: false,
           userId: user.id,
         },
-    service,
+    draftService,
+    publicationService,
   };
 }
 
@@ -44,7 +61,7 @@ const unavailable = () =>
 export async function createWantedDraft(input: unknown): Promise<CreateWantedDraftResult> {
   try {
     const loaded = await context();
-    return loaded.service.create(loaded.actor, input);
+    return loaded.draftService.create(loaded.actor, input);
   } catch {
     return unavailable();
   }
@@ -56,7 +73,34 @@ export async function updateWantedDraft(
 ): Promise<UpdateWantedDraftResult> {
   try {
     const loaded = await context();
-    return loaded.service.update(loaded.actor, draftId, input);
+    return loaded.draftService.update(loaded.actor, draftId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function suggestWantedDuplicates(
+  input: unknown,
+): Promise<SuggestWantedDuplicatesResult> {
+  try {
+    const loaded = await context();
+    return loaded.publicationService.suggestDuplicates(loaded.actor, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function prepareWantedPublication(
+  draftId: string,
+  input: unknown,
+): Promise<PrepareWantedPublicationResult> {
+  try {
+    const loaded = await context();
+    const trustedInput =
+      typeof input === "object" && input !== null && !Array.isArray(input)
+        ? { ...input, draftId }
+        : input;
+    return loaded.publicationService.preparePublication(loaded.actor, trustedInput);
   } catch {
     return unavailable();
   }

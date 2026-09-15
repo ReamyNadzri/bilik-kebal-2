@@ -1,0 +1,160 @@
+import { createHash, randomBytes } from "node:crypto";
+import {
+  duplicateSuggestionInputSchema,
+  publicationInputSchema,
+  type PrepareWantedPublicationResult,
+  type SuggestWantedDuplicatesResult,
+} from "@/contracts/marketplace";
+import { failure, success } from "@/contracts/operation-result";
+import { rankDuplicateCandidates } from "../domain/duplicate-ranking";
+import { canManageWantedDraft, type WantedActor } from "../domain/wanted-policy";
+import type { StoredWantedDraft, WantedRepository } from "../repositories/wanted-repository";
+
+interface PublicationOptions {
+  now?: () => Date;
+  token?: () => string;
+  paymentAvailability: "disabled" | "unavailable" | "ready";
+  feeRateBasisPoints?: number;
+  policyVersion?: string;
+}
+
+const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+const criteriaHash = (draft: StoredWantedDraft) => hash(JSON.stringify(draft.values));
+
+export class WantedPublicationService {
+  private readonly now: () => Date;
+  private readonly token: () => string;
+  private readonly paymentAvailability: PublicationOptions["paymentAvailability"];
+  private readonly feeRateBasisPoints: number;
+  private readonly policyVersion: string;
+
+  constructor(
+    private readonly repository: WantedRepository,
+    options: PublicationOptions,
+  ) {
+    this.now = options.now ?? (() => new Date());
+    this.token = options.token ?? (() => randomBytes(32).toString("base64url"));
+    this.paymentAvailability = options.paymentAvailability;
+    this.feeRateBasisPoints = options.feeRateBasisPoints ?? 1000;
+    this.policyVersion = options.policyVersion ?? "2026-09-15.1";
+  }
+
+  async suggestDuplicates(
+    actor: WantedActor | null,
+    input: unknown,
+  ): Promise<SuggestWantedDuplicatesResult> {
+    const eligibility = this.eligibility(actor);
+    if (eligibility) return eligibility;
+    const parsed = duplicateSuggestionInputSchema.safeParse(input);
+    if (!parsed.success) return failure("VALIDATION_ERROR", "A valid Wanted draft is required.");
+    try {
+      const draft = await this.editableDraft(actor!, parsed.data.draftId);
+      if (!draft.ok) return draft.result;
+      const issuedToken = this.token();
+      const expiresAt = new Date(this.now().getTime() + 15 * 60_000).toISOString();
+      await this.repository.storeDuplicateCheck({
+        criteriaHash: criteriaHash(draft.value),
+        draftId: draft.value.id,
+        expiresAt,
+        tokenHash: hash(issuedToken),
+      });
+      const suggestions = rankDuplicateCandidates(
+        {
+          academicSessionId: draft.value.values.academicSessionId,
+          courseId: draft.value.values.courseId,
+          resourceTypeId: draft.value.values.resourceTypeId,
+          title: draft.value.values.title,
+        },
+        await this.repository.listDuplicateCandidates(draft.value),
+      );
+      return success({ expiresAt, suggestions, token: issuedToken });
+    } catch {
+      return failure(
+        "MARKETPLACE_UNAVAILABLE",
+        "Duplicate checking is temporarily unavailable. Try again.",
+      );
+    }
+  }
+
+  async preparePublication(
+    actor: WantedActor | null,
+    input: unknown,
+  ): Promise<PrepareWantedPublicationResult> {
+    const eligibility = this.eligibility(actor);
+    if (eligibility) return eligibility;
+    const parsed = publicationInputSchema.safeParse(input);
+    if (!parsed.success) {
+      return failure("VALIDATION_ERROR", "Check the contribution and duplicate check.");
+    }
+    if (this.paymentAvailability === "disabled") {
+      return failure(
+        "PAYMENT_DISABLED",
+        "Payments are currently disabled; your draft remains editable.",
+      );
+    }
+    if (this.paymentAvailability === "unavailable") {
+      return failure(
+        "PAYMENT_UNAVAILABLE",
+        "Payment preparation is temporarily unavailable; your draft remains editable.",
+      );
+    }
+    try {
+      const draft = await this.editableDraft(actor!, parsed.data.draftId);
+      if (!draft.ok) return draft.result;
+      const prepared = await this.repository.preparePublication({
+        accessBasis: "contributors_only",
+        amountSen: parsed.data.initialContributionSen,
+        commissionerUserId: actor!.userId,
+        criteriaHash: criteriaHash(draft.value),
+        draftId: draft.value.id,
+        durationDays: draft.value.values.durationDays,
+        feeRateBasisPoints: this.feeRateBasisPoints,
+        policyVersion: this.policyVersion,
+        tokenHash: hash(parsed.data.duplicateCheckToken),
+      });
+      if (prepared === "expired") {
+        return failure(
+          "DUPLICATE_CHECK_EXPIRED",
+          "Run the duplicate check again before continuing.",
+        );
+      }
+      if (prepared === "required") {
+        return failure("DUPLICATE_CHECK_REQUIRED", "Run a fresh duplicate check for this draft.");
+      }
+      return success({
+        draftId: draft.value.id,
+        paymentRequired: true,
+        state: "awaiting_payment",
+      });
+    } catch {
+      return failure(
+        "MARKETPLACE_UNAVAILABLE",
+        "Publication preparation is temporarily unavailable. Try again.",
+      );
+    }
+  }
+
+  private eligibility(actor: WantedActor | null) {
+    const denial = canManageWantedDraft(actor);
+    return denial
+      ? failure(denial, "Your account is not eligible for this marketplace operation.")
+      : null;
+  }
+
+  private async editableDraft(actor: WantedActor, draftId: string) {
+    const draft = await this.repository.findDraft(draftId, actor.userId);
+    if (!draft) {
+      return {
+        ok: false as const,
+        result: failure("DRAFT_NOT_FOUND", "Wanted draft not found."),
+      };
+    }
+    if (draft.state !== "draft") {
+      return {
+        ok: false as const,
+        result: failure("DRAFT_NOT_EDITABLE", "This Wanted can no longer be edited as a draft."),
+      };
+    }
+    return { ok: true as const, value: draft };
+  }
+}

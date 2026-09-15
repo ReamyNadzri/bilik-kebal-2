@@ -1001,6 +1001,15 @@ export type Database = {
         };
         Returns: string;
       };
+      record_wanted_duplicate_check: {
+        Args: {
+          criteria_hash_hex: string;
+          draft_id: string;
+          expires_at: string;
+          token_hash_hex: string;
+        };
+        Returns: undefined;
+      };
       restrict_account: {
         Args: { reason_code: string; target_user_id: string };
         Returns: string;
