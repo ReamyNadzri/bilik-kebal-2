@@ -4,10 +4,9 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 2 Identity backend complete on `codex/backend` (`6433239`), including all six read-contract
-  operations. The provisional Identity frontend is complete on `codex/provisional-ui` (`b17490f`).
-  Integration is under way on `codex/integration-identity`; `codex/provisional-ui` is pinned at
-  `b17490f` by the user.
+- Phase 2 Identity is complete on both lanes and integrated on `codex/integration-identity`.
+  Phase 3A Wanted core backend is implemented on `codex/backend`; Phase 3B money and ledger is the
+  next backend slice. `codex/provisional-ui` is pinned at `b17490f` by the user.
 - The user approved a marketplace-first frontend pivot on `codex/integration-identity`. VAULTIX must
   read as an academic resource bounty marketplace before it reads as an authentication application,
   so `/`, `/board`, `/wanted/[id]` and `/claims` are built ahead of their Phase 3 backend behind one
@@ -16,8 +15,9 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Goal
 
-- Connect each provisional screen to its typed identity operation, removing that screen's
-  `FixtureNotice` in the same slice. Phase 3 begins only after the identity journeys are accepted.
+- Connect Claude's provisional Wanted workspace to the Phase 3A HTTP contract, retiring each
+  fixture and its `FixtureNotice` in the same slice that connects it, while Codex designs the
+  trusted ToyyibPay and immutable-ledger boundary for Phase 3B.
 
 ## Completed
 
@@ -99,37 +99,39 @@ Update this file after every meaningful implementation or specification change.
   deleted. The `FixtureNotice` component itself is kept: coordination plan section 5 still requires
   that marker for the screens later phases will add.
 
+- **Phase 3A backend** -- marketplace contracts, private RLS-protected Wanted storage and
+  institution-scoped taxonomy reads; atomic private draft create/update with server-derived
+  Commissioner identity, active taxonomy validation and owner-only editable-draft enforcement;
+  public-only duplicate ranking, HMAC-authenticated 15-minute one-use duplicate-check tokens, and a
+  private publication snapshot transaction for the future money module. The HTTP boundary is
+  documented in `docs/integration/marketplace-http-contract.md`. Phase 3A never confirms payment and
+  never opens a Wanted.
+
 ## In Progress
 
-- Contract integration on `codex/integration-identity`. The whole identity read contract is now
-  published (`57b11b9`, `6433239`) and merged here (`2a91d7f`, `06a1b01`). Slices 1 and 2 are
-  complete, so `/profile` and `/profile/institution-verification` run on real operations.
-- All four Phase 2 identity screens are connected to real operations. No screen is fixture-backed and
-  no `FixtureNotice` remains in `src/app/`. Phase 2 integration is complete pending review.
 - Marketplace-first frontend phase. The approved temporary visual direction is recorded in
   `docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md`: an organised academic
   bounty ledger, paper case files on a dark timber board, brass reserved for the money. Every value
   is provisional and the Final Visual Handoff Gate still applies.
-- Four marketplace routes are built and fixture-backed: `/` (marketplace homepage), `/board`
-  (searchable, filterable, URL-addressed Wanted Board), `/wanted/[id]` (Wanted detail) and `/claims`
-  (Hunt and claim ledger). `/wanted/new` was added as a requirement explainer so the shell's one
-  prominent action does not lead to a 404; it is deliberately not a creation form.
-- The shell now carries two navigation landmarks — marketplace destinations and account utilities —
-  plus the single `Post a Wanted` action. `main` became the parchment sheet, so the Phase 2 Identity
-  screens inherit the theme without being edited.
-- `/wanted/new` is now a full creation workspace rather than a requirement explainer. It reads the
-  **real** `AccountViewModel` and gates the form on `capabilities.transact`, never on a trust state
-  recomputed in the browser; the trust states only choose the wording of the refusal. The form,
-  validation, review step and duplicate suggestions are frontend-only: nothing is persisted, and the
-  review step ends in a statement rather than a Publish, Pay or Save Draft control.
+- All four Phase 2 identity screens are connected to real operations, so no identity screen is
+  fixture-backed. Phase 2 integration is complete pending review.
+- Four marketplace routes remain fixture-backed: `/` (marketplace homepage), `/board` (searchable,
+  filterable, URL-addressed Wanted Board), `/wanted/[id]` (Wanted detail) and `/claims` (Hunt and
+  claim ledger). Each keeps its `FixtureNotice` until its own read contract exists.
+- Phase 3C: connecting `/wanted/new` to the Phase 3A contract in
+  `docs/integration/marketplace-http-contract.md`, preserving the explicit payment-unavailable
+  state as an honest refusal.
 
 ## Next Up
 
-1. Review the completed Phase 2 identity integration, then decide whether `codex/integration-identity`
-   merges toward `main`.
-3. Decide what every screen shows with no session and no configured Supabase, so the gate keeps
-   passing in CI.
-4. Write and review the Phase 3 Wanted/ledger plan after the identity journeys are accepted.
+1. Integrate and accept the Phase 3A Wanted-creation journey, then decide whether
+   `codex/integration-identity` merges toward `main`.
+2. Implement Phase 3B bill intents, verified ToyyibPay callbacks, contributions, immutable balanced
+   ledger, activation and reconciliation.
+3. Implement public Board and detail read models once confirmed contributions can create real open
+   Wanted records, and decide what every screen shows with no session and no configured Supabase so
+   the gate keeps passing in CI.
+4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
 5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
 6. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
 
@@ -299,6 +301,10 @@ times must arrive with a server-rendered reference instant.
   `public.profiles`, the session's `auth.users.email_confirmed_at`, `institution_memberships`, and
   `account_restrictions`. It needs a composing reader in the identity module, not a table read.
 - `requestManualVerification` needs an `institutionId` UUID from the browser, and no operation
-  returns one — `verify-domain` supplies it only on success, which cannot happen while the domain
+  returns one -- `verify-domain` supplies it only on success, which cannot happen while the domain
   allowlist is empty. The evidence path is unreachable until an institution read exists. The UI must
   not hardcode a UUID to work around this.
+- Production marketplace taxonomy remains intentionally empty until an authoritative UiTM source and maintainer are approved.
+- Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
+- ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
+- Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.

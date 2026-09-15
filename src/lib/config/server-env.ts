@@ -18,6 +18,7 @@ const serverSchema = z.object({
   TOYYIBPAY_LIVE_SECRET: z.string().min(1).optional(),
   LIVE_TESTER_ALLOWLIST: z.string().min(1).optional(),
   IDENTITY_PENDING_COOKIE_SECRET: z.string().min(32).optional(),
+  MARKETPLACE_TOKEN_SECRET: z.string().min(32).optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
@@ -46,4 +47,11 @@ export function getIdentityPendingCookieSecret(input: Record<string, unknown>): 
   if (env.IDENTITY_PENDING_COOKIE_SECRET) return env.IDENTITY_PENDING_COOKIE_SECRET;
   if (env.NODE_ENV !== "production") return "vaultix-local-pending-cookie-secret";
   throw new Error("IDENTITY_PENDING_COOKIE_SECRET is required in production");
+}
+
+export function getMarketplaceTokenSecret(input: Record<string, unknown>): string {
+  const env = parseServerEnv(input);
+  if (env.MARKETPLACE_TOKEN_SECRET) return env.MARKETPLACE_TOKEN_SECRET;
+  if (env.NODE_ENV !== "production") return "vaultix-local-marketplace-token-secret";
+  throw new Error("MARKETPLACE_TOKEN_SECRET is required in production");
 }

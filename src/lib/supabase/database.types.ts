@@ -28,6 +28,47 @@ export type Database = {
   };
   public: {
     Tables: {
+      academic_sessions: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          institution_id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "academic_sessions_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       account_restrictions: {
         Row: {
           id: string;
@@ -77,6 +118,142 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      campuses: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          institution_id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campuses_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      courses: {
+        Row: {
+          active: boolean;
+          code: string;
+          created_at: string;
+          id: string;
+          institution_id: string;
+          name: string;
+          programme_id: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          code: string;
+          created_at?: string;
+          id?: string;
+          institution_id: string;
+          name: string;
+          programme_id: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          code?: string;
+          created_at?: string;
+          id?: string;
+          institution_id?: string;
+          name?: string;
+          programme_id?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "courses_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "courses_programme_id_institution_id_fkey";
+            columns: ["programme_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "programmes";
+            referencedColumns: ["id", "institution_id"];
+          },
+        ];
+      };
+      faculties: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          institution_id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "faculties_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -356,6 +533,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      languages: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       platform_role_assignments: {
         Row: {
           assigned_at: string;
@@ -413,6 +620,362 @@ export type Database = {
         };
         Relationships: [];
       };
+      programmes: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          faculty_id: string;
+          id: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          faculty_id: string;
+          id?: string;
+          institution_id: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          faculty_id?: string;
+          id?: string;
+          institution_id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "programmes_faculty_id_institution_id_fkey";
+            columns: ["faculty_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "faculties";
+            referencedColumns: ["id", "institution_id"];
+          },
+          {
+            foreignKeyName: "programmes_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      resource_types: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tags: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      wanted_duplicate_checks: {
+        Row: {
+          consumed_at: string | null;
+          created_at: string;
+          criteria_hash: string;
+          expires_at: string;
+          id: string;
+          token_hash: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          consumed_at?: string | null;
+          created_at?: string;
+          criteria_hash: string;
+          expires_at: string;
+          id?: string;
+          token_hash: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          consumed_at?: string | null;
+          created_at?: string;
+          criteria_hash?: string;
+          expires_at?: string;
+          id?: string;
+          token_hash?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wanted_duplicate_checks_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      wanted_public_events: {
+        Row: {
+          event_type: string;
+          id: string;
+          occurred_at: string;
+          summary: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          event_type: string;
+          id?: string;
+          occurred_at?: string;
+          summary: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          event_type?: string;
+          id?: string;
+          occurred_at?: string;
+          summary?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wanted_public_events_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      wanted_request_tags: {
+        Row: {
+          tag_id: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          tag_id: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          tag_id?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wanted_request_tags_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wanted_request_tags_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      wanted_requests: {
+        Row: {
+          academic_session_id: string;
+          access_basis_snapshot: Database["public"]["Enums"]["wanted_access_basis"] | null;
+          campus_id: string;
+          closes_at: string | null;
+          commissioner_user_id: string;
+          course_id: string;
+          created_at: string;
+          description: string;
+          duration_days_snapshot: number | null;
+          faculty_id: string;
+          fee_rate_basis_points_snapshot: number | null;
+          id: string;
+          institution_id: string;
+          language_id: string;
+          policy_accepted_at: string;
+          policy_version_snapshot: string | null;
+          programme_id: string;
+          public_id: string;
+          published_at: string | null;
+          requested_duration_days: number;
+          resource_type_id: string;
+          status: Database["public"]["Enums"]["wanted_status"];
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          academic_session_id: string;
+          access_basis_snapshot?: Database["public"]["Enums"]["wanted_access_basis"] | null;
+          campus_id: string;
+          closes_at?: string | null;
+          commissioner_user_id: string;
+          course_id: string;
+          created_at?: string;
+          description: string;
+          duration_days_snapshot?: number | null;
+          faculty_id: string;
+          fee_rate_basis_points_snapshot?: number | null;
+          id?: string;
+          institution_id: string;
+          language_id: string;
+          policy_accepted_at: string;
+          policy_version_snapshot?: string | null;
+          programme_id: string;
+          public_id?: string;
+          published_at?: string | null;
+          requested_duration_days: number;
+          resource_type_id: string;
+          status?: Database["public"]["Enums"]["wanted_status"];
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          academic_session_id?: string;
+          access_basis_snapshot?: Database["public"]["Enums"]["wanted_access_basis"] | null;
+          campus_id?: string;
+          closes_at?: string | null;
+          commissioner_user_id?: string;
+          course_id?: string;
+          created_at?: string;
+          description?: string;
+          duration_days_snapshot?: number | null;
+          faculty_id?: string;
+          fee_rate_basis_points_snapshot?: number | null;
+          id?: string;
+          institution_id?: string;
+          language_id?: string;
+          policy_accepted_at?: string;
+          policy_version_snapshot?: string | null;
+          programme_id?: string;
+          public_id?: string;
+          published_at?: string | null;
+          requested_duration_days?: number;
+          resource_type_id?: string;
+          status?: Database["public"]["Enums"]["wanted_status"];
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "wanted_requests_academic_session_id_institution_id_fkey";
+            columns: ["academic_session_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "academic_sessions";
+            referencedColumns: ["id", "institution_id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_campus_id_institution_id_fkey";
+            columns: ["campus_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "campuses";
+            referencedColumns: ["id", "institution_id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_commissioner_user_id_fkey";
+            columns: ["commissioner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_course_id_institution_id_fkey";
+            columns: ["course_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "courses";
+            referencedColumns: ["id", "institution_id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_faculty_id_institution_id_fkey";
+            columns: ["faculty_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "faculties";
+            referencedColumns: ["id", "institution_id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_language_id_fkey";
+            columns: ["language_id"];
+            isOneToOne: false;
+            referencedRelation: "languages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_programme_id_institution_id_fkey";
+            columns: ["programme_id", "institution_id"];
+            isOneToOne: false;
+            referencedRelation: "programmes";
+            referencedColumns: ["id", "institution_id"];
+          },
+          {
+            foreignKeyName: "wanted_requests_resource_type_id_fkey";
+            columns: ["resource_type_id"];
+            isOneToOne: false;
+            referencedRelation: "resource_types";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -421,6 +984,31 @@ export type Database = {
       authorise_identity_evidence_read: {
         Args: { target_request_id: string };
         Returns: string;
+      };
+      create_wanted_draft: {
+        Args: {
+          academic_session_id: string;
+          campus_id: string;
+          course_id: string;
+          description: string;
+          duration_days: number;
+          faculty_id: string;
+          language_id: string;
+          programme_id: string;
+          resource_type_id: string;
+          tag_ids: string[];
+          title: string;
+        };
+        Returns: string;
+      };
+      record_wanted_duplicate_check: {
+        Args: {
+          criteria_hash_hex: string;
+          draft_id: string;
+          expires_at: string;
+          token_hash_hex: string;
+        };
+        Returns: undefined;
       };
       restrict_account: {
         Args: { reason_code: string; target_user_id: string };
@@ -434,6 +1022,23 @@ export type Database = {
         };
         Returns: string;
       };
+      update_wanted_draft: {
+        Args: {
+          academic_session_id: string;
+          campus_id: string;
+          course_id: string;
+          description: string;
+          draft_id: string;
+          duration_days: number;
+          faculty_id: string;
+          language_id: string;
+          programme_id: string;
+          resource_type_id: string;
+          tag_ids: string[];
+          title: string;
+        };
+        Returns: string;
+      };
       verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
@@ -442,6 +1047,8 @@ export type Database = {
       institution_verification_state: "unverified" | "pending" | "verified" | "rejected";
       platform_role: "owner" | "platform_sheriff";
       verification_request_state: "pending" | "approved" | "rejected";
+      wanted_access_basis: "contributors_only";
+      wanted_status: "draft" | "awaiting_payment" | "open" | "reviewing" | "expired";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -571,6 +1178,8 @@ export const Constants = {
       institution_verification_state: ["unverified", "pending", "verified", "rejected"],
       platform_role: ["owner", "platform_sheriff"],
       verification_request_state: ["pending", "approved", "rejected"],
+      wanted_access_basis: ["contributors_only"],
+      wanted_status: ["draft", "awaiting_payment", "open", "reviewing", "expired"],
     },
   },
 } as const;
