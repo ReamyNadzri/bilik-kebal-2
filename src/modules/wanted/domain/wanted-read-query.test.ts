@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { WantedSummary } from "@/contracts/marketplace";
-import { parseWantedListQuery, sortWantedSummaries } from "./wanted-read-query";
+import {
+  parseWantedListQuery,
+  sortWantedSummaries,
+  wantedDisplayStatus,
+} from "./wanted-read-query";
 
 const item = (id: string, bounty: number, postedAt: string, closesAt: string): WantedSummary => ({
   id,
@@ -22,6 +26,17 @@ const item = (id: string, bounty: number, postedAt: string, closesAt: string): W
 });
 
 describe("Wanted Board query", () => {
+  it("presents an expired Wanted as closed even when its bounty is high", () => {
+    expect(
+      wantedDisplayStatus(
+        "expired",
+        "2026-09-18T00:00:00Z",
+        5000,
+        Date.parse("2026-09-19T00:00:00Z"),
+      ),
+    ).toBe("closed");
+  });
+
   it("rejects unknown status and sort values", () => {
     expect(parseWantedListQuery(new URLSearchParams("status=paid&sort=popular"))).toMatchObject({
       ok: false,

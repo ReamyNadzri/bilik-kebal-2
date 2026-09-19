@@ -52,6 +52,10 @@ Update this file after every meaningful implementation or specification change.
 
 ## In Progress
 
+- Public Wanted detail now maps the authoritative `expired` lifecycle to the `closed` presentation
+  status, even when a large bounty would otherwise display as well funded. The focused read-model
+  regression test covers this case on `codex/backend`.
+
 - Run final unit, database, format, lint, type and production-build gates for Phase 3B.
 
 ## Next Up

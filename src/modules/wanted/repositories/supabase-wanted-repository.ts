@@ -8,7 +8,7 @@ import type {
 } from "@/contracts/marketplace";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
-import { sortWantedSummaries } from "../domain/wanted-read-query";
+import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-query";
 import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./wanted-repository";
 
 type Client = SupabaseClient<Database>;
@@ -204,14 +204,12 @@ export class SupabaseWantedRepository implements WantedRepository {
       if (!c || !ca || !t || !s || !row.published_at || !row.closes_at) return [];
       const cs = contributionRows.filter((x) => x.wanted_request_id === row.id);
       const bounty = cs.reduce((n, x) => n + Number(x.amount_sen), 0) as Sen;
-      const status =
-        row.status === "reviewing"
-          ? "reviewing"
-          : new Date(row.closes_at).getTime() - now < 259200000
-            ? "ending-soon"
-            : bounty >= 5000
-              ? "well-funded"
-              : "open";
+      const status = wantedDisplayStatus(
+        row.status as "open" | "reviewing" | "expired",
+        row.closes_at,
+        bounty,
+        now,
+      );
       return [
         {
           id: row.public_id,

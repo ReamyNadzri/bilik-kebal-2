@@ -16,7 +16,8 @@ the number of distinct contributors.
 `GET /api/marketplace/wanted/:publicId` returns `WantedDetail` by opaque public identifier. It
 includes publication snapshots, safe Commissioner presentation, tags and public activity, but no
 internal row ID, email, payment-provider data, ledger row or file metadata. Unknown and non-public
-records return `WANTED_NOT_FOUND` (404).
+records return `WANTED_NOT_FOUND` (404). An expired public Wanted remains readable with the
+presentation status `closed`; its bounty size and closing time cannot make it appear open.
 
 Both reads require a signed-in email-verified viewer. The server composes protected aggregates only
 after authenticating the viewer; browser access to contribution identities remains restricted by

@@ -44,3 +44,15 @@ export function sortWantedSummaries(
     return Date.parse(right.postedAt) - Date.parse(left.postedAt);
   });
 }
+
+export function wantedDisplayStatus(
+  lifecycle: "open" | "reviewing" | "expired",
+  closesAt: string,
+  grossBountySen: number,
+  now: number,
+): WantedSummary["status"] {
+  if (lifecycle === "expired") return "closed";
+  if (lifecycle === "reviewing") return "reviewing";
+  if (Date.parse(closesAt) - now < 259200000) return "ending-soon";
+  return grossBountySen >= 5000 ? "well-funded" : "open";
+}
