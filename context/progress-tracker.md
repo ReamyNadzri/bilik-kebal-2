@@ -64,6 +64,9 @@ Update this file after every meaningful implementation or specification change.
 - Antigravity's `agy` launcher is installed and can access Gemini models. The legacy Gemini CLI
   remains rejected for this account with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; use `agy`
   for frontend work.
+- Gemini frontend checkpoint `70d2d1c` preserves the marketplace visual work. Follow-up
+  `c2c2321` makes the provisional UI build without downloading Google Fonts; frontend tests,
+  lint, typecheck and format now pass, and the production build passes offline.
 
 ## Next Up
 
