@@ -410,3 +410,11 @@ times must arrive with a server-rendered reference instant.
   marketplace `VALIDATION_ERROR` can carry a `taxonomy` failure that belongs to the campus, faculty,
   programme, course and session judged together rather than to any one control. Dropping it would
   refuse a reader with no explanation; attaching it to one select would blame the wrong field.
+- The approved 2026-09-16 frontier visual handoff is implemented in the Claude UI lane: the shell,
+  homepage, Board, Wanted detail and creation surfaces use the original supplied timber, paper,
+  rail, logo and pixel-art assets through semantic tokens. Board now has its paper heading and
+  filter rail above a wood-backed poster surface.
+- `/map` is a clearly marked fixture explorer until the campus-demand read contract exists. The
+  profile route retains its real account read and adds a clearly marked local-only hunter-licence
+  preview with all twelve supplied avatar assets and five visual tones; neither selection persists
+  or represents account data.
