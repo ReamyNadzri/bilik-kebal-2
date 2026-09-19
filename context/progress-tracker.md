@@ -80,11 +80,13 @@ Update this file after every meaningful implementation or specification change.
 - Phase 4 Slice 6 adds human Sheriff review persistence, role and institution authorization, review
   reason codes, and a database-enforced single approved claim per Wanted. The full pgTAP suite now
   passes 125 tests.
+- Phase 4 Slice 7 adds the Sheriff review HTTP contract, queue read model, and protected review
+  route. Review responses expose metadata only and never private object keys or file content.
 
 ## Next Up
 
 1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
-2. Add the review HTTP contract and Sheriff queue read model for the provisional interface.
+2. Connect the provisional Sheriff interface to the review queue and decision route.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
 5. Keep `/claims` fixture-backed until the claim HTTP contract and private upload flow are integrated.
