@@ -4,11 +4,14 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 3B money/ledger implementation is implemented and under final verification; Claude has connected the Phase 3A Wanted-creation workspace.
+- Phase 3B money/ledger and the public Wanted read operations are implemented on `codex/backend`.
+  Frontend ownership has moved from Claude Code to Gemini; the existing UI worktree contains
+  uncommitted work that must be preserved during handoff.
 
 ## Current Goal
 
-- Finish the complete backend gate and commit the trusted ToyyibPay and immutable-ledger boundary for Claude's payment integration slice.
+- Complete the Phase 3B database gate when the local Docker/Supabase stack is available, and hand
+  the money and Wanted read contracts to Gemini for the remaining Phase 3 frontend integration.
 
 ## Completed
 
@@ -56,13 +59,19 @@ Update this file after every meaningful implementation or specification change.
   status, even when a large bounty would otherwise display as well funded. The focused read-model
   regression test covers this case on `codex/backend`.
 
-- Run final unit, database, format, lint, type and production-build gates for Phase 3B.
+- The Phase 3B database test command currently cannot connect to local PostgreSQL on port 55422;
+  Docker Desktop's Linux engine is not running. The non-database unit, format, lint, type and build
+  gates passed on `codex/backend` in the preceding slice.
+- Antigravity's `agy` launcher is installed and can access Gemini models. The legacy Gemini CLI
+  remains rejected for this account with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; use `agy`
+  for frontend work.
 
 ## Next Up
 
-1. Hand `docs/integration/money-http-contract.md` to Claude for the payment redirect/waiting UI slice.
-2. Connect `/`, `/board`, and `/wanted/[id]` to the public Wanted read operations while preserving
-   signed-out, email-unverified, unavailable, empty and not-found states.
+1. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
+2. Review the existing `/`, `/board`, and `/wanted/[id]` integration on the UI branch against the
+   current public Wanted read contract while preserving signed-out, email-unverified, unavailable,
+   empty and not-found states.
 3. Add operator reconciliation UI and provider-status polling only after its access and operational workflow are specified.
 4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
 5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
@@ -108,12 +117,16 @@ Update this file after every meaningful implementation or specification change.
 - The current approved storage choice is Supabase Storage. Cloudflare R2 is a future hybrid option, not a current dependency.
 - `Live Limited` may use real ToyyibPay payments for controlled tester accounts, with RM1-RM50 contributions and no platform-wide daily cap.
 - Public upload remains disabled until a production scanning worker is available.
-- The user approved phased full-MVP development and separate Claude frontend/Codex backend ownership. Application coding begins after the relevant phase plan is written.
+- The user approved phased full-MVP development and separate frontend/backend ownership. Gemini
+  replaces Claude Code in the frontend lane; Codex remains in the backend lane. Application coding
+  begins after the relevant phase plan is written.
 - Local Supabase project `vaultix` runs on API `55421`, DB `55422`, Studio `55423`, Mailpit `55424`; tests use synthetic accounts and never send real email.
 - Official institution email domains remain intentionally unseeded pending product approval; `example.test` was used only as a temporary local smoke fixture and is not part of migrations.
 - Production marketplace taxonomy remains intentionally empty until an authoritative UiTM source and maintainer are approved.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.
-- Claude's provisional Wanted workspace is commit `60e4566`; it remains fixture-backed until its branch consumes the Phase 3A contract.
+- The earlier provisional Wanted workspace at `60e4566` was fixture-backed. The UI branch later
+  connected marketplace reads at `804c934`; its current uncommitted visual work needs a Gemini
+  checkpoint before any backend integration merge.
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
 - Phase 3B migrations `202609150004` through `202609150009` are applied locally without resetting the demo database; the follow-up migrations preserve the actually applied callback hardening history, and the money pgTAP suite exercises the real RPC paths.
 - Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.

@@ -1,10 +1,10 @@
 # VAULTIX MVP Coordination Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement the linked phase plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Implement the linked phase plan task by task. The original superpowers skill references apply when that runtime is available; Gemini follows the same acceptance, test and review gates through its own tools.
 
-**Goal:** Deliver the complete VAULTIX MVP through coordinated Claude Code frontend and Codex backend work without shared-file conflicts or contract drift.
+**Goal:** Deliver the complete VAULTIX MVP through coordinated Gemini frontend and Codex backend work without shared-file conflicts or contract drift.
 
-**Architecture:** One `pnpm`-managed Next.js App Router modular monolith backed by Supabase, with provider integrations behind typed adapters and untrusted file processing in a separate worker. Codex publishes shared contracts and backend operations; Claude Code consumes those contracts to build a complete provisional accessible frontend.
+**Architecture:** One `pnpm`-managed Next.js App Router modular monolith backed by Supabase, with provider integrations behind typed adapters and untrusted file processing in a separate worker. Codex publishes shared contracts and backend operations; Gemini consumes those contracts to build a complete provisional accessible frontend.
 
 **Tech Stack:** Node.js 24 LTS, pnpm 11, Next.js 16.3.3 Active LTS, React 19, TypeScript strict, Tailwind CSS 4, Zod 4, Supabase, Vitest, React Testing Library, Playwright
 
@@ -14,8 +14,8 @@
 
 - Read all six files under `context/` and the design spec before changing code.
 - Work in separate Git worktrees and branches; never run both agents in the same checkout.
-- Codex owns backend contracts. Claude must not redefine business enums, money types, permissions, lifecycle transitions, or operation result shapes.
-- Claude owns provisional frontend files. Codex must not redesign or rewrite Claude-owned product components while integrating operations.
+- Codex owns backend contracts. Gemini must not redefine business enums, money types, permissions, lifecycle transitions, or operation result shapes.
+- Gemini owns provisional frontend files. Codex must not redesign or rewrite frontend-owned product components while integrating operations.
 - Money is branded integer sen; floating-point arithmetic is forbidden.
 - Every user-facing table and private bucket uses RLS with explicit role tests.
 - Provider callbacks, queue jobs, cron jobs, entitlements, payouts, refunds, and notifications are idempotent.
@@ -32,9 +32,9 @@ Use these long-lived integration lanes:
 | Worker | Branch | Suggested worktree | Owns |
 | --- | --- | --- | --- |
 | Codex | `codex/backend` | `.worktrees/codex-backend` | tooling baseline, `src/contracts`, `src/modules`, server-only `src/lib`, route handlers/server actions, Supabase, Edge Functions, scanner worker, backend tests |
-| Claude Code | `codex/provisional-ui` | `.worktrees/claude-ui` | page/layout presentation, `src/components`, client interactions, provisional tokens, frontend fixtures, component tests, UI-focused Playwright tests |
+| Gemini | `claude/frontier-visual` (current checkout) | `.worktrees/claude-ui` | page/layout presentation, `src/components`, client interactions, provisional tokens, frontend fixtures, component tests, UI-focused Playwright tests |
 
-The first Foundation commit lands on `codex/backend`. Create the Claude worktree from that commit so both lanes share the same lockfile, configuration, test runner, aliases, and contract conventions.
+The UI branch and worktree keep their historical names during the handoff. Preserve their uncommitted work and inspect the branch, status and file history before editing. Do not create a second UI checkout or rename the branch until that work is safely checkpointed.
 
 Do not make unrelated edits on `main`. Integrate completed vertical slices through reviewed merges or cherry-picks after both sides pass their gates.
 
@@ -52,7 +52,7 @@ Do not make unrelated edits on `main`. Integrate completed vertical slices throu
 - `workers/**`
 - backend, SQL, RLS, provider-contract, and worker tests
 
-### Claude-owned paths
+### Gemini-owned paths
 
 - `src/app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, and `not-found.tsx`, excluding `src/app/api/**`
 - `src/components/**`
@@ -82,11 +82,11 @@ export type OperationResult<T, C extends string> =
 
 Each UI flow consumes a view model rather than database rows. View models contain opaque public identifiers, display-safe timestamps/amounts/statuses, permissions, and available actions. They never expose provider payloads, object keys, private URLs, service identifiers, or evidence contents.
 
-Contract changes land in Codex first with tests. Claude rebases or merges that contract commit, updates fixtures, then implements or integrates the UI. Claude may propose a contract change in documentation but must not silently fork it in frontend code.
+Contract changes land in Codex first with tests. Gemini incorporates that contract commit, updates fixtures, then implements or integrates the UI. Gemini may propose a contract change in documentation but must not silently fork it in frontend code.
 
 ## 4. Phase Dependency Map
 
-| Phase | Codex backend units | Claude frontend units | Integration proof |
+| Phase | Codex backend units | Gemini frontend units | Integration proof |
 | --- | --- | --- | --- |
 | 1 Foundation | toolchain, configuration boundary, result contracts, CI | provisional token system, app shell, global states | clean install; lint, typecheck, unit test, build; shell renders at 360 px |
 | 2 Identity | Supabase baseline, profiles, trust states, roles, verification RLS and operations | auth, recovery, profile, verification, restricted-access and role navigation screens | anonymous/email-verified/institution-verified/role E2E journeys |
@@ -100,12 +100,12 @@ Contract changes land in Codex first with tests. Claude rebases or merges that c
 1. Codex writes the slice acceptance criteria and contract tests.
 2. Codex implements the backend contract, migration/RLS where needed, and deterministic fixture adapter.
 3. Codex commits and provides the commit hash plus focused verification output.
-4. Claude incorporates that commit and implements the complete provisional UI against the real contract.
-5. Claude commits and provides the commit hash plus component/E2E verification output.
-6. Codex runs cross-domain/backend verification; Claude runs frontend/accessibility verification.
+4. Gemini incorporates that commit and implements the complete provisional UI against the real contract.
+5. Gemini commits and provides the commit hash plus component/E2E verification output.
+6. Codex runs cross-domain/backend verification; Gemini runs frontend/accessibility verification.
 7. Merge the slice only when both reports pass and the context tracker reflects reality.
 
-Claude may build non-integrated screens earlier against typed fixture repositories. Those screens must display a visible development-only fixture marker and must switch to the real operation without changing domain types.
+Gemini may build non-integrated screens earlier against typed fixture repositories. Those screens must display a visible development-only fixture marker and must switch to the real operation without changing domain types.
 
 ## 6. Phase Plans
 
@@ -118,23 +118,21 @@ Claude may build non-integrated screens earlier against typed fixture repositori
 
 Each phase receives its own executable plan because a single full-MVP instruction file would mix independent subsystems, hide dependency errors, and make safe review impractical.
 
-## 7. Claude Code Start Instructions
+## 7. Gemini Start Instructions
 
-Claude must begin with this sequence:
+Gemini must begin with this sequence:
 
-1. Read `CLAUDE.md`.
-2. Read all six `context/*.md` files.
-3. Read `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md`.
-4. Read this coordination plan and the current phase plan.
-5. Confirm it is in the Claude UI worktree on branch `codex/provisional-ui`.
-6. Confirm the Foundation commit from Codex is present.
-7. Execute only tasks labelled `Owner: Claude Code`.
-8. Do not add backend behavior, database models, payment logic, or alternate domain contracts.
+1. Read the repository `AGENTS.md` (at `../../AGENTS.md` from this worktree) and all six `context/*.md` files.
+2. Read `docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md` and this coordination plan.
+3. Confirm the current UI checkout is `.worktrees/claude-ui` on `claude/frontier-visual`.
+4. Inspect and preserve its uncommitted files before any merge, rebase, checkout or edit.
+5. Treat historical tasks labelled `Owner: Claude Code` as assigned to Gemini in the frontend lane.
+6. Do not add backend behavior, database models, payment logic, or alternate domain contracts.
 
-Suggested prompt after the Claude worktree is ready:
+Suggested prompt for Gemini in the existing UI worktree:
 
 ```text
-Read CLAUDE.md, all context/*.md files, docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md, docs/superpowers/plans/2026-09-13-vaultix-mvp-coordination.md, and the current phase plan. You own only tasks labelled Owner: Claude Code. Build the complete provisional accessible frontend using Codex-owned contracts and semantic tokens. Do not redefine backend rules or edit Codex-owned paths. Work test-first, commit each independently verifiable task, and report commit hashes plus verification output.
+Read ../../AGENTS.md, all context/*.md files, docs/superpowers/specs/2026-09-13-vaultix-mvp-design.md, docs/superpowers/plans/2026-09-13-vaultix-mvp-coordination.md, and the current phase plan. You own the frontend tasks historically labelled Owner: Claude Code. Preserve the uncommitted work on claude/frontier-visual. Build the complete provisional accessible frontend using Codex-owned contracts and semantic tokens. Do not redefine backend rules or edit Codex-owned paths. Work test-first, commit each independently verifiable task, and report commit hashes plus verification output.
 ```
 
 ## 8. Stop Conditions
