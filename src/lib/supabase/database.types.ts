@@ -162,6 +162,112 @@ export type Database = {
           },
         ];
       };
+      claim_screening_jobs: {
+        Row: {
+          attempts: number;
+          available_at: string;
+          bucket: string;
+          claim_id: string;
+          completed_at: string | null;
+          created_at: string;
+          id: string;
+          last_error_code: string | null;
+          locked_at: string | null;
+          mime_type: string;
+          object_key: string;
+          sha256: string;
+          size_bytes: number;
+          state: Database["public"]["Enums"]["claim_screening_job_state"];
+          updated_at: string;
+        };
+        Insert: {
+          attempts?: number;
+          available_at?: string;
+          bucket: string;
+          claim_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          last_error_code?: string | null;
+          locked_at?: string | null;
+          mime_type: string;
+          object_key: string;
+          sha256: string;
+          size_bytes: number;
+          state?: Database["public"]["Enums"]["claim_screening_job_state"];
+          updated_at?: string;
+        };
+        Update: {
+          attempts?: number;
+          available_at?: string;
+          bucket?: string;
+          claim_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          last_error_code?: string | null;
+          locked_at?: string | null;
+          mime_type?: string;
+          object_key?: string;
+          sha256?: string;
+          size_bytes?: number;
+          state?: Database["public"]["Enums"]["claim_screening_job_state"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_screening_jobs_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: true;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      claim_screening_results: {
+        Row: {
+          claim_id: string;
+          completed_at: string;
+          created_at: string;
+          id: string;
+          reason_codes: string[];
+          result_hash: string;
+          scanner_name: string;
+          scanner_version: string;
+          status: string;
+        };
+        Insert: {
+          claim_id: string;
+          completed_at: string;
+          created_at?: string;
+          id?: string;
+          reason_codes?: string[];
+          result_hash: string;
+          scanner_name: string;
+          scanner_version: string;
+          status: string;
+        };
+        Update: {
+          claim_id?: string;
+          completed_at?: string;
+          created_at?: string;
+          id?: string;
+          reason_codes?: string[];
+          result_hash?: string;
+          scanner_name?: string;
+          scanner_version?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_screening_results_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: false;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       claim_upload_sessions: {
         Row: {
           claim_id: string;
@@ -1454,6 +1560,7 @@ export type Database = {
       verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
+      claim_screening_job_state: "queued" | "processing" | "completed" | "failed";
       claim_status:
         | "uploading"
         | "screening"
@@ -1595,6 +1702,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      claim_screening_job_state: ["queued", "processing", "completed", "failed"],
       claim_status: [
         "uploading",
         "screening",
