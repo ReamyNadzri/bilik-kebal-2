@@ -75,10 +75,12 @@ Update this file after every meaningful implementation or specification change.
 - Phase 4 Slice 3 adds identifier-only scanner job/result contracts and a human Sheriff review policy. Scanner evidence can inform review but cannot approve a claim.
 - Phase 4 Slice 4 adds private, RLS-protected screening job and result persistence with idempotent
   result keys and a service acknowledgement contract. The full pgTAP suite now passes 119 tests.
+- Phase 4 Slice 5 adds the separate scanner worker adapter. It reads quarantine bytes only in the
+  worker boundary and writes identifier-only results or failure acknowledgements.
 
 ## Next Up
 
-1. Implement the separate scanner worker adapter and durable claim job dispatch.
+1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
 2. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
