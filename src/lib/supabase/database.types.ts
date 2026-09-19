@@ -162,6 +162,51 @@ export type Database = {
           },
         ];
       };
+      claim_reviews: {
+        Row: {
+          claim_id: string;
+          created_at: string;
+          decision: string;
+          id: string;
+          notes: string | null;
+          reason_code: string;
+          reviewer_user_id: string;
+        };
+        Insert: {
+          claim_id: string;
+          created_at?: string;
+          decision: string;
+          id?: string;
+          notes?: string | null;
+          reason_code: string;
+          reviewer_user_id: string;
+        };
+        Update: {
+          claim_id?: string;
+          created_at?: string;
+          decision?: string;
+          id?: string;
+          notes?: string | null;
+          reason_code?: string;
+          reviewer_user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_reviews_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: false;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_reviews_reviewer_user_id_fkey";
+            columns: ["reviewer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
       claim_screening_jobs: {
         Row: {
           attempts: number;
@@ -1507,6 +1552,15 @@ export type Database = {
           reason: string;
           received_at: string;
         }[];
+      };
+      record_claim_review: {
+        Args: {
+          target_claim_id: string;
+          target_decision: string;
+          target_notes?: string;
+          target_reason_code: string;
+        };
+        Returns: string;
       };
       record_verified_contribution: {
         Args: {
