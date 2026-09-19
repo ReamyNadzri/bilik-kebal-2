@@ -263,7 +263,9 @@ test.describe("Hunt", () => {
   test("offers open hunts and a separate claim ledger", async ({ page }) => {
     await page.goto("/claims");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Take a hunt, claim the bounty" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Take a hunt, claim the bounty" }),
+    ).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "Open hunts" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "My claims" })).toBeVisible();
   });

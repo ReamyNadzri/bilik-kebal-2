@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { CampusMap } from "@/components/campus-map";
 import { FixtureNotice } from "@/components/fixture-notice";
-import {
-  CAMPUS_DEMAND,
-  DEFAULT_CAMPUS_ID,
-} from "@/features/marketplace/campus-demand-fixtures";
+import { CAMPUS_DEMAND, DEFAULT_CAMPUS_ID } from "@/features/marketplace/campus-demand-fixtures";
 
 export const metadata: Metadata = {
   title: "Explore Map | VAULTIX",

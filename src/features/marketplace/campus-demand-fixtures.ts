@@ -25,7 +25,15 @@ export interface CampusDemand {
 }
 
 export const CAMPUS_DEMAND: readonly CampusDemand[] = [
-  { id: "arau", name: "UiTM Arau", state: "Perlis", openCount: 6, grossBountySen: toSen(320), x: 7, y: 13 },
+  {
+    id: "arau",
+    name: "UiTM Arau",
+    state: "Perlis",
+    openCount: 6,
+    grossBountySen: toSen(320),
+    x: 7,
+    y: 13,
+  },
   {
     id: "sungai-petani",
     name: "UiTM Sungai Petani",
@@ -80,7 +88,15 @@ export const CAMPUS_DEMAND: readonly CampusDemand[] = [
     x: 16,
     y: 49,
   },
-  { id: "raub", name: "UiTM Raub", state: "Pahang", openCount: 5, grossBountySen: toSen(540), x: 32, y: 51 },
+  {
+    id: "raub",
+    name: "UiTM Raub",
+    state: "Pahang",
+    openCount: 5,
+    grossBountySen: toSen(540),
+    x: 32,
+    y: 51,
+  },
   {
     id: "seremban",
     name: "UiTM Seremban",
@@ -90,7 +106,15 @@ export const CAMPUS_DEMAND: readonly CampusDemand[] = [
     x: 21,
     y: 60,
   },
-  { id: "jasin", name: "UiTM Jasin", state: "Melaka", openCount: 8, grossBountySen: toSen(620), x: 25, y: 69 },
+  {
+    id: "jasin",
+    name: "UiTM Jasin",
+    state: "Melaka",
+    openCount: 8,
+    grossBountySen: toSen(620),
+    x: 25,
+    y: 69,
+  },
   {
     id: "segamat",
     name: "UiTM Segamat",

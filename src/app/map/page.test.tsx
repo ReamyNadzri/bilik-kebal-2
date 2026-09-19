@@ -43,9 +43,7 @@ test("selecting a pin updates the campus panel and the list together", () => {
 
   fireEvent.click(screen.getByRole("button", { name: /^Map pin: UiTM Kota Kinabalu/ }));
 
-  expect(
-    screen.getByRole("heading", { level: 2, name: "UiTM Kota Kinabalu" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 2, name: "UiTM Kota Kinabalu" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^UiTM Kota Kinabalu/ })).toHaveAttribute(
     "aria-pressed",
     "true",
