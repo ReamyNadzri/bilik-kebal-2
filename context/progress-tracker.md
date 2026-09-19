@@ -59,9 +59,8 @@ Update this file after every meaningful implementation or specification change.
   status, even when a large bounty would otherwise display as well funded. The focused read-model
   regression test covers this case on `codex/backend`.
 
-- The Phase 3B database test command currently cannot connect to local PostgreSQL on port 55422;
-  Docker Desktop's Linux engine is not running. The non-database unit, format, lint, type and build
-  gates passed on `codex/backend` in the preceding slice.
+- The Phase 3B backend gate is now complete: local pgTAP passes all 102 database tests, and the
+  non-database unit, format, lint, type and production-build gates also pass on `codex/backend`.
 - Antigravity's `agy` launcher is installed and can access Gemini models. The legacy Gemini CLI
   remains rejected for this account with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; use `agy`
   for frontend work.
