@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AccountSummary } from "@/components/account-summary";
+import { FixtureNotice } from "@/components/fixture-notice";
+import { ProfileStudio } from "@/components/profile-studio";
 import { UiStatus } from "@/components/ui-status";
 import type { AccountViewModel } from "@/contracts";
 import { loadAccountViewModel } from "@/modules/identity";
@@ -47,8 +49,15 @@ export default async function ProfilePage() {
   const outcome = await readAccount();
 
   return (
-    <>
-      <h1>Profile</h1>
+    <div className="page-bare">
+      <div className="panel page-heading">
+        <div>
+          <h1>Profile</h1>
+          <p className="page-heading__lede">
+            Check your account trust state, then preview the visual hunter licence.
+          </p>
+        </div>
+      </div>
 
       {outcome.kind === "unauthenticated" ? (
         <UiStatus
@@ -69,6 +78,9 @@ export default async function ProfilePage() {
       ) : null}
 
       {outcome.kind === "account" ? <AccountSummary account={outcome.account} /> : null}
-    </>
+
+      <FixtureNotice screen="The hunter licence editor" />
+      <ProfileStudio />
+    </div>
   );
 }

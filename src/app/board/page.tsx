@@ -63,8 +63,19 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   ]);
 
   return (
-    <>
-      <h1>Wanted Board</h1>
+    <div className="page-bare">
+      <div className="panel page-heading">
+        <div>
+          <h1>Wanted Board</h1>
+          <p className="page-heading__lede">
+            Browse open academic requests across Malaysian campuses. Back a request or submit a
+            claim.
+          </p>
+        </div>
+        <Link className="button button--primary" href="/wanted/new">
+          Post a Wanted <span aria-hidden="true">→</span>
+        </Link>
+      </div>
 
       {board.status === "signed-out" ? (
         <UiStatus
@@ -95,6 +106,6 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
           now={marketplaceNow()}
         />
       )}
-    </>
+    </div>
   );
 }

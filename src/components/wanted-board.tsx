@@ -47,7 +47,7 @@ export function WantedBoard({ filters, items, taxonomy, now }: WantedBoardProps)
 
   return (
     <div className="board">
-      <div className="board__head">
+      <div className="panel board__head">
         <div className="board__search">
           <label className="board__search-label" htmlFor="board-query">
             Search Wanted requests
@@ -105,7 +105,7 @@ export function WantedBoard({ filters, items, taxonomy, now }: WantedBoardProps)
 
       <BoardFilters filters={filters} taxonomy={taxonomy} />
 
-      <div className="board__results">
+      <div className="board-surface board__results">
         {items.length === 0 && !narrowed ? (
           <UiStatus
             kind="empty"

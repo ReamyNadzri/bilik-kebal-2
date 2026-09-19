@@ -29,9 +29,9 @@ describe("what the homepage always says", () => {
     await renderPage();
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Find the notes worth hunting for.",
+      "Ask for it. Back it. Claim it.",
     );
-    expect(screen.getByRole("list", { name: "How VAULTIX works" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "How the hunt works" })).toBeInTheDocument();
   });
 
   test("explains what each verification unlocks, keeping the two states separate", async () => {
@@ -128,7 +128,7 @@ describe("a viewer who is not signed in", () => {
     refused("AUTH_REQUIRED");
     await renderPage();
 
-    expect(screen.getByRole("heading", { name: "How VAULTIX works" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How the hunt works" })).toBeInTheDocument();
   });
 });
 

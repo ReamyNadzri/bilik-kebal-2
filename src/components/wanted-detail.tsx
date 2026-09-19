@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BountyPlate } from "./bounty-plate";
+import { ResourceEmblem } from "./resource-emblem";
 import { StatusStamp } from "./status-stamp";
 import { WantedCard } from "./wanted-card";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
@@ -21,13 +22,18 @@ function describeBackers(count: number): string {
 }
 
 /**
- * One Wanted request in full: the case file on the left, the ledger on the
- * right.
+ * One Wanted request in full: the case file on the left; the poster, the
+ * ledger and the trust panel on the right.
  *
  * Nothing about any submitted file appears here. Claims are quarantined until
  * a Sheriff approves one, so this page describes what is *wanted*, never what
  * has been supplied (`context/architecture.md`). There is no preview, no file
  * name, no object key and no download.
+ *
+ * The handoff's funding progress bar and "net reward to Hunter" line are not
+ * drawn. A Wanted has no funding target, and the rounding of a percentage fee
+ * on integer sen is unspecified; the snapshotted fee rate is stated instead
+ * (docs/superpowers/specs/2026-09-16-vaultix-frontier-visual-handoff.md §6).
  *
  * The two protected actions link to institution verification rather than to a
  * form. Contributing and claiming both require institution verification, and
@@ -41,7 +47,7 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
 
   return (
     <div className="wanted-detail">
-      <header className="wanted-detail__header">
+      <header className="panel wanted-detail__header">
         <p className="wanted-detail__masthead">
           <StatusStamp
             presentation={wantedStatusPresentation(wanted.status)}
@@ -63,9 +69,21 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
           would leave the tab order disagreeing with what is on screen. Grid
           placement puts this column on the right at desktop. */}
       <aside className="wanted-detail__ledger" aria-label="Bounty and actions">
-        <div className="ledger-panel">
-          <BountyPlate amountSen={wanted.grossBountySen} size="large" />
-          <p className="ledger-panel__backers numeric">{describeBackers(wanted.backerCount)}</p>
+        <div className="ledger-poster poster-paper pin">
+          <p className="poster-masthead">
+            <span className="poster-masthead__word" aria-hidden="true">
+              Wanted
+            </span>
+          </p>
+          <ResourceEmblem resourceType={wanted.resourceType} />
+          <p className="wanted-card__course">
+            <span className="wanted-card__course-code">{wanted.courseCode}</span>
+            <span className="wanted-card__course-name">{wanted.courseName}</span>
+          </p>
+          <div className="wanted-card__money">
+            <BountyPlate amountSen={wanted.grossBountySen} size="large" />
+            <p className="ledger-panel__backers numeric">{describeBackers(wanted.backerCount)}</p>
+          </div>
           <p className="ledger-panel__closing">
             <time dateTime={wanted.closesAt}>{closing.label}</time>
           </p>
@@ -92,6 +110,10 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
 
         <div className="ledger-panel">
           <h2 className="ledger-panel__heading">Fees</h2>
+          <p className="ledger-panel__fee">
+            <span>Platform fee, fixed at publication</span>
+            <span className="numeric">{feePercent}%</span>
+          </p>
           <p className="ledger-panel__body">
             A {feePercent}% platform fee is taken from the bounty when a claim is approved. The rate
             was fixed when this Wanted was published and does not change afterwards.
@@ -126,29 +148,43 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
       </aside>
 
       {/* Named by its own title so the case file is addressable next to the
-          similar-request cards, which are also articles. */}
-      <article className="wanted-detail__case" aria-labelledby="wanted-title">
+          similar-request posters, which are also articles. */}
+      <article className="panel wanted-detail__case" aria-labelledby="wanted-title">
         <p className="wanted-detail__description">{wanted.description}</p>
 
         <dl
-          className="index-grid wanted-detail__facts"
+          className="fact-table wanted-detail__facts"
           role="group"
           aria-label="Full request details"
         >
-          <dt>Course</dt>
-          <dd>{`${wanted.courseCode} ${wanted.courseName}`}</dd>
-          <dt>Campus</dt>
-          <dd>{wanted.campus}</dd>
-          <dt>Faculty</dt>
-          <dd>{wanted.faculty}</dd>
-          <dt>Programme</dt>
-          <dd>{wanted.programme}</dd>
-          <dt>Session</dt>
-          <dd>{wanted.session}</dd>
-          <dt>Resource</dt>
-          <dd>{wanted.resourceType}</dd>
-          <dt>Language</dt>
-          <dd>{wanted.language}</dd>
+          <div className="fact-table__cell">
+            <dt>Course</dt>
+            <dd>{`${wanted.courseCode} ${wanted.courseName}`}</dd>
+          </div>
+          <div className="fact-table__cell">
+            <dt>Campus</dt>
+            <dd>{wanted.campus}</dd>
+          </div>
+          <div className="fact-table__cell">
+            <dt>Faculty</dt>
+            <dd>{wanted.faculty}</dd>
+          </div>
+          <div className="fact-table__cell">
+            <dt>Programme</dt>
+            <dd>{wanted.programme}</dd>
+          </div>
+          <div className="fact-table__cell">
+            <dt>Session</dt>
+            <dd>{wanted.session}</dd>
+          </div>
+          <div className="fact-table__cell">
+            <dt>Resource</dt>
+            <dd>{wanted.resourceType}</dd>
+          </div>
+          <div className="fact-table__cell">
+            <dt>Language</dt>
+            <dd>{wanted.language}</dd>
+          </div>
         </dl>
 
         {wanted.tags.length === 0 ? null : (
@@ -166,8 +202,8 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
           <p className="policy-note">
             A claim may contain only material the Hunter is allowed to share. Publisher textbooks,
             paid tutorial material, leaked papers and institution-restricted documents are not
-            permitted. A Sheriff must approve a claim before any resource is released or any bounty
-            is paid.
+            permitted. Files stay in private quarantine, and a Sheriff must approve a claim before
+            any resource is released or any bounty is paid.
           </p>
           {/* The version this request was published under, not whatever the
               policy says today. Snapshotting is an invariant
@@ -179,7 +215,7 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
         </section>
 
         <section className="wanted-detail__section">
-          <h2>Activity</h2>
+          <h2>Bounty activity</h2>
           <ol className="activity" aria-label="Activity on this Wanted">
             {wanted.activity.map((event) => (
               <li className="activity__event" key={event.id}>
@@ -194,10 +230,10 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
       </article>
 
       {/* Deliberately outside the case file: these are other people's requests,
-          and nesting them in this request's article would make every card's
+          and nesting them in this request's article would make every poster's
           status and counts read as part of it. */}
       {similar.length === 0 ? null : (
-        <section className="wanted-detail__similar">
+        <section className="board-surface wanted-detail__similar">
           <h2>Similar requests</h2>
           <p className="wanted-detail__similar-note">
             Backing an existing request builds one larger bounty instead of splitting the class

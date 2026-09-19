@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { HuntWorkspace } from "@/components/hunt-workspace";
+import { HunterOffice } from "@/components/hunter-office";
 import { UiStatus } from "@/components/ui-status";
 import { fixtureNow, readPreviewState } from "@/features/marketplace/fixture-preview";
 import { listClaims, listHunts } from "@/features/marketplace/hunt-source";
@@ -22,15 +23,9 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
   const claims = listClaims(preview);
 
   return (
-    <>
+    <div className="page-bare">
       <FixtureNotice screen="The Hunt workspace" />
-      <div className="hunt-title">
-        <h1>Hunt</h1>
-        <p>
-          Choose a live bounty you can answer, then follow each claim through screening and Sheriff
-          review.
-        </p>
-      </div>
+      <HunterOffice claims={claims.status === "ready" ? claims.data : null} />
 
       {hunts.status === "unavailable" || claims.status === "unavailable" ? (
         <UiStatus
@@ -42,6 +37,6 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
       ) : (
         <HuntWorkspace hunts={hunts.data} claims={claims.data} now={fixtureNow()} />
       )}
-    </>
+    </div>
   );
 }

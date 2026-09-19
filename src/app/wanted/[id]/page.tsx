@@ -50,9 +50,11 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
   const similar = result.status === "ready" ? await readSimilarWanted(result.data) : [];
 
   return (
-    <>
+    <div className="page-bare">
       <p className="back-link">
-        <Link href="/board">Back to the Wanted Board</Link>
+        <Link className="button button--ghost" href="/board">
+          <span aria-hidden="true">←</span> Back to the Wanted Board
+        </Link>
       </p>
 
       {result.status === "signed-out" ? (
@@ -79,6 +81,6 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
       ) : (
         <WantedDetail wanted={result.data} similar={similar} now={marketplaceNow()} />
       )}
-    </>
+    </div>
   );
 }

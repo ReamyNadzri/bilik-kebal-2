@@ -26,7 +26,7 @@ test.describe("homepage", () => {
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Find the notes worth hunting for." }),
+      page.getByRole("heading", { level: 1, name: "Ask for it. Back it. Claim it." }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Browse the Board" })).toBeVisible();
     await expect(page.getByLabel(/password/i)).toHaveCount(0);
@@ -38,7 +38,7 @@ test.describe("homepage", () => {
     await page.setViewportSize(WIDE);
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "How VAULTIX works" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "How the hunt works" })).toBeVisible();
     await expect(page.getByText(/Verify your institution to fund a bounty/)).toBeInViewport();
   });
 
@@ -263,7 +263,7 @@ test.describe("Hunt", () => {
   test("offers open hunts and a separate claim ledger", async ({ page }) => {
     await page.goto("/claims");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Hunt" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Take a hunt, claim the bounty" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "Open hunts" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 2, name: "My claims" })).toBeVisible();
   });

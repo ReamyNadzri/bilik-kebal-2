@@ -68,7 +68,7 @@ export function BoardFilters({ filters, taxonomy }: BoardFiltersProps) {
     applied === 0 ? "No filters applied" : `${applied} filter${applied === 1 ? "" : "s"} applied`;
 
   return (
-    <form className="board-filters" id={BOARD_FORM_ID} action="/board" method="get">
+    <form className="panel board-filters" id={BOARD_FORM_ID} action="/board" method="get">
       {/* The rail's caption at desktop, where the disclosure summary is not
           rendered. Exactly one of the two is displayed at any width, so the
           count is never announced twice. */}

@@ -1,4 +1,4 @@
-import { claimStatusPresentation, wantedStatusPresentation } from "./status";
+import { claimStages, claimStatusPresentation, wantedStatusPresentation } from "./status";
 import type { ClaimStatus, WantedStatus } from "./types";
 
 const WANTED_STATUSES: readonly WantedStatus[] = [
@@ -92,5 +92,38 @@ describe("claim status", () => {
 
     expect(nextStep).toMatch(/checking/i);
     expect(nextStep).not.toMatch(/approv|reject/i);
+  });
+});
+
+describe("claim stage track", () => {
+  const statesOf = (status: ClaimStatus) => claimStages(status).map((stage) => stage.state);
+
+  test("walks every claim through the same five stations", () => {
+    for (const status of CLAIM_STATUSES) {
+      expect(claimStages(status).map((stage) => stage.label)).toEqual([
+        "Draft",
+        "Screening",
+        "Sheriff review",
+        "Decision",
+        "Payout",
+      ]);
+    }
+  });
+
+  test("places a claim under Sheriff review at the review station", () => {
+    expect(statesOf("under-review")).toEqual(["done", "done", "current", "ahead", "ahead"]);
+  });
+
+  test("never paints a claim that was not selected as one that was rejected", () => {
+    expect(statesOf("not-selected")).toEqual(["done", "done", "done", "ended", "ahead"]);
+    expect(statesOf("rejected")).toEqual(["done", "done", "done", "stopped", "ahead"]);
+  });
+
+  test("stops a quarantined claim at screening", () => {
+    expect(statesOf("quarantined")).toEqual(["done", "stopped", "ahead", "ahead", "ahead"]);
+  });
+
+  test("leaves an approved claim waiting at payout rather than marking it paid", () => {
+    expect(statesOf("approved")).toEqual(["done", "done", "done", "done", "current"]);
   });
 });

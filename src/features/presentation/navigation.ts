@@ -7,7 +7,7 @@
  */
 
 export type NavItemId =
-  "board" | "claims" | "archive" | "notifications" | "profile" | "console" | "post";
+  "board" | "map" | "claims" | "archive" | "notifications" | "profile" | "console" | "post";
 
 export interface NavItem {
   readonly id: NavItemId;
@@ -25,6 +25,7 @@ export interface NavItem {
  */
 export const MARKETPLACE_NAV: readonly NavItem[] = [
   { id: "board", label: "Wanted Board", href: "/board" },
+  { id: "map", label: "Explore Map", href: "/map" },
   { id: "claims", label: "Hunt", href: "/claims" },
   { id: "archive", label: "Archive", href: "/archive" },
 ] as const;
@@ -77,6 +78,10 @@ export function activeNavId(pathname: string): NavItemId | null {
 
   if (pathname === "/board" || pathname.startsWith("/wanted/")) {
     return "board";
+  }
+
+  if (pathname.startsWith("/map")) {
+    return "map";
   }
 
   if (pathname.startsWith("/claims")) {
