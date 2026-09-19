@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ConsoleLanding } from "@/components/console-landing";
 import { ReviewConsole } from "@/components/review-console";
+import { ClaimReviewConsole } from "@/components/claim-review-console";
 import { UiStatus } from "@/components/ui-status";
 import type { VerificationQueueItem } from "@/contracts";
 import { loadVerificationReviewQueue } from "@/modules/identity";
@@ -77,6 +78,7 @@ export default async function ConsolePage() {
       ) : null}
 
       {outcome.kind === "ready" ? <ReviewConsole items={outcome.items} /> : null}
+      <ClaimReviewConsole />
     </>
   );
 }
