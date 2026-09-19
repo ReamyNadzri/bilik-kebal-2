@@ -7,6 +7,7 @@ Update this file after every meaningful implementation or specification change.
 - Phase 3B money/ledger and the public Wanted read operations are implemented on `codex/backend`.
   Frontend ownership has moved from Claude Code to Gemini; the existing UI worktree contains
   uncommitted work that must be preserved during handoff.
+- Phase 4 Claims and moderation has started with the claims upload boundary and quarantine RLS.
 
 ## Current Goal
 
@@ -67,6 +68,9 @@ Update this file after every meaningful implementation or specification change.
 - Gemini frontend checkpoint `70d2d1c` preserves the marketplace visual work. Follow-up
   `c2c2321` makes the provisional UI build without downloading Google Fonts; frontend tests,
   lint, typecheck and format now pass, and the production build passes offline.
+- Phase 4 Slice 1 adds claim submission contracts and eligibility policy, a private `claims` and
+  `claim_upload_sessions` schema, exact-checksum uniqueness, and a private `quarantine` bucket
+  with no browser storage write policy. The full pgTAP suite now passes 110 tests.
 
 ## Next Up
 

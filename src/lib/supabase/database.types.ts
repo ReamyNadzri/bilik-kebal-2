@@ -162,6 +162,123 @@ export type Database = {
           },
         ];
       };
+      claim_upload_sessions: {
+        Row: {
+          claim_id: string;
+          completed_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          object_key: string;
+        };
+        Insert: {
+          claim_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          object_key: string;
+        };
+        Update: {
+          claim_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          object_key?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_upload_sessions_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: true;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      claims: {
+        Row: {
+          bucket: string;
+          created_at: string;
+          file_name: string;
+          free_release_opt_in: boolean;
+          hunter_user_id: string;
+          id: string;
+          institution_id: string;
+          mime_type: string;
+          object_key: string;
+          public_id: string;
+          rights_confirmed_at: string;
+          sha256: string;
+          size_bytes: number;
+          status: Database["public"]["Enums"]["claim_status"];
+          storage_provider: string;
+          updated_at: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          bucket?: string;
+          created_at?: string;
+          file_name: string;
+          free_release_opt_in?: boolean;
+          hunter_user_id: string;
+          id?: string;
+          institution_id: string;
+          mime_type: string;
+          object_key: string;
+          public_id?: string;
+          rights_confirmed_at: string;
+          sha256: string;
+          size_bytes: number;
+          status?: Database["public"]["Enums"]["claim_status"];
+          storage_provider?: string;
+          updated_at?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          bucket?: string;
+          created_at?: string;
+          file_name?: string;
+          free_release_opt_in?: boolean;
+          hunter_user_id?: string;
+          id?: string;
+          institution_id?: string;
+          mime_type?: string;
+          object_key?: string;
+          public_id?: string;
+          rights_confirmed_at?: string;
+          sha256?: string;
+          size_bytes?: number;
+          status?: Database["public"]["Enums"]["claim_status"];
+          storage_provider?: string;
+          updated_at?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claims_hunter_user_id_fkey";
+            columns: ["hunter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "claims_institution_id_fkey";
+            columns: ["institution_id"];
+            isOneToOne: false;
+            referencedRelation: "institutions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claims_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contribution_intents: {
         Row: {
           amount_sen: number;
@@ -1321,6 +1438,15 @@ export type Database = {
       verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
+      claim_status:
+        | "uploading"
+        | "screening"
+        | "needs_information"
+        | "under_review"
+        | "approved"
+        | "not_selected"
+        | "rejected"
+        | "withdrawn";
       contribution_intent_status: "pending" | "paid" | "failed" | "expired";
       institution_role: "institution_sheriff";
       institution_verification_method: "domain" | "manual";
@@ -1453,6 +1579,16 @@ export const Constants = {
   },
   public: {
     Enums: {
+      claim_status: [
+        "uploading",
+        "screening",
+        "needs_information",
+        "under_review",
+        "approved",
+        "not_selected",
+        "rejected",
+        "withdrawn",
+      ],
       contribution_intent_status: ["pending", "paid", "failed", "expired"],
       institution_role: ["institution_sheriff"],
       institution_verification_method: ["domain", "manual"],
