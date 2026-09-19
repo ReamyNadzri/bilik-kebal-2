@@ -73,11 +73,13 @@ Update this file after every meaningful implementation or specification change.
   with no browser storage write policy. The full pgTAP suite now passes 110 tests.
 - Phase 4 Slice 2 adds the server-side upload-session service. It validates trust, file limits, opaque quarantine object keys, expiry and the disabled-upload launch gate before a signed upload can be issued.
 - Phase 4 Slice 3 adds identifier-only scanner job/result contracts and a human Sheriff review policy. Scanner evidence can inform review but cannot approve a claim.
+- Phase 4 Slice 4 adds private, RLS-protected screening job and result persistence with idempotent
+  result keys and a service acknowledgement contract. The full pgTAP suite now passes 119 tests.
 
 ## Next Up
 
-1. Add the server repository and delivery route for claim upload sessions; keep the upload flag disabled by default.
-2. Define scanner persistence and queue acknowledgement behind the separate worker boundary.
+1. Implement the separate scanner worker adapter and durable claim job dispatch.
+2. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
 5. Keep `/claims` fixture-backed until the claim HTTP contract and private upload flow are integrated.
