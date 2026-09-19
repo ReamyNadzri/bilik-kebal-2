@@ -82,11 +82,13 @@ Update this file after every meaningful implementation or specification change.
   passes 125 tests.
 - Phase 4 Slice 7 adds the Sheriff review HTTP contract, queue read model, and protected review
   route. Review responses expose metadata only and never private object keys or file content.
+- Phase 4 Slice 8 connects the provisional Sheriff console to the claim review queue and decision
+  route with loading, empty, unavailable, confirmation prompt and result states.
 
 ## Next Up
 
 1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
-2. Connect the provisional Sheriff interface to the review queue and decision route.
+2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
 5. Keep `/claims` fixture-backed until the claim HTTP contract and private upload flow are integrated.
