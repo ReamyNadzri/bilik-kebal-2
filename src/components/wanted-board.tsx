@@ -2,21 +2,29 @@ import Link from "next/link";
 import { BOARD_FORM_ID, BoardFilters } from "./board-filters";
 import { UiStatus } from "./ui-status";
 import { WantedCard } from "./wanted-card";
-import { BOARD_SORTS, countActiveFilters } from "@/features/marketplace/filters";
+import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
+import { BOARD_SORTS, isNarrowed } from "@/features/marketplace/filters";
 import type { BoardFilters as Filters, WantedSummary } from "@/features/marketplace/types";
 
 export interface WantedBoardProps {
   readonly filters: Filters;
+  /** Exactly the rows the server selected for this query. */
   readonly items: readonly WantedSummary[];
-  /** How many requests exist before any filter narrowed them. */
-  readonly total: number;
+  readonly taxonomy: MarketplaceTaxonomy | null;
   readonly now: string;
 }
 
-function describeCount(shown: number, total: number, narrowed: boolean): string {
-  const noun = total === 1 ? "Wanted request" : "Wanted requests";
+/**
+ * How many requests this view holds.
+ *
+ * Only what the server returned, never "N of M": a total across the whole
+ * Board would be a second unfiltered read, and inventing one from the filtered
+ * page would be a number nobody counted.
+ */
+function describeCount(shown: number, narrowed: boolean): string {
+  const noun = shown === 1 ? "Wanted request" : "Wanted requests";
 
-  return narrowed ? `${shown} of ${total} ${noun}` : `${total} ${noun}`;
+  return narrowed ? `${shown} matching ${noun}` : `${shown} ${noun}`;
 }
 
 /**
@@ -29,20 +37,25 @@ function describeCount(shown: number, total: number, narrowed: boolean): string 
  *
  * An empty Board and a Board with no matches are different situations and are
  * worded differently: one means nobody has asked for anything, the other means
- * this reader's search hid everything. Only the second offers a way to undo.
+ * this reader's search hid everything. Only the second offers a way to undo,
+ * and neither is a failure — an empty result from a successful read is still a
+ * successful read.
  */
-export function WantedBoard({ filters, items, total, now }: WantedBoardProps) {
-  const applied = countActiveFilters(filters);
+export function WantedBoard({ filters, items, taxonomy, now }: WantedBoardProps) {
   const searched = filters.query !== "";
-  const narrowed = applied > 0 || searched;
+  const narrowed = isNarrowed(filters);
 
   return (
     <div className="board">
-      <div className="board__head">
+      <div className="panel board__head">
         <div className="board__search">
           <label className="board__search-label" htmlFor="board-query">
             Search Wanted requests
           </label>
+          {/* The published read matches the request title only. Offering to
+              search a campus or a semester would promise a result the operation
+              cannot return, and the campus, course, resource and session
+              filters below already narrow by those. */}
           <div className="board__search-row">
             <input
               className="board__search-input"
@@ -51,7 +64,7 @@ export function WantedBoard({ filters, items, total, now }: WantedBoardProps) {
               name="q"
               type="search"
               defaultValue={filters.query}
-              placeholder="Search course, campus, semester, or resource type"
+              placeholder="Search request titles"
             />
             <button
               className="button button--secondary"
@@ -65,8 +78,8 @@ export function WantedBoard({ filters, items, total, now }: WantedBoardProps) {
         </div>
 
         <div className="board__summary">
-          {total === 0 ? null : (
-            <p className="board__count numeric">{describeCount(items.length, total, narrowed)}</p>
+          {items.length === 0 ? null : (
+            <p className="board__count numeric">{describeCount(items.length, narrowed)}</p>
           )}
 
           <p className="board__sort">
@@ -90,10 +103,10 @@ export function WantedBoard({ filters, items, total, now }: WantedBoardProps) {
         </div>
       </div>
 
-      <BoardFilters filters={filters} />
+      <BoardFilters filters={filters} taxonomy={taxonomy} />
 
-      <div className="board__results">
-        {total === 0 ? (
+      <div className="board-surface board__results">
+        {items.length === 0 && !narrowed ? (
           <UiStatus
             kind="empty"
             heading="Nothing is on the Board yet"

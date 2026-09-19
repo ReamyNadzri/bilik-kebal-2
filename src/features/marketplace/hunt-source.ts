@@ -1,5 +1,5 @@
 import { CLAIMS, HUNTS } from "./fixtures";
-import type { PreviewState } from "./wanted-source";
+import type { PreviewState } from "./fixture-preview";
 import type { ClaimSummary, HuntOpportunity, MarketplaceResult } from "./types";
 
 /**

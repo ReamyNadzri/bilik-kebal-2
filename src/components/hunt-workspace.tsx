@@ -2,7 +2,12 @@ import Link from "next/link";
 import { BountyPlate } from "./bounty-plate";
 import { StatusStamp } from "./status-stamp";
 import { UiStatus } from "./ui-status";
-import { claimStatusPresentation, wantedStatusPresentation } from "@/features/marketplace/status";
+import {
+  claimStages,
+  claimStatusPresentation,
+  wantedStatusPresentation,
+  type ClaimStageState,
+} from "@/features/marketplace/status";
 import { formatClosing, formatSubmittedAge } from "@/features/marketplace/time";
 import type { ClaimSummary, HuntOpportunity } from "@/features/marketplace/types";
 
@@ -17,6 +22,15 @@ const ELIGIBILITY = {
   "faculty-match-preferred": "Institution verified; faculty match preferred",
 } as const;
 
+/** Spoken beside each station, so the track reads without its colours. */
+const STAGE_STATE_WORDS: Record<ClaimStageState, string> = {
+  done: "completed",
+  current: "current stage",
+  ended: "ended here",
+  stopped: "stopped here",
+  ahead: "not reached",
+};
+
 function competition(count: number): string {
   return `${count} active ${count === 1 ? "claim" : "claims"} competing`;
 }
@@ -28,14 +42,14 @@ function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now:
     <li className="hunt-card">
       <article aria-labelledby={`hunt-${hunt.id}`}>
         <div className="hunt-card__head">
-          <p className="hunt-card__course">
-            <strong>{hunt.courseCode}</strong>
-            <span>{hunt.courseName}</span>
-          </p>
           <StatusStamp presentation={wantedStatusPresentation(hunt.status)} context="Hunt" />
+          <span className="hunt-card__resource">{hunt.resourceType}</span>
         </div>
+        <p className="hunt-card__course">
+          <strong>{hunt.courseCode}</strong>
+          <span>{hunt.courseName}</span>
+        </p>
         <h3 id={`hunt-${hunt.id}`}>{hunt.title}</h3>
-        <p className="hunt-card__resource">{hunt.resourceType}</p>
         <BountyPlate amountSen={hunt.grossBountySen} />
         <dl className="index-grid hunt-card__facts" role="group" aria-label="Hunt details">
           <dt>Deadline</dt>
@@ -48,14 +62,36 @@ function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now:
           <dd>{ELIGIBILITY[hunt.eligibility]}</dd>
         </dl>
         <Link
-          className="wanted-card__action"
+          className="button button--primary hunt-card__action"
           href={`/wanted/${hunt.id}`}
           aria-label={`View hunt: ${hunt.title}`}
         >
-          View hunt
+          View hunt <span aria-hidden="true">→</span>
         </Link>
       </article>
     </li>
+  );
+}
+
+function StageTrack({ claim }: { readonly claim: ClaimSummary }) {
+  return (
+    <ol className="stage-track" aria-label={`Progress of this claim: ${claim.wantedTitle}`}>
+      {claimStages(claim.status).map((stage, index) => (
+        <li
+          className={`stage-track__stage stage-track__stage--${stage.state}`}
+          key={stage.label}
+          aria-current={stage.state === "current" ? "step" : undefined}
+        >
+          <span className="stage-track__mark" aria-hidden="true">
+            {stage.state === "done" ? "✓" : index + 1}
+          </span>
+          <span>
+            {stage.label}
+            <span className="visually-hidden">{`, ${STAGE_STATE_WORDS[stage.state]}`}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -66,22 +102,29 @@ function ClaimCard({ claim, now }: { readonly claim: ClaimSummary; readonly now:
     <li className="claim-card">
       <article aria-labelledby={`claim-${claim.id}`}>
         <div className="claim-card__head">
-          <p className="claim-card__course">
-            <strong>{claim.courseCode}</strong> {claim.courseName}
-          </p>
+          <div className="claim-card__title">
+            <h3 id={`claim-${claim.id}`}>{claim.wantedTitle}</h3>
+            <p className="claim-card__course">
+              <strong>{claim.courseCode}</strong> {claim.courseName} ·{" "}
+              {claim.submittedAt === null ? (
+                "Not submitted"
+              ) : (
+                <time dateTime={claim.submittedAt}>
+                  {formatSubmittedAge(claim.submittedAt, now)}
+                </time>
+              )}
+            </p>
+          </div>
           <StatusStamp presentation={presentation} context="Claim" />
         </div>
-        <h3 id={`claim-${claim.id}`}>{claim.wantedTitle}</h3>
-        <p className="claim-card__next">{presentation.nextStep}</p>
+        <StageTrack claim={claim} />
         <div className="claim-card__foot">
-          <p>
-            {claim.submittedAt === null ? (
-              "Not submitted"
-            ) : (
-              <time dateTime={claim.submittedAt}>{formatSubmittedAge(claim.submittedAt, now)}</time>
-            )}
-          </p>
-          <Link href={`/wanted/${claim.wantedId}`} aria-label={`View Wanted: ${claim.wantedTitle}`}>
+          <p className="claim-card__next">{presentation.nextStep}</p>
+          <Link
+            className="button button--green"
+            href={`/wanted/${claim.wantedId}`}
+            aria-label={`View Wanted: ${claim.wantedTitle}`}
+          >
             View Wanted
           </Link>
         </div>
@@ -94,19 +137,23 @@ export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
   return (
     <div className="hunt-workspace">
       {/* Both sections are rendered, so these jump to them rather than switch
-          between them. Styled as equals: marking one as selected would claim a
-          state the page does not have. */}
+          between them. Styled as index tabs, but never marked selected: that
+          would claim a state the page does not have. */}
       <nav className="hunt-jump" aria-label="Skip to a Hunt section">
         <a href="#open-hunts">Open hunts</a>
         <a href="#my-claims">My claims</a>
       </nav>
 
-      <section className="hunt-section" id="open-hunts" aria-labelledby="open-hunts-title">
+      <section
+        className="board-surface hunt-section"
+        id="open-hunts"
+        aria-labelledby="open-hunts-title"
+      >
         <div className="hunt-section__head">
           <h2 id="open-hunts-title">Open hunts</h2>
           <p>
-            Match an authorised resource to a live request. Submission opens only after identity
-            checks.
+            One winning claim per Wanted. Files stay in quarantine until a Sheriff decides, and
+            submission opens only after identity checks.
           </p>
         </div>
         {hunts.length === 0 ? (
@@ -125,12 +172,12 @@ export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
         )}
       </section>
 
-      <section className="hunt-section" id="my-claims" aria-labelledby="my-claims-title">
+      <section className="panel hunt-section" id="my-claims" aria-labelledby="my-claims-title">
         <div className="hunt-section__head">
           <h2 id="my-claims-title">My claims</h2>
           <p>
-            Track what happens next. These fixtures demonstrate language only and are not account
-            records.
+            Every claim moves through five stations, and only a Sheriff can approve one. These
+            fixtures demonstrate language only and are not account records.
           </p>
         </div>
         {claims.length === 0 ? (
@@ -147,6 +194,10 @@ export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
             ))}
           </ul>
         )}
+        <p className="hunt-ledger__note">
+          Not selected means your claim was valid but another claim was chosen. Rejected is a
+          separate outcome and can be appealed.
+        </p>
       </section>
     </div>
   );

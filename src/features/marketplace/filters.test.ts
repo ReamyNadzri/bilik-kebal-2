@@ -1,236 +1,188 @@
-import { applyBoardFilters, boardHref, countActiveFilters, parseBoardFilters } from "./filters";
-import { WANTED } from "./fixtures";
-import { aWanted } from "./test-support/wanted";
+import {
+  BOARD_SORTS,
+  BOARD_STATUSES,
+  boardHref,
+  countActiveFilters,
+  parseBoardFilters,
+  toListWantedQuery,
+} from "./filters";
+import type { BoardFilters } from "./types";
 
-const NOW = "2026-09-14T09:00:00.000Z";
+const CAMPUS = "11111111-1111-4111-8111-111111111111";
+const COURSE = "44444444-4444-4444-8444-444444444444";
+const RESOURCE = "66666666-6666-4666-8666-666666666666";
+const SESSION = "55555555-5555-4555-8555-555555555555";
 
-describe("reading filters from the URL", () => {
-  test("defaults to an unfiltered Board sorted newest first", () => {
-    expect(parseBoardFilters({})).toEqual({
-      query: "",
-      campusId: null,
-      courseId: null,
-      resourceTypeId: null,
-      sessionId: null,
-      status: null,
-      sort: "newest",
-    });
-  });
+function filters(overrides: Partial<BoardFilters> = {}): BoardFilters {
+  return {
+    query: "",
+    campusId: null,
+    courseId: null,
+    resourceTypeId: null,
+    sessionId: null,
+    status: null,
+    sort: "newest",
+    ...overrides,
+  };
+}
 
-  test("reads every filter the Board offers", () => {
+describe("reading the filters out of the URL", () => {
+  test("carries every filter the Board offers", () => {
     expect(
       parseBoardFilters({
-        q: "calculus",
-        campus: "shah-alam",
-        course: "csc510",
-        resource: "lecture-notes",
-        session: "2024-2025-sem2",
-        status: "open",
+        q: "  past year  ",
+        campus: CAMPUS,
+        course: COURSE,
+        resource: RESOURCE,
+        session: SESSION,
+        status: "reviewing",
         sort: "highest-bounty",
       }),
     ).toEqual({
-      query: "calculus",
-      campusId: "shah-alam",
-      courseId: "csc510",
-      resourceTypeId: "lecture-notes",
-      sessionId: "2024-2025-sem2",
-      status: "open",
+      query: "past year",
+      campusId: CAMPUS,
+      courseId: COURSE,
+      resourceTypeId: RESOURCE,
+      sessionId: SESSION,
+      status: "reviewing",
       sort: "highest-bounty",
     });
   });
 
-  test("trims a padded query rather than searching for whitespace", () => {
-    expect(parseBoardFilters({ q: "  calculus  " }).query).toBe("calculus");
+  test("falls back to the newest order when no sort is named", () => {
+    expect(parseBoardFilters({}).sort).toBe("newest");
   });
 
-  test("ignores a taxonomy value that is not on the Board", () => {
-    expect(parseBoardFilters({ campus: "oxford" }).campusId).toBeNull();
-    expect(parseBoardFilters({ course: "not-a-course" }).courseId).toBeNull();
-    expect(parseBoardFilters({ resource: "mp3" }).resourceTypeId).toBeNull();
-    expect(parseBoardFilters({ session: "1999" }).sessionId).toBeNull();
-  });
-
-  test("ignores a lifecycle state that is not one of ours", () => {
-    expect(parseBoardFilters({ status: "deleted" }).status).toBeNull();
-  });
-
-  test("falls back to the default sort rather than failing on a bad one", () => {
+  test("drops a sort the Board does not offer", () => {
     expect(parseBoardFilters({ sort: "cheapest" }).sort).toBe("newest");
   });
 
-  test("takes the first value when a parameter is repeated", () => {
-    expect(parseBoardFilters({ campus: ["shah-alam", "arau"] }).campusId).toBe("shah-alam");
+  /**
+   * The published contract accepts only `open` and `reviewing`. A status the
+   * server cannot honour must not be sent, or the Board would answer a
+   * question nobody asked.
+   */
+  test("drops a status the published contract does not accept", () => {
+    expect(parseBoardFilters({ status: "well-funded" }).status).toBeNull();
+    expect(parseBoardFilters({ status: "closed" }).status).toBeNull();
+  });
+
+  test("reads the first value when a parameter is repeated", () => {
+    expect(parseBoardFilters({ q: ["one", "two"] }).query).toBe("one");
   });
 });
 
-describe("counting what is applied", () => {
-  test("counts nothing on a fresh Board", () => {
-    expect(countActiveFilters(parseBoardFilters({}))).toBe(0);
+describe("turning the URL into the published query", () => {
+  test("sends nothing for an unfiltered Board but the default order", () => {
+    expect(toListWantedQuery(filters())).toEqual({ sort: "newest" });
   });
 
-  test("counts each applied filter", () => {
-    expect(countActiveFilters(parseBoardFilters({ campus: "arau", status: "open" }))).toBe(2);
+  test("names each identifier the way the contract names it", () => {
+    expect(
+      toListWantedQuery(
+        filters({
+          campusId: CAMPUS,
+          courseId: COURSE,
+          resourceTypeId: RESOURCE,
+          sessionId: SESSION,
+        }),
+      ),
+    ).toEqual({
+      sort: "newest",
+      campusId: CAMPUS,
+      courseId: COURSE,
+      resourceTypeId: RESOURCE,
+      academicSessionId: SESSION,
+    });
   });
 
-  test("does not count the search text, which is always visible on its own", () => {
-    expect(countActiveFilters(parseBoardFilters({ q: "calculus" }))).toBe(0);
+  test("sends the search text under the contract's own key", () => {
+    expect(toListWantedQuery(filters({ query: "past year" }))).toMatchObject({
+      query: "past year",
+    });
   });
 
-  test("does not count the sort order, which is never a filter", () => {
-    expect(countActiveFilters(parseBoardFilters({ sort: "ending-soon" }))).toBe(0);
+  test("omits an empty search rather than asking for everything matching nothing", () => {
+    expect(toListWantedQuery(filters({ query: "" }))).not.toHaveProperty("query");
+  });
+
+  test.each([
+    ["newest", "newest"],
+    ["highest-bounty", "highest_bounty"],
+    ["ending-soon", "ending_soon"],
+  ] as const)("translates the %s URL order to the contract's %s", (url, contract) => {
+    expect(toListWantedQuery(filters({ sort: url })).sort).toBe(contract);
+  });
+
+  test.each(["open", "reviewing"] as const)("passes the %s status through", (status) => {
+    expect(toListWantedQuery(filters({ status })).status).toBe(status);
+  });
+
+  test("omits the status when the reader has chosen no lifecycle filter", () => {
+    expect(toListWantedQuery(filters())).not.toHaveProperty("status");
   });
 });
 
-describe("building a Board address", () => {
-  test("addresses a plain Board with no query string", () => {
-    expect(boardHref(parseBoardFilters({}))).toBe("/board");
+describe("what the Board offers", () => {
+  test("offers exactly the three orders the contract can sort by", () => {
+    expect(BOARD_SORTS.map((option) => option.id)).toEqual([
+      "newest",
+      "highest-bounty",
+      "ending-soon",
+    ]);
   });
 
-  test("carries the applied filters so the view can be linked and shared", () => {
-    const href = boardHref(parseBoardFilters({ q: "notes", campus: "arau", sort: "ending-soon" }));
-
-    expect(href).toContain("q=notes");
-    expect(href).toContain("campus=arau");
-    expect(href).toContain("sort=ending-soon");
-  });
-
-  test("keeps the search text when clearing the filters", () => {
-    const href = boardHref(parseBoardFilters({ q: "notes", campus: "arau" }), { clear: true });
-
-    expect(href).toBe("/board?q=notes");
-  });
-
-  test("drops everything when clearing an unsearched Board", () => {
-    expect(boardHref(parseBoardFilters({ campus: "arau" }), { clear: true })).toBe("/board");
-  });
-
-  test("encodes a query safely", () => {
-    expect(boardHref(parseBoardFilters({ q: "past year & answers" }))).toBe(
-      "/board?q=past+year+%26+answers",
-    );
+  test("offers only the two statuses the contract accepts", () => {
+    expect(BOARD_STATUSES.map((option) => option.id)).toEqual(["open", "reviewing"]);
   });
 });
 
-describe("selecting Wanteds", () => {
-  test("returns everything when nothing is applied", () => {
-    expect(applyBoardFilters(WANTED, parseBoardFilters({}), NOW)).toHaveLength(WANTED.length);
+describe("counting and rebuilding the address", () => {
+  test("counts the filters that narrow, and neither the search nor the sort", () => {
+    expect(countActiveFilters(filters({ query: "notes", sort: "ending-soon" }))).toBe(0);
+    expect(countActiveFilters(filters({ campusId: CAMPUS, status: "open" }))).toBe(2);
   });
 
-  test("matches a course code regardless of case", () => {
-    const found = applyBoardFilters(WANTED, parseBoardFilters({ q: "csc510" }), NOW);
-
-    expect(found.length).toBeGreaterThan(0);
-    expect(found.every((wanted) => wanted.courseCode === "CSC510")).toBe(true);
-  });
-
-  test("matches words in the request title", () => {
-    const found = applyBoardFilters(WANTED, parseBoardFilters({ q: "formula sheet" }), NOW);
-
-    expect(found.map((wanted) => wanted.id)).toEqual(["eco415-formula-sheet"]);
-  });
-
-  test("matches a campus by name so a reader can search the way they speak", () => {
-    const found = applyBoardFilters(WANTED, parseBoardFilters({ q: "segamat" }), NOW);
-
-    expect(found.every((wanted) => wanted.campus.includes("Segamat"))).toBe(true);
-    expect(found.length).toBeGreaterThan(0);
-  });
-
-  test("finds nothing for a query that matches nothing", () => {
-    expect(applyBoardFilters(WANTED, parseBoardFilters({ q: "zzzz" }), NOW)).toEqual([]);
-  });
-
-  test("narrows to one campus", () => {
-    const found = applyBoardFilters(WANTED, parseBoardFilters({ campus: "arau" }), NOW);
-
-    expect(found.length).toBeGreaterThan(0);
-    expect(found.every((wanted) => wanted.campusId === "arau")).toBe(true);
-  });
-
-  test("narrows to one resource type", () => {
-    const found = applyBoardFilters(
-      WANTED,
-      parseBoardFilters({ resource: "past-year-answers" }),
-      NOW,
+  test("keeps every filter in the address so a filtered Board is linkable", () => {
+    const href = boardHref(
+      filters({ query: "past year", campusId: CAMPUS, status: "open", sort: "ending-soon" }),
     );
 
-    expect(found.every((wanted) => wanted.resourceTypeId === "past-year-answers")).toBe(true);
+    expect(href.startsWith("/board?")).toBe(true);
+    const params = new URLSearchParams(href.slice("/board?".length));
+    expect(params.get("q")).toBe("past year");
+    expect(params.get("campus")).toBe(CAMPUS);
+    expect(params.get("status")).toBe("open");
+    expect(params.get("sort")).toBe("ending-soon");
   });
 
-  test("narrows to one lifecycle state", () => {
-    const found = applyBoardFilters(WANTED, parseBoardFilters({ status: "closed" }), NOW);
-
-    expect(found.every((wanted) => wanted.status === "closed")).toBe(true);
+  test("leaves the default order out of the address", () => {
+    expect(boardHref(filters({ campusId: CAMPUS }))).toBe(`/board?campus=${CAMPUS}`);
   });
 
-  test("applies filters together rather than as alternatives", () => {
-    const found = applyBoardFilters(
-      WANTED,
-      parseBoardFilters({ campus: "shah-alam", resource: "revision-set" }),
-      NOW,
+  test("addresses an unfiltered Board without a query string", () => {
+    expect(boardHref(filters())).toBe("/board");
+  });
+
+  test("clearing keeps what the reader typed and drops the filters", () => {
+    expect(boardHref(filters({ query: "notes", campusId: CAMPUS }), { clear: true })).toBe(
+      "/board?q=notes",
+    );
+  });
+
+  test("a parsed address rebuilds to the same address", () => {
+    const original = `/board?q=past+year&campus=${CAMPUS}&status=reviewing&sort=ending-soon`;
+    const parsed = parseBoardFilters(
+      Object.fromEntries(new URLSearchParams(original.slice("/board?".length))),
     );
 
     expect(
-      found.every((w) => w.campusId === "shah-alam" && w.resourceTypeId === "revision-set"),
-    ).toBe(true);
-  });
-});
-
-describe("sorting", () => {
-  const items = [
-    aWanted({
-      id: "a",
-      grossBountySen: 1000 as never,
-      postedAt: "2026-09-01T00:00:00.000Z",
-      closesAt: "2026-09-30T00:00:00.000Z",
-    }),
-    aWanted({
-      id: "b",
-      grossBountySen: 5000 as never,
-      postedAt: "2026-09-12T00:00:00.000Z",
-      closesAt: "2026-09-16T00:00:00.000Z",
-    }),
-    aWanted({
-      id: "c",
-      grossBountySen: 3000 as never,
-      postedAt: "2026-09-05T00:00:00.000Z",
-      closesAt: "2026-09-15T00:00:00.000Z",
-    }),
-  ];
-
-  test("newest first puts the most recently posted at the top", () => {
-    const sorted = applyBoardFilters(items, parseBoardFilters({ sort: "newest" }), NOW);
-
-    expect(sorted.map((w) => w.id)).toEqual(["b", "c", "a"]);
-  });
-
-  test("highest bounty first ranks by money, not by time", () => {
-    const sorted = applyBoardFilters(items, parseBoardFilters({ sort: "highest-bounty" }), NOW);
-
-    expect(sorted.map((w) => w.id)).toEqual(["b", "c", "a"]);
-  });
-
-  test("ending soon ranks by the nearest deadline", () => {
-    const sorted = applyBoardFilters(items, parseBoardFilters({ sort: "ending-soon" }), NOW);
-
-    expect(sorted.map((w) => w.id)).toEqual(["c", "b", "a"]);
-  });
-
-  test("ending soon sends already-closed requests to the end, not the front", () => {
-    const withClosed = [
-      ...items,
-      aWanted({ id: "gone", status: "closed", closesAt: "2026-09-01T00:00:00.000Z" }),
-    ];
-    const sorted = applyBoardFilters(withClosed, parseBoardFilters({ sort: "ending-soon" }), NOW);
-
-    expect(sorted[sorted.length - 1]?.id).toBe("gone");
-  });
-
-  test("does not mutate the Wanteds it was given", () => {
-    const original = items.map((w) => w.id);
-
-    applyBoardFilters(items, parseBoardFilters({ sort: "highest-bounty" }), NOW);
-
-    expect(items.map((w) => w.id)).toEqual(original);
+      Object.fromEntries(new URLSearchParams(boardHref(parsed).slice("/board?".length))),
+    ).toEqual({
+      q: "past year",
+      campus: CAMPUS,
+      status: "reviewing",
+      sort: "ending-soon",
+    });
   });
 });

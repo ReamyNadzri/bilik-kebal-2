@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ShellNav } from "./shell-nav";
@@ -19,17 +20,17 @@ export interface AppShellProps {
 }
 
 /**
- * Application frame: skip link, navigation, main landmark, footer.
+ * Application frame: skip link, timber rail, main landmark, footer.
  *
  * The frame is a Server Component; only the navigation hydrates, because
- * marking the current destination needs the path. The layout at 360 px stacks
+ * marking the current destination needs the path. At 360 px the rail stacks
  * into bands rather than collapsing behind a disclosure button, so the shell
  * still needs no JavaScript to be usable.
  *
- * `main` is the parchment sheet the whole product is written on
- * (docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md
- * §2.1). Every screen, including the Identity screens built before this
- * direction existed, inherits the theme by sitting inside it.
+ * Content is written on paper laid over the timber
+ * (docs/superpowers/specs/2026-09-16-vaultix-frontier-visual-handoff.md).
+ * `app-shell__sheet` is that paper for every screen that does not compose
+ * its own panels; a page that does marks its root `page-bare`.
  */
 export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps) {
   return (
@@ -39,12 +40,22 @@ export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps
       </a>
 
       <header className="app-shell__header">
-        <Link className="app-shell__wordmark" href="/">
-          VAULTIX
-          <span className="app-shell__wordmark-rule" aria-hidden="true" />
-        </Link>
+        <div className="app-shell__bar">
+          <Link className="app-shell__wordmark" href="/">
+            <Image
+              className="app-shell__logo"
+              src="/brand/logo-tile.webp"
+              alt=""
+              width={40}
+              height={40}
+              priority
+              unoptimized
+            />
+            VAULTIX
+          </Link>
 
-        <ShellNav currentNavId={currentNavId} roleNav={roleNav} />
+          <ShellNav currentNavId={currentNavId} roleNav={roleNav} />
+        </div>
       </header>
 
       <main id="main-content" tabIndex={-1} className="app-shell__main">
@@ -52,15 +63,31 @@ export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps
       </main>
 
       <footer className="app-shell__footer">
-        <p className="app-shell__footer-line">
-          VAULTIX is an academic resource bounty marketplace for Malaysian university students. A
-          Sheriff reviews every claim before anyone gains access or is paid.
-        </p>
-        {process.env.NODE_ENV === "production" ? null : (
-          <p className="app-shell__dev-marker">
-            Development build. Visual design is provisional and pending the external handoff.
+        <div className="app-shell__footer-inner">
+          <div className="app-shell__footer-brand">
+            <Image
+              className="app-shell__logo"
+              src="/brand/logo-tile.webp"
+              alt=""
+              width={44}
+              height={44}
+              unoptimized
+            />
+            <div>
+              <p className="app-shell__footer-name">VAULTIX</p>
+              <p className="app-shell__footer-motto">Knowledge worth sharing</p>
+            </div>
+          </div>
+          <p className="app-shell__footer-line">
+            VAULTIX is an academic resource bounty marketplace for Malaysian university students. A
+            Sheriff reviews every claim before anyone gains access or is paid.
           </p>
-        )}
+          {process.env.NODE_ENV === "production" ? null : (
+            <p className="app-shell__dev-marker">
+              Development build. Screens marked &ldquo;Development only&rdquo; show fixture data.
+            </p>
+          )}
+        </div>
       </footer>
     </div>
   );

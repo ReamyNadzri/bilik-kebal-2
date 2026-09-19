@@ -1,120 +1,139 @@
-import { applyBoardFilters } from "./filters";
-import { FIXTURE_NOW, WANTED, findWantedDetail } from "./fixtures";
-import type { BoardFilters, MarketplaceResult, WantedDetail, WantedSummary } from "./types";
+import type {
+  ListWantedQuery,
+  MarketplaceOperationCode,
+  WantedDetail,
+  WantedSummary,
+} from "@/contracts/marketplace";
+import { listPublicWanted, readPublicWanted } from "@/modules/wanted/loaders/wanted-operations";
 
 /**
- * The replaceable seam between marketplace screens and their data.
+ * The seam between marketplace screens and the published public read
+ * operations.
  *
- * Phase 3 has published no Wanted operations, so every read here answers from
- * `fixtures.ts`. Screens import this module and nothing below it: when Codex
- * publishes the reads listed in §14 of
- * `docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md`,
- * the bodies change and no component does.
+ * Screens import this module and nothing below it. It calls the Codex-owned
+ * server loaders directly rather than fetching the application's own
+ * `GET /api/marketplace/wanted` routes: a server component asking its own HTTP
+ * route for data needs an absolute origin and hand-forwarded cookies to reach
+ * the same function it could have called, and the route handlers are two-line
+ * delegations to exactly these loaders.
  *
- * No Supabase client, no `fetch`, and no policy decision lives here. Whether a
- * viewer may browse, transact or claim is decided by the identity module and
- * enforced server-side and by RLS; this module only supplies metadata to
- * render.
+ * No Supabase client, no policy decision and no filtering lives here. Who may
+ * browse is decided by the read service and enforced again by RLS; which rows
+ * match a filter is decided by the server. This module only turns operation
+ * codes into the states a screen knows how to render, and it never lets a
+ * failure message through — those are written for logs, not for readers.
  */
 
 /**
- * States a fixture-backed screen cannot otherwise reach.
+ * What a public marketplace read can answer.
  *
- * A fixture never fails and is never empty, so the unavailable and empty
- * presentations would be unreachable in a browser and unreviewable. A
- * development-only query parameter makes them inspectable.
- *
- * Deliberately gated on `NODE_ENV`: in a production build the comparison is
- * statically false and the branch is removed, so no deployed page can be
- * pushed into a fake failure by a crafted URL.
+ * `signed-out` and `email-unverified` are trust states with their own remedy,
+ * `not-found` is a mistyped or withdrawn address rather than a failure, and
+ * `unavailable` is ours to fix. A successful empty result is `ready` with
+ * nothing in it, never `unavailable`: a Board that says "nobody needs
+ * anything" when the read failed would be a lie.
  */
-export type PreviewState = "unavailable" | "empty";
+export type MarketplaceRead<T> =
+  | { readonly status: "ready"; readonly data: T }
+  | { readonly status: "signed-out" }
+  | { readonly status: "email-unverified" }
+  | { readonly status: "not-found" }
+  | { readonly status: "unavailable" };
 
-export function readPreviewState(raw: string | readonly string[] | undefined): PreviewState | null {
-  if (process.env.NODE_ENV === "production") {
-    return null;
+type Refusal = Exclude<MarketplaceRead<never>, { status: "ready" }>;
+
+/**
+ * Every other code — `VALIDATION_ERROR` from a hand-edited query included — is
+ * unavailable rather than a state of its own: the reader cannot act on the
+ * difference, and naming it would leak how the request was rejected.
+ */
+function refusal(code: MarketplaceOperationCode): Refusal {
+  switch (code) {
+    case "AUTH_REQUIRED":
+      return { status: "signed-out" };
+    case "EMAIL_NOT_VERIFIED":
+      return { status: "email-unverified" };
+    case "WANTED_NOT_FOUND":
+      return { status: "not-found" };
+    default:
+      return { status: "unavailable" };
   }
-
-  const value = Array.isArray(raw) ? raw[0] : raw;
-
-  return value === "unavailable" || value === "empty" ? value : null;
 }
 
-/** The reference instant relative times are measured against. */
-export function marketplaceNow(): string {
-  return FIXTURE_NOW;
+/**
+ * The operations answer with a result rather than throwing, but a screen must
+ * degrade rather than fail if one ever does: a 500 tells the reader nothing and
+ * loses the rest of the page with it. The reason belongs in server logs.
+ */
+async function read<T>(operation: () => Promise<{ ok: boolean }>): Promise<MarketplaceRead<T>> {
+  try {
+    const result = (await operation()) as
+      { ok: true; data: T } | { ok: false; code: MarketplaceOperationCode };
+
+    return result.ok ? { status: "ready", data: result.data } : refusal(result.code);
+  } catch {
+    return { status: "unavailable" };
+  }
+}
+
+/** The filtered, sorted Board, exactly as the operation returned it. */
+export function listWanted(
+  query: ListWantedQuery,
+): Promise<MarketplaceRead<readonly WantedSummary[]>> {
+  return read(() => listPublicWanted(query));
 }
 
 /**
  * The Wanteds the homepage shows above the fold.
  *
- * Newest first and open to claims, because the homepage is an invitation to
- * take part rather than an archive: a closed bounty is the least useful thing
- * a first-time visitor could be shown.
+ * Newest first, and only a handful: the homepage is an invitation to take part
+ * rather than an archive. The order is the server's, not re-decided here.
  */
-export function listFeaturedWanted(
-  preview: PreviewState | null = null,
+export async function listFeaturedWanted(
   limit = 4,
-): MarketplaceResult<readonly WantedSummary[]> {
-  if (preview === "unavailable") {
-    return { status: "unavailable" };
-  }
+): Promise<MarketplaceRead<readonly WantedSummary[]>> {
+  const result = await listWanted({ sort: "newest" });
 
-  if (preview === "empty") {
-    return { status: "ready", data: [] };
-  }
-
-  const open = WANTED.filter((wanted) => wanted.status !== "closed");
-
-  return { status: "ready", data: open.slice(0, limit) };
+  return result.status === "ready"
+    ? { status: "ready", data: result.data.slice(0, limit) }
+    : result;
 }
 
 /**
- * The filtered, sorted Board.
+ * One Wanted, by its opaque public identifier.
  *
- * The filtering happens in `filters.ts` because a fixture has to do here what
- * the Board read will do on the server. When that read arrives, the filters go
- * with the request and this function forwards them instead.
+ * `not-found` is kept distinct from `unavailable` so the page can answer a
+ * mistyped address with a real 404 instead of telling the reader something
+ * broke.
  */
-export function listWanted(
-  filters: BoardFilters,
-  preview: PreviewState | null = null,
-): MarketplaceResult<readonly WantedSummary[]> {
-  if (preview === "unavailable") {
-    return { status: "unavailable" };
-  }
-
-  const source = preview === "empty" ? [] : WANTED;
-
-  return { status: "ready", data: applyBoardFilters(source, filters, FIXTURE_NOW) };
-}
-
-/** How many Wanteds exist before any filter is applied. */
-export function countAllWanted(preview: PreviewState | null = null): number {
-  return preview === "empty" ? 0 : WANTED.length;
+export function readWanted(publicId: string): Promise<MarketplaceRead<WantedDetail>> {
+  return read(() => readPublicWanted(publicId));
 }
 
 /**
- * One Wanted in full.
+ * The Wanteds suggested beside a request, resolved from their public
+ * identifiers.
  *
- * `null` means no request has that public identifier, which the page turns
- * into a 404 rather than an error: a mistyped address is not a failure of the
- * marketplace.
+ * Capped, because this runs per detail view. An identifier that no longer
+ * resolves is dropped rather than failing the page: a suggestion that has
+ * since closed is not a reason to refuse the request the reader asked for.
  */
-export function readWanted(
-  id: string,
-  preview: PreviewState | null = null,
-): MarketplaceResult<WantedDetail | null> {
-  if (preview === "unavailable") {
-    return { status: "unavailable" };
-  }
+export async function readSimilarWanted(
+  detail: WantedDetail,
+  limit = 4,
+): Promise<readonly WantedSummary[]> {
+  const results = await Promise.all(detail.similarIds.slice(0, limit).map((id) => readWanted(id)));
 
-  return { status: "ready", data: findWantedDetail(id) };
+  return results.flatMap((result) => (result.status === "ready" ? [result.data] : []));
 }
 
-/** The Wanteds suggested beside a request, resolved from their identifiers. */
-export function readSimilarWanted(detail: WantedDetail): readonly WantedSummary[] {
-  return detail.similarIds
-    .map((id) => WANTED.find((wanted) => wanted.id === id))
-    .filter((wanted): wanted is WantedSummary => wanted !== undefined);
+/**
+ * The instant relative times on a screen are measured against.
+ *
+ * Read once per render on the server and passed down, so every "closes in"
+ * on a page is measured from the same moment and no component reads a clock
+ * of its own.
+ */
+export function marketplaceNow(): string {
+  return new Date().toISOString();
 }

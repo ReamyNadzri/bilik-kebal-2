@@ -8,6 +8,10 @@ test("keeps the Board current while reading one of its Wanteds", () => {
   expect(activeNavId("/wanted/csc510-final-exam-notes")).toBe("board");
 });
 
+test("marks Explore Map for the campus map", () => {
+  expect(activeNavId("/map")).toBe("map");
+});
+
 test("marks Hunt for the claims section", () => {
   expect(activeNavId("/claims")).toBe("claims");
 });

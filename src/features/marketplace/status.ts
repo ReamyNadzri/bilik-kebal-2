@@ -98,3 +98,44 @@ const CLAIM_STATUS: Record<ClaimStatus, ClaimStatusPresentation> = {
 export function claimStatusPresentation(status: ClaimStatus): ClaimStatusPresentation {
   return CLAIM_STATUS[status];
 }
+
+/** The five stations every claim passes on its way to a payout. */
+export const CLAIM_STAGES = ["Draft", "Screening", "Sheriff review", "Decision", "Payout"] as const;
+
+/**
+ * Where a claim stands at one station.
+ *
+ * `ended` and `stopped` are both the last station a claim reached, and differ
+ * for the same reason `not-selected` and `rejected` do: a claim that was valid
+ * but not chosen ended at the decision, while a claim that breached the content
+ * policy, or was quarantined, was stopped. The track never paints the first as
+ * the second.
+ */
+export type ClaimStageState = "done" | "current" | "ended" | "stopped" | "ahead";
+
+export interface ClaimStage {
+  readonly label: (typeof CLAIM_STAGES)[number];
+  readonly state: ClaimStageState;
+}
+
+const CLAIM_POSITION: Record<ClaimStatus, { readonly at: number; readonly last: ClaimStageState }> =
+  {
+    draft: { at: 0, last: "current" },
+    screening: { at: 1, last: "current" },
+    "needs-information": { at: 1, last: "current" },
+    quarantined: { at: 1, last: "stopped" },
+    "under-review": { at: 2, last: "current" },
+    "not-selected": { at: 3, last: "ended" },
+    rejected: { at: 3, last: "stopped" },
+    // Approved by a Sheriff; the Owner has not yet recorded the payout.
+    approved: { at: 4, last: "current" },
+  };
+
+export function claimStages(status: ClaimStatus): readonly ClaimStage[] {
+  const { at, last } = CLAIM_POSITION[status];
+
+  return CLAIM_STAGES.map((label, index) => ({
+    label,
+    state: index < at ? "done" : index === at ? last : "ahead",
+  }));
+}

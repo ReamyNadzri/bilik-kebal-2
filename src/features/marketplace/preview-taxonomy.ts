@@ -1,6 +1,6 @@
 import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
+import type { PreviewState } from "./fixture-preview";
 import type { MarketplaceResult } from "./types";
-import type { PreviewState } from "./wanted-source";
 
 /**
  * Development-only option lists for the creation-workspace preview harness.

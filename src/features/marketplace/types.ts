@@ -1,13 +1,16 @@
-import type { Sen } from "./money";
+import type { WantedDetail, WantedSummary } from "@/contracts/marketplace";
 
 /**
- * Frontend view models for the Wanted marketplace.
+ * Presentation types the marketplace screens need that no contract owns.
  *
- * These are presentation shapes, not database rows and not a fork of a Codex
- * contract — Phase 3 has published none yet. Section 14 of
- * `docs/superpowers/specs/2026-09-14-vaultix-marketplace-visual-direction.md`
- * records the reads that must replace them. When those arrive, this file is
- * deleted and the components consume the contract types directly.
+ * `WantedSummary`, `WantedDetail`, the lifecycle union, `Sen` and every
+ * operation-result shape belong to `src/contracts/marketplace.ts` and are
+ * re-exported here rather than restated, so a field the backend adds reaches
+ * the components without a second definition drifting behind it.
+ *
+ * What remains below is genuinely the frontend's: the Board's URL state, and
+ * the Hunter view models for `/claims`, which is still Phase 4 fixture work
+ * with no published contract to consume.
  *
  * Nothing here may carry a storage path, bucket, object key, checksum, file
  * name, evidence reference or personal datum. A Wanted is metadata about a
@@ -15,71 +18,15 @@ import type { Sen } from "./money";
  * Sheriff has approved it (`context/architecture.md`).
  */
 
-/** Where a Wanted sits in its lifecycle, as a reader needs to understand it. */
-export type WantedStatus = "open" | "ending-soon" | "well-funded" | "reviewing" | "closed";
+export type { WantedDetail, WantedSummary };
 
+/** Where a Wanted sits in its lifecycle, as the contract presents it. */
+export type WantedStatus = WantedSummary["status"];
+
+/** The shape the Board's filter selects need from any catalogue option. */
 export interface TaxonomyOption {
   readonly id: string;
   readonly label: string;
-}
-
-export interface WantedSummary {
-  /** Opaque public identifier. Never an internal row id. */
-  readonly id: string;
-  readonly title: string;
-  readonly courseCode: string;
-  readonly courseName: string;
-  readonly courseId: string;
-  readonly campus: string;
-  readonly campusId: string;
-  readonly resourceType: string;
-  readonly resourceTypeId: string;
-  readonly session: string;
-  readonly sessionId: string;
-  /** Gross bounty in integer sen. Presentation formats it; nothing computes on it. */
-  readonly grossBountySen: Sen;
-  readonly backerCount: number;
-  readonly status: WantedStatus;
-  readonly postedAt: string;
-  readonly closesAt: string;
-}
-
-export interface WantedActivityEvent {
-  readonly id: string;
-  readonly at: string;
-  readonly summary: string;
-}
-
-/**
- * How a Commissioner's trustworthiness is presented.
- *
- * A display name and two verification states, and nothing else. No email, no
- * matric number, no institution evidence, no contact route.
- */
-export interface CommissionerPresentation {
-  readonly displayName: string;
-  readonly emailVerified: boolean;
-  readonly institutionVerified: boolean;
-}
-
-export interface WantedDetail extends WantedSummary {
-  readonly description: string;
-  readonly faculty: string;
-  readonly programme: string;
-  readonly language: string;
-  readonly tags: readonly string[];
-  readonly commissioner: CommissionerPresentation;
-  /**
-   * The platform fee rate snapshotted when this Wanted was published, in basis
-   * points. Snapshotting is an invariant (`context/architecture.md`), so the
-   * rate travels with the Wanted rather than being read from configuration at
-   * display time.
-   */
-  readonly feeRateBasisPoints: number;
-  readonly policyVersion: string;
-  readonly activity: readonly WantedActivityEvent[];
-  /** Public ids of Wanteds a reader should check before funding this one. */
-  readonly similarIds: readonly string[];
 }
 
 /** What a Hunter must be before they may claim a given Wanted. */
@@ -123,8 +70,16 @@ export interface ClaimSummary {
   readonly submittedAt: string | null;
 }
 
-/** Sort orders the Board offers. Each maps to a URL value. */
+/** Sort orders the Board offers. Each maps to a URL value, then to a contract value. */
 export type BoardSort = "newest" | "highest-bounty" | "ending-soon";
+
+/**
+ * The lifecycle states the Board may filter by.
+ *
+ * Narrower than `WantedStatus`: `ending-soon`, `well-funded` and `closed` are
+ * presentations the server derives, not filters the published query accepts.
+ */
+export type BoardStatus = "open" | "reviewing";
 
 export interface BoardFilters {
   readonly query: string;
@@ -132,7 +87,7 @@ export interface BoardFilters {
   readonly courseId: string | null;
   readonly resourceTypeId: string | null;
   readonly sessionId: string | null;
-  readonly status: WantedStatus | null;
+  readonly status: BoardStatus | null;
   readonly sort: BoardSort;
 }
 

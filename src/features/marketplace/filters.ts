@@ -1,17 +1,20 @@
-import { CAMPUSES, COURSES, RESOURCE_TYPES, SESSIONS } from "./fixtures";
-import type { BoardFilters, BoardSort, TaxonomyOption, WantedStatus, WantedSummary } from "./types";
+import type { ListWantedQuery } from "@/contracts/marketplace";
+import type { BoardFilters, BoardSort, BoardStatus } from "./types";
 
 /**
- * Board filter state, carried in the URL.
+ * Board filter state, carried in the URL and translated into the published
+ * query.
  *
  * Every control on the Board is a plain `GET` field, so a filtered Board is
  * linkable, survives the back button and works before JavaScript loads. This
  * follows the structure settled in
  * `docs/superpowers/specs/2026-09-14-vaultix-identity-screen-design.md` §10.3.
  *
- * `applyBoardFilters` is a fixture-side stand-in for work the Board read will
- * do on the server. Parsing and address-building stay here when that arrives;
- * the selection does not.
+ * Nothing here selects or orders rows. `GET /api/marketplace/wanted` does both,
+ * and this module only names the same thing in two vocabularies: the URL values
+ * readers already have in their history and bookmarks, and the contract values
+ * the server accepts. The URL values are kept and translated rather than
+ * changed, because a contract is not something a frontend renames.
  */
 
 export const BOARD_SORTS: readonly { readonly id: BoardSort; readonly label: string }[] = [
@@ -20,13 +23,25 @@ export const BOARD_SORTS: readonly { readonly id: BoardSort; readonly label: str
   { id: "ending-soon", label: "Ending soonest" },
 ] as const;
 
-export const BOARD_STATUSES: readonly { readonly id: WantedStatus; readonly label: string }[] = [
+/**
+ * The published contract accepts `open` and `reviewing` and nothing else.
+ *
+ * `ending-soon`, `well-funded` and `closed` remain on the cards, where the
+ * server derives them from the closing instant and the bounty — but they are
+ * presentations of a request, not lifecycle values the Board can filter by.
+ * Offering them here would send a question the server cannot answer.
+ */
+export const BOARD_STATUSES: readonly { readonly id: BoardStatus; readonly label: string }[] = [
   { id: "open", label: "Open" },
-  { id: "ending-soon", label: "Ending soon" },
-  { id: "well-funded", label: "Well funded" },
   { id: "reviewing", label: "Under review" },
-  { id: "closed", label: "Closed" },
 ] as const;
+
+/** URL order to contract order. The URL spelling is the one readers already hold. */
+const SORT_TO_CONTRACT: Readonly<Record<BoardSort, NonNullable<ListWantedQuery["sort"]>>> = {
+  newest: "newest",
+  "highest-bounty": "highest_bounty",
+  "ending-soon": "ending_soon",
+};
 
 type RawParams = Record<string, string | readonly string[] | undefined>;
 
@@ -35,33 +50,44 @@ function first(raw: string | readonly string[] | undefined): string | undefined 
 }
 
 /**
- * An unknown value is dropped rather than passed through.
+ * Reads the filters a URL carries.
  *
- * A hand-edited URL must not be able to put the Board into a state its own
- * controls cannot show or clear.
+ * Taxonomy identifiers pass through unvalidated: they are opaque server
+ * identifiers, and the Board has no authority to decide which of them exist.
+ * One the catalogue does not contain simply matches nothing, which the Board
+ * already words as "no request matches these filters" and offers to clear.
+ *
+ * A status or sort the contract does not accept is dropped rather than
+ * forwarded, so a hand-edited URL cannot make the Board ask an invalid
+ * question and be refused for it.
  */
-function known(
-  raw: string | readonly string[] | undefined,
-  options: readonly TaxonomyOption[],
-): string | null {
-  const value = first(raw);
-
-  return value !== undefined && options.some((option) => option.id === value) ? value : null;
-}
-
 export function parseBoardFilters(params: RawParams): BoardFilters {
   const status = first(params["status"]);
   const sort = first(params["sort"]);
 
   return {
     query: (first(params["q"]) ?? "").trim(),
-    campusId: known(params["campus"], CAMPUSES),
-    courseId: known(params["course"], COURSES),
-    resourceTypeId: known(params["resource"], RESOURCE_TYPES),
-    sessionId: known(params["session"], SESSIONS),
-    status: BOARD_STATUSES.some((option) => option.id === status) ? (status as WantedStatus) : null,
+    campusId: first(params["campus"]) ?? null,
+    courseId: first(params["course"]) ?? null,
+    resourceTypeId: first(params["resource"]) ?? null,
+    sessionId: first(params["session"]) ?? null,
+    status: BOARD_STATUSES.some((option) => option.id === status) ? (status as BoardStatus) : null,
     sort: BOARD_SORTS.some((option) => option.id === sort) ? (sort as BoardSort) : "newest",
   };
+}
+
+/** The Board's URL state as the published `ListWantedQuery`. */
+export function toListWantedQuery(filters: BoardFilters): ListWantedQuery {
+  const query: ListWantedQuery = { sort: SORT_TO_CONTRACT[filters.sort] };
+
+  if (filters.query !== "") query.query = filters.query;
+  if (filters.campusId !== null) query.campusId = filters.campusId;
+  if (filters.courseId !== null) query.courseId = filters.courseId;
+  if (filters.resourceTypeId !== null) query.resourceTypeId = filters.resourceTypeId;
+  if (filters.sessionId !== null) query.academicSessionId = filters.sessionId;
+  if (filters.status !== null) query.status = filters.status;
+
+  return query;
 }
 
 /**
@@ -79,6 +105,11 @@ export function countActiveFilters(filters: BoardFilters): number {
     filters.sessionId,
     filters.status,
   ].filter((value) => value !== null).length;
+}
+
+/** Whether the reader has narrowed the Board at all, search included. */
+export function isNarrowed(filters: BoardFilters): boolean {
+  return filters.query !== "" || countActiveFilters(filters) > 0;
 }
 
 export interface BoardHrefOptions {
@@ -105,80 +136,4 @@ export function boardHref(filters: BoardFilters, options: BoardHrefOptions = {})
   const query = params.toString();
 
   return query === "" ? "/board" : `/board?${query}`;
-}
-
-/**
- * Matched across the fields a student would actually type.
- *
- * Course code, course name, title, campus, resource type and academic session
- * — someone looking for "segamat" or "past year" should find the request
- * without knowing which field the words live in.
- */
-function matchesQuery(wanted: WantedSummary, query: string): boolean {
-  if (query === "") {
-    return true;
-  }
-
-  const haystack = [
-    wanted.title,
-    wanted.courseCode,
-    wanted.courseName,
-    wanted.campus,
-    wanted.resourceType,
-    wanted.session,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .every((term) => haystack.includes(term));
-}
-
-function compare(a: WantedSummary, b: WantedSummary, sort: BoardSort): number {
-  switch (sort) {
-    case "newest":
-      return Date.parse(b.postedAt) - Date.parse(a.postedAt);
-    case "highest-bounty":
-      return b.grossBountySen - a.grossBountySen;
-    case "ending-soon":
-      return Date.parse(a.closesAt) - Date.parse(b.closesAt);
-  }
-}
-
-export function applyBoardFilters(
-  items: readonly WantedSummary[],
-  filters: BoardFilters,
-  now: string,
-): readonly WantedSummary[] {
-  const matched = items.filter(
-    (wanted) =>
-      matchesQuery(wanted, filters.query) &&
-      (filters.campusId === null || wanted.campusId === filters.campusId) &&
-      (filters.courseId === null || wanted.courseId === filters.courseId) &&
-      (filters.resourceTypeId === null || wanted.resourceTypeId === filters.resourceTypeId) &&
-      (filters.sessionId === null || wanted.sessionId === filters.sessionId) &&
-      (filters.status === null || wanted.status === filters.status),
-  );
-
-  const reference = Date.parse(now);
-
-  /**
-   * Sorting by the nearest deadline would otherwise put every expired request
-   * at the top, which is the opposite of what "ending soonest" promises. A
-   * request whose deadline has passed goes last whatever the order.
-   */
-  return [...matched].sort((a, b) => {
-    if (filters.sort === "ending-soon") {
-      const aPast = Date.parse(a.closesAt) <= reference;
-      const bPast = Date.parse(b.closesAt) <= reference;
-
-      if (aPast !== bPast) {
-        return aPast ? 1 : -1;
-      }
-    }
-
-    return compare(a, b, filters.sort);
-  });
 }

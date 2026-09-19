@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PixelIcon, type PixelIconName } from "./pixel-icon";
 import {
   ACCOUNT_NAV,
   MARKETPLACE_NAV,
@@ -22,7 +23,15 @@ export interface ShellNavProps {
   readonly roleNav?: readonly NavItem[] | undefined;
 }
 
+/** Account utilities carry a small icon; the word always travels with it. */
+const ACCOUNT_ICONS: Partial<Record<NavItemId, PixelIconName>> = {
+  notifications: "bell",
+  profile: "person",
+};
+
 function NavLink({ item, current }: { readonly item: NavItem; readonly current: boolean }) {
+  const icon = ACCOUNT_ICONS[item.id];
+
   return (
     <li>
       <Link
@@ -30,23 +39,30 @@ function NavLink({ item, current }: { readonly item: NavItem; readonly current: 
         className="shell-nav__link"
         aria-current={current ? "page" : undefined}
       >
-        {item.label}
+        {icon === undefined ? null : <PixelIcon name={icon} className="shell-nav__icon" />}
+        <span className={icon === undefined ? undefined : "shell-nav__link-text--secondary"}>
+          {item.label}
+        </span>
       </Link>
     </li>
   );
 }
 
 /**
- * The shell's two navigation landmarks and the one prominent action.
+ * The rail's two navigation landmarks, a title search and the one prominent
+ * action.
  *
  * A Client Component solely to read the path: marking the current destination
  * is the only thing here that needs the browser. Everything it renders is
- * links, so it works before hydration and continues to work if hydration never
- * happens — the active mark is the only thing lost.
+ * links and a `GET` form, so it works before hydration and continues to work
+ * if hydration never happens — the active mark is the only thing lost.
  *
  * Marketplace destinations and account utilities are separate `nav` elements
  * with their own labels. The hierarchy is therefore real for a screen-reader
  * user cycling landmarks, not just visible to a sighted one.
+ *
+ * The search asks the Board, whose published read matches request titles
+ * only, so it is labelled as a title search and promises nothing more.
  *
  * A role destination appearing here is a convenience. The console enforces
  * role and institution scope server-side and through RLS; hiding a link is not
@@ -65,6 +81,20 @@ export function ShellNav({ currentNavId, roleNav = [] }: ShellNavProps) {
           ))}
         </ul>
       </nav>
+
+      <form className="shell-nav__search" action="/board" method="get" role="search">
+        <PixelIcon name="search" className="shell-nav__icon" />
+        <label className="visually-hidden" htmlFor="shell-search">
+          Quick search by request title
+        </label>
+        <input
+          className="shell-nav__search-input"
+          id="shell-search"
+          name="q"
+          type="search"
+          placeholder="Search request titles"
+        />
+      </form>
 
       <nav aria-label="Account" className="shell-nav__account">
         <ul className="shell-nav__list">
