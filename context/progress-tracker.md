@@ -71,17 +71,17 @@ Update this file after every meaningful implementation or specification change.
 - Phase 4 Slice 1 adds claim submission contracts and eligibility policy, a private `claims` and
   `claim_upload_sessions` schema, exact-checksum uniqueness, and a private `quarantine` bucket
   with no browser storage write policy. The full pgTAP suite now passes 110 tests.
+- Phase 4 Slice 2 adds the server-side upload-session service. It validates trust, file limits, opaque quarantine object keys, expiry and the disabled-upload launch gate before a signed upload can be issued.
+- Phase 4 Slice 3 adds identifier-only scanner job/result contracts and a human Sheriff review policy. Scanner evidence can inform review but cannot approve a claim.
 
 ## Next Up
 
-1. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
-2. Review the existing `/`, `/board`, and `/wanted/[id]` integration on the UI branch against the
-   current public Wanted read contract while preserving signed-out, email-unverified, unavailable,
-   empty and not-found states.
-3. Add operator reconciliation UI and provider-status polling only after its access and operational workflow are specified.
-4. Keep `/claims` fixture-backed until Phase 4 Claims and moderation.
-5. Incorporate the external visual design handoff into `ui-context.md` when it is available.
-6. Resolve the remaining launch-gate decisions before enabling their affected public capabilities.
+1. Add the server repository and delivery route for claim upload sessions; keep the upload flag disabled by default.
+2. Define scanner persistence and queue acknowledgement behind the separate worker boundary.
+3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
+4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
+5. Keep `/claims` fixture-backed until the claim HTTP contract and private upload flow are integrated.
+6. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
 ## Open Questions
 
