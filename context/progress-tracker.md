@@ -4,15 +4,15 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 3B money/ledger and the public Wanted read operations are implemented on `codex/backend`.
-  Frontend ownership has moved from Claude Code to Gemini; the existing UI worktree contains
-  uncommitted work that must be preserved during handoff.
-- Phase 4 Claims and moderation has started with the claims upload boundary and quarantine RLS.
+- Phase 3B money/ledger, public Wanted reads, and the Phase 4 claims boundary are integrated on
+  `main`. The Gemini frontier interface and Codex backend are now in one reviewable tree.
+- Phase 4 Claims and moderation has started with quarantine RLS, upload-session authorization,
+  scanner contracts, and human review policy.
 
 ## Current Goal
 
-- Complete the Phase 3B database gate when the local Docker/Supabase stack is available, and hand
-  the money and Wanted read contracts to Gemini for the remaining Phase 3 frontend integration.
+- Complete the Phase 4 server delivery route and persistence slices on the integrated tree while
+  keeping public uploads and live payment disabled.
 
 ## Completed
 
