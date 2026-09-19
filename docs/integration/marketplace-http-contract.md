@@ -5,6 +5,24 @@ Phase 3A publishes the authenticated Wanted-creation boundary. Every response is
 `Cache-Control: private, no-store`. Commissioner identity and institution always come from the
 Supabase session/account read; caller-supplied identity fields are discarded.
 
+## Public Wanted reads
+
+`GET /api/marketplace/wanted` returns `WantedSummary[]` for an email-verified viewer. It accepts
+`query`, `campusId`, `courseId`, `resourceTypeId`, `academicSessionId`, `status` (`open` or
+`reviewing`) and `sort` (`newest`, `highest_bounty` or `ending_soon`). Unknown enum values return
+`VALIDATION_ERROR` (422). Bounty totals are recorded contributions in integer sen; backer count is
+the number of distinct contributors.
+
+`GET /api/marketplace/wanted/:publicId` returns `WantedDetail` by opaque public identifier. It
+includes publication snapshots, safe Commissioner presentation, tags and public activity, but no
+internal row ID, email, payment-provider data, ledger row or file metadata. Unknown and non-public
+records return `WANTED_NOT_FOUND` (404). An expired public Wanted remains readable with the
+presentation status `closed`; its bounty size and closing time cannot make it appear open.
+
+Both reads require a signed-in email-verified viewer. The server composes protected aggregates only
+after authenticating the viewer; browser access to contribution identities remains restricted by
+RLS.
+
 ## Taxonomy
 
 ### `GET /api/marketplace/taxonomy`
