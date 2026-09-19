@@ -1348,6 +1348,22 @@ export type Database = {
         Args: { target_request_id: string };
         Returns: string;
       };
+      create_claim_upload_session: {
+        Args: {
+          target_expires_at: string;
+          target_file_name: string;
+          target_free_release_opt_in: boolean;
+          target_mime_type: string;
+          target_object_key: string;
+          target_sha256_hex: string;
+          target_size_bytes: number;
+          target_wanted_id: string;
+        };
+        Returns: {
+          claim_id: string;
+          object_key: string;
+        }[];
+      };
       create_contribution_intent: {
         Args: {
           amount_sen: number;

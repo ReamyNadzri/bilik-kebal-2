@@ -1,11 +1,17 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 
 select has_table('public', 'claims', 'claims table exists');
 select has_table('public', 'claim_upload_sessions', 'claim upload sessions exist');
 select has_type('public', 'claim_status', 'claim lifecycle exists');
+select has_function(
+  'public',
+  'create_claim_upload_session',
+  ARRAY['uuid', 'text', 'text', 'integer', 'text', 'text', 'timestamp with time zone', 'boolean'],
+  'server claim upload operation exists'
+);
 select is(
   (select relrowsecurity from pg_class where oid = 'public.claims'::regclass),
   true,
@@ -23,6 +29,15 @@ select throws_ok(
   '42501',
   'permission denied for table claims',
   'anonymous users cannot read claims'
+);
+select throws_ok(
+  $$ select public.create_claim_upload_session(
+    '74000000-0000-0000-0000-000000000001', 'notes.pdf', 'application/pdf', 100,
+    repeat('a', 64), 'claim/object', now(), false
+  ) $$,
+  '42501',
+  null,
+  'anonymous users cannot execute the upload operation'
 );
 
 reset role;
