@@ -19,19 +19,21 @@ export default function SignOutPage() {
         </div>
       </div>
 
-      <UiStatus
-        kind="restricted"
-        heading="Sign out of VAULTIX"
-        message="Click the button below to end your session, or return to your profile."
-        action={
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <SignOutButton />
-            <Link className="button button--secondary" href="/profile">
-              Return to Profile
-            </Link>
-          </div>
-        }
-      />
+      <div className="panel">
+        <UiStatus
+          kind="restricted"
+          heading="Sign out of VAULTIX"
+          message="Click the button below to end your session, or return to your profile."
+          action={
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+              <SignOutButton />
+              <Link className="button button--secondary" href="/profile">
+                Return to Profile
+              </Link>
+            </div>
+          }
+        />
+      </div>
     </div>
   );
 }
