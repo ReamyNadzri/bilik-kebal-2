@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SignOutButton } from "./sign-out-button";
 import { VerificationStatus } from "./verification-status";
 import type { AccountViewModel } from "@/contracts";
 
@@ -120,6 +121,13 @@ export function AccountSummary({ account }: AccountSummaryProps) {
           </p>
         </section>
       ) : null}
+
+      <section className="account-summary__session">
+        <h2>Session</h2>
+        <p>
+          <SignOutButton />
+        </p>
+      </section>
     </>
   );
 }
