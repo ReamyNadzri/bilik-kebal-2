@@ -1,9 +1,12 @@
 import Image from "next/image";
+import type { AccountViewModel } from "@/contracts";
 import type { ClaimStatus, ClaimSummary } from "@/features/marketplace/types";
 
 export interface HunterOfficeProps {
   /** The viewer's claims, or `null` when they could not be read. */
   readonly claims: readonly ClaimSummary[] | null;
+  /** The signed-in user's account details, or null when signed out. */
+  readonly account?: AccountViewModel | null;
 }
 
 const IN_REVIEW: readonly ClaimStatus[] = ["screening", "needs-information", "under-review"];
@@ -11,17 +14,9 @@ const IN_REVIEW: readonly ClaimStatus[] = ["screening", "needs-information", "un
 /**
  * The Hunter's Office masthead on the Hunt workspace.
  *
- * The handoff shows claims won, net earned and a win rate. Earnings and rates
- * are money and judgement no operation produces, so the figures here are only
- * counts of the claim list the page was given
- * (docs/superpowers/specs/2026-09-16-vaultix-frontier-visual-handoff.md §6).
- * When that list could not be read, no figure is shown at all rather than a
- * row of zeros that would read as a Hunter with no history.
- *
- * The portrait is decorative and fixture: no operation yet returns the
- * viewer's chosen avatar.
+ * Displays the authenticated hunter's profile and live summary of their claims.
  */
-export function HunterOffice({ claims }: HunterOfficeProps) {
+export function HunterOffice({ claims, account }: HunterOfficeProps) {
   const stats =
     claims === null
       ? null
@@ -41,6 +36,10 @@ export function HunterOffice({ claims }: HunterOfficeProps) {
           },
         ];
 
+  const displayName = account?.displayName ?? null;
+  const institution = account?.institution?.name ?? "Academic Hunter";
+  const isVerified = account?.trust.institution === "verified";
+
   return (
     <section className="hunt-office panel" aria-labelledby="hunt-office-title">
       <div className="hunt-office__row">
@@ -53,8 +52,13 @@ export function HunterOffice({ claims }: HunterOfficeProps) {
           unoptimized
         />
         <div className="hunt-office__intro">
-          <p className="pixel-label">Hunter&rsquo;s Office</p>
-          <h1 id="hunt-office-title">Take a hunt, claim the bounty</h1>
+          <p className="pixel-label">
+            {displayName ? `${displayName} · ${institution}` : "Hunter’s Office"}
+            {isVerified ? " · ★ Verified" : ""}
+          </p>
+          <h1 id="hunt-office-title">
+            {displayName ? `Welcome back, ${displayName}` : "Take a hunt, claim the bounty"}
+          </h1>
           <p className="hunt-office__lede">
             Pick up an open request, submit a resource you are authorised to share, and follow it
             through Sheriff review.

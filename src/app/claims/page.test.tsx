@@ -5,23 +5,18 @@ async function renderPage(params: Record<string, string> = {}) {
   return render(await ClaimsPage({ searchParams: Promise.resolve(params) }));
 }
 
-/**
- * `/claims` is Phase 4 Claims and moderation. No read contract exists for it,
- * so it stays fixture-backed and must keep saying so — the marker is retired
- * only in the slice that connects the screen to a real operation
- * (docs/superpowers/plans/2026-09-13-vaultix-mvp-coordination.md §5).
- */
-test("still says it is fixture-backed, because it still is", async () => {
+test("prompts unauthenticated visitors to sign in to claim bounties", async () => {
   await renderPage();
 
-  expect(screen.getByText("Development only")).toBeInTheDocument();
-  expect(screen.getByText(/not connected to a live operation/i)).toBeInTheDocument();
+  expect(screen.getByText("Sign in to submit and track claims")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
 });
 
-test("names the Hunt workspace as the fixture-backed surface", async () => {
+test("renders the Hunter's Office masthead", async () => {
   await renderPage();
 
-  expect(screen.getByText(/The Hunt workspace/)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Take a hunt, claim the bounty" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Open hunts" })).toBeInTheDocument();
 });
 
 test("keeps its own development preview states, which the connected routes no longer need", async () => {
