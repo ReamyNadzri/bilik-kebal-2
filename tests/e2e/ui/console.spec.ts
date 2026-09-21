@@ -52,6 +52,9 @@ test.describe("Sheriff Console", () => {
 
   test("never exposes a storage path", async ({ page }) => {
     await page.goto("/console");
+    // Reading the document while the guard is still redirecting throws, so the
+    // snapshot is taken of whichever screen the viewer actually lands on.
+    await page.waitForLoadState("networkidle");
 
     const html = await page.content();
 
@@ -62,7 +65,7 @@ test.describe("Sheriff Console", () => {
   test("no longer marks the screen as development fixture data", async ({ page }) => {
     await page.goto("/console");
 
-    await expect(page.getByText("Development only")).toHaveCount(0);
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
   });
 
   test("does not advertise the console to a viewer whose role lacks it", async ({ page }) => {

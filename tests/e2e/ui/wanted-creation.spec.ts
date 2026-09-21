@@ -32,8 +32,19 @@ function pageAlerts(page: Page) {
   return page.locator("main [role='alert']");
 }
 
+/**
+ * The form's own title field.
+ *
+ * Scoped to `main` for the same reason the alerts are: the shell rail carries
+ * a search box labelled "Quick search by request titles", and a non-exact
+ * label match picks that up as well.
+ */
+function titleField(page: Page) {
+  return page.getByRole("main").getByLabel("Title", { exact: false });
+}
+
 async function fillValidDraft(page: Page): Promise<void> {
-  await page.getByLabel("Title", { exact: false }).fill("Final exam notes for the whole syllabus");
+  await titleField(page).fill("Final exam notes for the whole syllabus");
   await page
     .getByLabel("What the resource needs to cover")
     .fill("Complete notes covering every chapter, with the key diagrams and worked examples.");
@@ -67,7 +78,7 @@ test.describe("who may reach the form", () => {
   test("shows no form to a viewer it has refused", async ({ page }) => {
     await page.goto("/wanted/new");
 
-    await expect(page.getByLabel("Title", { exact: false })).toHaveCount(0);
+    await expect(titleField(page)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Review request/ })).toHaveCount(0);
   });
 
@@ -191,19 +202,17 @@ test.describe("validation", () => {
     await page.getByRole("button", { name: /^Review request/ }).click();
     await page.getByRole("link", { name: /Enter a title/ }).click();
 
-    await expect(page.getByLabel("Title", { exact: false })).toBeFocused();
+    await expect(titleField(page)).toBeFocused();
   });
 
   test("keeps what was already entered", async ({ page }) => {
     await page.setViewportSize(WIDE);
     await page.goto("/wanted/new/preview");
 
-    await page.getByLabel("Title", { exact: false }).fill("Past year answers with working");
+    await titleField(page).fill("Past year answers with working");
     await page.getByRole("button", { name: /^Review request/ }).click();
 
-    await expect(page.getByLabel("Title", { exact: false })).toHaveValue(
-      "Past year answers with working",
-    );
+    await expect(titleField(page)).toHaveValue("Past year answers with working");
   });
 
   test("refuses a contribution outside RM1 to RM50", async ({ page }) => {
@@ -246,9 +255,7 @@ test.describe("review and return", () => {
     await page.getByRole("button", { name: /^Review request/ }).click();
     await page.getByRole("button", { name: "Back to edit" }).click();
 
-    await expect(page.getByLabel("Title", { exact: false })).toHaveValue(
-      "Final exam notes for the whole syllabus",
-    );
+    await expect(titleField(page)).toHaveValue("Final exam notes for the whole syllabus");
     await expect(page.getByLabel("Course")).toHaveValue(/.+/);
     await expect(page.getByLabel("Your first contribution")).toHaveValue("12.50");
     await expect(page.getByRole("radio", { name: "14 days" })).toBeChecked();

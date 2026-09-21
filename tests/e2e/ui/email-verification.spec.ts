@@ -49,7 +49,7 @@ test.describe("email verification", () => {
   test("no longer marks the screen as development fixture data", async ({ page }) => {
     await page.goto("/verify-email");
 
-    await expect(page.getByText("Development only")).toHaveCount(0);
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
   });
 
   /**

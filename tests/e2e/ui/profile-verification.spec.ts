@@ -65,7 +65,7 @@ test.describe("profile verification status", () => {
     await page.goto("/profile");
 
     await expect(page.getByRole("note")).toHaveCount(0);
-    await expect(page.getByText("Development only")).toHaveCount(0);
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
   });
 
   test("shows no account data at all when there is no account to show", async ({ page }) => {

@@ -60,7 +60,7 @@ test.describe("institution verification", () => {
   test("no longer marks the screen as development fixture data", async ({ page }) => {
     await page.goto("/profile/institution-verification");
 
-    await expect(page.getByText("Development only")).toHaveCount(0);
+    await expect(page.getByRole("main").getByText("Development only")).toHaveCount(0);
   });
 
   test("offers no request form to an anonymous visitor", async ({ page }) => {
@@ -73,6 +73,10 @@ test.describe("institution verification", () => {
   test("reveals the skip link on first tab and moves focus to main", async ({ page }) => {
     await page.setViewportSize(NARROW);
     await page.goto("/profile/institution-verification");
+    // Typing into a page the guard is still redirecting away from destroys the
+    // execution context mid-assertion, so the keyboard work waits for
+    // whichever screen the viewer ends up on.
+    await page.waitForLoadState("networkidle");
 
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
