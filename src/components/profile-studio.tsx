@@ -41,25 +41,34 @@ export function ProfileStudio() {
   return (
     <section className="profile-workshop" aria-labelledby="profile-studio-title">
       <article className="hunter-licence poster-paper pin" aria-labelledby="profile-studio-title">
-        <Image
-          className={`hunter-licence__portrait avatar ${toneClass(tone)}`}
-          src={`/brand/avatar-${avatar}.webp`}
-          alt={`Fixture avatar: ${avatarName}`}
-          width={320}
-          height={320}
-          unoptimized
-        />
-        <div className="hunter-licence__identity">
-          <h2 className="hunter-licence__name" id="profile-studio-title">
-            Your hunter licence
-          </h2>
-          <span className="hunter-licence__meta">Fixture presentation preview</span>
-          <span className="hunter-licence__character">{avatarName}</span>
+        <div className="hunter-licence__cover">
+          <span className="hunter-licence__cover-tag">Frontier Hunter ID</span>
         </div>
-        <p className="hunter-licence__bio">
-          This licence previews a visual identity only. It does not represent an account, an
-          institution, or a verification state.
-        </p>
+        <div className="hunter-licence__body">
+          <div className="hunter-licence__avatar-wrap">
+            <Image
+              className={`hunter-licence__portrait avatar ${toneClass(tone)}`}
+              src={`/brand/avatar-${avatar}.webp`}
+              alt={`Fixture avatar: ${avatarName}`}
+              width={112}
+              height={112}
+              unoptimized
+            />
+          </div>
+          <div className="hunter-licence__identity">
+            <div className="hunter-licence__header-row">
+              <h2 className="hunter-licence__name" id="profile-studio-title">
+                Your hunter licence
+              </h2>
+              <span className="hunter-licence__character">{avatarName}</span>
+            </div>
+            <span className="hunter-licence__meta">Fixture presentation preview</span>
+            <p className="hunter-licence__bio">
+              This licence previews a visual identity only. It does not represent an account, an
+              institution, or a verification state.
+            </p>
+          </div>
+        </div>
       </article>
 
       <div className="profile-workshop__editors panel">

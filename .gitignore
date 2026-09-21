@@ -14,3 +14,8 @@ supabase/.temp/
 
 # next
 next-env.d.ts
+
+# screenshots
+vaultix-*.png
+!vaultix-home.png
+!vaultix-board.png
