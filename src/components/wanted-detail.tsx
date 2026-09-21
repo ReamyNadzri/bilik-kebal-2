@@ -98,9 +98,9 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
           </Link>
           <Link
             className="button button--secondary ledger-panel__action"
-            href="/profile/institution-verification"
+            href={`/claims/new?wantedId=${wanted.id}&from=wanted`}
           >
-            Submit a Claim
+            Fulfill Bounty
           </Link>
           <p className="ledger-panel__note">
             Both actions need institution verification. Contributions are RM1 to RM50 per Backer,

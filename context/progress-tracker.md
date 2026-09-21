@@ -88,6 +88,12 @@ Update this file after every meaningful implementation or specification change.
   offers the only sign-out control in the interface; protected routes redirect on the server before
   rendering; sign-in returns the viewer to where they were; and an `AUTH_REQUIRED` refusal signs a
   stale session out once rather than per refused operation.
+- Phase 4 Slice 9 implements the File/Screenshot Proof Uploads and Evidence Locker feature:
+  `public.complete_claim_upload_session` RPC (`202609200005_claim_upload_completion.sql`), protected
+  completion endpoint `POST /api/claims/confirm-upload`, client-side `FileUploadField` with SHA-256
+  computation and `XMLHttpRequest` progress bar, `EvidenceLocker` with skeleton/empty/error/card states,
+  `/claims/new` interactive submission workspace, and Wanted Detail claim routing. All 703 unit and
+  component tests pass.
 
 ## Next Up
 

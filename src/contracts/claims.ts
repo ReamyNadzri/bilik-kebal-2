@@ -70,3 +70,21 @@ export interface ClaimUploadSession {
 }
 
 export type CreateClaimUploadResult = OperationResult<ClaimUploadSession, ClaimsOperationCode>;
+
+export const confirmClaimUploadSchema = z.object({
+  claimId: uuid,
+});
+
+export type ConfirmClaimUploadInput = z.infer<typeof confirmClaimUploadSchema>;
+
+export interface CompletedClaimProof {
+  claimId: string;
+  wantedId: string;
+  status: ClaimLifecycle;
+  fileName: string;
+  sizeBytes: number;
+  mimeType: ClaimMimeType;
+  completedAt: string;
+}
+
+export type CompleteClaimUploadResult = OperationResult<CompletedClaimProof, ClaimsOperationCode>;

@@ -30,6 +30,15 @@ function service(overrides: Partial<ConstructorParameters<typeof ClaimUploadServ
         claimId: "83000000-0000-4000-8000-000000000001",
         objectKey: "83000000-0000-4000-8000-000000000001/original.pdf",
       }),
+      completeClaim: vi.fn().mockResolvedValue({
+        claimId: "83000000-0000-4000-8000-000000000001",
+        wantedId: "74000000-0000-4000-8000-000000000001",
+        status: "screening",
+        fileName: "notes.pdf",
+        sizeBytes: 100,
+        mimeType: "application/pdf",
+        completedAt: "2026-09-20T00:05:00Z",
+      }),
     },
     gateway: {
       createSignedUpload: vi.fn().mockResolvedValue({
@@ -43,7 +52,7 @@ function service(overrides: Partial<ConstructorParameters<typeof ClaimUploadServ
 
 describe("ClaimUploadService", () => {
   it("refuses upload sessions while the public upload gate is disabled", async () => {
-    const repository = { createClaim: vi.fn() };
+    const repository = { createClaim: vi.fn(), completeClaim: vi.fn() };
     const result = await service({ uploadsEnabled: false, repository }).create(
       actor,
       "open",
@@ -75,5 +84,59 @@ describe("ClaimUploadService", () => {
       },
     });
     expect(JSON.stringify(result)).not.toContain("objectKey");
+  });
+
+  it("completes a valid upload session", async () => {
+    const completeClaim = vi.fn().mockResolvedValue({
+      claimId: "83000000-0000-4000-8000-000000000001",
+      wantedId: "74000000-0000-4000-8000-000000000001",
+      status: "screening",
+      fileName: "notes.pdf",
+      sizeBytes: 100,
+      mimeType: "application/pdf",
+      completedAt: "2026-09-20T00:05:00Z",
+    });
+    const s = service({
+      repository: {
+        createClaim: vi.fn(),
+        completeClaim,
+      },
+    });
+    const result = await s.complete(actor, {
+      claimId: "83000000-0000-4000-8000-000000000001",
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        claimId: "83000000-0000-4000-8000-000000000001",
+        status: "screening",
+        fileName: "notes.pdf",
+      },
+    });
+    expect(completeClaim).toHaveBeenCalledWith({
+      actorUserId: actor.userId,
+      claimId: "83000000-0000-4000-8000-000000000001",
+    });
+  });
+
+  it("fails when claim is not found or user is restricted", async () => {
+    const s = service({
+      repository: {
+        createClaim: vi.fn(),
+        completeClaim: vi.fn().mockRejectedValue(new Error("claim not found")),
+      },
+    });
+    const resultNotFound = await s.complete(actor, {
+      claimId: "83000000-0000-4000-8000-000000000001",
+    });
+    expect(resultNotFound).toMatchObject({ ok: false, code: "CLAIM_NOT_FOUND" });
+
+    const resultRestricted = await s.complete(
+      { ...actor, restricted: true },
+      {
+        claimId: "83000000-0000-4000-8000-000000000001",
+      },
+    );
+    expect(resultRestricted).toMatchObject({ ok: false, code: "ACCOUNT_RESTRICTED" });
   });
 });

@@ -1,7 +1,10 @@
 import {
   CLAIM_MAX_BYTES,
   claimSubmissionSchema,
+  confirmClaimUploadSchema,
   type ClaimsOperationCode,
+  type CompletedClaimProof,
+  type CompleteClaimUploadResult,
   type CreateClaimUploadResult,
   type ValidatedClaimSubmissionInput,
 } from "@/contracts/claims";
@@ -15,6 +18,7 @@ export interface ClaimRepository {
     objectKey: string;
     expiresAt: string;
   }): Promise<{ claimId: string; objectKey: string }>;
+  completeClaim(input: { actorUserId: string; claimId: string }): Promise<CompletedClaimProof>;
 }
 
 export interface ClaimUploadGateway {
@@ -98,6 +102,41 @@ export class ClaimUploadService {
       });
     } catch {
       return failure("UPLOAD_UNAVAILABLE", "Claim upload is temporarily unavailable. Try again.");
+    }
+  }
+
+  async complete(
+    actor: (ClaimActor & { userId: string; institutionId: string }) | null,
+    input: unknown,
+  ): Promise<CompleteClaimUploadResult> {
+    const parsed = confirmClaimUploadSchema.safeParse(input);
+    if (!parsed.success) {
+      return failure("VALIDATION_ERROR", "Check the claim details.");
+    }
+    if (!actor) {
+      return failure("AUTH_REQUIRED", "Sign in before confirming upload.");
+    }
+    if (actor.restricted) {
+      return failure("ACCOUNT_RESTRICTED", "This account cannot submit claims right now.");
+    }
+    try {
+      const proof = await this.config.repository.completeClaim({
+        actorUserId: actor.userId,
+        claimId: parsed.data.claimId,
+      });
+      return success(proof);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("claim not found") || msg.includes("upload session not found")) {
+        return failure("CLAIM_NOT_FOUND", "Claim not found.");
+      }
+      if (msg.includes("forbidden")) {
+        return failure("ACCOUNT_RESTRICTED", "Not authorized to update this claim.");
+      }
+      if (msg.includes("upload session expired")) {
+        return failure("CLAIM_NOT_EDITABLE", "Upload session has expired.");
+      }
+      return failure("CLAIMS_UNAVAILABLE", "Claim completion is temporarily unavailable.");
     }
   }
 

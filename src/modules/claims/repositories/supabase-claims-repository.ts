@@ -22,4 +22,22 @@ export class SupabaseClaimsRepository implements ClaimRepository {
     if (error || !row) throw new Error("Claim upload session creation failed");
     return { claimId: row.claim_id, objectKey: row.object_key };
   }
+
+  async completeClaim(input: Parameters<ClaimRepository["completeClaim"]>[0]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (this.client.rpc as any)("complete_claim_upload_session", {
+      target_claim_id: input.claimId,
+    });
+    const row = data?.[0];
+    if (error || !row) throw new Error(error?.message ?? "Claim completion failed");
+    return {
+      claimId: row.claim_id,
+      wantedId: row.wanted_id,
+      status: row.status,
+      fileName: row.file_name,
+      sizeBytes: Number(row.size_bytes),
+      mimeType: row.mime_type,
+      completedAt: row.completed_at,
+    };
+  }
 }
