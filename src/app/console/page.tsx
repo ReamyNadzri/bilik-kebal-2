@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ConsoleLanding } from "@/components/console-landing";
 import { ReviewConsole } from "@/components/review-console";
 import { UiStatus } from "@/components/ui-status";
 import type { VerificationQueueItem } from "@/contracts";
+import { signInPathFor } from "@/features/presentation/auth/redirect-target";
 import { loadVerificationReviewQueue } from "@/modules/identity";
 
 export const metadata: Metadata = {
@@ -52,18 +54,19 @@ async function readQueue(): Promise<Outcome> {
 export default async function ConsolePage() {
   const outcome = await readQueue();
 
+  /**
+   * Protected: sign-in is the one refusal a viewer can act on immediately, so
+   * it is a redirect rather than a notice. A refusal on role grounds stays in
+   * place — the viewer is signed in, and sending them back to a sign-in form
+   * would suggest a different account is the answer when it is not.
+   */
+  if (outcome.kind === "unauthenticated") {
+    redirect(signInPathFor("/console"));
+  }
+
   return (
     <>
       <h1>Sheriff Console</h1>
-
-      {outcome.kind === "unauthenticated" ? (
-        <UiStatus
-          kind="restricted"
-          heading="Sign in to open the console"
-          message="The review queues are only available to a signed-in Sheriff or Owner."
-          action={<Link href="/sign-in">Sign in</Link>}
-        />
-      ) : null}
 
       {outcome.kind === "refused" ? <ConsoleLanding /> : null}
 

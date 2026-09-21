@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { InstitutionVerification } from "@/components/institution-verification";
 import { UiStatus } from "@/components/ui-status";
 import type { AccountViewModel, InstitutionOption } from "@/contracts";
+import { signInPathFor } from "@/features/presentation/auth/redirect-target";
 import { loadAccountViewModel, loadSelectableInstitutions } from "@/modules/identity";
 
 export const metadata: Metadata = {
@@ -51,18 +53,19 @@ async function readScreen(): Promise<Outcome> {
 export default async function InstitutionVerificationPage() {
   const outcome = await readScreen();
 
+  /**
+   * Protected: verification is tied to an account, so there is nothing to show
+   * a signed-out viewer. An unconfirmed email is a different matter and stays
+   * in place — the two trust states are deliberately separate, and sign-in
+   * would not resolve the second one (context/ui-context.md).
+   */
+  if (outcome.kind === "unauthenticated") {
+    redirect(signInPathFor("/profile/institution-verification"));
+  }
+
   return (
     <>
       <h1>Institution verification</h1>
-
-      {outcome.kind === "unauthenticated" ? (
-        <UiStatus
-          kind="restricted"
-          heading="Sign in to verify your institution"
-          message="Verification is tied to your account, so you need to be signed in before you can request it."
-          action={<Link href="/sign-in">Sign in</Link>}
-        />
-      ) : null}
 
       {outcome.kind === "email-not-verified" ? (
         <UiStatus

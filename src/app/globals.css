@@ -722,6 +722,55 @@ textarea {
   flex: 0 0 auto;
 }
 
+/* Who is signed in, and the way out. Sits on the dark rail, so it takes the
+   on-dark text tokens rather than the page ones. */
+.app-shell__account {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.account-menu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.account-menu__name {
+  color: var(--text-on-dark);
+  font-size: 0.9375rem;
+}
+
+.account-menu__pending {
+  margin: 0;
+  color: var(--text-on-dark-muted);
+  font-size: 0.9375rem;
+}
+
+.account-menu__action.button--quiet {
+  border-color: var(--border-rail);
+  color: var(--text-on-dark);
+}
+
+.account-menu__action.button--quiet:hover {
+  background: var(--border-rail);
+  color: var(--text-on-dark-strong);
+}
+
+/* The failure sits on a surface rather than bare on the rail: the error token
+   is tuned for the page background, and reusing it on dark would trade a
+   readable message for a themed one. */
+.account-menu__error {
+  flex: 1 1 100%;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-surface);
+  border-left: var(--border-width-3) solid var(--state-error);
+  color: var(--state-error);
+  font-size: 0.875rem;
+}
+
 @media (max-width: 70rem) {
   .shell-nav__link-text--secondary {
     position: absolute;
@@ -766,6 +815,12 @@ textarea {
 
   .shell-nav__account {
     order: 4;
+  }
+
+  /* Last in the stacked rail, beside the account utilities it belongs with. */
+  .app-shell__account {
+    order: 5;
+    margin-left: auto;
   }
 }
 

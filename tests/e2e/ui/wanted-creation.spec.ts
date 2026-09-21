@@ -57,10 +57,11 @@ test.describe("who may reach the form", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Post a Wanted" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Sign in to post a Wanted" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveAttribute(
-      "href",
-      "/sign-in",
-    );
+    // Scoped to the page's own refusal: the shell rail carries its own
+    // account sign-in link, and that one remembers where the viewer was.
+    await expect(
+      page.locator("main").getByRole("link", { name: "Sign in", exact: true }),
+    ).toHaveAttribute("href", "/sign-in");
   });
 
   test("shows no form to a viewer it has refused", async ({ page }) => {

@@ -1,11 +1,23 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { SignInForm } from "./sign-in-form";
+import { AuthProvider } from "@/features/presentation/auth/auth-provider";
+import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
 
-const push = vi.fn();
+const replace = vi.fn();
+const refresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ replace, refresh }),
+  usePathname: () => "/sign-in",
 }));
+
+function renderForm(props: Partial<React.ComponentProps<typeof SignInForm>> = {}) {
+  return render(
+    <AuthProvider initialAccount={null}>
+      <SignInForm {...props} />
+    </AuthProvider>,
+  );
+}
 
 function fill(label: RegExp, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -27,8 +39,23 @@ function respondWith(body: unknown, ok = true) {
   );
 }
 
+/**
+ * A successful sign-in is two operations: the sign-in itself, then the account
+ * re-read that lets the shell know who is signed in before the form navigates.
+ */
+function respondWithSuccess() {
+  const mock = vi
+    .fn()
+    .mockResolvedValueOnce({ json: async () => ({ ok: true, data: { next: "profile" } }) })
+    .mockResolvedValueOnce({ json: async () => ({ ok: true, data: anAccountViewModel() }) });
+
+  vi.stubGlobal("fetch", mock);
+  return mock;
+}
+
 beforeEach(() => {
-  push.mockReset();
+  replace.mockReset();
+  refresh.mockReset();
   vi.unstubAllGlobals();
 });
 
@@ -36,7 +63,7 @@ test("does not call the operation until the fields are present", () => {
   const fetchSpy = vi.fn();
   vi.stubGlobal("fetch", fetchSpy);
 
-  render(<SignInForm />);
+  renderForm();
   submit();
 
   expect(fetchSpy).not.toHaveBeenCalled();
@@ -44,15 +71,15 @@ test("does not call the operation until the fields are present", () => {
 });
 
 test("posts the credentials to the sign-in operation", async () => {
-  respondWith({ ok: true, data: { next: "profile" } });
+  const fetchMock = respondWithSuccess();
 
-  render(<SignInForm />);
+  renderForm();
   credentials();
   submit();
 
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
-  const [path, init] = vi.mocked(fetch).mock.calls[0]!;
+  const [path, init] = fetchMock.mock.calls[0]!;
   expect(path).toBe("/api/auth/sign-in");
   expect(init?.method).toBe("POST");
   expect(JSON.parse(String(init?.body))).toEqual({
@@ -62,13 +89,50 @@ test("posts the credentials to the sign-in operation", async () => {
 });
 
 test("moves to the profile once the operation succeeds", async () => {
-  respondWith({ ok: true, data: { next: "profile" } });
+  respondWithSuccess();
 
-  render(<SignInForm />);
+  renderForm();
   credentials();
   submit();
 
-  await waitFor(() => expect(push).toHaveBeenCalledWith("/profile"));
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+});
+
+describe("returning the viewer to where they were", () => {
+  test("lands on the destination that was requested", async () => {
+    respondWithSuccess();
+
+    renderForm({ next: "/wanted/csc510-final-exam-notes" });
+    credentials();
+    submit();
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/wanted/csc510-final-exam-notes"));
+  });
+
+  /**
+   * `replace` rather than `push`: a back button that returns to a sign-in form
+   * which now redirects away is a dead end in the history stack.
+   */
+  test("replaces the sign-in screen in history rather than stacking on it", async () => {
+    respondWithSuccess();
+
+    renderForm({ next: "/console" });
+    credentials();
+    submit();
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/console"));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  test("falls back to the profile when no destination was requested", async () => {
+    respondWithSuccess();
+
+    renderForm();
+    credentials();
+    submit();
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+  });
 });
 
 test("shows the operation's own message when credentials are refused", async () => {
@@ -78,7 +142,7 @@ test("shows the operation's own message when credentials are refused", async () 
     message: "That email address and password do not match an account.",
   });
 
-  render(<SignInForm />);
+  renderForm();
   credentials();
   submit();
 
@@ -86,7 +150,7 @@ test("shows the operation's own message when credentials are refused", async () 
   expect(
     screen.getByText("That email address and password do not match an account."),
   ).toBeInTheDocument();
-  expect(push).not.toHaveBeenCalled();
+  expect(replace).not.toHaveBeenCalled();
 });
 
 test("routes an unverified email to the verification screen instead of a field error", async () => {
@@ -96,7 +160,7 @@ test("routes an unverified email to the verification screen instead of a field e
     message: "Confirm your email address before signing in.",
   });
 
-  render(<SignInForm />);
+  renderForm();
   credentials();
   submit();
 
@@ -117,7 +181,7 @@ test("attaches the operation's field errors to their fields", async () => {
     fieldErrors: { email: ["That is not a valid email address."] },
   });
 
-  render(<SignInForm />);
+  renderForm();
   credentials();
   submit();
 
@@ -134,16 +198,16 @@ test("attaches the operation's field errors to their fields", async () => {
 test("reports an unreachable server as offline rather than as a refusal", async () => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
 
-  render(<SignInForm />);
+  renderForm();
   credentials();
   submit();
 
   await waitFor(() => expect(screen.getByText("Offline")).toBeInTheDocument());
-  expect(push).not.toHaveBeenCalled();
+  expect(replace).not.toHaveBeenCalled();
 });
 
 test("offers recovery and registration routes", () => {
-  render(<SignInForm />);
+  renderForm();
 
   expect(screen.getByRole("link", { name: "Forgot your password?" })).toHaveAttribute(
     "href",

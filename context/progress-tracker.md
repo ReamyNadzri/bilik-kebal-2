@@ -84,6 +84,10 @@ Update this file after every meaningful implementation or specification change.
   route. Review responses expose metadata only and never private object keys or file content.
 - Phase 4 Slice 8 connects the provisional Sheriff console to the claim review queue and decision
   route with loading, empty, unavailable, confirmation prompt and result states.
+- Client auth state and route guards are in place. The shell now names the signed-in account and
+  offers the only sign-out control in the interface; protected routes redirect on the server before
+  rendering; sign-in returns the viewer to where they were; and an `AUTH_REQUIRED` refusal signs a
+  stale session out once rather than per refused operation.
 
 ## Next Up
 
@@ -128,6 +132,17 @@ Update this file after every meaningful implementation or specification change.
 
 ## Session Notes
 
+- The session-refresh proxy had never run. Next resolves the `proxy` convention relative to the
+  directory holding `app/`, so the file at the repository root was silently ignored while
+  `src/app/` existed, and no Supabase session was ever refreshed — every session died at its access
+  token's expiry. Moving it to `src/proxy.ts` fixes it. Verified by probe: the proxy executes from
+  `src/` and does not from the root. A failure inside it now degrades to an unrefreshed request
+  rather than a 500 on every route, including the sign-in screen someone needs to recover.
+- The frontend deliberately has no `hasRole`. `AccountViewModel` publishes capabilities and a
+  navigation-only `console.hasAccess`, and no role, so a frontend role model would fork a
+  backend-owned domain type. Guards read the published capabilities as-is.
+- Route guards are a courtesy to the reader, not access control: every operation behind them
+  authorises again server-side and is repeated by RLS.
 - The workspace is a Git repository on `main`, tracking `origin/main` on GitLab.
 - The user authorised the assistant to choose safe non-critical technical defaults and only escalate critical product, money, legal, privacy, ownership, migration, or recurring-cost decisions.
 - The user wants patch-by-patch delivery and expects setup/navigation guidance for Supabase, Vercel, Cloudflare, Resend, and ToyyibPay when implementation begins.

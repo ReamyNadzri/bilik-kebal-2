@@ -6,8 +6,9 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { UiStatus } from "./ui-status";
-import type { IdentityOperationCode, SignInResult } from "@/contracts";
-import { callOperation } from "@/features/presentation/call-operation";
+import type { IdentityOperationCode } from "@/contracts";
+import { useAuth } from "@/features/presentation/auth/auth-provider";
+import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
 import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
@@ -16,16 +17,33 @@ type Outcome =
   | { kind: "submitting" }
   | { kind: "refused"; code: IdentityOperationCode; message: string };
 
+export interface SignInFormProps {
+  /**
+   * Where to go once signed in.
+   *
+   * Already validated as same-origin by the page that read it
+   * (src/features/presentation/auth/redirect-target.ts). An open redirect on a
+   * sign-in screen is a credential phishing route, so the value is never taken
+   * straight from the query string here.
+   */
+  readonly next?: string | undefined;
+}
+
 /**
- * Sign-in, wired to POST /api/auth/sign-in.
+ * Sign-in, wired to the identity operation through the auth provider.
  *
  * Presence checks stay in the client for fast feedback, but they decide
  * nothing: the operation re-validates and is the only thing that can
  * authenticate. Field errors come from the operation's fieldErrors so the
  * wording a user reads matches the decision that was actually made.
+ *
+ * The provider performs the sign-in so that the account is re-read before this
+ * form navigates. Landing on a protected screen a moment before the shell
+ * knows who is signed in is the flash the guards exist to prevent.
  */
-export function SignInForm() {
+export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -61,14 +79,15 @@ export function SignInForm() {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const result = await callOperation<{ next: "profile" }, IdentityOperationCode>(
-      "/api/auth/sign-in",
-      { email, password },
-      "AUTH_UNAVAILABLE",
-    ).then((value) => value as SignInResult);
+    const result = await signIn({ email, password });
 
     if (result.ok) {
-      router.push("/profile");
+      /**
+       * `replace` rather than `push`: going back to a sign-in form that would
+       * now redirect away is a dead end in the history stack.
+       */
+      router.replace(next);
+      router.refresh();
       return;
     }
 

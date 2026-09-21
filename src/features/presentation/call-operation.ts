@@ -1,6 +1,7 @@
 "use client";
 
 import type { OperationResult } from "@/contracts";
+import { reportSessionExpired } from "./auth/session-expiry";
 
 /**
  * Calls a backend operation and returns its typed result.
@@ -12,6 +13,11 @@ import type { OperationResult } from "@/contracts";
  * The caller maps codes to copy. This helper never invents a message, because
  * the message a user reads about their account must come from the operation
  * that made the decision.
+ *
+ * Credentials travel as the Supabase session cookie the browser already holds.
+ * Nothing here reads or attaches a token, because no token is available to
+ * read: the session is HTTP-only by design, so a cross-site script cannot
+ * lift it (context/architecture.md).
  */
 export async function callOperation<TData, TCode extends string>(
   path: string,
@@ -20,16 +26,46 @@ export async function callOperation<TData, TCode extends string>(
   /** `PUT` addresses an existing resource; everything else is a `POST`. */
   method: "POST" | "PUT" = "POST",
 ): Promise<OperationResult<TData, TCode>> {
-  try {
-    const response = await fetch(path, {
+  return requestOperation<TData, TCode>(
+    path,
+    {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+    },
+    unavailableCode,
+  );
+}
+
+/**
+ * Reads a backend operation that takes no body.
+ *
+ * Reads are as capable of losing a session as writes are, so they go through
+ * the same envelope and the same expiry reporting rather than around them.
+ */
+export async function readOperation<TData, TCode extends string>(
+  path: string,
+  unavailableCode: TCode,
+): Promise<OperationResult<TData, TCode>> {
+  return requestOperation<TData, TCode>(
+    path,
+    { method: "GET", headers: { Accept: "application/json" }, cache: "no-store" },
+    unavailableCode,
+  );
+}
+
+async function requestOperation<TData, TCode extends string>(
+  path: string,
+  init: RequestInit,
+  unavailableCode: TCode,
+): Promise<OperationResult<TData, TCode>> {
+  try {
+    const response = await fetch(path, init);
 
     const payload: unknown = await response.json();
 
     if (isOperationResult<TData, TCode>(payload)) {
+      announceIfSessionExpired(payload);
       return payload;
     }
 
@@ -44,6 +80,20 @@ export async function callOperation<TData, TCode extends string>(
       code: unavailableCode,
       message: "Could not reach the server. Check your connection and try again.",
     };
+  }
+}
+
+/**
+ * Tells the session watcher that this account is no longer signed in.
+ *
+ * Deliberately keyed on `AUTH_REQUIRED` alone. `INVALID_CREDENTIALS` and
+ * `RECENT_AUTH_REQUIRED` also answer `401`, and neither means the session
+ * ended — one is a failed sign-in attempt and the other is a step-up
+ * challenge inside a session that is still perfectly valid.
+ */
+function announceIfSessionExpired(result: OperationResult<unknown, string>): void {
+  if (!result.ok && result.code === "AUTH_REQUIRED") {
+    reportSessionExpired();
   }
 }
 

@@ -17,6 +17,15 @@ export interface AppShellProps {
    * The shell renders what it is given and decides no permission itself.
    */
   roleNav?: readonly NavItem[];
+  /**
+   * The signed-in identity and the way out of it.
+   *
+   * A slot rather than a direct dependency, for the same reason `roleNav` is
+   * one: the shell stays a presentational Server Component that decides
+   * nothing about who is looking at it, and it stays renderable in a test
+   * without standing up a session.
+   */
+  accountMenu?: ReactNode;
 }
 
 /**
@@ -32,7 +41,7 @@ export interface AppShellProps {
  * `app-shell__sheet` is that paper for every screen that does not compose
  * its own panels; a page that does marks its root `page-bare`.
  */
-export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps) {
+export function AppShell({ accountMenu, children, currentNavId, roleNav = [] }: AppShellProps) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -55,6 +64,10 @@ export function AppShell({ children, currentNavId, roleNav = [] }: AppShellProps
           </Link>
 
           <ShellNav currentNavId={currentNavId} roleNav={roleNav} />
+
+          {accountMenu === undefined ? null : (
+            <div className="app-shell__account">{accountMenu}</div>
+          )}
         </div>
       </header>
 

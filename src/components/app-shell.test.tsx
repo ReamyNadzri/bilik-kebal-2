@@ -167,6 +167,33 @@ describe("role destinations", () => {
   });
 });
 
+describe("account slot", () => {
+  /**
+   * The shell decides nothing about who is looking at it. It renders the slot
+   * it was handed, which is what keeps it a Server Component and keeps it
+   * renderable here without standing up a session.
+   */
+  test("renders whatever account control it is given", () => {
+    renderShell({ accountMenu: <button type="button">Sign out</button> });
+
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  });
+
+  test("renders no account control when it is given none", () => {
+    renderShell();
+
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  });
+
+  test("keeps the skip link ahead of the account control", () => {
+    const { container } = renderShell({ accountMenu: <button type="button">Sign out</button> });
+
+    const focusable = container.querySelectorAll("a, button, input, select, textarea");
+
+    expect(focusable[0]).toHaveAttribute("href", "#main-content");
+  });
+});
+
 describe("footer", () => {
   test("says what the product is rather than carrying a design disclaimer", () => {
     renderShell();

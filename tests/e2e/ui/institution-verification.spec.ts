@@ -33,6 +33,23 @@ test.describe("institution verification", () => {
 
   test("explains why the request form is not shown", async ({ page }) => {
     await page.goto("/profile/institution-verification");
+    // The guard's redirect completes in the browser, so the landing URL is not
+    // settled until the navigation is.
+    await page.waitForLoadState("networkidle");
+
+    /**
+     * Verification is tied to an account, so a signed-out visitor is sent to
+     * sign in and returned here afterwards. Without a reachable identity
+     * service the guard deliberately does not redirect, and the screen says so
+     * in place instead.
+     */
+    if (new URL(page.url()).pathname === "/sign-in") {
+      expect(new URL(page.url()).searchParams.get("next")).toBe(
+        "/profile/institution-verification",
+      );
+      await expect(page.getByLabel(/Email address/)).toBeVisible();
+      return;
+    }
 
     await expect(
       page.getByRole("heading", { name: "Institution verification", level: 1 }),

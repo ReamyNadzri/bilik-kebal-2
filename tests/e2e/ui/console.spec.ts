@@ -3,11 +3,12 @@ import { expect, test } from "@playwright/test";
 const NARROW = { width: 360, height: 760 };
 
 /**
- * The console is now server-loaded. What an anonymous visitor sees depends on
- * whether Supabase is configured for the run: without it the loader throws and
- * the queue reports itself unavailable; with it there is no session, so the
- * page asks the visitor to sign in. Both are refusals, and neither may leak
- * anything about what is waiting.
+ * The console is now server-loaded and guarded. What an anonymous visitor gets
+ * depends on whether Supabase is configured for the run: without it the loader
+ * throws, the guard deliberately does not redirect an outage, and the queue
+ * reports itself unavailable in place; with it there is no session, so the
+ * guard sends the visitor to sign in and remembers where they were going.
+ * Both are refusals, and neither may leak anything about what is waiting.
  *
  * The authorised queue, the evidence viewer and the decision paths are covered
  * by the component tests, which can drive every operation outcome. Proving the
@@ -19,12 +20,22 @@ const NARROW = { width: 360, height: 760 };
  * from the queue route. Registering another account here would spend the shared
  * Supabase mail budget to re-prove it.
  */
-const REFUSAL_HEADING =
-  /^(Sign in to open the console|This console is for Sheriffs|The review queue could not be loaded)$/;
+const REFUSAL_HEADING = /^(This console is for Sheriffs|The review queue could not be loaded)$/;
 
 test.describe("Sheriff Console", () => {
   test("refuses a viewer and says the server enforces it", async ({ page }) => {
     await page.goto("/console");
+    // The guard's redirect completes in the browser, so the landing URL is not
+    // settled until the navigation is.
+    await page.waitForLoadState("networkidle");
+
+    if (new URL(page.url()).pathname === "/sign-in") {
+      // Guarded: sent to sign in, and the console is remembered as the
+      // destination to return to.
+      expect(new URL(page.url()).searchParams.get("next")).toBe("/console");
+      await expect(page.getByLabel(/Email address/)).toBeVisible();
+      return;
+    }
 
     await expect(page.getByRole("heading", { name: "Sheriff Console", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: REFUSAL_HEADING })).toBeVisible();
@@ -74,6 +85,13 @@ test.describe("Sheriff Console", () => {
   test("reveals the skip link on first tab and moves focus to main", async ({ page }) => {
     await page.setViewportSize(NARROW);
     await page.goto("/console");
+
+    /**
+     * The guard may still be navigating to sign-in. Typing into a page that is
+     * about to be replaced destroys the execution context mid-assertion, so
+     * the keyboard work waits for whichever screen the viewer ends up on.
+     */
+    await page.waitForLoadState("networkidle");
 
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();

@@ -4,8 +4,7 @@ import { AccountSummary } from "@/components/account-summary";
 import { FixtureNotice } from "@/components/fixture-notice";
 import { ProfileStudio } from "@/components/profile-studio";
 import { UiStatus } from "@/components/ui-status";
-import type { AccountViewModel } from "@/contracts";
-import { loadAccountViewModel } from "@/modules/identity";
+import { requireAccount } from "@/features/presentation/auth/require-account";
 
 export const metadata: Metadata = {
   title: "Profile | VAULTIX",
@@ -13,40 +12,19 @@ export const metadata: Metadata = {
 
 /**
  * User-specific data must never enter a shared cache
- * (context/code-standards.md), and the loader reads the request's session, so
+ * (context/code-standards.md), and the guard reads the request's session, so
  * this page is rendered per request rather than prerendered.
  */
 export const dynamic = "force-dynamic";
 
-type Outcome =
-  | { kind: "account"; account: AccountViewModel }
-  | { kind: "unauthenticated" }
-  | { kind: "unavailable" };
-
-/**
- * Reads the account through the Codex-published loader.
- *
- * The loader answers `null` for a request it cannot attribute to a signed-in
- * user, and throws when identity itself is unreachable — a missing Supabase
- * configuration or a failed round trip. Those are different situations for the
- * reader: one is "sign in", the other is "this is our fault, try again". They
- * are separated here rather than collapsed into a single failure.
- */
-async function readAccount(): Promise<Outcome> {
-  try {
-    const account = await loadAccountViewModel();
-
-    return account === null ? { kind: "unauthenticated" } : { kind: "account", account };
-  } catch {
-    // Deliberately swallowed: the reason belongs in server logs, never in a
-    // page that could surface provider detail to a browser
-    // (context/code-standards.md, error boundaries).
-    return { kind: "unavailable" };
-  }
-}
-
 export default async function ProfilePage() {
-  const outcome = await readAccount();
+  /**
+   * Protected: an unauthenticated viewer is redirected to sign in and returned
+   * here afterwards, before any of this page is rendered. An unreachable
+   * identity service is reported in place instead — it is not the viewer's
+   * problem to solve by signing in again.
+   */
+  const outcome = await requireAccount("/profile");
 
   return (
     <div className="page-bare">
@@ -58,15 +36,6 @@ export default async function ProfilePage() {
           </p>
         </div>
       </div>
-
-      {outcome.kind === "unauthenticated" ? (
-        <UiStatus
-          kind="restricted"
-          heading="Sign in to see your account"
-          message="Your verification states and what this account can do are only visible once you are signed in."
-          action={<Link href="/sign-in">Sign in</Link>}
-        />
-      ) : null}
 
       {outcome.kind === "unavailable" ? (
         <UiStatus
