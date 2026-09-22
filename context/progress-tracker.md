@@ -53,6 +53,12 @@ Update this file after every meaningful implementation or specification change.
   public DTOs, email-verification gate, integer-sen bounty aggregation, distinct backer counts,
   taxonomy and public activity, validated query enums, and deterministic sorting.
 - Added functional pgTAP coverage for atomic intent creation, pending callbacks, successful balanced posting and idempotent callback replay.
+- Connected Wanted draft workspace and publication confirmation to ToyyibPay contribution bill creation (`POST /api/marketplace/wanted/drafts/:id/contribution`) with redirect handling and `PAYMENT_MODE=disabled` launch gate notice.
+- Implemented `BackWantedModal` and wired "Back this Wanted" on `WantedDetail` for institution-verified students with preset RM1–RM50 contributions (100–5,000 sen).
+- Implemented client-side quarantine upload operations (`computeFileSha256`, `validateClaimFile`, `requestClaimUploadSession`, `submitClaimFile`) uploading up to 50 MB directly to private Supabase Storage `quarantine` via signed PUT without passing untrusted bytes through the Next.js runtime.
+- Built accessible `ClaimSubmissionForm` modal with client-side SHA-256 calculation, progress states, rights confirmation, and `PUBLIC_UPLOADS_ENABLED=false` launch-gate notice.
+- Implemented server-side `HunterClaimsReadService` querying live `claims` joined with `wanted_requests` filtered by `claimant_id`, and updated `/claims` to display real claims for authenticated sessions while preserving `?preview=` fixtures.
+- Published `docs/integration/claims-http-contract.md` and added Playwright E2E coverage for bounty creation, backing, and quarantine claim submission flows (`tests/e2e/marketplace-bounty-claim-flow.spec.ts`).
 
 ## In Progress
 
@@ -88,21 +94,14 @@ Update this file after every meaningful implementation or specification change.
   offers the only sign-out control in the interface; protected routes redirect on the server before
   rendering; sign-in returns the viewer to where they were; and an `AUTH_REQUIRED` refusal signs a
   stale session out once rather than per refused operation.
-- Phase 4 Slice 9 implements the File/Screenshot Proof Uploads and Evidence Locker feature:
-  `public.complete_claim_upload_session` RPC (`202609200005_claim_upload_completion.sql`), protected
-  completion endpoint `POST /api/claims/confirm-upload`, client-side `FileUploadField` with SHA-256
-  computation and `XMLHttpRequest` progress bar, `EvidenceLocker` with skeleton/empty/error/card states,
-  `/claims/new` interactive submission workspace, and Wanted Detail claim routing. All 703 unit and
-  component tests pass.
 
 ## Next Up
 
 1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
 2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
-4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
-5. Keep `/claims` fixture-backed until the claim HTTP contract and private upload flow are integrated.
-6. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
+4. Configure live Supabase instance and environment variables once the user provides project credentials.
+5. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
 ## Open Questions
 

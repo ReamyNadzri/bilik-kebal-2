@@ -159,12 +159,7 @@ describe("FileUploadField", () => {
 
   it("calls onRemoveProof and resets to idle when Cancel Upload is clicked after completion", async () => {
     const onRemoveProof = vi.fn();
-    render(
-      <FileUploadField
-        wantedId="non-uuid-fixture"
-        onRemoveProof={onRemoveProof}
-      />,
-    );
+    render(<FileUploadField wantedId="non-uuid-fixture" onRemoveProof={onRemoveProof} />);
 
     const input = screen.getByTestId("proof-file-input");
     const validFile = new File([new Uint8Array(200)], "my_notes.pdf", { type: "application/pdf" });

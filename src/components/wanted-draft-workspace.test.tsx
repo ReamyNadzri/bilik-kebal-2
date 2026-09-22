@@ -12,12 +12,14 @@ import { aWanted } from "@/features/marketplace/test-support/wanted";
 
 const saveWantedDraft = vi.hoisted(() => vi.fn());
 const checkWantedDuplicates = vi.hoisted(() => vi.fn());
+const createDraftContributionBill = vi.hoisted(() => vi.fn());
 const requestWantedPublication = vi.hoisted(() => vi.fn());
 
 vi.mock("@/features/marketplace/draft-operations", () => ({
   saveWantedDraft,
   checkWantedDuplicates,
   requestWantedPublication,
+  createDraftContributionBill,
 }));
 
 const DRAFT_ID = "6d0f2b1a-7a6f-4a2a-9f3c-6e6f2e0f5a11";
@@ -62,6 +64,9 @@ beforeEach(() => {
     .mockResolvedValue(
       refused("PAYMENT_DISABLED", "Payments are currently disabled; your draft remains editable."),
     );
+  createDraftContributionBill
+    .mockReset()
+    .mockImplementation((...args: unknown[]) => requestWantedPublication(...args));
 });
 
 function renderWorkspace(mode: "live" | "preview" = "live") {
@@ -558,9 +563,16 @@ describe("asking to publish", () => {
   });
 
   test("never presents an awaiting-payment draft as an open Wanted", async () => {
-    requestWantedPublication.mockResolvedValue({
+    createDraftContributionBill.mockResolvedValue({
       ok: true,
-      data: { draftId: DRAFT_ID, state: "awaiting_payment", paymentRequired: true },
+      data: {
+        id: "intent-1",
+        provider: "toyyibpay",
+        amountSen: 1250,
+        status: "pending",
+        paymentUrl: "https://dev.toyyibpay.com/bill-123",
+        expiresAt: "2026-09-15T10:00:00.000Z",
+      },
     });
     renderWorkspace();
     await reachReview();
@@ -568,6 +580,10 @@ describe("asking to publish", () => {
     fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
 
     expect(await screen.findByText(/no payment has been taken/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Proceed to ToyyibPay/i })).toHaveAttribute(
+      "href",
+      "https://dev.toyyibpay.com/bill-123",
+    );
     const text = document.body.textContent ?? "";
     expect(text).not.toMatch(/your request is (live|open|published)/i);
   });

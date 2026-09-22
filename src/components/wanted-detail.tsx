@@ -1,8 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { ResourceEmblem } from "./resource-emblem";
 import { StatusStamp } from "./status-stamp";
 import { WantedCard } from "./wanted-card";
+import { BackWantedModal } from "./back-wanted-modal";
+import { ClaimSubmissionForm } from "./claim-submission-form";
+import type { AccountViewModel } from "@/contracts/identity";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
 import { formatClosing, formatPostedAge } from "@/features/marketplace/time";
 import type { WantedDetail as Detail, WantedSummary } from "@/features/marketplace/types";
@@ -11,6 +17,7 @@ export interface WantedDetailProps {
   readonly wanted: Detail;
   readonly similar: readonly WantedSummary[];
   readonly now: string;
+  readonly account?: AccountViewModel | null;
 }
 
 function describeBackers(count: number): string {
@@ -41,7 +48,9 @@ function describeBackers(count: number): string {
  * nothing would be worse than one that says what it needs. The rule itself is
  * enforced server-side and by RLS — this is signposting, not a gate.
  */
-export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
+export function WantedDetail({ wanted, similar, now, account }: WantedDetailProps) {
+  const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const closing = formatClosing(wanted.closesAt, now, { detail: true });
   const feePercent = wanted.feeRateBasisPoints / 100;
 
@@ -90,18 +99,38 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
         </div>
 
         <div className="ledger-panel">
-          <Link
-            className="button button--primary ledger-panel__action"
-            href="/profile/institution-verification"
-          >
-            Back this Wanted
-          </Link>
-          <Link
-            className="button button--secondary ledger-panel__action"
-            href={`/claims/new?wantedId=${wanted.id}&from=wanted`}
-          >
-            Fulfill Bounty
-          </Link>
+          {account?.capabilities?.transact && wanted.status === "open" ? (
+            <button
+              type="button"
+              className="button button--primary ledger-panel__action"
+              onClick={() => setIsBackModalOpen(true)}
+            >
+              Back this Wanted
+            </button>
+          ) : (
+            <Link
+              className="button button--primary ledger-panel__action"
+              href="/profile/institution-verification"
+            >
+              Back this Wanted
+            </Link>
+          )}
+          {account?.capabilities?.submitClaim && wanted.status === "open" ? (
+            <button
+              type="button"
+              className="button button--secondary ledger-panel__action"
+              onClick={() => setIsClaimModalOpen(true)}
+            >
+              Submit a Claim
+            </button>
+          ) : (
+            <Link
+              className="button button--secondary ledger-panel__action"
+              href="/profile/institution-verification"
+            >
+              Submit a Claim
+            </Link>
+          )}
           <p className="ledger-panel__note">
             Both actions need institution verification. Contributions are RM1 to RM50 per Backer,
             and payment is disabled in this build until the launch gate passes.
@@ -246,6 +275,14 @@ export function WantedDetail({ wanted, similar, now }: WantedDetailProps) {
           </ul>
         </section>
       )}
+
+      {isBackModalOpen ? (
+        <BackWantedModal wanted={wanted} onClose={() => setIsBackModalOpen(false)} />
+      ) : null}
+
+      {isClaimModalOpen ? (
+        <ClaimSubmissionForm wanted={wanted} onClose={() => setIsClaimModalOpen(false)} />
+      ) : null}
     </div>
   );
 }
