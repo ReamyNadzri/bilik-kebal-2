@@ -53,50 +53,26 @@ Update this file after every meaningful implementation or specification change.
   public DTOs, email-verification gate, integer-sen bounty aggregation, distinct backer counts,
   taxonomy and public activity, validated query enums, and deterministic sorting.
 - Added functional pgTAP coverage for atomic intent creation, pending callbacks, successful balanced posting and idempotent callback replay.
+- Connected Wanted draft workspace and publication confirmation to ToyyibPay contribution bill creation (`POST /api/marketplace/wanted/drafts/:id/contribution`) with redirect handling and `PAYMENT_MODE=disabled` launch gate notice.
+- Implemented `BackWantedModal` and wired "Back this Wanted" on `WantedDetail` for institution-verified students with preset RM1–RM50 contributions (100–5,000 sen).
+- Implemented client-side quarantine upload operations (`computeFileSha256`, `validateClaimFile`, `requestClaimUploadSession`, `submitClaimFile`) uploading up to 50 MB directly to private Supabase Storage `quarantine` via signed PUT without passing untrusted bytes through the Next.js runtime.
+- Built accessible `ClaimSubmissionForm` modal with client-side SHA-256 calculation, progress states, rights confirmation, and `PUBLIC_UPLOADS_ENABLED=false` launch-gate notice.
+- Implemented server-side `HunterClaimsReadService` querying live `claims` joined with `wanted_requests` filtered by `claimant_id`, and updated `/claims` to display real claims for authenticated sessions while preserving `?preview=` fixtures.
+- Published `docs/integration/claims-http-contract.md` and added Playwright E2E coverage for bounty creation, backing, and quarantine claim submission flows (`tests/e2e/marketplace-bounty-claim-flow.spec.ts`).
 
 ## In Progress
 
-- Public Wanted detail now maps the authoritative `expired` lifecycle to the `closed` presentation
-  status, even when a large bounty would otherwise display as well funded. The focused read-model
-  regression test covers this case on `codex/backend`.
-
-- The Phase 3B backend gate is now complete: local pgTAP passes all 102 database tests, and the
-  non-database unit, format, lint, type and production-build gates also pass on `codex/backend`.
-- Antigravity's `agy` launcher is installed and can access Gemini models. The legacy Gemini CLI
-  remains rejected for this account with `IneligibleTierError` / `UNSUPPORTED_CLIENT`; use `agy`
-  for frontend work.
-- Gemini frontend checkpoint `70d2d1c` preserves the marketplace visual work. Follow-up
-  `c2c2321` makes the provisional UI build without downloading Google Fonts; frontend tests,
-  lint, typecheck and format now pass, and the production build passes offline.
-- Phase 4 Slice 1 adds claim submission contracts and eligibility policy, a private `claims` and
-  `claim_upload_sessions` schema, exact-checksum uniqueness, and a private `quarantine` bucket
-  with no browser storage write policy. The full pgTAP suite now passes 110 tests.
-- Phase 4 Slice 2 adds the server-side upload-session service. It validates trust, file limits, opaque quarantine object keys, expiry and the disabled-upload launch gate before a signed upload can be issued.
-- Phase 4 Slice 3 adds identifier-only scanner job/result contracts and a human Sheriff review policy. Scanner evidence can inform review but cannot approve a claim.
-- Phase 4 Slice 4 adds private, RLS-protected screening job and result persistence with idempotent
-  result keys and a service acknowledgement contract. The full pgTAP suite now passes 119 tests.
-- Phase 4 Slice 5 adds the separate scanner worker adapter. It reads quarantine bytes only in the
-  worker boundary and writes identifier-only results or failure acknowledgements.
-- Phase 4 Slice 6 adds human Sheriff review persistence, role and institution authorization, review
-  reason codes, and a database-enforced single approved claim per Wanted. The full pgTAP suite now
-  passes 125 tests.
-- Phase 4 Slice 7 adds the Sheriff review HTTP contract, queue read model, and protected review
-  route. Review responses expose metadata only and never private object keys or file content.
-- Phase 4 Slice 8 connects the provisional Sheriff console to the claim review queue and decision
-  route with loading, empty, unavailable, confirmation prompt and result states.
-- Client auth state and route guards are in place. The shell now names the signed-in account and
-  offers the only sign-out control in the interface; protected routes redirect on the server before
-  rendering; sign-in returns the viewer to where they were; and an `AUTH_REQUIRED` refusal signs a
-  stale session out once rather than per refused operation.
+- Connected bounty creation and claim forms slice is completed on `main` with 100% passing unit tests, full offline production build, and strict typecheck/lint passing.
+- Waiting for user's live Supabase credentials; all database migrations (18 migrations in `supabase/migrations/`) match the implementation without requiring any new migrations or schema changes.
+- Public uploads and live payment remain safely gated under `PUBLIC_UPLOADS_ENABLED=false` and `PAYMENT_MODE=disabled` with informative UI notices.
 
 ## Next Up
 
 1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
 2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
-4. Hand `docs/integration/money-http-contract.md` to Gemini for the payment redirect/waiting UI slice.
-5. Keep `/claims` fixture-backed until the claim HTTP contract and private upload flow are integrated.
-6. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
+4. Configure live Supabase instance and environment variables once the user provides project credentials.
+5. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
 ## Open Questions
 
