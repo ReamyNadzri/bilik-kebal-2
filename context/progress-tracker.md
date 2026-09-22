@@ -94,6 +94,10 @@ Update this file after every meaningful implementation or specification change.
   offers the only sign-out control in the interface; protected routes redirect on the server before
   rendering; sign-in returns the viewer to where they were; and an `AUTH_REQUIRED` refusal signs a
   stale session out once rather than per refused operation.
+- Implemented event-driven status alerts for the Evidence Locker & bounty claim workspace:
+  `DispatchAlertBanner` communicating lifecycle progression (quarantine screening, sheriff review,
+  approved, needs information, distinct not_selected, and rejected), transient `DispatchAlertToast` on
+  proof dispatch/removal events, 4-stage micro-pipeline indicators, and WCAG 2.1 AA accessible ARIA live regions.
 
 ## Next Up
 

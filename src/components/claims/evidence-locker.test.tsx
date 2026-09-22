@@ -55,11 +55,59 @@ describe("EvidenceLocker", () => {
     expect(screen.getByTestId("evidence-grid")).toBeInTheDocument();
     expect(screen.getByText("exam_notes.pdf")).toBeInTheDocument();
     expect(screen.getByText("screenshot.png")).toBeInTheDocument();
-    expect(screen.getByText("Screening")).toBeInTheDocument();
-    expect(screen.getByText("Approved")).toBeInTheDocument();
+    expect(screen.getByTestId("badge-ev-1")).toHaveTextContent("Screening");
+    expect(screen.getByTestId("badge-ev-2")).toHaveTextContent("Approved");
     expect(screen.getByRole("link", { name: /download/i })).toHaveAttribute(
       "href",
       "https://example.com/download/ev-1",
     );
+  });
+
+  it("renders dispatch alert banner and pipeline micro-stepper for active proofs", () => {
+    const mockEvidence: EvidenceItem[] = [
+      {
+        id: "ev-1",
+        actionType: "Claim Proof",
+        fileName: "solutions.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1048576,
+        uploadedAt: "2026-09-21T10:00:00Z",
+        status: "under_review",
+        reviewerNote: "Currently under Sheriff validation.",
+      },
+    ];
+
+    render(<EvidenceLocker evidence={mockEvidence} />);
+
+    // Dispatch banner rendered
+    expect(screen.getByTestId("dispatch-alert-under_review")).toBeInTheDocument();
+    expect(screen.getByText(/dispatched to sheriff review queue/i)).toBeInTheDocument();
+
+    // Pipeline progress rendered
+    expect(screen.getByTestId("pipeline-ev-1")).toBeInTheDocument();
+
+    // Reviewer note rendered
+    expect(screen.getByTestId("reviewer-note-ev-1")).toHaveTextContent(
+      "Currently under Sheriff validation.",
+    );
+  });
+
+  it("renders not_selected status distinctly", () => {
+    const mockEvidence: EvidenceItem[] = [
+      {
+        id: "ev-ns",
+        actionType: "Claim Proof",
+        fileName: "notes.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 500000,
+        uploadedAt: "2026-09-21T12:00:00Z",
+        status: "not_selected",
+      },
+    ];
+
+    render(<EvidenceLocker evidence={mockEvidence} />);
+
+    expect(screen.getByTestId("badge-ev-ns")).toHaveTextContent("Not Selected");
+    expect(screen.getByTestId("dispatch-alert-not_selected")).toBeInTheDocument();
   });
 });

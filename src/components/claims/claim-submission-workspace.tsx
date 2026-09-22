@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { FileUploadField } from "./file-upload-field";
 import { EvidenceLocker, type EvidenceItem } from "./evidence-locker";
+import { DispatchAlertToast } from "./dispatch-alert-toast";
 import type { CompletedClaimProof } from "@/contracts/claims";
 
 export interface ClaimSubmissionWorkspaceProps {
@@ -13,6 +14,13 @@ export interface ClaimSubmissionWorkspaceProps {
   readonly returnLabel?: string;
 }
 
+interface ToastAlertState {
+  readonly title: string;
+  readonly message: string;
+  readonly tier: "info" | "success" | "warning" | "error";
+  readonly badgeLabel?: string;
+}
+
 export function ClaimSubmissionWorkspace({
   wantedId,
   initialEvidence = [],
@@ -20,6 +28,7 @@ export function ClaimSubmissionWorkspace({
   returnLabel,
 }: ClaimSubmissionWorkspaceProps) {
   const [evidenceList, setEvidenceList] = useState<EvidenceItem[]>([...initialEvidence]);
+  const [toastAlert, setToastAlert] = useState<ToastAlertState | null>(null);
 
   const handleUploadComplete = (proof: CompletedClaimProof) => {
     const newEvidence: EvidenceItem = {
@@ -33,10 +42,24 @@ export function ClaimSubmissionWorkspace({
       status: proof.status,
     };
     setEvidenceList((prev) => [newEvidence, ...prev]);
+
+    // Dispatch event notification alert
+    setToastAlert({
+      title: "Proof Dispatched to Quarantine",
+      message: `"${proof.fileName}" has been verified and queued for automated screening.`,
+      tier: "info",
+      badgeLabel: "DISPATCH EVENT",
+    });
   };
 
   const handleRemoveProof = (proof: CompletedClaimProof) => {
     setEvidenceList((prev) => prev.filter((item) => item.claimId !== proof.claimId));
+    setToastAlert({
+      title: "Proof Retracted",
+      message: `"${proof.fileName}" has been removed from this bounty claim.`,
+      tier: "warning",
+      badgeLabel: "STATUS UPDATE",
+    });
   };
 
   return (
@@ -119,6 +142,17 @@ export function ClaimSubmissionWorkspace({
           }
         />
       </section>
+
+      {/* 3. Floating Event-Driven Dispatch Toast Alert */}
+      {toastAlert && (
+        <DispatchAlertToast
+          title={toastAlert.title}
+          message={toastAlert.message}
+          tier={toastAlert.tier}
+          badgeLabel={toastAlert.badgeLabel}
+          onDismiss={() => setToastAlert(null)}
+        />
+      )}
     </div>
   );
 }
