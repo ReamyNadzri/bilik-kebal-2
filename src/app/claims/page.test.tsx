@@ -15,7 +15,9 @@ test("prompts unauthenticated visitors to sign in to claim bounties", async () =
 test("renders the Hunter's Office masthead", async () => {
   await renderPage();
 
-  expect(screen.getByRole("heading", { name: "Take a hunt, claim the bounty" })).toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", { name: "Take a hunt, claim the bounty" }),
+  ).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Open hunts" })).toBeInTheDocument();
 });
 

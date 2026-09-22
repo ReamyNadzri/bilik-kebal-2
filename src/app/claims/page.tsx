@@ -8,8 +8,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { fixtureNow, readPreviewState } from "@/features/marketplace/fixture-preview";
 import { listClaims, listHunts } from "@/features/marketplace/hunt-source";
-import { toSen } from "@/features/marketplace/money";
-import type { ClaimStatus, ClaimSummary, HuntOpportunity } from "@/features/marketplace/types";
+import { sen } from "@/features/marketplace/money";
+import type { ClaimSummary, HuntOpportunity } from "@/features/marketplace/types";
+import { HunterClaimsReadService } from "@/modules/claims/services/hunter-claims-read-service";
 
 export const metadata: Metadata = {
   title: "Hunt | VAULTIX",
@@ -22,9 +23,25 @@ interface ClaimsPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+interface WantedHuntRow {
+  readonly public_id: string;
+  readonly title: string;
+  readonly status: string;
+  readonly gross_bounty_sen: number | null;
+  readonly backer_count: number | null;
+  readonly closes_at: string | null;
+  readonly created_at: string;
+  readonly published_at: string | null;
+  readonly courses: { readonly code: string; readonly name: string } | null;
+  readonly campuses: { readonly name: string } | null;
+  readonly resource_types: { readonly name: string } | null;
+  readonly academic_sessions: { readonly name: string } | null;
+}
+
 export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
   const params = await searchParams;
   const preview = readPreviewState(params["preview"]);
+  const nowInstant = new Date().toISOString();
 
   // If explicitly in preview mode, use the preview harness
   if (preview !== null) {
@@ -59,11 +76,13 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
     const supabase = createSupabaseAdminClient();
     const { data: wantedData } = await supabase
       .from("wanted_requests")
-      .select(`
-        id,
+      .select(
+        `
         public_id,
         title,
         status,
+        gross_bounty_sen,
+        backer_count,
         closes_at,
         created_at,
         published_at,
@@ -71,12 +90,14 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
         campuses (name),
         resource_types (name),
         academic_sessions (name)
-      `)
+      `,
+      )
       .in("status", ["open", "reviewing"])
       .order("published_at", { ascending: false });
 
     if (wantedData && wantedData.length > 0) {
-      hunts = wantedData.map((w: any) => ({
+      const rows = wantedData as unknown as readonly WantedHuntRow[];
+      hunts = rows.map((w) => ({
         id: w.public_id,
         title: w.title,
         courseCode: w.courses?.code ?? "",
@@ -88,11 +109,11 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
         resourceTypeId: "",
         session: w.academic_sessions?.name ?? "",
         sessionId: "",
-        grossBountySen: toSen(2500),
-        backerCount: 1,
-        status: w.status,
+        grossBountySen: sen(w.gross_bounty_sen ?? 2500),
+        backerCount: w.backer_count ?? 1,
+        status: w.status as "open" | "reviewing",
         postedAt: w.published_at ?? w.created_at,
-        closesAt: w.closes_at ?? new Date(Date.now() + 14 * 86400000).toISOString(),
+        closesAt: w.closes_at ?? w.created_at,
         activeClaimCount: 0,
         eligibility: "institution-verified" as const,
       }));
@@ -106,21 +127,10 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
   if (account) {
     try {
       const supabase = await createSupabaseServerClient();
-      const { data: claimsData } = await supabase
-        .from("claims")
-        .select("id, wanted_request_id, status, created_at")
-        .order("created_at", { ascending: false });
-
-      if (claimsData) {
-        claims = claimsData.map((c) => ({
-          id: c.id,
-          wantedId: c.wanted_request_id,
-          wantedTitle: "Submitted Claim",
-          courseCode: "",
-          courseName: "",
-          status: c.status as ClaimStatus,
-          submittedAt: c.created_at,
-        }));
+      const { data: auth } = await supabase.auth.getUser();
+      if (auth.user) {
+        const readService = new HunterClaimsReadService(supabase);
+        claims = await readService.listHunterClaims(auth.user.id);
       }
     } catch {
       claims = [];
@@ -142,7 +152,7 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
         </div>
       ) : null}
 
-      <HuntWorkspace hunts={hunts} claims={claims} now={new Date().toISOString()} />
+      <HuntWorkspace hunts={hunts} claims={claims} now={nowInstant} />
     </div>
   );
 }
