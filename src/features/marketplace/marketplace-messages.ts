@@ -1,4 +1,5 @@
 import type { MarketplaceOperationCode } from "@/contracts/marketplace";
+import type { MoneyOperationCode } from "@/contracts/money";
 
 /**
  * Plain-English copy for each marketplace failure code, and the mapping from
@@ -16,7 +17,7 @@ import type { MarketplaceOperationCode } from "@/contracts/marketplace";
  * those, and only a verified provider callback ever will
  * (docs/integration/marketplace-http-contract.md).
  */
-export const MARKETPLACE_MESSAGE: Record<MarketplaceOperationCode, string> = {
+export const MARKETPLACE_MESSAGE: Record<MarketplaceOperationCode | MoneyOperationCode, string> = {
   AUTH_REQUIRED: "Sign in to continue.",
   EMAIL_NOT_VERIFIED: "Verify your email address before creating a Wanted request.",
   INSTITUTION_VERIFICATION_REQUIRED:
@@ -35,13 +36,23 @@ export const MARKETPLACE_MESSAGE: Record<MarketplaceOperationCode, string> = {
     "Payment could not be prepared, so no payment was started and you have not been charged. Your draft is saved and still editable.",
   AMOUNT_OUT_OF_RANGE: "Each contribution must be between RM1 and RM50.",
   MARKETPLACE_UNAVAILABLE: "The Wanted workspace is unavailable right now. Try again shortly.",
+  MONEY_UNAVAILABLE: "Payment preparation is temporarily unavailable. Try again shortly.",
+  PAYMENT_PROVIDER_REJECTED: "The payment provider rejected this bill request.",
+  PAYMENT_CALLBACK_INVALID: "The payment callback payload was invalid.",
+  PAYMENT_CALLBACK_REPLAY: "This payment event has already been processed.",
 };
 
 /** The operation's own message when it sent one, this module's copy otherwise. */
-export function messageFor(code: MarketplaceOperationCode, message: string | undefined): string {
+export function messageFor(
+  code: MarketplaceOperationCode | import("@/contracts/money").MoneyOperationCode,
+  message: string | undefined,
+): string {
   const supplied = message?.trim() ?? "";
 
-  return supplied === "" ? MARKETPLACE_MESSAGE[code] : supplied;
+  return supplied === ""
+    ? ((MARKETPLACE_MESSAGE as Record<string, string>)[code] ??
+        "An unexpected error occurred. Try again shortly.")
+    : supplied;
 }
 
 export interface DraftFieldError {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { UiStatus } from "@/components/ui-status";
 import { WantedDetail } from "@/components/wanted-detail";
+import { readAccount } from "@/features/presentation/auth/require-account";
 import {
   marketplaceNow,
   readSimilarWanted,
@@ -48,6 +49,8 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
   }
 
   const similar = result.status === "ready" ? await readSimilarWanted(result.data) : [];
+  const accountOutcome = await readAccount();
+  const account = accountOutcome.kind === "account" ? accountOutcome.account : null;
 
   return (
     <div className="page-bare">
@@ -79,7 +82,12 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
           action={<Link href="/board">Open the Wanted Board</Link>}
         />
       ) : (
-        <WantedDetail wanted={result.data} similar={similar} now={marketplaceNow()} />
+        <WantedDetail
+          wanted={result.data}
+          similar={similar}
+          now={marketplaceNow()}
+          account={account}
+        />
       )}
     </div>
   );

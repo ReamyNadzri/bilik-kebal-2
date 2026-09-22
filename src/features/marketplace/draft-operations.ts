@@ -7,6 +7,11 @@ import type {
   WantedDraftView,
   WantedDuplicateSuggestion,
 } from "@/contracts/marketplace";
+import type {
+  BillView,
+  CreateContributionIntentResult,
+  MoneyOperationCode,
+} from "@/contracts/money";
 import { callOperation } from "@/features/presentation/call-operation";
 
 /**
@@ -84,5 +89,24 @@ export function requestWantedPublication(
     draftPath(draftId, "/publication"),
     { duplicateCheckToken, initialContributionSen },
     "MARKETPLACE_UNAVAILABLE",
+  );
+}
+
+/**
+ * Initiates the draft's contribution bill via ToyyibPay.
+ *
+ * Money is integer sen (RM1–RM50 = 100–5,000 sen).
+ * Returns a BillView with paymentUrl on success, or a refusal code like
+ * PAYMENT_DISABLED or AMOUNT_OUT_OF_RANGE.
+ */
+export function createDraftContributionBill(
+  draftId: string,
+  duplicateCheckToken: string,
+  amountSen: number,
+): Promise<CreateContributionIntentResult> {
+  return callOperation<BillView, MoneyOperationCode>(
+    draftPath(draftId, "/contribution"),
+    { duplicateCheckToken, amountSen },
+    "MONEY_UNAVAILABLE",
   );
 }

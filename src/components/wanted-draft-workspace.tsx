@@ -13,9 +13,10 @@ import type {
   TaxonomyItem,
   WantedDuplicateSuggestion,
 } from "@/contracts/marketplace";
+import type { MoneyOperationCode } from "@/contracts/money";
 import {
   checkWantedDuplicates,
-  requestWantedPublication,
+  createDraftContributionBill,
   saveWantedDraft,
 } from "@/features/marketplace/draft-operations";
 import {
@@ -86,7 +87,7 @@ type Outcome =
   | { readonly kind: "none" }
   | { readonly kind: "refused"; readonly heading: string; readonly message: string }
   | { readonly kind: "recheck"; readonly message: string }
-  | { readonly kind: "awaiting-payment" };
+  | { readonly kind: "awaiting-payment"; readonly paymentUrl?: string };
 
 type Step = "idle" | "saving" | "checking" | "publishing";
 
@@ -103,7 +104,7 @@ interface Refusal {
  * chooses the wording and, where one exists, the route that resolves it. A
  * code with no route offers no action rather than inventing a remedy.
  */
-function refusalFor(code: MarketplaceOperationCode): Refusal {
+function refusalFor(code: MarketplaceOperationCode | MoneyOperationCode): Refusal {
   switch (code) {
     case "AUTH_REQUIRED":
       return {
@@ -135,6 +136,11 @@ function refusalFor(code: MarketplaceOperationCode): Refusal {
       return { status: "expired", heading: "That draft is no longer on your account" };
     case "DRAFT_NOT_EDITABLE":
       return { status: "expired", heading: "This request can no longer be edited" };
+    case "PAYMENT_PROVIDER_REJECTED":
+    case "PAYMENT_CALLBACK_INVALID":
+    case "PAYMENT_CALLBACK_REPLAY":
+    case "MONEY_UNAVAILABLE":
+      return { status: "offline", heading: "Payment could not be prepared" };
     default:
       return { status: "offline", heading: "Your draft could not be saved" };
   }
@@ -286,7 +292,10 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   }
 
   /** Returns to the form carrying a refusal the reader can act on. */
-  function refuse(code: MarketplaceOperationCode, message: string | undefined) {
+  function refuse(
+    code: MarketplaceOperationCode | MoneyOperationCode,
+    message: string | undefined,
+  ) {
     const { status, heading, action } = refusalFor(code);
 
     setReview(null);
@@ -439,7 +448,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
       setStep("publishing");
       setAnnouncement("Asking to prepare payment.");
 
-      const result = await requestWantedPublication(
+      const result = await createDraftContributionBill(
         draftId,
         review.token,
         review.draft.contributionSen,
@@ -449,7 +458,14 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
 
       if (result.ok) {
         // Awaiting payment is not a payment. No Wanted is open.
-        setOutcome({ kind: "awaiting-payment" });
+        setOutcome({ kind: "awaiting-payment", paymentUrl: result.data.paymentUrl });
+        if (typeof window !== "undefined" && result.data.paymentUrl) {
+          try {
+            window.location.href = result.data.paymentUrl;
+          } catch {
+            // Ignored in non-navigable test runners
+          }
+        }
         return;
       }
 
@@ -667,6 +683,17 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                     the Board only after the payment provider confirms your first contribution to
                     this site directly — never from a redirect back to it.
                   </p>
+                  {outcome.paymentUrl ? (
+                    <p className="ui-status__action">
+                      <a
+                        className="button button--primary"
+                        href={outcome.paymentUrl}
+                        rel="noopener noreferrer"
+                      >
+                        Proceed to ToyyibPay
+                      </a>
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
 
