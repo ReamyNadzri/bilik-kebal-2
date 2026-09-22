@@ -1,6 +1,7 @@
 "use client";
 
 import type { ClaimLifecycle, ClaimMimeType } from "@/contracts/claims";
+import { DispatchAlertBanner } from "./dispatch-alert-banner";
 
 export interface EvidenceItem {
   id: string;
@@ -12,6 +13,7 @@ export interface EvidenceItem {
   uploadedAt: string;
   status?: ClaimLifecycle | "screening" | "approved" | "under_review" | "rejected";
   downloadUrl?: string;
+  reviewerNote?: string | null;
 }
 
 export interface EvidenceLockerProps {
@@ -22,6 +24,7 @@ export interface EvidenceLockerProps {
   onRemoveEvidence?: (item: EvidenceItem) => void;
   title?: string;
   subtitle?: string;
+  activeStatusAlert?: ClaimLifecycle | "screening" | "approved" | "under_review" | "rejected" | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -65,6 +68,7 @@ function getStatusBadge(status?: string): {
         border: "rgba(46, 125, 50, 0.3)",
       };
     case "screening":
+    case "uploading":
       return {
         label: "Screening",
         bg: "rgba(183, 151, 99, 0.15)",
@@ -85,12 +89,26 @@ function getStatusBadge(status?: string): {
         color: "#b45309",
         border: "rgba(217, 119, 6, 0.4)",
       };
+    case "not_selected":
+      return {
+        label: "Not Selected",
+        bg: "rgba(94, 79, 55, 0.08)",
+        color: "#5e4f37",
+        border: "rgba(94, 79, 55, 0.25)",
+      };
     case "rejected":
       return {
         label: "Rejected",
         bg: "rgba(183, 28, 28, 0.12)",
         color: "#b71c1c",
         border: "rgba(183, 28, 28, 0.3)",
+      };
+    case "withdrawn":
+      return {
+        label: "Withdrawn",
+        bg: "rgba(94, 79, 55, 0.08)",
+        color: "#5e4f37",
+        border: "rgba(94, 79, 55, 0.25)",
       };
     default:
       return {
@@ -102,6 +120,29 @@ function getStatusBadge(status?: string): {
   }
 }
 
+function getPipelineProgress(status?: string): {
+  readonly currentStep: number;
+  readonly steps: readonly string[];
+} {
+  const steps = ["Quarantine", "Screening", "Review", "Decision"];
+  switch (status) {
+    case "uploading":
+      return { currentStep: 1, steps };
+    case "screening":
+      return { currentStep: 2, steps };
+    case "under_review":
+    case "needs_information":
+      return { currentStep: 3, steps };
+    case "approved":
+    case "not_selected":
+    case "rejected":
+    case "withdrawn":
+      return { currentStep: 4, steps };
+    default:
+      return { currentStep: 1, steps };
+  }
+}
+
 export function EvidenceLocker({
   evidence = [],
   isLoading = false,
@@ -110,7 +151,13 @@ export function EvidenceLocker({
   onRemoveEvidence,
   title = "Evidence Locker",
   subtitle = "Attached proof files, screenshots, and review records",
+  activeStatusAlert,
 }: EvidenceLockerProps) {
+  // Determine primary dispatch alert status: explicit prop takes precedence, then newest item
+  const resolvedAlertStatus =
+    activeStatusAlert ?? (evidence.length > 0 ? evidence[0]?.status : null);
+  const primaryReviewerNote = evidence.length > 0 ? evidence[0]?.reviewerNote : null;
+
   return (
     <section
       className="panel"
@@ -162,6 +209,14 @@ export function EvidenceLocker({
           {evidence.length} {evidence.length === 1 ? "Proof Attached" : "Proofs Attached"}
         </span>
       </div>
+
+      {/* EVENT-DRIVEN DISPATCH ALERT BANNER */}
+      {!isLoading && !error && resolvedAlertStatus && (
+        <DispatchAlertBanner
+          status={resolvedAlertStatus}
+          reviewerNote={primaryReviewerNote}
+        />
+      )}
 
       {/* 1. LOADING STATE */}
       {isLoading && (
@@ -325,6 +380,8 @@ export function EvidenceLocker({
         >
           {evidence.map((item) => {
             const badge = getStatusBadge(item.status);
+            const pipeline = getPipelineProgress(item.status);
+
             return (
               <article
                 key={item.id}
@@ -357,6 +414,7 @@ export function EvidenceLocker({
                       {item.actionType}
                     </span>
                     <span
+                      data-testid={`badge-${item.id}`}
                       style={{
                         fontSize: "0.75rem",
                         padding: "0.15rem 0.5rem",
@@ -403,6 +461,72 @@ export function EvidenceLocker({
                       </p>
                     </div>
                   </div>
+
+                  {/* Micro-pipeline Stage Progress Bar */}
+                  <div
+                    data-testid={`pipeline-${item.id}`}
+                    aria-label={`Dispatch Stage: ${pipeline.steps[pipeline.currentStep - 1]}`}
+                    style={{
+                      marginTop: "0.85rem",
+                      padding: "0.4rem 0.5rem",
+                      background: "rgba(94, 79, 55, 0.05)",
+                      borderRadius: "3px",
+                      border: "1px solid var(--border-subtle, #d3bc92)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        color: "var(--text-muted, #5e4f37)",
+                      }}
+                    >
+                      {pipeline.steps.map((stepName, idx) => {
+                        const stepNum = idx + 1;
+                        const isCurrent = stepNum === pipeline.currentStep;
+                        const isDone = stepNum < pipeline.currentStep;
+                        return (
+                          <span
+                            key={stepName}
+                            style={{
+                              color: isCurrent
+                                ? "var(--text-primary, #2a2118)"
+                                : isDone
+                                ? "var(--state-success, #2e7d32)"
+                                : "var(--text-soft, #6b5a3f)",
+                              fontWeight: isCurrent ? 700 : 500,
+                              textDecoration: isCurrent ? "underline" : "none",
+                            }}
+                          >
+                            {isDone ? "✓" : `${stepNum}.`} {stepName}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Reviewer Note / Reason Code Callout if present */}
+                  {item.reviewerNote && (
+                    <div
+                      data-testid={`reviewer-note-${item.id}`}
+                      style={{
+                        marginTop: "0.6rem",
+                        padding: "0.45rem 0.6rem",
+                        borderRadius: "3px",
+                        background: "rgba(200, 155, 60, 0.1)",
+                        border: "1px solid var(--state-warning, #c89b3c)",
+                        fontSize: "0.75rem",
+                        color: "var(--text-primary, #2a2118)",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700 }}>Reviewer Note: </span>
+                      {item.reviewerNote}
+                    </div>
+                  )}
                 </div>
 
                 <div
