@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
-export type UiStatusKind = "loading" | "empty" | "error" | "restricted" | "expired" | "offline";
+export type UiStatusKind =
+  "loading" | "empty" | "success" | "error" | "restricted" | "expired" | "offline";
 
 export interface UiStatusProps {
   kind: UiStatusKind;
@@ -10,7 +11,7 @@ export interface UiStatusProps {
 }
 
 /**
- * Shared presentation for non-success states.
+ * Shared presentation for operation and lifecycle states.
  *
  * Carries no business rule, copy or lifecycle knowledge — callers supply the
  * words. Every kind renders a text label so the state is never conveyed by
@@ -19,6 +20,7 @@ export interface UiStatusProps {
 const STATE_LABEL: Record<UiStatusKind, string> = {
   loading: "Loading",
   empty: "Empty",
+  success: "Success",
   error: "Error",
   restricted: "Restricted",
   expired: "Expired",
@@ -34,6 +36,7 @@ function announcementRole(kind: UiStatusKind): "alert" | "status" | undefined {
     // Lifecycle and connectivity are informational, so they wait their turn.
     case "expired":
     case "offline":
+    case "success":
       return "status";
     case "loading":
     case "empty":
