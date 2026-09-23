@@ -17,8 +17,7 @@ VAULTIX is a Supabase-centric modular monolith. The web application is deployed 
 | File storage | Supabase Storage, private buckets | Quarantine, approved resources, and temporary institution-verification evidence |
 | Lightweight backend | Supabase Edge Functions | ToyyibPay callbacks, provider orchestration, and short idempotent tasks |
 | Queue | Supabase Queues (`pgmq`) | Durable asynchronous work and retry coordination |
-| Scheduler | Supabase Cron (`pg_cron`) | Expiry, 48-hour release, retention cleanup, and reconciliation schedules |
-| Email | Brevo transactional email API (Free plan) | Authentication and transactional email; up to 300 sends/day, with Brevo branding on free-tier messages |
+| Email | Brevo transactional API + custom SMTP | App notifications use the API; Supabase Auth uses separate SMTP credentials |
 | Payments | ToyyibPay | Sandbox and live contribution collection |
 | File screening | Isolated container worker, provider selected before public upload | Malware scan, safe conversion, text extraction, and fingerprint generation |
 | Validation | Zod at TypeScript boundaries + PostgreSQL constraints | Reject malformed external input and enforce data invariants |

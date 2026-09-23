@@ -172,9 +172,9 @@ export function EmailVerification({ status, address }: EmailVerificationProps) {
         </>
       ) : null}
 
-      {(status === "pending" || status === "expired") && address === null ? (
+      {status === "pending" || status === "expired" ? (
         <p className="auth-form__links">
-          <Link href="/sign-up">Create an account</Link>
+          {address === null ? <Link href="/sign-up">Create an account</Link> : null}
           <Link href="/sign-in">Sign in</Link>
         </p>
       ) : null}

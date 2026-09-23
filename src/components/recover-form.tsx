@@ -10,6 +10,27 @@ import { callOperation } from "@/features/presentation/call-operation";
 import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
+const COOLDOWN_SECONDS = 120;
+const STORAGE_KEY = "vaultix_recovery_cooldown";
+
+function getInitialCooldown(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (!stored) return 0;
+    const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
+    return remaining > 0 ? remaining : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function formatCooldown(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 type Outcome =
   | { kind: "idle" }
   | { kind: "submitting" }
@@ -27,8 +48,13 @@ type Outcome =
 export function RecoverForm() {
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
+  const [cooldown, setCooldown] = useState(0);
   const summaryRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
+
+  useEffect(() => {
+    setCooldown(getInitialCooldown());
+  }, []);
 
   useEffect(() => {
     if (errors.length > 0) {
@@ -36,8 +62,28 @@ export function RecoverForm() {
     }
   }, [errors]);
 
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          try {
+            sessionStorage.removeItem(STORAGE_KEY);
+          } catch {}
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (cooldown > 0) {
+      return;
+    }
 
     const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
 
@@ -58,6 +104,11 @@ export function RecoverForm() {
 
     if (result.ok) {
       setOutcome({ kind: "accepted" });
+      const expiry = Date.now() + COOLDOWN_SECONDS * 1000;
+      try {
+        sessionStorage.setItem(STORAGE_KEY, String(expiry));
+      } catch {}
+      setCooldown(COOLDOWN_SECONDS);
       return;
     }
 
@@ -110,8 +161,12 @@ export function RecoverForm() {
         error={errors.find((error) => error.fieldId === "email")?.message}
       />
 
-      <button className="auth-form__submit" type="submit" disabled={submitting}>
-        {submitting ? "Sending…" : "Send recovery link"}
+      <button className="auth-form__submit" type="submit" disabled={submitting || cooldown > 0}>
+        {submitting
+          ? "Sending…"
+          : cooldown > 0
+            ? `Send recovery link (wait ${formatCooldown(cooldown)})`
+            : "Send recovery link"}
       </button>
 
       {submitting ? <UiStatus kind="loading" heading="Sending the recovery link" /> : null}

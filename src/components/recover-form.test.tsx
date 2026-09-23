@@ -16,6 +16,7 @@ function enterAddress() {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -71,4 +72,18 @@ test("reports an unreachable server as offline", async () => {
   submit();
 
   await waitFor(() => expect(screen.getByText("Offline")).toBeInTheDocument());
+});
+
+test("disables the submit button with a cooldown timer after submitting", async () => {
+  respondWith({ ok: true, data: { accepted: true } });
+
+  render(<RecoverForm />);
+  enterAddress();
+  submit();
+
+  await waitFor(() => {
+    const button = screen.getByRole("button", { name: /Send recovery link/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent(/wait/i);
+  });
 });

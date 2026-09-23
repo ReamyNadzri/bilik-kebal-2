@@ -13,6 +13,9 @@ Update this file after every meaningful implementation or specification change.
   `main`. The Gemini frontier interface and Codex backend are now in one reviewable tree.
 - Phase 4 Claims and moderation has started with quarantine RLS, upload-session authorization,
   scanner contracts, and human review policy.
+- 2026-09-23 email-priority decision: deliver account/security and critical
+  trust/moderation emails first. Defer payment status/receipt, refund, payout, and
+  reconciliation emails until the payment gateway is applied and verified.
 
 ## Current Goal
 
@@ -155,6 +158,9 @@ Update this file after every meaningful implementation or specification change.
   on recorded approval/rights and entitlements; retention depends on final decision,
   appeal and investigation closure state. Keep these schedules inactive until the
   owning domain operations exist. Final settlement remains deferred by user request.
+- 2026-09-24: Integrated password reset and recovery flow on `main` with Brevo custom
+  SMTP, added a 2-minute cooldown on the recovery request form, and updated sign-up
+  to navigate directly to `/sign-in` when email confirmations are disabled.
 
 - Public Wanted detail now maps the authoritative `expired` lifecycle to the `closed` presentation
   status, even when a large bounty would otherwise display as well funded. The focused read-model
