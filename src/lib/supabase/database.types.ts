@@ -1,6 +1,11 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+﻿export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5";
+  };
   graphql_public: {
     Tables: {
       [_ in never]: never;
@@ -159,6 +164,147 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "institutions";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      claim_appeals: {
+        Row: {
+          appeal_deadline: string;
+          appellant_user_id: string;
+          claim_id: string;
+          created_at: string;
+          decided_at: string | null;
+          decision: Database["public"]["Enums"]["claim_appeal_status"] | null;
+          decision_notes: string | null;
+          decision_reason_code: string | null;
+          id: string;
+          original_review_id: string;
+          reason: string;
+          reviewer_user_id: string | null;
+          status: Database["public"]["Enums"]["claim_appeal_status"];
+        };
+        Insert: {
+          appeal_deadline: string;
+          appellant_user_id: string;
+          claim_id: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decision?: Database["public"]["Enums"]["claim_appeal_status"] | null;
+          decision_notes?: string | null;
+          decision_reason_code?: string | null;
+          id?: string;
+          original_review_id: string;
+          reason: string;
+          reviewer_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_appeal_status"];
+        };
+        Update: {
+          appeal_deadline?: string;
+          appellant_user_id?: string;
+          claim_id?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decision?: Database["public"]["Enums"]["claim_appeal_status"] | null;
+          decision_notes?: string | null;
+          decision_reason_code?: string | null;
+          id?: string;
+          original_review_id?: string;
+          reason?: string;
+          reviewer_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_appeal_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_appeals_appellant_user_id_fkey";
+            columns: ["appellant_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "claim_appeals_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: true;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_appeals_original_review_id_fkey";
+            columns: ["original_review_id"];
+            isOneToOne: false;
+            referencedRelation: "claim_reviews";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_appeals_reviewer_user_id_fkey";
+            columns: ["reviewer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      claim_reports: {
+        Row: {
+          category: Database["public"]["Enums"]["claim_report_category"];
+          claim_id: string;
+          created_at: string;
+          description: string;
+          id: string;
+          is_high_risk: boolean;
+          reporter_user_id: string;
+          resolution_notes: string | null;
+          resolved_at: string | null;
+          resolved_by_user_id: string | null;
+          status: Database["public"]["Enums"]["claim_report_status"];
+        };
+        Insert: {
+          category: Database["public"]["Enums"]["claim_report_category"];
+          claim_id: string;
+          created_at?: string;
+          description: string;
+          id?: string;
+          is_high_risk?: boolean;
+          reporter_user_id: string;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          resolved_by_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_report_status"];
+        };
+        Update: {
+          category?: Database["public"]["Enums"]["claim_report_category"];
+          claim_id?: string;
+          created_at?: string;
+          description?: string;
+          id?: string;
+          is_high_risk?: boolean;
+          reporter_user_id?: string;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          resolved_by_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_report_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_reports_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: false;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_reports_reporter_user_id_fkey";
+            columns: ["reporter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "claim_reports_resolved_by_user_id_fkey";
+            columns: ["resolved_by_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
           },
         ];
       };
@@ -357,9 +503,11 @@ export type Database = {
           hunter_user_id: string;
           id: string;
           institution_id: string;
+          is_restricted: boolean;
           mime_type: string;
           object_key: string;
           public_id: string;
+          restriction_reason: string | null;
           rights_confirmed_at: string;
           sha256: string;
           size_bytes: number;
@@ -376,9 +524,11 @@ export type Database = {
           hunter_user_id: string;
           id?: string;
           institution_id: string;
+          is_restricted?: boolean;
           mime_type: string;
           object_key: string;
           public_id?: string;
+          restriction_reason?: string | null;
           rights_confirmed_at: string;
           sha256: string;
           size_bytes: number;
@@ -395,9 +545,11 @@ export type Database = {
           hunter_user_id?: string;
           id?: string;
           institution_id?: string;
+          is_restricted?: boolean;
           mime_type?: string;
           object_key?: string;
           public_id?: string;
+          restriction_reason?: string | null;
           rights_confirmed_at?: string;
           sha256?: string;
           size_bytes?: number;
@@ -1360,7 +1512,9 @@ export type Database = {
           fee_rate_basis_points_snapshot: number | null;
           id: string;
           institution_id: string;
+          is_paused: boolean;
           language_id: string;
+          paused_at: string | null;
           policy_accepted_at: string;
           policy_version_snapshot: string | null;
           programme_id: string;
@@ -1370,6 +1524,7 @@ export type Database = {
           resource_type_id: string;
           status: Database["public"]["Enums"]["wanted_status"];
           title: string;
+          total_paused_duration: string;
           updated_at: string;
         };
         Insert: {
@@ -1386,7 +1541,9 @@ export type Database = {
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id: string;
+          is_paused?: boolean;
           language_id: string;
+          paused_at?: string | null;
           policy_accepted_at: string;
           policy_version_snapshot?: string | null;
           programme_id: string;
@@ -1396,6 +1553,7 @@ export type Database = {
           resource_type_id: string;
           status?: Database["public"]["Enums"]["wanted_status"];
           title: string;
+          total_paused_duration?: string;
           updated_at?: string;
         };
         Update: {
@@ -1412,7 +1570,9 @@ export type Database = {
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id?: string;
+          is_paused?: boolean;
           language_id?: string;
+          paused_at?: string | null;
           policy_accepted_at?: string;
           policy_version_snapshot?: string | null;
           programme_id?: string;
@@ -1422,6 +1582,7 @@ export type Database = {
           resource_type_id?: string;
           status?: Database["public"]["Enums"]["wanted_status"];
           title?: string;
+          total_paused_duration?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -1499,6 +1660,18 @@ export type Database = {
         Args: { target_request_id: string };
         Returns: string;
       };
+      complete_claim_upload_session: {
+        Args: { target_claim_id: string };
+        Returns: {
+          claim_id: string;
+          completed_at: string;
+          file_name: string;
+          mime_type: string;
+          size_bytes: number;
+          status: Database["public"]["Enums"]["claim_status"];
+          wanted_id: string;
+        }[];
+      };
       create_claim_upload_session: {
         Args: {
           target_expires_at: string;
@@ -1553,6 +1726,15 @@ export type Database = {
           received_at: string;
         }[];
       };
+      record_claim_appeal_decision: {
+        Args: {
+          target_appeal_id: string;
+          target_decision: Database["public"]["Enums"]["claim_appeal_status"];
+          target_notes?: string;
+          target_reason_code: string;
+        };
+        Returns: undefined;
+      };
       record_claim_review: {
         Args: {
           target_claim_id: string;
@@ -1594,6 +1776,18 @@ export type Database = {
         };
         Returns: string;
       };
+      submit_claim_appeal: {
+        Args: { target_claim_id: string; target_reason: string };
+        Returns: string;
+      };
+      submit_claim_report: {
+        Args: {
+          target_category: Database["public"]["Enums"]["claim_report_category"];
+          target_claim_id: string;
+          target_description: string;
+        };
+        Returns: string;
+      };
       update_wanted_draft: {
         Args: {
           academic_session_id: string;
@@ -1614,6 +1808,16 @@ export type Database = {
       verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
+      claim_appeal_status: "pending" | "upheld" | "overturned" | "dismissed";
+      claim_report_category:
+        | "restricted_material"
+        | "rights_issue"
+        | "wrong_file"
+        | "personal_data"
+        | "malware"
+        | "fraud"
+        | "other";
+      claim_report_status: "pending" | "investigating" | "resolved" | "dismissed";
       claim_screening_job_state: "queued" | "processing" | "completed" | "failed";
       claim_status:
         | "uploading"
@@ -1623,7 +1827,9 @@ export type Database = {
         | "approved"
         | "not_selected"
         | "rejected"
-        | "withdrawn";
+        | "withdrawn"
+        | "restricted"
+        | "appeal_pending";
       contribution_intent_status: "pending" | "paid" | "failed" | "expired";
       institution_role: "institution_sheriff";
       institution_verification_method: "domain" | "manual";
@@ -1756,6 +1962,17 @@ export const Constants = {
   },
   public: {
     Enums: {
+      claim_appeal_status: ["pending", "upheld", "overturned", "dismissed"],
+      claim_report_category: [
+        "restricted_material",
+        "rights_issue",
+        "wrong_file",
+        "personal_data",
+        "malware",
+        "fraud",
+        "other",
+      ],
+      claim_report_status: ["pending", "investigating", "resolved", "dismissed"],
       claim_screening_job_state: ["queued", "processing", "completed", "failed"],
       claim_status: [
         "uploading",
@@ -1766,6 +1983,8 @@ export const Constants = {
         "not_selected",
         "rejected",
         "withdrawn",
+        "restricted",
+        "appeal_pending",
       ],
       contribution_intent_status: ["pending", "paid", "failed", "expired"],
       institution_role: ["institution_sheriff"],

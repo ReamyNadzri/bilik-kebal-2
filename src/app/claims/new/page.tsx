@@ -119,32 +119,32 @@ export default async function NewClaimPage({ searchParams }: NewClaimPageProps) 
           },
         ]
       : preview === "review"
-      ? [
-          {
-            id: "ev-demo-2",
-            actionType: "Claim Proof",
-            fileName: "MAT402_Calculus_Formula_Sheet.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 1200000,
-            uploadedAt: new Date(Date.now() - 3600000).toISOString(),
-            status: "under_review",
-            reviewerNote: "Sheriff review assigned: verifying course syllabus alignment.",
-          },
-        ]
-      : preview === "approved"
-      ? [
-          {
-            id: "ev-demo-3",
-            actionType: "Claim Proof",
-            fileName: "CSC404_Algorithm_Lecture_Notes.pdf",
-            mimeType: "application/pdf",
-            sizeBytes: 3100000,
-            uploadedAt: new Date(Date.now() - 7200000).toISOString(),
-            status: "approved",
-            reviewerNote: "Verified authentic UiTM past semester solutions.",
-          },
-        ]
-      : [];
+        ? [
+            {
+              id: "ev-demo-2",
+              actionType: "Claim Proof",
+              fileName: "MAT402_Calculus_Formula_Sheet.pdf",
+              mimeType: "application/pdf",
+              sizeBytes: 1200000,
+              uploadedAt: new Date(Date.now() - 3600000).toISOString(),
+              status: "under_review",
+              reviewerNote: "Sheriff review assigned: verifying course syllabus alignment.",
+            },
+          ]
+        : preview === "approved"
+          ? [
+              {
+                id: "ev-demo-3",
+                actionType: "Claim Proof",
+                fileName: "CSC404_Algorithm_Lecture_Notes.pdf",
+                mimeType: "application/pdf",
+                sizeBytes: 3100000,
+                uploadedAt: new Date(Date.now() - 7200000).toISOString(),
+                status: "approved",
+                reviewerNote: "Verified authentic UiTM past semester solutions.",
+              },
+            ]
+          : [];
 
   return (
     <div style={{ maxWidth: "56rem", marginInline: "auto", width: "100%" }}>

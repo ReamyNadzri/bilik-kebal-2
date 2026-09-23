@@ -103,6 +103,30 @@ function getAlertVisual(
         textColor: "var(--text-muted, #5e4f37)",
         badgeBg: "rgba(94, 79, 55, 0.15)",
       };
+    case "restricted":
+      return {
+        icon: "🛡️",
+        title: "Claim Restricted — Under Investigation",
+        message:
+          reviewerNote ??
+          "This submission has been temporarily restricted due to an active high-risk report. Quarantine isolation is enforced.",
+        bg: "rgba(183, 28, 28, 0.1)",
+        border: "var(--state-error, #b71c1c)",
+        textColor: "var(--state-error, #b71c1c)",
+        badgeBg: "rgba(183, 28, 28, 0.2)",
+      };
+    case "appeal_pending":
+      return {
+        icon: "⚖️",
+        title: "7-Day Appeal Active — Under Review",
+        message:
+          reviewerNote ??
+          "Your formal appeal is under active review by an independent Sheriff. Bounty countdowns and refunds are paused.",
+        bg: "rgba(200, 155, 60, 0.12)",
+        border: "var(--state-warning, #c89b3c)",
+        textColor: "var(--text-primary, #2a2118)",
+        badgeBg: "rgba(200, 155, 60, 0.25)",
+      };
   }
 }
 

@@ -24,7 +24,8 @@ export interface EvidenceLockerProps {
   onRemoveEvidence?: (item: EvidenceItem) => void;
   title?: string;
   subtitle?: string;
-  activeStatusAlert?: ClaimLifecycle | "screening" | "approved" | "under_review" | "rejected" | null;
+  activeStatusAlert?:
+    ClaimLifecycle | "screening" | "approved" | "under_review" | "rejected" | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -212,10 +213,7 @@ export function EvidenceLocker({
 
       {/* EVENT-DRIVEN DISPATCH ALERT BANNER */}
       {!isLoading && !error && resolvedAlertStatus && (
-        <DispatchAlertBanner
-          status={resolvedAlertStatus}
-          reviewerNote={primaryReviewerNote}
-        />
+        <DispatchAlertBanner status={resolvedAlertStatus} reviewerNote={primaryReviewerNote} />
       )}
 
       {/* 1. LOADING STATE */}
@@ -495,8 +493,8 @@ export function EvidenceLocker({
                               color: isCurrent
                                 ? "var(--text-primary, #2a2118)"
                                 : isDone
-                                ? "var(--state-success, #2e7d32)"
-                                : "var(--text-soft, #6b5a3f)",
+                                  ? "var(--state-success, #2e7d32)"
+                                  : "var(--text-soft, #6b5a3f)",
                               fontWeight: isCurrent ? 700 : 500,
                               textDecoration: isCurrent ? "underline" : "none",
                             }}

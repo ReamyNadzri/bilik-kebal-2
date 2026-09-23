@@ -57,9 +57,7 @@ describe("DispatchAlertBanner", () => {
       />,
     );
     expect(screen.getByTestId("dispatch-alert-needs_information")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /needs clarification/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /needs clarification/i })).toBeInTheDocument();
     expect(
       screen.getByText("Please attach the cover page with instructor signature."),
     ).toBeInTheDocument();

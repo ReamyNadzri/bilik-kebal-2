@@ -21,6 +21,8 @@ export type ClaimLifecycle =
   | "approved"
   | "not_selected"
   | "rejected"
+  | "restricted"
+  | "appeal_pending"
   | "withdrawn";
 
 export type ClaimsOperationCode =
