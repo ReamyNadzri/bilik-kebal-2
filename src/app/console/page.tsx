@@ -67,6 +67,10 @@ export default async function ConsolePage() {
   return (
     <>
       <h1>Sheriff Console</h1>
+      <p style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+        <Link href="/console/claims">Claim Reviews →</Link>
+        <Link href="/console/operations">Operations &amp; Payouts →</Link>
+      </p>
 
       {outcome.kind === "refused" ? <ConsoleLanding /> : null}
 

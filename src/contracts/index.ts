@@ -56,3 +56,61 @@ export type {
   WantedLifecycle,
   WantedSummary,
 } from "./marketplace";
+export {
+  CLAIM_APPROVAL_REASON_CODES,
+  CLAIM_NEEDS_INFO_REASON_CODES,
+  CLAIM_REJECTION_REASON_CODES,
+  CLAIM_REPORT_CATEGORIES,
+  HIGH_RISK_REPORT_CATEGORIES,
+  APPEAL_DECISION_REASON_CODES,
+  claimAppealDecisionSchema,
+  claimAppealInputSchema,
+  claimReportInputSchema,
+  isHighRiskReportCategory,
+} from "./moderation";
+export type {
+  ClaimAppealDecisionInput,
+  ClaimAppealDetails,
+  ClaimAppealInput,
+  ClaimReportCategory,
+  ClaimReportDetails,
+  ClaimReportInput,
+  DecideClaimAppealResult,
+  HighRiskReportCategory,
+  ModerationOperationCode,
+  SubmitClaimAppealResult,
+  SubmitClaimReportResult,
+} from "./moderation";
+
+export { revokeEntitlementsInputSchema } from "./entitlements";
+export type {
+  ClaimDownloadUrlView,
+  EntitlementOperationCode,
+  EntitlementRecord,
+  GetClaimDownloadResult,
+  RevokeEntitlementsInput,
+} from "./entitlements";
+
+export {
+  PAYOUT_METHODS,
+  REFUND_METHODS,
+  recordPayoutCompletionSchema,
+  recordRefundCompletionSchema,
+  expireBountyInputSchema,
+} from "./payouts";
+export type {
+  ExpireBountyInput,
+  ExpireBountyResult,
+  PayoutMethod,
+  PayoutOperationCode,
+  PayoutTaskStatus,
+  PayoutTaskView,
+  RecordPayoutCompletionInput,
+  RecordPayoutResult,
+  RecordRefundCompletionInput,
+  RecordRefundResult,
+  RefundMethod,
+  RefundOperationCode,
+  RefundTaskStatus,
+  RefundTaskView,
+} from "./payouts";

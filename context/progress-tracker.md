@@ -16,8 +16,7 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Goal
 
-- Complete the Phase 4 server delivery route and persistence slices on the integrated tree while
-  keeping public uploads and live payment disabled.
+- Prepare Phase 6: Hardening and controlled launch gates (monitoring, audit trails, and end-to-end integration flows).
 
 ## Completed
 
@@ -189,6 +188,24 @@ Update this file after every meaningful implementation or specification change.
   offers the only sign-out control in the interface; protected routes redirect on the server before
   rendering; sign-in returns the viewer to where they were; and an `AUTH_REQUIRED` refusal signs a
   stale session out once rather than per refused operation.
+- Implemented event-driven status alerts for the Evidence Locker & bounty claim workspace:
+  `DispatchAlertBanner` communicating lifecycle progression (quarantine screening, sheriff review,
+  approved, needs information, distinct not_selected, and rejected), transient `DispatchAlertToast` on
+  proof dispatch/removal events, 4-stage micro-pipeline indicators, and WCAG 2.1 AA accessible ARIA live regions.
+- Implemented Claim & Bounty Settlement moderation:
+  - Created database migration `202609240001_claim_moderation_and_appeals.sql` introducing `claim_reports` and `claim_appeals` with RLS, reason codes, high-risk auto-quarantine restrictions, and reviewer segregation RPC (`record_claim_appeal_decision`).
+  - Added Wanted request freeze and countdown extension on active appeals (`is_paused`, `paused_at`, `total_paused_duration`, `closes_at` extension).
+  - Built `ClaimModerationService` and `SupabaseModerationRepository` handling reports, 7-calendar-day appeal eligibility, and appeal resolution.
+  - Created routes `/api/claims/[id]/report`, `/api/claims/[id]/appeal`, `/api/sheriff/appeals/[id]`, and `/api/sheriff/moderation`.
+  - Added accessible UI components: `ReportClaimModal`, `ClaimAppealModal`, `WantedAppealPauseBanner`, `SheriffAppealConsole`, and extended `DispatchAlertBanner`.
+- Implemented Phase 5 Evidence Locker, Contributor Entitlements, Manual Payouts & Operational Queues:
+  - Created and pushed remote migration `202609250001_fulfilment_entitlements_and_payouts.sql` introducing `entitlements`, `payout_tasks`, `refund_tasks`, and updated `ledger_transactions` with compensating entry support.
+  - Implemented `approve_winning_claim_and_fulfill` RPC atomically transitioning claim to `approved`, wanted to `fulfilled`, moving quarantine files to `approved` storage bucket, creating entitlement records for all verified contributors (`UNIQUE (wanted_request_id, user_id)`), and creating the 10% platform fee + net payout manual payout task for the winning hunter.
+  - Implemented `record_owner_payout_completion` and `record_owner_refund_completion` double-entry balancing ledger transactions clearing `wanted_escrow` with debits and recording external reference, payout method, timestamp, and audit trail.
+  - Implemented `expire_wanted_and_generate_refunds` RPC closing expired unfulfilled bounties and generating individual refund tasks per contribution.
+  - Built Entitlement service (`src/modules/entitlements/`) with 15-minute signed download URLs (`/api/claims/[id]/download`), download metadata access policies, and automated access revocation upon report restriction/takedown.
+  - Built Payout service (`src/modules/payouts/`) with owner-exclusive completion endpoints, staff refund/payout queue reads (`/api/sheriff/payouts`, `/api/sheriff/refunds`, `/api/owner/payouts/[id]/complete`, `/api/owner/refunds/[id]/complete`, `/api/marketplace/wanted/[id]/expire`).
+  - Delivered accessible UI operational console (`src/components/claims/operational-console.tsx`, `owner-payout-queue.tsx`, `owner-refund-queue.tsx`, and updated `evidence-locker.tsx`) at `/console/operations` with WCAG 2.1 AA keyboard navigation, ARIA live states, integer sen currency formatting, and tabbed workflow.
 
 ## Next Up
 

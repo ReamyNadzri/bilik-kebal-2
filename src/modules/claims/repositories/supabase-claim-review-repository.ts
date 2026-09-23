@@ -28,6 +28,18 @@ export class SupabaseClaimReviewRepository implements ClaimReviewRepository {
   }
 
   async recordReview(input: Parameters<ClaimReviewRepository["recordReview"]>[0]): Promise<string> {
+    if (input.decision === "approve") {
+      const args = {
+        target_claim_id: input.claimId,
+        target_reason_code: input.reasonCode,
+        ...(input.notes ? { target_notes: input.notes } : {}),
+      };
+      const { data, error } = await this.client.rpc("approve_winning_claim_and_fulfill", args);
+      if (error || !data)
+        throw new Error(error?.message ?? "Claim approval and fulfillment failed");
+      return data;
+    }
+
     const args = {
       target_claim_id: input.claimId,
       target_decision: input.decision,

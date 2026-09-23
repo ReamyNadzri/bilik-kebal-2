@@ -31,7 +31,7 @@ type WantedRow = {
   language_id: string;
   title: string;
   description: string;
-  status: "draft" | "awaiting_payment" | "open" | "reviewing" | "expired";
+  status: Database["public"]["Enums"]["wanted_status"];
   published_at: string | null;
   closes_at: string | null;
   fee_rate_basis_points_snapshot: number | null;
@@ -204,12 +204,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       if (!c || !ca || !t || !s || !row.published_at || !row.closes_at) return [];
       const cs = contributionRows.filter((x) => x.wanted_request_id === row.id);
       const bounty = cs.reduce((n, x) => n + Number(x.amount_sen), 0) as Sen;
-      const status = wantedDisplayStatus(
-        row.status as "open" | "reviewing" | "expired",
-        row.closes_at,
-        bounty,
-        now,
-      );
+      const status = wantedDisplayStatus(row.status, row.closes_at, bounty, now);
       return [
         {
           id: row.public_id,

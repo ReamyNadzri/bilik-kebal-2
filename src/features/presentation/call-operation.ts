@@ -23,8 +23,8 @@ export async function callOperation<TData, TCode extends string>(
   path: string,
   body: unknown,
   unavailableCode: TCode,
-  /** `PUT` addresses an existing resource; everything else is a `POST`. */
-  method: "POST" | "PUT" = "POST",
+  /** Select an explicit write method; defaults to `POST` for create actions. */
+  method: "POST" | "PUT" | "PATCH" = "POST",
 ): Promise<OperationResult<TData, TCode>> {
   return requestOperation<TData, TCode>(
     path,

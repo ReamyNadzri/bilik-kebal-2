@@ -1,6 +1,11 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+﻿export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5";
+  };
   graphql_public: {
     Tables: {
       [_ in never]: never;
@@ -159,6 +164,147 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "institutions";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      claim_appeals: {
+        Row: {
+          appeal_deadline: string;
+          appellant_user_id: string;
+          claim_id: string;
+          created_at: string;
+          decided_at: string | null;
+          decision: Database["public"]["Enums"]["claim_appeal_status"] | null;
+          decision_notes: string | null;
+          decision_reason_code: string | null;
+          id: string;
+          original_review_id: string;
+          reason: string;
+          reviewer_user_id: string | null;
+          status: Database["public"]["Enums"]["claim_appeal_status"];
+        };
+        Insert: {
+          appeal_deadline: string;
+          appellant_user_id: string;
+          claim_id: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decision?: Database["public"]["Enums"]["claim_appeal_status"] | null;
+          decision_notes?: string | null;
+          decision_reason_code?: string | null;
+          id?: string;
+          original_review_id: string;
+          reason: string;
+          reviewer_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_appeal_status"];
+        };
+        Update: {
+          appeal_deadline?: string;
+          appellant_user_id?: string;
+          claim_id?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decision?: Database["public"]["Enums"]["claim_appeal_status"] | null;
+          decision_notes?: string | null;
+          decision_reason_code?: string | null;
+          id?: string;
+          original_review_id?: string;
+          reason?: string;
+          reviewer_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_appeal_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_appeals_appellant_user_id_fkey";
+            columns: ["appellant_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "claim_appeals_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: true;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_appeals_original_review_id_fkey";
+            columns: ["original_review_id"];
+            isOneToOne: false;
+            referencedRelation: "claim_reviews";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_appeals_reviewer_user_id_fkey";
+            columns: ["reviewer_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      claim_reports: {
+        Row: {
+          category: Database["public"]["Enums"]["claim_report_category"];
+          claim_id: string;
+          created_at: string;
+          description: string;
+          id: string;
+          is_high_risk: boolean;
+          reporter_user_id: string;
+          resolution_notes: string | null;
+          resolved_at: string | null;
+          resolved_by_user_id: string | null;
+          status: Database["public"]["Enums"]["claim_report_status"];
+        };
+        Insert: {
+          category: Database["public"]["Enums"]["claim_report_category"];
+          claim_id: string;
+          created_at?: string;
+          description: string;
+          id?: string;
+          is_high_risk?: boolean;
+          reporter_user_id: string;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          resolved_by_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_report_status"];
+        };
+        Update: {
+          category?: Database["public"]["Enums"]["claim_report_category"];
+          claim_id?: string;
+          created_at?: string;
+          description?: string;
+          id?: string;
+          is_high_risk?: boolean;
+          reporter_user_id?: string;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          resolved_by_user_id?: string | null;
+          status?: Database["public"]["Enums"]["claim_report_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "claim_reports_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: false;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "claim_reports_reporter_user_id_fkey";
+            columns: ["reporter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "claim_reports_resolved_by_user_id_fkey";
+            columns: ["resolved_by_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
           },
         ];
       };
@@ -357,9 +503,11 @@ export type Database = {
           hunter_user_id: string;
           id: string;
           institution_id: string;
+          is_restricted: boolean;
           mime_type: string;
           object_key: string;
           public_id: string;
+          restriction_reason: string | null;
           rights_confirmed_at: string;
           sha256: string;
           size_bytes: number;
@@ -376,9 +524,11 @@ export type Database = {
           hunter_user_id: string;
           id?: string;
           institution_id: string;
+          is_restricted?: boolean;
           mime_type: string;
           object_key: string;
           public_id?: string;
+          restriction_reason?: string | null;
           rights_confirmed_at: string;
           sha256: string;
           size_bytes: number;
@@ -395,9 +545,11 @@ export type Database = {
           hunter_user_id?: string;
           id?: string;
           institution_id?: string;
+          is_restricted?: boolean;
           mime_type?: string;
           object_key?: string;
           public_id?: string;
+          restriction_reason?: string | null;
           rights_confirmed_at?: string;
           sha256?: string;
           size_bytes?: number;
@@ -597,6 +749,61 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "programmes";
             referencedColumns: ["id", "institution_id"];
+          },
+        ];
+      };
+      entitlements: {
+        Row: {
+          claim_id: string;
+          granted_at: string;
+          id: string;
+          is_revoked: boolean;
+          revocation_reason: string | null;
+          revoked_at: string | null;
+          user_id: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          claim_id: string;
+          granted_at?: string;
+          id?: string;
+          is_revoked?: boolean;
+          revocation_reason?: string | null;
+          revoked_at?: string | null;
+          user_id: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          claim_id?: string;
+          granted_at?: string;
+          id?: string;
+          is_revoked?: boolean;
+          revocation_reason?: string | null;
+          revoked_at?: string | null;
+          user_id?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "entitlements_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: false;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "entitlements_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "entitlements_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -988,25 +1195,45 @@ export type Database = {
           created_at: string;
           id: string;
           kind: string;
+          payout_task_id: string | null;
+          refund_task_id: string | null;
         };
         Insert: {
           contribution_id?: string | null;
           created_at?: string;
           id?: string;
           kind: string;
+          payout_task_id?: string | null;
+          refund_task_id?: string | null;
         };
         Update: {
           contribution_id?: string | null;
           created_at?: string;
           id?: string;
           kind?: string;
+          payout_task_id?: string | null;
+          refund_task_id?: string | null;
         };
         Relationships: [
           {
             foreignKeyName: "ledger_transactions_contribution_id_fkey";
             columns: ["contribution_id"];
-            isOneToOne: true;
+            isOneToOne: false;
             referencedRelation: "contributions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ledger_transactions_payout_task_fk";
+            columns: ["payout_task_id"];
+            isOneToOne: false;
+            referencedRelation: "payout_tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ledger_transactions_refund_task_fk";
+            columns: ["refund_task_id"];
+            isOneToOne: false;
+            referencedRelation: "refund_tasks";
             referencedColumns: ["id"];
           },
         ];
@@ -1037,6 +1264,92 @@ export type Database = {
           published_at?: string | null;
         };
         Relationships: [];
+      };
+      payout_tasks: {
+        Row: {
+          claim_id: string;
+          completed_at: string | null;
+          created_at: string;
+          evidence_notes: string | null;
+          external_reference: string | null;
+          fee_rate_basis_points: number;
+          gross_bounty_sen: number;
+          hunter_user_id: string;
+          id: string;
+          net_payout_sen: number;
+          owner_user_id: string | null;
+          payout_method: string | null;
+          platform_fee_sen: number;
+          status: Database["public"]["Enums"]["payout_task_status"];
+          updated_at: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          claim_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          evidence_notes?: string | null;
+          external_reference?: string | null;
+          fee_rate_basis_points: number;
+          gross_bounty_sen: number;
+          hunter_user_id: string;
+          id?: string;
+          net_payout_sen: number;
+          owner_user_id?: string | null;
+          payout_method?: string | null;
+          platform_fee_sen: number;
+          status?: Database["public"]["Enums"]["payout_task_status"];
+          updated_at?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          claim_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          evidence_notes?: string | null;
+          external_reference?: string | null;
+          fee_rate_basis_points?: number;
+          gross_bounty_sen?: number;
+          hunter_user_id?: string;
+          id?: string;
+          net_payout_sen?: number;
+          owner_user_id?: string | null;
+          payout_method?: string | null;
+          platform_fee_sen?: number;
+          status?: Database["public"]["Enums"]["payout_task_status"];
+          updated_at?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payout_tasks_claim_id_fkey";
+            columns: ["claim_id"];
+            isOneToOne: false;
+            referencedRelation: "claims";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payout_tasks_hunter_user_id_fkey";
+            columns: ["hunter_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "payout_tasks_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "payout_tasks_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: true;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       platform_role_assignments: {
         Row: {
@@ -1181,6 +1494,83 @@ export type Database = {
           status?: string;
         };
         Relationships: [];
+      };
+      refund_tasks: {
+        Row: {
+          amount_sen: number;
+          completed_at: string | null;
+          contribution_id: string;
+          contributor_user_id: string;
+          created_at: string;
+          evidence_notes: string | null;
+          external_reference: string | null;
+          id: string;
+          owner_user_id: string | null;
+          refund_method: string | null;
+          status: Database["public"]["Enums"]["refund_task_status"];
+          updated_at: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          amount_sen: number;
+          completed_at?: string | null;
+          contribution_id: string;
+          contributor_user_id: string;
+          created_at?: string;
+          evidence_notes?: string | null;
+          external_reference?: string | null;
+          id?: string;
+          owner_user_id?: string | null;
+          refund_method?: string | null;
+          status?: Database["public"]["Enums"]["refund_task_status"];
+          updated_at?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          amount_sen?: number;
+          completed_at?: string | null;
+          contribution_id?: string;
+          contributor_user_id?: string;
+          created_at?: string;
+          evidence_notes?: string | null;
+          external_reference?: string | null;
+          id?: string;
+          owner_user_id?: string | null;
+          refund_method?: string | null;
+          status?: Database["public"]["Enums"]["refund_task_status"];
+          updated_at?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "refund_tasks_contribution_id_fkey";
+            columns: ["contribution_id"];
+            isOneToOne: true;
+            referencedRelation: "contributions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "refund_tasks_contributor_user_id_fkey";
+            columns: ["contributor_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "refund_tasks_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "refund_tasks_wanted_request_id_fkey";
+            columns: ["wanted_request_id"];
+            isOneToOne: false;
+            referencedRelation: "wanted_requests";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       resource_types: {
         Row: {
@@ -1360,7 +1750,9 @@ export type Database = {
           fee_rate_basis_points_snapshot: number | null;
           id: string;
           institution_id: string;
+          is_paused: boolean;
           language_id: string;
+          paused_at: string | null;
           policy_accepted_at: string;
           policy_version_snapshot: string | null;
           programme_id: string;
@@ -1370,6 +1762,7 @@ export type Database = {
           resource_type_id: string;
           status: Database["public"]["Enums"]["wanted_status"];
           title: string;
+          total_paused_duration: string;
           updated_at: string;
         };
         Insert: {
@@ -1386,7 +1779,9 @@ export type Database = {
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id: string;
+          is_paused?: boolean;
           language_id: string;
+          paused_at?: string | null;
           policy_accepted_at: string;
           policy_version_snapshot?: string | null;
           programme_id: string;
@@ -1396,6 +1791,7 @@ export type Database = {
           resource_type_id: string;
           status?: Database["public"]["Enums"]["wanted_status"];
           title: string;
+          total_paused_duration?: string;
           updated_at?: string;
         };
         Update: {
@@ -1412,7 +1808,9 @@ export type Database = {
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id?: string;
+          is_paused?: boolean;
           language_id?: string;
+          paused_at?: string | null;
           policy_accepted_at?: string;
           policy_version_snapshot?: string | null;
           programme_id?: string;
@@ -1422,6 +1820,7 @@ export type Database = {
           resource_type_id?: string;
           status?: Database["public"]["Enums"]["wanted_status"];
           title?: string;
+          total_paused_duration?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -1495,9 +1894,29 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      approve_winning_claim_and_fulfill: {
+        Args: {
+          target_claim_id: string;
+          target_notes?: string;
+          target_reason_code: string;
+        };
+        Returns: string;
+      };
       authorise_identity_evidence_read: {
         Args: { target_request_id: string };
         Returns: string;
+      };
+      complete_claim_upload_session: {
+        Args: { target_claim_id: string };
+        Returns: {
+          claim_id: string;
+          completed_at: string;
+          file_name: string;
+          mime_type: string;
+          size_bytes: number;
+          status: Database["public"]["Enums"]["claim_status"];
+          wanted_id: string;
+        }[];
       };
       create_claim_upload_session: {
         Args: {
@@ -1542,6 +1961,10 @@ export type Database = {
         };
         Returns: string;
       };
+      expire_wanted_and_generate_refunds: {
+        Args: { target_wanted_id: string };
+        Returns: number;
+      };
       list_unresolved_provider_events: {
         Args: { max_rows?: number };
         Returns: {
@@ -1553,6 +1976,15 @@ export type Database = {
           received_at: string;
         }[];
       };
+      record_claim_appeal_decision: {
+        Args: {
+          target_appeal_id: string;
+          target_decision: Database["public"]["Enums"]["claim_appeal_status"];
+          target_notes?: string;
+          target_reason_code: string;
+        };
+        Returns: undefined;
+      };
       record_claim_review: {
         Args: {
           target_claim_id: string;
@@ -1561,6 +1993,24 @@ export type Database = {
           target_reason_code: string;
         };
         Returns: string;
+      };
+      record_owner_payout_completion: {
+        Args: {
+          target_external_ref: string;
+          target_method: string;
+          target_notes?: string;
+          target_payout_task_id: string;
+        };
+        Returns: undefined;
+      };
+      record_owner_refund_completion: {
+        Args: {
+          target_external_ref: string;
+          target_method: string;
+          target_notes?: string;
+          target_refund_task_id: string;
+        };
+        Returns: undefined;
       };
       record_verified_contribution: {
         Args: {
@@ -1594,6 +2044,22 @@ export type Database = {
         };
         Returns: string;
       };
+      revoke_entitlements_for_wanted: {
+        Args: { target_reason: string; target_wanted_id: string };
+        Returns: number;
+      };
+      submit_claim_appeal: {
+        Args: { target_claim_id: string; target_reason: string };
+        Returns: string;
+      };
+      submit_claim_report: {
+        Args: {
+          target_category: Database["public"]["Enums"]["claim_report_category"];
+          target_claim_id: string;
+          target_description: string;
+        };
+        Returns: string;
+      };
       update_wanted_draft: {
         Args: {
           academic_session_id: string;
@@ -1614,6 +2080,16 @@ export type Database = {
       verify_own_institution_by_domain: { Args: never; Returns: string };
     };
     Enums: {
+      claim_appeal_status: "pending" | "upheld" | "overturned" | "dismissed";
+      claim_report_category:
+        | "restricted_material"
+        | "rights_issue"
+        | "wrong_file"
+        | "personal_data"
+        | "malware"
+        | "fraud"
+        | "other";
+      claim_report_status: "pending" | "investigating" | "resolved" | "dismissed";
       claim_screening_job_state: "queued" | "processing" | "completed" | "failed";
       claim_status:
         | "uploading"
@@ -1623,15 +2099,20 @@ export type Database = {
         | "approved"
         | "not_selected"
         | "rejected"
-        | "withdrawn";
+        | "withdrawn"
+        | "restricted"
+        | "appeal_pending";
       contribution_intent_status: "pending" | "paid" | "failed" | "expired";
       institution_role: "institution_sheriff";
       institution_verification_method: "domain" | "manual";
       institution_verification_state: "unverified" | "pending" | "verified" | "rejected";
+      payout_task_status: "pending" | "processing" | "completed" | "failed";
       platform_role: "owner" | "platform_sheriff";
+      refund_task_status: "pending" | "processing" | "completed" | "failed";
       verification_request_state: "pending" | "approved" | "rejected";
       wanted_access_basis: "contributors_only";
-      wanted_status: "draft" | "awaiting_payment" | "open" | "reviewing" | "expired";
+      wanted_status:
+        "draft" | "awaiting_payment" | "open" | "reviewing" | "expired" | "fulfilled" | "closed";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1756,6 +2237,17 @@ export const Constants = {
   },
   public: {
     Enums: {
+      claim_appeal_status: ["pending", "upheld", "overturned", "dismissed"],
+      claim_report_category: [
+        "restricted_material",
+        "rights_issue",
+        "wrong_file",
+        "personal_data",
+        "malware",
+        "fraud",
+        "other",
+      ],
+      claim_report_status: ["pending", "investigating", "resolved", "dismissed"],
       claim_screening_job_state: ["queued", "processing", "completed", "failed"],
       claim_status: [
         "uploading",
@@ -1766,15 +2258,27 @@ export const Constants = {
         "not_selected",
         "rejected",
         "withdrawn",
+        "restricted",
+        "appeal_pending",
       ],
       contribution_intent_status: ["pending", "paid", "failed", "expired"],
       institution_role: ["institution_sheriff"],
       institution_verification_method: ["domain", "manual"],
       institution_verification_state: ["unverified", "pending", "verified", "rejected"],
+      payout_task_status: ["pending", "processing", "completed", "failed"],
       platform_role: ["owner", "platform_sheriff"],
+      refund_task_status: ["pending", "processing", "completed", "failed"],
       verification_request_state: ["pending", "approved", "rejected"],
       wanted_access_basis: ["contributors_only"],
-      wanted_status: ["draft", "awaiting_payment", "open", "reviewing", "expired"],
+      wanted_status: [
+        "draft",
+        "awaiting_payment",
+        "open",
+        "reviewing",
+        "expired",
+        "fulfilled",
+        "closed",
+      ],
     },
   },
 } as const;
