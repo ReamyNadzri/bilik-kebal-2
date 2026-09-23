@@ -18,11 +18,12 @@ export async function POST(
 
     return executeJsonOperation(
       request,
-      async (body: any) => {
+      async (body: unknown) => {
+        const input = typeof body === "object" && body !== null ? body : {};
         return service.submitReport({
-          ...body,
+          ...input,
           claimId: id,
-        });
+        } as Parameters<typeof service.submitReport>[0]);
       },
       201,
     );

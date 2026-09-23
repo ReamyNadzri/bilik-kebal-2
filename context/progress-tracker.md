@@ -4,15 +4,12 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 3B money/ledger, public Wanted reads, and the Phase 4 claims boundary are integrated on
-  `main`. The Gemini frontier interface and Codex backend are now in one reviewable tree.
-- Phase 4 Claims and moderation has started with quarantine RLS, upload-session authorization,
-  scanner contracts, and human review policy.
+- Phase 5: "Evidence Locker & Dispatch Alerts" (Fulfilment, Entitlements, Manual Payouts, and Refund Queues) is fully implemented, migrated to remote Supabase, and verified.
+- All 114 test files (884 tests), strict TypeScript typecheck, Prettier formatting, ESLint check, and Next.js production build pass.
 
 ## Current Goal
 
-- Complete the Phase 4 server delivery route and persistence slices on the integrated tree while
-  keeping public uploads and live payment disabled.
+- Prepare Phase 6: Hardening and controlled launch gates (monitoring, audit trails, and end-to-end integration flows).
 
 ## Completed
 
@@ -104,14 +101,21 @@ Update this file after every meaningful implementation or specification change.
   - Built `ClaimModerationService` and `SupabaseModerationRepository` handling reports, 7-calendar-day appeal eligibility, and appeal resolution.
   - Created routes `/api/claims/[id]/report`, `/api/claims/[id]/appeal`, `/api/sheriff/appeals/[id]`, and `/api/sheriff/moderation`.
   - Added accessible UI components: `ReportClaimModal`, `ClaimAppealModal`, `WantedAppealPauseBanner`, `SheriffAppealConsole`, and extended `DispatchAlertBanner`.
+- Implemented Phase 5 Evidence Locker, Contributor Entitlements, Manual Payouts & Operational Queues:
+  - Created and pushed remote migration `202609250001_fulfilment_entitlements_and_payouts.sql` introducing `entitlements`, `payout_tasks`, `refund_tasks`, and updated `ledger_transactions` with compensating entry support.
+  - Implemented `approve_winning_claim_and_fulfill` RPC atomically transitioning claim to `approved`, wanted to `fulfilled`, moving quarantine files to `approved` storage bucket, creating entitlement records for all verified contributors (`UNIQUE (wanted_request_id, user_id)`), and creating the 10% platform fee + net payout manual payout task for the winning hunter.
+  - Implemented `record_owner_payout_completion` and `record_owner_refund_completion` double-entry balancing ledger transactions clearing `wanted_escrow` with debits and recording external reference, payout method, timestamp, and audit trail.
+  - Implemented `expire_wanted_and_generate_refunds` RPC closing expired unfulfilled bounties and generating individual refund tasks per contribution.
+  - Built Entitlement service (`src/modules/entitlements/`) with 15-minute signed download URLs (`/api/claims/[id]/download`), download metadata access policies, and automated access revocation upon report restriction/takedown.
+  - Built Payout service (`src/modules/payouts/`) with owner-exclusive completion endpoints, staff refund/payout queue reads (`/api/sheriff/payouts`, `/api/sheriff/refunds`, `/api/owner/payouts/[id]/complete`, `/api/owner/refunds/[id]/complete`, `/api/marketplace/wanted/[id]/expire`).
+  - Delivered accessible UI operational console (`src/components/claims/operational-console.tsx`, `owner-payout-queue.tsx`, `owner-refund-queue.tsx`, and updated `evidence-locker.tsx`) at `/console/operations` with WCAG 2.1 AA keyboard navigation, ARIA live states, integer sen currency formatting, and tabbed workflow.
 
 ## Next Up
 
-1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
-2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
-3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
-4. Configure live Supabase instance and environment variables once the user provides project credentials.
-5. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
+1. Phase 6: Hardening, audit logging, rate limiting, and controlled launch gates.
+2. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
+3. Configure live ToyyibPay callbacks and production email/storage secrets upon deployment.
+4. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
 ## Open Questions
 

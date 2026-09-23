@@ -22,13 +22,14 @@ export function ClaimAppealModal({
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [now] = useState(() => Date.now());
 
   if (!isOpen) return null;
 
   let remainingDaysText = "7 days";
   if (reviewDate) {
     const deadline = new Date(new Date(reviewDate).getTime() + 7 * 24 * 60 * 60 * 1000);
-    const msLeft = deadline.getTime() - Date.now();
+    const msLeft = deadline.getTime() - now;
     const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
     remainingDaysText = `${daysLeft} day${daysLeft === 1 ? "" : "s"} remaining`;
   }

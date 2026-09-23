@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ClaimLifecycle, ClaimMimeType } from "@/contracts/claims";
 import { DispatchAlertBanner } from "./dispatch-alert-banner";
 
@@ -11,9 +12,11 @@ export interface EvidenceItem {
   mimeType: ClaimMimeType | string;
   sizeBytes: number;
   uploadedAt: string;
-  status?: ClaimLifecycle | "screening" | "approved" | "under_review" | "rejected";
+  status?: ClaimLifecycle | "screening" | "approved" | "under_review" | "rejected" | "restricted";
   downloadUrl?: string;
   reviewerNote?: string | null;
+  isRestricted?: boolean;
+  isRevoked?: boolean;
 }
 
 export interface EvidenceLockerProps {
@@ -54,12 +57,32 @@ function getFileIcon(mimeType: string): string {
   return "📁";
 }
 
-function getStatusBadge(status?: string): {
+function getStatusBadge(
+  status?: string,
+  isRevoked?: boolean,
+  isRestricted?: boolean,
+): {
   label: string;
   bg: string;
   color: string;
   border: string;
 } {
+  if (isRevoked) {
+    return {
+      label: "Revoked",
+      bg: "rgba(183, 28, 28, 0.12)",
+      color: "#b71c1c",
+      border: "rgba(183, 28, 28, 0.3)",
+    };
+  }
+  if (isRestricted || status === "restricted") {
+    return {
+      label: "Restricted",
+      bg: "rgba(183, 28, 28, 0.12)",
+      color: "#b71c1c",
+      border: "rgba(183, 28, 28, 0.3)",
+    };
+  }
   switch (status) {
     case "approved":
       return {
@@ -159,6 +182,37 @@ export function EvidenceLocker({
     activeStatusAlert ?? (evidence.length > 0 ? evidence[0]?.status : null);
   const primaryReviewerNote = evidence.length > 0 ? evidence[0]?.reviewerNote : null;
 
+  const [downloadingClaimId, setDownloadingClaimId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownload = async (item: EvidenceItem) => {
+    if (item.downloadUrl) {
+      window.open(item.downloadUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const targetId = item.claimId ?? item.id;
+    if (!targetId) return;
+
+    setDownloadingClaimId(targetId);
+    setDownloadError(null);
+    try {
+      const res = await fetch(`/api/claims/${targetId}/download`);
+      const data = await res.json();
+      if (res.ok && data.ok && data.data?.downloadUrl) {
+        window.open(data.data.downloadUrl, "_blank", "noopener,noreferrer");
+      } else {
+        setDownloadError(
+          data.error ??
+            "Download unavailable. Access may be restricted or your entitlement revoked.",
+        );
+      }
+    } catch {
+      setDownloadError("Unable to reach server to generate download URL.");
+    } finally {
+      setDownloadingClaimId(null);
+    }
+  };
+
   return (
     <section
       className="panel"
@@ -171,6 +225,38 @@ export function EvidenceLocker({
         gap: "1.25rem",
       }}
     >
+      {downloadError && (
+        <div
+          role="alert"
+          data-testid="evidence-download-error"
+          style={{
+            padding: "0.6rem 0.8rem",
+            borderRadius: "4px",
+            background: "rgba(183, 28, 28, 0.1)",
+            border: "1px solid var(--state-error, #b71c1c)",
+            color: "var(--state-error, #b71c1c)",
+            fontSize: "0.85rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>⚠️ {downloadError}</span>
+          <button
+            type="button"
+            onClick={() => setDownloadError(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div
         style={{
           display: "flex",
@@ -377,7 +463,7 @@ export function EvidenceLocker({
           }}
         >
           {evidence.map((item) => {
-            const badge = getStatusBadge(item.status);
+            const badge = getStatusBadge(item.status, item.isRevoked, item.isRestricted);
             const pipeline = getPipelineProgress(item.status);
 
             return (
@@ -560,7 +646,29 @@ export function EvidenceLocker({
                         Remove
                       </button>
                     )}
-                    {item.downloadUrl && (
+                    {item.isRevoked ? (
+                      <span
+                        data-testid={`revoked-notice-${item.id}`}
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--state-error, #b71c1c)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Access Revoked
+                      </span>
+                    ) : item.isRestricted ? (
+                      <span
+                        data-testid={`restricted-notice-${item.id}`}
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--state-error, #b71c1c)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Restricted
+                      </span>
+                    ) : item.downloadUrl ? (
                       <a
                         href={item.downloadUrl}
                         target="_blank"
@@ -570,7 +678,20 @@ export function EvidenceLocker({
                       >
                         Download
                       </a>
-                    )}
+                    ) : item.claimId || item.status === "approved" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(item)}
+                        disabled={downloadingClaimId === (item.claimId ?? item.id)}
+                        className="button button--secondary"
+                        style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }}
+                        aria-label={`Download ${item.fileName}`}
+                      >
+                        {downloadingClaimId === (item.claimId ?? item.id)
+                          ? "Signing..."
+                          : "Download"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </article>

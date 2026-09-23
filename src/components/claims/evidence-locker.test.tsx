@@ -110,4 +110,66 @@ describe("EvidenceLocker", () => {
     expect(screen.getByTestId("badge-ev-ns")).toHaveTextContent("Not Selected");
     expect(screen.getByTestId("dispatch-alert-not_selected")).toBeInTheDocument();
   });
+
+  it("renders revoked notice and disables download when entitlement is revoked", () => {
+    const mockEvidence: EvidenceItem[] = [
+      {
+        id: "ev-revoked",
+        actionType: "Claim Proof",
+        fileName: "revoked-notes.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1048576,
+        uploadedAt: "2026-09-22T08:00:00Z",
+        status: "approved",
+        isRevoked: true,
+      },
+    ];
+
+    render(<EvidenceLocker evidence={mockEvidence} />);
+
+    expect(screen.getByTestId("badge-ev-revoked")).toHaveTextContent("Revoked");
+    expect(screen.getByTestId("revoked-notice-ev-revoked")).toHaveTextContent("Access Revoked");
+    expect(screen.queryByRole("link", { name: /download/i })).not.toBeInTheDocument();
+  });
+
+  it("renders restricted notice when item is marked restricted", () => {
+    const mockEvidence: EvidenceItem[] = [
+      {
+        id: "ev-restricted",
+        actionType: "Claim Proof",
+        fileName: "malware-detected.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 1048576,
+        uploadedAt: "2026-09-22T09:00:00Z",
+        status: "restricted",
+        isRestricted: true,
+      },
+    ];
+
+    render(<EvidenceLocker evidence={mockEvidence} />);
+
+    expect(screen.getByTestId("badge-ev-restricted")).toHaveTextContent("Restricted");
+    expect(screen.getByTestId("restricted-notice-ev-restricted")).toHaveTextContent("Restricted");
+  });
+
+  it("renders dynamic download button when claimId is provided", () => {
+    const mockEvidence: EvidenceItem[] = [
+      {
+        id: "ev-approved",
+        claimId: "claim-100",
+        actionType: "Claim Proof",
+        fileName: "approved-notes.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 2048000,
+        uploadedAt: "2026-09-22T10:00:00Z",
+        status: "approved",
+      },
+    ];
+
+    render(<EvidenceLocker evidence={mockEvidence} />);
+
+    expect(
+      screen.getByRole("button", { name: /download approved-notes\.pdf/i }),
+    ).toBeInTheDocument();
+  });
 });

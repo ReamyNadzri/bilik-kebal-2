@@ -3,15 +3,26 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { ClaimAppealDetails, ClaimReportDetails } from "@/contracts/moderation";
 import type { ModerationRepository } from "../services/claim-moderation-service";
 
+type RpcClient = {
+  rpc: (
+    name: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+};
+
 export class SupabaseModerationRepository implements ModerationRepository {
   constructor(private readonly client: SupabaseClient<Database>) {}
+
+  private get rpcClient(): RpcClient {
+    return this.client as unknown as RpcClient;
+  }
 
   async submitReport(input: {
     claimId: string;
     category: string;
     description: string;
   }): Promise<{ reportId: string }> {
-    const { data, error } = await (this.client as any).rpc("submit_claim_report", {
+    const { data, error } = await this.rpcClient.rpc("submit_claim_report", {
       target_claim_id: input.claimId,
       target_category: input.category,
       target_description: input.description,
@@ -28,7 +39,7 @@ export class SupabaseModerationRepository implements ModerationRepository {
     claimId: string;
     reason: string;
   }): Promise<{ appealId: string; deadline: string }> {
-    const { data, error } = await (this.client as any).rpc("submit_claim_appeal", {
+    const { data, error } = await this.rpcClient.rpc("submit_claim_appeal", {
       target_claim_id: input.claimId,
       target_reason: input.reason,
     });
@@ -38,10 +49,10 @@ export class SupabaseModerationRepository implements ModerationRepository {
     }
 
     // Read the created appeal deadline
-    const { data: appealData, error: appealError } = await (this.client as any)
+    const { data: appealData, error: appealError } = await this.client
       .from("claim_appeals")
       .select("appeal_deadline")
-      .eq("id", data)
+      .eq("id", data as string)
       .single();
 
     if (appealError || !appealData) {
@@ -60,7 +71,7 @@ export class SupabaseModerationRepository implements ModerationRepository {
     reasonCode: string;
     notes: string | null;
   }): Promise<{ appealId: string; newClaimStatus: string }> {
-    const { error } = await (this.client as any).rpc("record_claim_appeal_decision", {
+    const { error } = await this.rpcClient.rpc("record_claim_appeal_decision", {
       target_appeal_id: input.appealId,
       target_decision: input.decision,
       target_reason_code: input.reasonCode,
@@ -79,7 +90,7 @@ export class SupabaseModerationRepository implements ModerationRepository {
   }
 
   async listReports(options?: { status?: string }): Promise<ClaimReportDetails[]> {
-    let query = (this.client as any)
+    let query = this.client
       .from("claim_reports")
       .select(
         "id, claim_id, reporter_user_id, category, description, is_high_risk, status, created_at",
@@ -87,13 +98,16 @@ export class SupabaseModerationRepository implements ModerationRepository {
       .order("created_at", { ascending: false });
 
     if (options?.status) {
-      query = query.eq("status", options.status);
+      query = query.eq(
+        "status",
+        options.status as Database["public"]["Enums"]["claim_report_status"],
+      );
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row) => ({
       id: row.id,
       claimId: row.claim_id,
       reporterUserId: row.reporter_user_id,
@@ -106,7 +120,7 @@ export class SupabaseModerationRepository implements ModerationRepository {
   }
 
   async listAppeals(options?: { status?: string }): Promise<ClaimAppealDetails[]> {
-    let query = (this.client as any)
+    let query = this.client
       .from("claim_appeals")
       .select(
         "id, claim_id, original_review_id, appellant_user_id, reason, status, appeal_deadline, created_at, decided_at, reviewer_user_id, decision, decision_reason_code, decision_notes",
@@ -114,13 +128,16 @@ export class SupabaseModerationRepository implements ModerationRepository {
       .order("created_at", { ascending: false });
 
     if (options?.status) {
-      query = query.eq("status", options.status);
+      query = query.eq(
+        "status",
+        options.status as Database["public"]["Enums"]["claim_appeal_status"],
+      );
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row) => ({
       id: row.id,
       claimId: row.claim_id,
       originalReviewId: row.original_review_id,
@@ -131,7 +148,10 @@ export class SupabaseModerationRepository implements ModerationRepository {
       createdAt: row.created_at,
       decidedAt: row.decided_at,
       reviewerUserId: row.reviewer_user_id,
-      decision: row.decision,
+      decision:
+        row.decision === "pending" || !row.decision
+          ? null
+          : (row.decision as "upheld" | "overturned" | "dismissed"),
       decisionReasonCode: row.decision_reason_code,
       decisionNotes: row.decision_notes,
     }));

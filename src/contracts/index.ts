@@ -80,3 +80,36 @@ export type {
   SubmitClaimAppealResult,
   SubmitClaimReportResult,
 } from "./moderation";
+
+export { revokeEntitlementsInputSchema } from "./entitlements";
+export type {
+  ClaimDownloadUrlView,
+  EntitlementOperationCode,
+  EntitlementRecord,
+  GetClaimDownloadResult,
+  RevokeEntitlementsInput,
+} from "./entitlements";
+
+export {
+  PAYOUT_METHODS,
+  REFUND_METHODS,
+  recordPayoutCompletionSchema,
+  recordRefundCompletionSchema,
+  expireBountyInputSchema,
+} from "./payouts";
+export type {
+  ExpireBountyInput,
+  ExpireBountyResult,
+  PayoutMethod,
+  PayoutOperationCode,
+  PayoutTaskStatus,
+  PayoutTaskView,
+  RecordPayoutCompletionInput,
+  RecordPayoutResult,
+  RecordRefundCompletionInput,
+  RecordRefundResult,
+  RefundMethod,
+  RefundOperationCode,
+  RefundTaskStatus,
+  RefundTaskView,
+} from "./payouts";

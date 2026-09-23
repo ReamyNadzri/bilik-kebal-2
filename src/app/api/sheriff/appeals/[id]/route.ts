@@ -18,11 +18,12 @@ export async function POST(
 
     return executeJsonOperation(
       request,
-      async (body: any) => {
+      async (body: unknown) => {
+        const input = typeof body === "object" && body !== null ? body : {};
         return service.decideAppeal({
-          ...body,
+          ...input,
           appealId: id,
-        });
+        } as Parameters<typeof service.decideAppeal>[0]);
       },
       200,
     );
