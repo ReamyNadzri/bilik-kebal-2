@@ -33,6 +33,11 @@ const signInSchema = z.object({
 
 const recoverySchema = z.object({ email: emailSchema });
 const passwordUpdateSchema = z.object({ password: passwordSchema });
+const otpResetPasswordSchema = z.object({
+  email: emailSchema,
+  token: z.string().trim().min(6).max(64),
+  password: passwordSchema,
+});
 
 type AuthFailure = {
   ok: false;
@@ -61,6 +66,7 @@ export interface AuthGateway {
   }): Promise<AuthGatewayResult>;
   signIn(input: { email: string; password: string }): Promise<AuthGatewayResult>;
   sendPasswordRecovery(input: { email: string; redirectTo: string }): Promise<AuthGatewayResult>;
+  verifyRecoveryOtp(input: { email: string; token: string }): Promise<AuthGatewayResult>;
   resendVerification(input: { email: string; emailRedirectTo: string }): Promise<AuthGatewayResult>;
   updatePassword(input: { password: string }): Promise<AuthGatewayResult>;
   signOut(): Promise<AuthGatewayResult>;
@@ -187,6 +193,24 @@ export class AuthService {
 
     const result = await this.gateway.updatePassword(parsed.data);
     return result.ok ? success({ updated: true as const }) : providerFailure(result.reason);
+  }
+
+  async resetPasswordWithOtp(input: unknown): Promise<PasswordUpdateResult> {
+    const parsed = otpResetPasswordSchema.safeParse(input);
+    if (!parsed.success) return validationFailure(parsed.error);
+
+    const verifyResult = await this.gateway.verifyRecoveryOtp({
+      email: parsed.data.email,
+      token: parsed.data.token,
+    });
+    if (!verifyResult.ok) {
+      return providerFailure(verifyResult.reason);
+    }
+
+    const updateResult = await this.gateway.updatePassword({
+      password: parsed.data.password,
+    });
+    return updateResult.ok ? success({ updated: true as const }) : providerFailure(updateResult.reason);
   }
 
   async resendVerification(email: unknown): Promise<ResendVerificationResult> {

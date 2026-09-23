@@ -7,6 +7,7 @@ function createGateway(): AuthGateway {
     register: vi.fn().mockResolvedValue({ ok: true }),
     signIn: vi.fn().mockResolvedValue({ ok: true }),
     sendPasswordRecovery: vi.fn().mockResolvedValue({ ok: true }),
+    verifyRecoveryOtp: vi.fn().mockResolvedValue({ ok: true }),
     resendVerification: vi.fn().mockResolvedValue({ ok: true }),
     updatePassword: vi.fn().mockResolvedValue({ ok: true }),
     signOut: vi.fn().mockResolvedValue({ ok: true }),
@@ -123,6 +124,47 @@ describe("AuthService", () => {
     });
 
     expect(result).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
+    expect(gateway.updatePassword).not.toHaveBeenCalled();
+  });
+
+  test("resets password with 6-digit OTP code after verification", async () => {
+    const gateway = createGateway();
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    const result = await service.resetPasswordWithOtp({
+      email: "aina@example.com",
+      token: "123456",
+      password: "NewSecurePass123",
+    });
+
+    expect(result).toEqual({ ok: true, data: { updated: true } });
+    expect(gateway.verifyRecoveryOtp).toHaveBeenCalledWith({
+      email: "aina@example.com",
+      token: "123456",
+    });
+    expect(gateway.updatePassword).toHaveBeenCalledWith({
+      password: "NewSecurePass123",
+    });
+  });
+
+  test("rejects invalid or expired OTP code during password reset", async () => {
+    const gateway = createGateway();
+    vi.mocked(gateway.verifyRecoveryOtp).mockResolvedValue({
+      ok: false,
+      reason: "recovery_invalid",
+    });
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    const result = await service.resetPasswordWithOtp({
+      email: "aina@example.com",
+      token: "999999",
+      password: "NewSecurePass123",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "RECOVERY_LINK_INVALID",
+    });
     expect(gateway.updatePassword).not.toHaveBeenCalled();
   });
 

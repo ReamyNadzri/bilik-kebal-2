@@ -50,6 +50,34 @@ test("posts the new password and confirms success", async () => {
   expect(screen.getByRole("link", { name: /Sign in/ })).toHaveAttribute("href", "/sign-in");
 });
 
+test("posts email, 6-digit recovery code, and new password when entered", async () => {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ ok: true, data: { updated: true } }),
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(<ResetPasswordForm />);
+  fill(/^Email address/, "student@example.edu.my");
+  fill(/^6-digit recovery code/, "654321");
+  fill(/^New password/, "NewSecurePass123");
+  fill(/^Confirm new password/, "NewSecurePass123");
+  submit();
+
+  await screen.findByRole("heading", { name: "Password updated" });
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/auth/reset-password",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        password: "NewSecurePass123",
+        email: "student@example.edu.my",
+        token: "654321",
+      }),
+    }),
+  );
+});
+
 test("offers a new recovery request when the link has expired", async () => {
   vi.stubGlobal(
     "fetch",

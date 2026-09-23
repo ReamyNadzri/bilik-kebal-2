@@ -15,32 +15,40 @@ const recoveryCookieName = "vaultix_password_recovery";
 export async function POST(request: Request): Promise<Response> {
   try {
     const client = await createSupabaseServerClient();
-    const {
-      data: { user },
-      error,
-    } = await client.auth.getUser();
-    const cookieStore = await cookies();
-    const grant = cookieStore.get(recoveryCookieName)?.value;
-    const secret = getIdentityPendingCookieSecret(process.env);
-
-    if (error || !user || !grant || !verifyPasswordRecoveryGrant(grant, user.id, secret)) {
-      return operationResponse(
-        failure(
-          "RECOVERY_LINK_INVALID",
-          "This recovery link is invalid or expired. Request a new one.",
-        ),
-        200,
-        "identity.reset_password",
-      );
-    }
-
     const service = new AuthService(new SupabaseAuthGateway(client.auth), getApplicationUrl());
+    const cookieStore = await cookies();
+
     return executeJsonOperation(
       request,
-      (input) => service.updatePassword(input),
+      async (input) => {
+        const body =
+          typeof input === "object" && input !== null ? (input as Record<string, unknown>) : {};
+        if (typeof body.token === "string" && typeof body.email === "string") {
+          return service.resetPasswordWithOtp(input);
+        }
+
+        const {
+          data: { user },
+          error,
+        } = await client.auth.getUser();
+        const grant = cookieStore.get(recoveryCookieName)?.value;
+        const secret = getIdentityPendingCookieSecret(process.env);
+
+        if (error || !user || !grant || !verifyPasswordRecoveryGrant(grant, user.id, secret)) {
+          return failure(
+            "RECOVERY_LINK_INVALID",
+            "This recovery link is invalid or expired. Request a new one.",
+          );
+        }
+
+        return service.updatePassword(input);
+      },
       200,
       async (result) => {
-        if (result.ok) cookieStore.delete(recoveryCookieName);
+        if (result.ok) {
+          cookieStore.delete(recoveryCookieName);
+          await client.auth.signOut();
+        }
       },
       "identity.reset_password",
     );

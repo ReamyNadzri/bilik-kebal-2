@@ -5,6 +5,7 @@ import { SupabaseAuthGateway, type SupabaseAuthClient } from "./supabase-auth-ga
 function createClient(): SupabaseAuthClient {
   return {
     resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+    verifyOtp: vi.fn().mockResolvedValue({ error: null }),
     resend: vi.fn().mockResolvedValue({ error: null }),
     signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
@@ -108,5 +109,21 @@ describe("SupabaseAuthGateway", () => {
     await expect(
       new SupabaseAuthGateway(client).updatePassword({ password: "NewSecurePass123" }),
     ).resolves.toEqual({ ok: false, reason: "recovery_invalid" });
+  });
+
+  test("delegates OTP verification to Supabase recovery type", async () => {
+    const client = createClient();
+
+    await expect(
+      new SupabaseAuthGateway(client).verifyRecoveryOtp({
+        email: "aina@example.com",
+        token: "123456",
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(client.verifyOtp).toHaveBeenCalledWith({
+      email: "aina@example.com",
+      token: "123456",
+      type: "recovery",
+    });
   });
 });

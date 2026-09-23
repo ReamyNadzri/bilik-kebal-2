@@ -212,6 +212,11 @@ Update this file after every meaningful implementation or specification change.
   - Built Entitlement service (`src/modules/entitlements/`) with 15-minute signed download URLs (`/api/claims/[id]/download`), download metadata access policies, and automated access revocation upon report restriction/takedown.
   - Built Payout service (`src/modules/payouts/`) with owner-exclusive completion endpoints, staff refund/payout queue reads (`/api/sheriff/payouts`, `/api/sheriff/refunds`, `/api/owner/payouts/[id]/complete`, `/api/owner/refunds/[id]/complete`, `/api/marketplace/wanted/[id]/expire`).
   - Delivered accessible UI operational console (`src/components/claims/operational-console.tsx`, `owner-payout-queue.tsx`, `owner-refund-queue.tsx`, and updated `evidence-locker.tsx`) at `/console/operations` with WCAG 2.1 AA keyboard navigation, ARIA live states, integer sen currency formatting, and tabbed workflow.
+- Implemented 6-digit OTP code password recovery flow:
+  - Added `verifyRecoveryOtp` and `resetPasswordWithOtp` across `SupabaseAuthGateway` and `AuthService`.
+  - Updated `POST /api/auth/reset-password` to support 6-digit OTP code verification directly with Supabase `verifyOtp({ type: 'recovery' })` alongside backwards-compatible grant cookie verification.
+  - Enhanced `ResetPasswordForm` to accept email and 6-digit recovery code inputs, with automatic sessionStorage retrieval when transitioning from `/recover`.
+  - Immunized password recovery against Microsoft 365 Defender Safe Links / Outlook email prefetching consuming single-use magic links for `@student.uitm.edu.my`.
 
 ## Next Up
 

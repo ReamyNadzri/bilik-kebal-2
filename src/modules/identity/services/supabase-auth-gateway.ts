@@ -21,6 +21,11 @@ export interface SupabaseAuthClient {
     email: string,
     options: { redirectTo: string },
   ): Promise<SupabaseAuthResponse>;
+  verifyOtp(input: {
+    email: string;
+    token: string;
+    type: "recovery";
+  }): Promise<SupabaseAuthResponse>;
   resend(input: {
     email: string;
     options: { emailRedirectTo: string };
@@ -91,6 +96,19 @@ export class SupabaseAuthGateway implements AuthGateway {
   }): Promise<AuthGatewayResult> {
     return toResult(
       await this.auth.resetPasswordForEmail(input.email, { redirectTo: input.redirectTo }),
+    );
+  }
+
+  async verifyRecoveryOtp(input: {
+    email: string;
+    token: string;
+  }): Promise<AuthGatewayResult> {
+    return toResult(
+      await this.auth.verifyOtp({
+        email: input.email,
+        token: input.token,
+        type: "recovery",
+      }),
     );
   }
 

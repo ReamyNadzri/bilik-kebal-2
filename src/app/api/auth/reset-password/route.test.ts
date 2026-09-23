@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   auth: {
     getUser: vi.fn(),
     updateUser: vi.fn(),
+    verifyOtp: vi.fn(),
+    signOut: vi.fn(),
   },
   cookieStore: {
     get: vi.fn(),
@@ -36,6 +38,8 @@ beforeEach(() => {
   vi.stubEnv("NODE_ENV", "test");
   mocks.auth.getUser.mockResolvedValue({ data: { user }, error: null });
   mocks.auth.updateUser.mockResolvedValue({ error: null });
+  mocks.auth.verifyOtp.mockResolvedValue({ error: null });
+  mocks.auth.signOut.mockResolvedValue({ error: null });
   mocks.cookieStore.get.mockReturnValue(undefined);
 });
 
@@ -57,4 +61,27 @@ test("updates only the grant-bound account password and clears the recovery gran
   expect(response.status).toBe(200);
   expect(mocks.auth.updateUser).toHaveBeenCalledWith({ password: "NewSecurePass123" });
   expect(mocks.cookieStore.delete).toHaveBeenCalledWith("vaultix_password_recovery");
+});
+
+test("resets password using 6-digit OTP code directly without cookie", async () => {
+  const otpRequest = new Request("https://vaultix.example/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: "student@example.edu.my",
+      token: "123456",
+      password: "NewSecurePass123",
+    }),
+  });
+
+  const response = await POST(otpRequest);
+
+  expect(response.status).toBe(200);
+  expect(mocks.auth.verifyOtp).toHaveBeenCalledWith({
+    email: "student@example.edu.my",
+    token: "123456",
+    type: "recovery",
+  });
+  expect(mocks.auth.updateUser).toHaveBeenCalledWith({ password: "NewSecurePass123" });
+  expect(mocks.auth.signOut).toHaveBeenCalled();
 });

@@ -107,6 +107,7 @@ export function RecoverForm() {
       const expiry = Date.now() + COOLDOWN_SECONDS * 1000;
       try {
         sessionStorage.setItem(STORAGE_KEY, String(expiry));
+        sessionStorage.setItem("vaultix_recovery_email", email);
       } catch {}
       setCooldown(COOLDOWN_SECONDS);
       return;
@@ -136,11 +137,21 @@ export function RecoverForm() {
       <ErrorSummary errors={errors} ref={summaryRef} />
 
       {outcome.kind === "accepted" ? (
-        <UiStatus
-          kind="empty"
-          heading="If an account exists for that address, a recovery link is on its way"
-          message="Open the link to choose a new password. It expires after a short time, and you can request another from this screen."
-        />
+        <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
+          <UiStatus
+            kind="empty"
+            heading="If an account exists for that address, a recovery code is on its way"
+            message="Check your email for the 6-digit verification code. Once received, enter it to set a new password."
+          />
+          <p className="auth-form__links" style={{ textAlign: "center" }}>
+            <Link
+              href="/reset-password"
+              style={{ fontWeight: "bold", textDecoration: "underline" }}
+            >
+              Enter 6-digit recovery code &rarr;
+            </Link>
+          </p>
+        </div>
       ) : null}
 
       {outcome.kind === "refused" && errors.length === 0 ? (

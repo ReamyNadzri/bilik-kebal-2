@@ -11,11 +11,12 @@ export default async function ResetPasswordPage({
 }) {
   const params = await searchParams;
   const status = Array.isArray(params.status) ? params.status[0] : params.status;
+  const email = Array.isArray(params.email) ? params.email[0] : params.email;
 
   return (
     <>
       <h1>Set a new password</h1>
-      <ResetPasswordForm expired={status === "expired"} />
+      <ResetPasswordForm expired={status === "expired"} initialEmail={email} />
     </>
   );
 }
