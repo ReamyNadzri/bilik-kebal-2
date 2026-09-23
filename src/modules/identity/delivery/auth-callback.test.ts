@@ -27,7 +27,23 @@ describe("resolveAuthCallbackPath", () => {
 
   test("keeps recovery callbacks on their requested destination", () => {
     expect(
-      resolveAuthCallbackPath({ errorCode: null, otpType: "recovery", next: "/reset-password" }),
+      resolveAuthCallbackPath({
+        errorCode: null,
+        flow: "recovery",
+        otpType: null,
+        next: "/reset-password",
+      }),
     ).toBe("/reset-password");
+  });
+
+  test("shows an expired-link remedy after a failed recovery callback", () => {
+    expect(
+      resolveAuthCallbackPath({
+        errorCode: "flow_state_expired",
+        flow: "recovery",
+        otpType: null,
+        next: "/reset-password",
+      }),
+    ).toBe("/reset-password?status=expired");
   });
 });

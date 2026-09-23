@@ -20,8 +20,10 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
   claim_rejected: "A Sheriff rejected your claim. Check your claims for details.",
   claim_information_requested: "A Sheriff requested more information about your claim.",
   claim_not_selected: "Your claim was not selected for this Wanted request.",
-  institution_verification_approved: "Your institution verification was approved. You can now access student features.",
-  institution_verification_rejected: "Your institution verification was not approved. Check your account for next steps.",
+  institution_verification_approved:
+    "Your institution verification was approved. You can now access student features.",
+  institution_verification_rejected:
+    "Your institution verification was not approved. Check your account for next steps.",
   payout_recorded: "The Owner recorded a payout. Sign in to view its status.",
   refund_recorded: "The Owner recorded a refund. Sign in to view its status.",
   account_restricted: "Your account has been restricted. Check your profile for details.",

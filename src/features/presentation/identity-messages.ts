@@ -15,6 +15,7 @@ export const IDENTITY_MESSAGE: Record<VerificationOperationCode, string> = {
   EMAIL_NOT_VERIFIED: "Confirm your email address before signing in.",
   INVALID_CREDENTIALS: "That email address and password do not match an account.",
   REGISTRATION_FAILED: "The account could not be created. Try again shortly.",
+  RECOVERY_LINK_INVALID: "This recovery link is invalid or expired. Request a new one.",
   VALIDATION_ERROR: "Check the highlighted fields and try again.",
   DOMAIN_NOT_APPROVED:
     "That email domain is not on the approved list, so a Sheriff must review your evidence.",

@@ -1,3 +1,5 @@
+import { beginOperation, type OperationName } from "@/lib/observability/operation-log";
+
 interface HttpOperationSuccess {
   ok: true;
   data: unknown;
@@ -24,6 +26,7 @@ const statusByCode: Readonly<Record<string, number>> = {
   NOT_AUTHORIZED: 403,
   RECENT_AUTH_REQUIRED: 401,
   REQUEST_NOT_FOUND: 404,
+  RECOVERY_LINK_INVALID: 410,
   UNSUPPORTED_EVIDENCE_TYPE: 415,
   VALIDATION_ERROR: 400,
   VERIFICATION_CONFLICT: 409,
@@ -34,31 +37,65 @@ export async function executeJsonOperation(
   operation: (input: unknown) => Promise<HttpOperationResult>,
   successStatus = 200,
   onResult?: (result: HttpOperationResult, input: unknown) => Promise<void>,
+  operationName?: OperationName,
 ): Promise<Response> {
+  const trace = operationName ? beginOperation(operationName) : undefined;
   let input: unknown;
 
   try {
     input = await request.json();
   } catch {
-    return Response.json(
+    return responseFor(
       {
         ok: false,
         code: "VALIDATION_ERROR",
         message: "Request body must be valid JSON.",
       },
-      { status: 400 },
+      200,
+      trace,
     );
   }
 
-  const result = await operation(input);
-  await onResult?.(result, input);
-  return operationResponse(result, successStatus);
+  try {
+    const result = await operation(input);
+    await onResult?.(result, input);
+    return responseFor(result, successStatus, trace);
+  } catch {
+    return responseFor(
+      {
+        ok: false,
+        code: "AUTH_UNAVAILABLE",
+        message: "Identity services are temporarily unavailable. Try again.",
+      },
+      successStatus,
+      trace,
+    );
+  }
 }
 
-export function operationResponse(result: HttpOperationResult, successStatus = 200): Response {
+export function operationResponse(
+  result: HttpOperationResult,
+  successStatus = 200,
+  operationName?: OperationName,
+): Response {
+  return responseFor(
+    result,
+    successStatus,
+    operationName ? beginOperation(operationName) : undefined,
+  );
+}
+
+function responseFor(
+  result: HttpOperationResult,
+  successStatus: number,
+  trace?: ReturnType<typeof beginOperation>,
+): Response {
   const status = result.ok ? successStatus : (statusByCode[result.code] ?? 400);
+  trace?.finish(status);
+  const headers = new Headers({ "Cache-Control": "private, no-store" });
+  if (trace) headers.set("X-Correlation-ID", trace.correlationId);
   return Response.json(result, {
-    headers: { "Cache-Control": "private, no-store" },
+    headers,
     status,
   });
 }

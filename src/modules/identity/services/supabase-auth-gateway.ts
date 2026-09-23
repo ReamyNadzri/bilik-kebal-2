@@ -27,6 +27,7 @@ export interface SupabaseAuthClient {
     type: "signup";
   }): Promise<SupabaseAuthResponse>;
   signOut(): Promise<SupabaseAuthResponse>;
+  updateUser(input: { password: string }): Promise<SupabaseAuthResponse>;
 }
 
 function mapError(error: SupabaseAuthErrorLike): AuthGatewayFailureReason {
@@ -37,6 +38,12 @@ function mapError(error: SupabaseAuthErrorLike): AuthGatewayFailureReason {
       return "invalid_credentials";
     case "user_not_found":
       return "identity_not_found";
+    case "auth_session_missing":
+    case "session_not_found":
+    case "session_expired":
+    case "otp_expired":
+    case "bad_jwt":
+      return "recovery_invalid";
     case "over_email_send_rate_limit":
     case "over_request_rate_limit":
       return "rate_limited";
@@ -102,5 +109,9 @@ export class SupabaseAuthGateway implements AuthGateway {
 
   async signOut(): Promise<AuthGatewayResult> {
     return toResult(await this.auth.signOut());
+  }
+
+  async updatePassword(input: { password: string }): Promise<AuthGatewayResult> {
+    return toResult(await this.auth.updateUser({ password: input.password }));
   }
 }

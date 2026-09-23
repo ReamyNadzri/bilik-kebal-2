@@ -11,12 +11,20 @@ export async function POST(): Promise<Response> {
     if (!email) {
       return operationResponse(
         failure("AUTH_UNAVAILABLE", "Verification email could not be resent. Sign up again."),
+        200,
+        "identity.resend_verification",
       );
     }
-    return operationResponse(await (await createAuthService()).resendVerification(email), 202);
+    return operationResponse(
+      await (await createAuthService()).resendVerification(email),
+      202,
+      "identity.resend_verification",
+    );
   } catch {
     return operationResponse(
       failure("AUTH_UNAVAILABLE", "Verification email could not be resent. Try again."),
+      200,
+      "identity.resend_verification",
     );
   }
 }
