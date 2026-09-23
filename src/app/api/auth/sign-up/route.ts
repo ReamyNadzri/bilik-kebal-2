@@ -21,5 +21,6 @@ export async function POST(request: Request): Promise<Response> {
         await rememberPendingVerificationEmail(input.email);
       }
     },
+    "identity.sign_up",
   );
 }

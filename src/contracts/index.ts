@@ -11,6 +11,7 @@ export type {
   InstitutionOptionsResult,
   ManualVerificationRequestResult,
   PasswordRecoveryResult,
+  PasswordUpdateResult,
   RegistrationResult,
   ResendVerificationResult,
   RestrictionResult,

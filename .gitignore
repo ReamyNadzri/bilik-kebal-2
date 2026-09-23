@@ -19,3 +19,6 @@ next-env.d.ts
 vaultix-*.png
 !vaultix-home.png
 !vaultix-board.png
+
+.vercel
+.env*

@@ -8,6 +8,7 @@ function createGateway(): AuthGateway {
     signIn: vi.fn().mockResolvedValue({ ok: true }),
     sendPasswordRecovery: vi.fn().mockResolvedValue({ ok: true }),
     resendVerification: vi.fn().mockResolvedValue({ ok: true }),
+    updatePassword: vi.fn().mockResolvedValue({ ok: true }),
     signOut: vi.fn().mockResolvedValue({ ok: true }),
   };
 }
@@ -83,6 +84,46 @@ describe("AuthService", () => {
       ok: true,
       data: { accepted: true },
     });
+  });
+
+  test("routes the recovery email through the server callback with an explicit recovery intent", async () => {
+    const gateway = createGateway();
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    await service.recoverPassword({ email: "aina@example.com" });
+
+    expect(gateway.sendPasswordRecovery).toHaveBeenCalledWith({
+      email: "aina@example.com",
+      redirectTo: "https://vaultix.example/auth/callback?next=%2Freset-password&flow=recovery",
+    });
+  });
+
+  test("updates the password only after validating the recovery-session request", async () => {
+    const gateway = {
+      ...createGateway(),
+      updatePassword: vi.fn().mockResolvedValue({ ok: true }),
+    } as unknown as AuthGateway;
+
+    const result = await new AuthService(gateway, "https://vaultix.example").updatePassword({
+      password: "NewSecurePass123",
+    });
+
+    expect(gateway.updatePassword).toHaveBeenCalledWith({ password: "NewSecurePass123" });
+    expect(result).toEqual({ ok: true, data: { updated: true } });
+  });
+
+  test("rejects a weak replacement password without calling Supabase", async () => {
+    const gateway = {
+      ...createGateway(),
+      updatePassword: vi.fn().mockResolvedValue({ ok: true }),
+    } as unknown as AuthGateway;
+
+    const result = await new AuthService(gateway, "https://vaultix.example").updatePassword({
+      password: "weak",
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
+    expect(gateway.updatePassword).not.toHaveBeenCalled();
   });
 
   test("returns a retryable code when the auth provider is unavailable", async () => {

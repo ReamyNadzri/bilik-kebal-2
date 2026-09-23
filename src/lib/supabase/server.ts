@@ -5,11 +5,11 @@ import { parsePublicEnv, resolveSupabasePublicConfig } from "@/lib/config/public
 
 import type { Database } from "./database.types";
 
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient<Schema extends Database = Database>() {
   const cookieStore = await cookies();
   const config = resolveSupabasePublicConfig(process.env);
 
-  return createServerClient<Database>(config.url, config.key, {
+  return createServerClient<Schema>(config.url, config.key, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

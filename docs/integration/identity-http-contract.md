@@ -12,6 +12,7 @@ in favour of the authenticated Supabase session.
 | POST | `/api/auth/sign-up` | `{ displayName, email, password }` | `202 { next: "verify_email" }` |
 | POST | `/api/auth/sign-in` | `{ email, password }` | `200 { next: "profile" }` |
 | POST | `/api/auth/recovery` | `{ email }` | `200 { accepted: true }` |
+| POST | `/api/auth/reset-password` | `{ password }` | `200 { updated: true }` |
 | POST | `/api/auth/sign-out` | `{}` | `200 { signedOut: true }` |
 | POST | `/api/auth/resend-verification` | `{}` | `202 { accepted: true }` |
 
@@ -24,8 +25,45 @@ set `IDENTITY_PENDING_COOKIE_SECRET` to at least 32 characters.
 
 Email confirmation callbacks redirect to `/verify-email?status=verified`.
 Expired OTP/PKCE flow state redirects to `status=expired`; malformed or invalid
-links redirect to `status=invalid`. Recovery callbacks keep their requested
-password-reset destination.
+links redirect to `status=invalid`. Recovery links exchange through
+`/auth/callback` and redirect to `/reset-password`. A short-lived, signed,
+HTTP-only recovery grant is bound to the authenticated user and required by the
+password-update operation. Invalid or expired grants return
+`RECOVERY_LINK_INVALID`; a successful update consumes the grant.
+
+## Brevo Auth SMTP setup walkthrough
+
+Supabase Auth sends confirmation, resend, recovery, and built-in security
+notifications through SMTP. This is separate from the app's Brevo API sender.
+The direct Brevo API smoke email does not verify this configuration.
+
+1. In Brevo, open **Settings → SMTP & API → SMTP**. Create or copy the SMTP
+   login and generate an SMTP key. Use the displayed SMTP login and SMTP key;
+   do not use the Brevo API key as the SMTP password.
+2. In Supabase Dashboard, open the project's **Authentication** email/SMTP
+   settings and enable custom SMTP. Enter host `smtp-relay.brevo.com`, port
+   `587`, the SMTP login shown by Brevo, the SMTP key, sender
+   `noreply@bilikkebal.afes.my`, and sender name `VAULTIX`.
+3. In Supabase Auth URL configuration, set the production Site URL to
+   `https://bilikkebal.afes.my` and add the exact redirect
+   `https://bilikkebal.afes.my/auth/callback`. Add
+   `http://localhost:3000/auth/callback` only when local callback testing is
+   needed. Do not use a broad wildcard redirect.
+4. Keep the confirmation and recovery templates' Supabase confirmation URL
+   token intact (`{{ .ConfirmationURL }}`). The application's recovery request
+   supplies the callback URL and recovery intent. Configure the built-in
+   password/email-change security notification templates if those events are
+   enabled in the Auth settings.
+5. Save the SMTP settings, then test with an account/email you control: request
+   signup verification, resend verification, and password recovery. Confirm
+   each email arrives and links back to the matching VAULTIX screen. Then set a
+   new password and verify sign-in with it. Check Spam and Brevo's transactional
+   logs if delivery is delayed.
+
+SMTP credentials belong only in Supabase Auth settings, not in Vercel app
+environment variables or browser code. Supabase redirect URLs must match the
+configured allow-list. Automated tests use synthetic identities and never send
+real email.
 
 ## Institution verification
 

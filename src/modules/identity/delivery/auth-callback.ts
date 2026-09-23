@@ -1,10 +1,11 @@
 export function resolveAuthCallbackPath(input: {
   errorCode: string | null;
+  flow?: string | null;
   next: string;
   otpType: string | null;
 }): string {
-  if (input.otpType === "recovery") {
-    return input.errorCode ? "/sign-in?error=recovery_failed" : input.next;
+  if (input.otpType === "recovery" || input.flow === "recovery") {
+    return input.errorCode ? "/reset-password?status=expired" : "/reset-password";
   }
   const isEmailConfirmation = ["", "email", "invite", "magiclink", "email_change"].includes(
     input.otpType ?? "",

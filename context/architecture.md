@@ -18,7 +18,7 @@ VAULTIX is a Supabase-centric modular monolith. The web application is deployed 
 | Lightweight backend | Supabase Edge Functions | ToyyibPay callbacks, provider orchestration, and short idempotent tasks |
 | Queue | Supabase Queues (`pgmq`) | Durable asynchronous work and retry coordination |
 | Scheduler | Supabase Cron (`pg_cron`) | Expiry, 48-hour release, retention cleanup, and reconciliation schedules |
-| Email | Resend custom SMTP/API | Authentication and transactional email |
+| Email | Brevo transactional email API (Free plan) | Authentication and transactional email; up to 300 sends/day, with Brevo branding on free-tier messages |
 | Payments | ToyyibPay | Sandbox and live contribution collection |
 | File screening | Isolated container worker, provider selected before public upload | Malware scan, safe conversion, text extraction, and fingerprint generation |
 | Validation | Zod at TypeScript boundaries + PostgreSQL constraints | Reject malformed external input and enforce data invariants |
@@ -39,6 +39,33 @@ Use current stable versions verified at implementation time and pin exact versio
 - `payouts` - manual payout task, Owner release record, evidence, and future provider adapter.
 - `notifications` - in-app events, email delivery, retries, and user preferences where allowed.
 - `audit` - append-only security, finance, access, configuration, and moderation events.
+
+### Notification inbox foundation (2026-09-23)
+
+The backend notification slice defines recipient-only inbox storage with RLS,
+authenticated cursor-paginated reads and idempotent mark-read operations. Trusted
+event consumers enqueue by stable event ID and recipient; conflicting replays
+fail. Payloads contain event kinds and opaque identifiers, with fixed English
+copy supplied by the notification contract. Staff have no inbox visibility bypass.
+New inbox endpoints emit allowlisted operational logs and generated correlation IDs.
+An unapplied follow-up migration adds domain-owned publishers for recorded claim
+reviews and new account restrictions. They call the enqueue contract in the same
+transaction, using recorded review/restriction UUIDs and server-derived recipients.
+No historical backfill or settlement side effect is introduced. A further
+unapplied migration creates one transactional email-outbox job per new inbox
+notification. The server-only dispatcher uses the Brevo API, fixed contract copy,
+recipient verification, leases, bounded retries, stable idempotency keys and manual
+review after the provider's 15-minute deduplication window. Supabase Auth messages
+(confirmation, recovery and verification) use Brevo SMTP configured in Supabase
+Auth settings; this requires a separate Brevo SMTP key, not the API key used by
+the app dispatcher. Outbox email,
+recipient addresses, provider messages and service credentials are never exposed
+through the inbox API or logs. The dispatcher endpoint exists but has not been
+scheduled or deployed. A frontend inbox exists in an isolated worktree but has
+not yet been integrated; lifecycle schedules remain unconnected.
+Supabase Cloud is the active environment;
+validate the migration and access-control tests in a designated cloud test
+environment before rollout. No cloud database changes have been performed by this slice.
 
 Modules may share identifiers and published domain events, but they must not reach into one another's internal tables or bypass the owning service's invariants.
 

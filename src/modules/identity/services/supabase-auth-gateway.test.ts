@@ -9,6 +9,7 @@ function createClient(): SupabaseAuthClient {
     signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     signUp: vi.fn().mockResolvedValue({ error: null }),
+    updateUser: vi.fn().mockResolvedValue({ error: null }),
   };
 }
 
@@ -87,5 +88,25 @@ describe("SupabaseAuthGateway", () => {
       options: { emailRedirectTo: "https://vaultix.example/auth/callback" },
       type: "signup",
     });
+  });
+
+  test("updates a password only through the authenticated Supabase user session", async () => {
+    const client = createClient();
+
+    await expect(
+      new SupabaseAuthGateway(client).updatePassword({ password: "NewSecurePass123" }),
+    ).resolves.toEqual({ ok: true });
+    expect(client.updateUser).toHaveBeenCalledWith({ password: "NewSecurePass123" });
+  });
+
+  test("maps an expired auth session to a safe recovery-link failure", async () => {
+    const client = createClient();
+    vi.mocked(client.updateUser).mockResolvedValue({
+      error: { code: "session_not_found", message: "raw session token", status: 400 },
+    });
+
+    await expect(
+      new SupabaseAuthGateway(client).updatePassword({ password: "NewSecurePass123" }),
+    ).resolves.toEqual({ ok: false, reason: "recovery_invalid" });
   });
 });

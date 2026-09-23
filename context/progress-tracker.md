@@ -4,8 +4,15 @@ Update this file after every meaningful implementation or specification change.
 
 ## Current Phase
 
-- Phase 5: "Evidence Locker & Dispatch Alerts" (Fulfilment, Entitlements, Manual Payouts, and Refund Queues) is fully implemented, migrated to remote Supabase, and verified.
-- All 114 test files (884 tests), strict TypeScript typecheck, Prettier formatting, ESLint check, and Next.js production build pass.
+- Supabase Cloud is the active backend environment, confirmed by the user on
+  2026-09-23. Local Docker is optional tooling, not a prerequisite for continuing
+  development. Cloud migration history and database test results must be verified
+  separately; the environment change does not establish that new migrations passed.
+
+- Phase 3B money/ledger, public Wanted reads, and the Phase 4 claims boundary are integrated on
+  `main`. The Gemini frontier interface and Codex backend are now in one reviewable tree.
+- Phase 4 Claims and moderation has started with quarantine RLS, upload-session authorization,
+  scanner contracts, and human review policy.
 
 ## Current Goal
 
@@ -29,7 +36,7 @@ Update this file after every meaningful implementation or specification change.
 - Defined supported file types, 50 MB maximum, quarantine, duplicate strategy, reports, takedown, and retention.
 - Defined Owner, Platform Sheriff, and institution-scoped Sheriff permissions.
 - Selected a Supabase-centric architecture, with Supabase Storage first and an optional Cloudflare R2 hybrid path later.
-- Selected Resend for custom transactional SMTP.
+- Initially selected Resend; superseded on 2026-09-23 by Brevo Free for transactional email after the user declined paid plans.
 - Selected Supabase Queues and Cron for durable background work and scheduled lifecycle tasks.
 - Assigned detailed visual design to a separate designer; recorded only product direction and accessibility constraints.
 - Populated all six context files and completed the Phase 1 application foundation.
@@ -58,6 +65,96 @@ Update this file after every meaningful implementation or specification change.
 - Published `docs/integration/claims-http-contract.md` and added Playwright E2E coverage for bounty creation, backing, and quarantine claim submission flows (`tests/e2e/marketplace-bounty-claim-flow.spec.ts`).
 
 ## In Progress
+
+- 2026-09-23: Started notifications/operations in isolated backend worktree
+  `.worktrees/notifications-operations`, branch `codex/notifications-operations`,
+  based on integrated `main` at `78ebe2a`. Backend code and shared contracts stay
+  in this lane; the companion UI work is isolated in
+  `.worktrees/primary-email-ui`, branch `codex/primary-email-ui`.
+- Added a private notification inbox migration, recipient-scoped list/read APIs,
+  typed contract, duplicate-event protection, and safe correlation logging for
+  those APIs. Added an unapplied follow-up migration publishing recorded claim
+  reviews and new account restrictions atomically to the inbox. Added a third,
+  unapplied migration that creates a transactional email outbox with lease tokens,
+  bounded exponential backoff, terminal failures and manual review after the
+  provider idempotency window. New inbox events enqueue email in the same DB
+  transaction. Added a server-only Supabase RPC repository and Brevo dispatcher,
+  service-key-protected HTTP route, fixed copy, verified-recipient check, and
+  stable correlation IDs across retries. The route is not scheduled or deployed.
+  Outbox terminal states are persisted, but an operator-facing failure view is
+  still needed. The dispatcher has not been scheduled or deployed. SQL/RLS tests
+  for these migrations have not run
+  because no isolated database test project is available in this worktree; do
+  not apply the migration to shared Supabase Cloud. The frontend worktree now
+  contains the inbox UI with read/unread, pagination, loading, empty, offline and
+  retry states. Distributed rate limits and lifecycle schedules remain pending.
+- Added server-generated correlation IDs and allowlisted structured logs to
+  sign-in, sign-up, verification resend, password recovery, and sign-out responses.
+  Auth logs omit request bodies, email addresses, passwords, user IDs, and provider
+  details. Malformed JSON receives a correlated validation response.
+- Historical Resend Marketplace/free-tier setup was superseded by the user's
+  decision to use Brevo Free. No payment or paid email service was provisioned.
+- Supabase Cloud connection and migration history were verified read-only. Cloud
+  has applied versions `202609240001` (claim moderation/appeals) and `202609250001`
+  (fulfilment) missing from the checkout. Their presence does not establish that
+  those features pass acceptance tests. Reconcile source/history before deployment.
+- Provider decision changed: replace Resend with Brevo Free. The server-side
+  adapter now calls Brevo's transactional email API and the outbox retry cutoff
+  is 14 minutes (Brevo idempotency retention is 15 minutes). Env names are
+  `BREVO_API_KEY`, `BREVO_FROM_EMAIL`, and `BREVO_FROM_NAME`. Unit tests use fake
+  HTTP responses only. User-confirmed Brevo API key configuration is present in
+  local/Vercel settings and `bilikkebal.afes.my` is verified. A direct Brevo API
+  sample email to the requested test inbox was accepted by the provider, but it
+  did not exercise this app's outbox or Supabase Auth SMTP.
+- Supabase Auth sends signup confirmation and recovery emails independently from
+  the app notification dispatcher. Once a Brevo account is ready, configure
+  Supabase Auth custom SMTP with Brevo SMTP credentials (a distinct SMTP key); this
+  external dashboard setup has not yet occurred.
+- Historical post-provider-switch verification: 102 unit-test files / 813 tests pass;
+  TypeScript, Prettier, ESLint (zero errors; one existing sign-out warning),
+  `git diff --check`, and production build pass at that earlier checkpoint.
+- Resend sender domain `bilikkebal.afes.my` is verified (DKIM and SPF records
+  verified; sending enabled). `RESEND_API_KEY` is present in the VAULTIX Vercel
+  Production environment as a Secret; its value was not read. The Vercel CLI was
+  installed and the Marketplace discovery returned `resend/resend-email`. The
+  user accepted its terms but declined the paid resource. No Marketplace resource
+  or charge exists. The later one-off authorized smoke email used the existing
+  Resend key and did not create a Marketplace resource or charge.
+- Notification schema and event-trigger SQL was validated against Supabase Cloud
+  inside one explicit transaction with a final ROLLBACK. All 21 pgTAP smoke
+  assertions passed; post-rollback checks confirmed the notification table and
+  synthetic users were absent. This validated the migration SQL without applying
+  it. The approved test was a targeted smoke set, not all 29 assertions in the two
+  committed SQL test files. No lasting changes occurred during that database
+  smoke; a separate direct provider sample email was subsequently accepted.
+- Notification/auth-observability verification: 98 test files / 801 tests pass;
+  TypeScript, formatting, and production Next.js build pass. Lint exits successfully
+  with one existing sign-out navigation warning.
+  TypeScript, format, production build, and 21 rollback-only cloud smoke assertions
+  pass. The committed SQL files contain 29 assertions and still need to be run via
+  the normal database test harness in an isolated test project. Changes remain
+  uncommitted in the isolated worktree and are not integrated into `main`.
+- 2026-09-23 primary non-payment email slice: password recovery now exchanges the
+  Supabase link through `/auth/callback`, binds a short-lived signed HTTP-only
+  grant to the authenticated user, and requires that grant before updating a
+  password. The companion UI provides reset, expired-link, and success states.
+  The notification inbox UI consumes the published contract and supports read
+  state, cursor pagination, loading, empty, offline, and retry states. New
+  append-only migration `202609280001_primary_email_events.sql` adds idempotent
+  events for institution verification approved/rejected and claims marked
+  not-selected. Full Vitest suites pass in the isolated worktrees: backend
+  105 files / 824 tests; frontend 98 files / 793 tests. Both worktrees pass
+  TypeScript, Prettier, ESLint (zero errors; one pre-existing sign-out warning),
+  and production build. SQL/RLS tests for new migrations remain unrun because
+  no isolated database test project is available; no changes were applied to
+  Supabase Cloud, and no app-outbox email or production deployment was tested.
+  Existing account restriction and claim review decision email events remain in
+  scope; appeal events are withheld until the missing cloud-applied migration
+  sources are reconciled. Payment email work remains deferred.
+- Expiry scheduling depends on refund tasks and appeal holds; free release depends
+  on recorded approval/rights and entitlements; retention depends on final decision,
+  appeal and investigation closure state. Keep these schedules inactive until the
+  owning domain operations exist. Final settlement remains deferred by user request.
 
 - Public Wanted detail now maps the authoritative `expired` lifecycle to the `closed` presentation
   status, even when a large bounty would otherwise display as well funded. The focused read-model
@@ -112,10 +209,11 @@ Update this file after every meaningful implementation or specification change.
 
 ## Next Up
 
-1. Phase 6: Hardening, audit logging, rate limiting, and controlled launch gates.
-2. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
-3. Configure live ToyyibPay callbacks and production email/storage secrets upon deployment.
-4. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
+1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
+2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
+3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
+4. Verify the existing Supabase Cloud connection and applied migration history, then validate pending migrations and RLS tests in a designated cloud test environment.
+5. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
 ## Open Questions
 
@@ -171,7 +269,13 @@ Update this file after every meaningful implementation or specification change.
 - The user approved phased full-MVP development and separate frontend/backend ownership. Gemini
   replaces Claude Code in the frontend lane; Codex remains in the backend lane. Application coding
   begins after the relevant phase plan is written.
-- Local Supabase project `vaultix` runs on API `55421`, DB `55422`, Studio `55423`, Mailpit `55424`; tests use synthetic accounts and never send real email.
+- Supabase Cloud has replaced the local Supabase runtime for active development.
+  Historical local configuration used API `55421`, DB `55422`, Studio `55423`
+  and Mailpit `55424`; these ports do not describe the current cloud environment.
+  Automated tests continue to use synthetic accounts and must not send real email.
+- 2026-09-23 correction: do not treat stopped Docker as a project blocker or
+  Supabase Cloud setup as outstanding. Confirm the intended cloud project and
+  test isolation before applying migrations or running database mutation tests.
 - Official institution email domains remain intentionally unseeded pending product approval; `example.test` was used only as a temporary local smoke fixture and is not part of migrations.
 - Production marketplace taxonomy remains intentionally empty until an authoritative UiTM source and maintainer are approved.
 - Local development has the verified `hunter.demo@vaultix.test` account; migrations and CI do not depend on this machine-only identity.

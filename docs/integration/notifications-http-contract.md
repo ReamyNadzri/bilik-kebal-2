@@ -28,9 +28,11 @@ missing/inaccessible mark-read targets, 503 `NOTIFICATIONS_UNAVAILABLE`.
 Every response is `private, no-store` and carries a server-generated
 `X-Correlation-ID`. These IDs identify operations, never users or files.
 
-Frontend follow-up: inbox list, read/unread state, pagination, loading, empty,
-failure, expired-session and offline states, accessible keyboard controls at
-360px. Do not advertise a download or completed settlement from claim approval.
+Frontend implementation is in the isolated `codex/primary-email-ui` worktree and
+awaits integration after backend SQL/RLS tests pass. It provides read/unread
+state, cursor pagination, loading, empty, unavailable, expired-session and
+offline states with keyboard-operable controls. Do not advertise a download or
+completed settlement from claim approval.
 
 Trusted owning-domain consumers call `enqueue_notification` only after a recorded
 event. Supply a stable event UUID, server-derived recipient UUID, supported event

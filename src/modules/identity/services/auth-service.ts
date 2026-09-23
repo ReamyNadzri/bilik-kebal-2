@@ -3,6 +3,7 @@ import { z } from "zod";
 import type {
   IdentityOperationCode,
   PasswordRecoveryResult,
+  PasswordUpdateResult,
   RegistrationResult,
   ResendVerificationResult,
   SignInResult,
@@ -31,6 +32,7 @@ const signInSchema = z.object({
 });
 
 const recoverySchema = z.object({ email: emailSchema });
+const passwordUpdateSchema = z.object({ password: passwordSchema });
 
 type AuthFailure = {
   ok: false;
@@ -43,6 +45,7 @@ export type AuthGatewayFailureReason =
   | "email_not_verified"
   | "identity_not_found"
   | "invalid_credentials"
+  | "recovery_invalid"
   | "rate_limited"
   | "unavailable"
   | "unexpected";
@@ -59,6 +62,7 @@ export interface AuthGateway {
   signIn(input: { email: string; password: string }): Promise<AuthGatewayResult>;
   sendPasswordRecovery(input: { email: string; redirectTo: string }): Promise<AuthGatewayResult>;
   resendVerification(input: { email: string; emailRedirectTo: string }): Promise<AuthGatewayResult>;
+  updatePassword(input: { password: string }): Promise<AuthGatewayResult>;
   signOut(): Promise<AuthGatewayResult>;
 }
 
@@ -96,6 +100,11 @@ function providerFailure(reason: AuthGatewayFailureReason): AuthFailure {
     case "invalid_credentials":
     case "identity_not_found":
       return failure("INVALID_CREDENTIALS", "Email or password is incorrect.");
+    case "recovery_invalid":
+      return failure(
+        "RECOVERY_LINK_INVALID",
+        "This recovery link is invalid or expired. Request a new one.",
+      );
     case "rate_limited":
       return failure("AUTH_RATE_LIMITED", "Too many attempts. Wait and try again.");
     case "unavailable":
@@ -157,14 +166,27 @@ export class AuthService {
       return validationFailure(parsed.error);
     }
 
-    const redirectTo = new URL("/reset-password", this.appUrl).toString();
-    const result = await this.gateway.sendPasswordRecovery({ ...parsed.data, redirectTo });
+    const redirectTo = new URL("/auth/callback", this.appUrl);
+    redirectTo.searchParams.set("next", "/reset-password");
+    redirectTo.searchParams.set("flow", "recovery");
+    const result = await this.gateway.sendPasswordRecovery({
+      ...parsed.data,
+      redirectTo: redirectTo.toString(),
+    });
 
     if (!result.ok && result.reason !== "identity_not_found") {
       return providerFailure(result.reason);
     }
 
     return success({ accepted: true as const });
+  }
+
+  async updatePassword(input: unknown): Promise<PasswordUpdateResult> {
+    const parsed = passwordUpdateSchema.safeParse(input);
+    if (!parsed.success) return validationFailure(parsed.error);
+
+    const result = await this.gateway.updatePassword(parsed.data);
+    return result.ok ? success({ updated: true as const }) : providerFailure(result.reason);
   }
 
   async resendVerification(email: unknown): Promise<ResendVerificationResult> {

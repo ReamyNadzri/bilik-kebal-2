@@ -77,7 +77,7 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 
 ### Notifications and Operations
 
-- In-app notifications and transactional email through Resend.
+- In-app notifications and transactional email through Brevo Free.
 - Sheriff queues for claims, quarantine, reports, appeals, payout/refund tasks, and bounty exceptions.
 - Owner controls for payment mode, payment kill switch, fee configuration, taxonomy, storage usage, and provider health.
 - Durable queues, scheduled lifecycle jobs, retryable idempotent handlers, and operational audit logs.

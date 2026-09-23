@@ -5,5 +5,11 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request): Promise<Response> {
   const service = await createAuthService();
-  return executeJsonOperation(request, (input) => service.recoverPassword(input), 202);
+  return executeJsonOperation(
+    request,
+    (input) => service.recoverPassword(input),
+    202,
+    undefined,
+    "identity.recover_password",
+  );
 }

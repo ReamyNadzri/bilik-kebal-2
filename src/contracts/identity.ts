@@ -7,6 +7,7 @@ export type IdentityOperationCode =
   | "EMAIL_NOT_VERIFIED"
   | "INVALID_CREDENTIALS"
   | "REGISTRATION_FAILED"
+  | "RECOVERY_LINK_INVALID"
   | "VALIDATION_ERROR";
 
 export type VerificationOperationCode =
@@ -25,6 +26,7 @@ export type RegistrationResult = OperationResult<{ next: "verify_email" }, Ident
 export type SignInResult = OperationResult<{ next: "profile" }, IdentityOperationCode>;
 
 export type PasswordRecoveryResult = OperationResult<{ accepted: true }, IdentityOperationCode>;
+export type PasswordUpdateResult = OperationResult<{ updated: true }, IdentityOperationCode>;
 
 export type ResendVerificationResult = OperationResult<{ accepted: true }, IdentityOperationCode>;
 
