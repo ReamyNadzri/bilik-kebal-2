@@ -30,6 +30,7 @@ test("never relies on colour alone to convey the state", () => {
   const expected: Record<UiStatusKind, string> = {
     loading: "Loading",
     empty: "Empty",
+    success: "Success",
     error: "Error",
     restricted: "Restricted",
     expired: "Expired",
