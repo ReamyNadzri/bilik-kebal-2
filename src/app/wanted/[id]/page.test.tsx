@@ -53,6 +53,38 @@ async function renderPage(id = "csc510-final-exam-notes") {
 }
 
 describe("reading one request", () => {
+  test("names who posted it with their joined date and a link to their profile", async () => {
+    readPublicWanted.mockResolvedValue({
+      ok: true,
+      data: aDetail({
+        commissioner: {
+          publicId: "11111111-1111-4111-8111-111111111111",
+          avatarUrl: null,
+          joinedAt: "2026-09-02T02:00:00.000Z",
+          displayName: "Aina",
+          emailVerified: true,
+          institutionVerified: true,
+        },
+      }),
+    });
+    await renderPage();
+
+    expect(screen.getByRole("link", { name: "Aina" })).toHaveAttribute(
+      "href",
+      "/u/11111111-1111-4111-8111-111111111111",
+    );
+    expect(screen.getByText("September 2026")).toBeInTheDocument();
+  });
+
+  test("offers no way to add money to a free request", async () => {
+    readPublicWanted.mockResolvedValue({ ok: true, data: aDetail({ isFree: true }) });
+    await renderPage();
+
+    expect(screen.queryByRole("link", { name: "Back this Wanted" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back this Wanted" })).toBeNull();
+    expect(screen.getAllByText("Free request").length).toBeGreaterThan(0);
+  });
+
   test("asks by the opaque public identifier from the address", async () => {
     await renderPage("csc510-final-exam-notes");
 

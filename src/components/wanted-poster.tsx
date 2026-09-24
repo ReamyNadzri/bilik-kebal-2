@@ -20,6 +20,12 @@ export interface WantedPosterProps {
   readonly labelledBy?: string;
 }
 
+const KIND_HEADING: Record<WantedSummary["kind"], string> = {
+  academic: "",
+  missing_item: "Missing item",
+  discussion: "Discussion",
+};
+
 export function describeBackers(count: number): string {
   if (count === 0) {
     return "No backers yet";
@@ -47,6 +53,7 @@ export function WantedPoster({
   labelledBy,
 }: WantedPosterProps) {
   const closing = formatClosing(wanted.closesAt, now, { phrasing: "left" });
+  const academic = wanted.kind === "academic";
   const isClosed = wanted.status === "closed";
 
   return (
@@ -73,17 +80,31 @@ export function WantedPoster({
       </p>
 
       <div className="wanted-poster__head">
-        <p className="wanted-card__course">
-          <span className="wanted-card__course-code">{wanted.courseCode}</span>
-          <span className="wanted-card__course-name">{wanted.courseName}</span>
-        </p>
+        {academic ? (
+          <p className="wanted-card__course">
+            <span className="wanted-card__course-code">{wanted.courseCode}</span>
+            <span className="wanted-card__course-name">{wanted.courseName}</span>
+          </p>
+        ) : (
+          <p className="wanted-card__course">
+            <span className="wanted-card__course-code">{KIND_HEADING[wanted.kind]}</span>
+          </p>
+        )}
         {title}
       </div>
 
       <div className="wanted-card__money">
-        <BountyPlate amountSen={wanted.grossBountySen} />
+        {wanted.isFree ? (
+          <p className="free-plate">Free request</p>
+        ) : (
+          <BountyPlate amountSen={wanted.grossBountySen} />
+        )}
         <p className="wanted-card__counts">
-          <span className="numeric">{describeBackers(wanted.backerCount)}</span>
+          {wanted.isFree ? (
+            <span>No bounty</span>
+          ) : (
+            <span className="numeric">{describeBackers(wanted.backerCount)}</span>
+          )}
           <span aria-hidden="true">·</span>
           <span>{formatAgeOld(wanted.postedAt, now)}</span>
         </p>
@@ -94,8 +115,18 @@ export function WantedPoster({
         <dd>{wanted.campus}</dd>
         <dt>Type</dt>
         <dd>{wanted.resourceType}</dd>
-        <dt>Session</dt>
-        <dd>{wanted.session}</dd>
+        {academic ? (
+          <>
+            <dt>Session</dt>
+            <dd>{wanted.session}</dd>
+          </>
+        ) : null}
+        {wanted.kind === "missing_item" && wanted.lastSeenLocation ? (
+          <>
+            <dt>Last seen</dt>
+            <dd>{wanted.lastSeenLocation}</dd>
+          </>
+        ) : null}
       </dl>
 
       <p className="stamp-row wanted-poster__stamp">

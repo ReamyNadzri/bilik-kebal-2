@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
 import { readAccount } from "@/features/presentation/auth/require-account";
 import { SHERIFF_CONSOLE_NAV } from "@/features/presentation/navigation";
+import { countUnreadNotifications } from "@/modules/notifications/loaders/unread-count";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,12 +32,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
    * (context/architecture.md).
    */
   const roleNav = account?.console.hasAccess === true ? [SHERIFF_CONSOLE_NAV] : [];
+  const unreadCount = account ? await countUnreadNotifications() : null;
 
   return (
     <html lang="en">
       <body>
         <AuthProvider initialAccount={account}>
-          <AppShell roleNav={roleNav} accountMenu={<AccountMenu />}>
+          <AppShell roleNav={roleNav} accountMenu={<AccountMenu />} unreadCount={unreadCount}>
             {children}
           </AppShell>
         </AuthProvider>

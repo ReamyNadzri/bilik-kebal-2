@@ -129,3 +129,14 @@ export function formatClosing(
     urgent,
   };
 }
+
+const JOINED = new Intl.DateTimeFormat("en-MY", {
+  month: "long",
+  year: "numeric",
+  timeZone: "Asia/Kuala_Lumpur",
+});
+
+/** "September 2026" — when a member joined, fixed to Malaysian time. */
+export function formatJoined(instant: string): string {
+  return JOINED.format(new Date(instant));
+}

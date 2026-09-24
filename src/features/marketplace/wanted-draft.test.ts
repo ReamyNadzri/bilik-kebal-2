@@ -1,9 +1,11 @@
 import { aTaxonomy, TAXONOMY_ID } from "./test-support/taxonomy";
 import {
-  DURATION_DAYS,
   MAX_CONTRIBUTION_SEN,
+  MAX_DURATION_DAYS,
+  MIN_DURATION_DAYS,
   MIN_CONTRIBUTION_SEN,
   emptyDraft,
+  toCommunityInput,
   toDraftInput,
   validateDraft,
   type WantedDraftValues,
@@ -105,7 +107,7 @@ describe("required fields", () => {
   });
 
   test("refuses a draft whose content policy was not accepted", () => {
-    expect(errorFor({ policyAccepted: false }, "wanted-policy")).toMatch(/content policy/i);
+    expect(errorFor({ policyAccepted: false }, "wanted-policy")).toMatch(/terms/i);
   });
 
   test("reports every failure at once rather than one at a time", () => {
@@ -190,17 +192,18 @@ describe("the academic hierarchy", () => {
 });
 
 describe("the duration", () => {
-  test("accepts exactly the three approved durations", () => {
-    expect(DURATION_DAYS).toEqual([7, 14, 30]);
+  test("accepts any whole number of days from 3 to 30", () => {
+    expect([MIN_DURATION_DAYS, MAX_DURATION_DAYS]).toEqual([3, 30]);
 
-    for (const days of DURATION_DAYS) {
+    for (const days of [3, 7, 21, 30]) {
       expect(validateDraft(aDraft({ durationDays: String(days) }), taxonomy()).errors).toEqual([]);
     }
   });
 
-  test("refuses any other duration, however reasonable", () => {
-    expect(errorFor({ durationDays: "21" }, "wanted-duration")).toBeDefined();
-    expect(errorFor({ durationDays: "1" }, "wanted-duration")).toBeDefined();
+  test("refuses a duration outside the range or not a whole day", () => {
+    expect(errorFor({ durationDays: "2" }, "wanted-duration")).toBeDefined();
+    expect(errorFor({ durationDays: "31" }, "wanted-duration")).toBeDefined();
+    expect(errorFor({ durationDays: "7.5" }, "wanted-duration")).toBeDefined();
   });
 });
 
@@ -282,5 +285,69 @@ describe("the body sent to the draft operation", () => {
     const body = toDraftInput(validateDraft(aDraft(), taxonomy()).draft!);
 
     expect(JSON.stringify(body)).not.toMatch(/Faculty of Computing|Database Systems|CSC510/);
+  });
+});
+
+describe("a free request", () => {
+  test("needs no contribution and carries none", () => {
+    const result = validateDraft(aDraft({ free: true, contribution: "" }), taxonomy());
+
+    expect(result.errors).toEqual([]);
+    expect(result.draft?.contributionSen).toBeNull();
+  });
+});
+
+describe("the campus region", () => {
+  test("refuses a campus whose region is not open yet", () => {
+    expect(errorFor({ campusId: TAXONOMY_ID.otherCampus }, "wanted-campus")).toMatch(
+      /not open for new requests/i,
+    );
+  });
+});
+
+describe("missing-item and discussion requests", () => {
+  const community = (overrides: Partial<WantedDraftValues> = {}) =>
+    validateDraft(
+      aDraft({
+        kind: "missing_item",
+        free: true,
+        title: "Lost blue water bottle",
+        description: "Left it in the library study room on level 2 on Monday afternoon.",
+        lastSeenLocation: "Library level 2",
+        facultyId: "",
+        programmeId: "",
+        courseId: "",
+        sessionId: "",
+        resourceTypeId: "",
+        languageId: "",
+        tagIds: [],
+        contribution: "",
+        ...overrides,
+      }),
+      taxonomy(),
+    );
+
+  test("need only a title, description, campus, duration and the terms", () => {
+    const result = community();
+
+    expect(result.errors).toEqual([]);
+    expect(result.draft).toBeNull();
+    expect(result.community).toMatchObject({
+      kind: "missing_item",
+      lastSeenLocation: "Library level 2",
+    });
+  });
+
+  test("send no location with a discussion", () => {
+    const result = community({ kind: "discussion" });
+
+    expect(result.community?.lastSeenLocation).toBeNull();
+    expect(toCommunityInput(result.community!)).not.toHaveProperty("lastSeenLocation");
+  });
+
+  test("still require the terms", () => {
+    expect(community({ policyAccepted: false }).errors.map((e) => e.fieldId)).toContain(
+      "wanted-policy",
+    );
   });
 });

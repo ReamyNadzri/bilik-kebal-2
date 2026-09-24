@@ -13,6 +13,9 @@ export interface BackWantedModalProps {
   readonly onClose: () => void;
 }
 
+const MIN_RINGGIT = 1;
+const MAX_RINGGIT = 50;
+
 const PRESET_AMOUNTS: readonly { label: string; amountSen: Sen }[] = [
   { label: "RM 1", amountSen: sen(100) },
   { label: "RM 5", amountSen: sen(500) },
@@ -197,23 +200,44 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
               contribution is RM1 to RM50.
             </p>
 
-            <fieldset className="draft-form__fieldset">
-              <legend className="draft-form__legend">Select contribution amount</legend>
-              <div className="draft-form__choices">
+            <div className="form-field slider-field">
+              <label className="form-field__label" htmlFor="back-amount">
+                Your contribution
+              </label>
+              <p className="form-field__hint" id="back-amount-hint">
+                Slide to choose RM{MIN_RINGGIT} to RM{MAX_RINGGIT}, in whole ringgit.
+              </p>
+              <div className="slider-field__row">
+                <input
+                  className="slider"
+                  id="back-amount"
+                  type="range"
+                  min={MIN_RINGGIT}
+                  max={MAX_RINGGIT}
+                  step={1}
+                  value={selectedSen / 100}
+                  aria-valuetext={formatRinggit(selectedSen)}
+                  aria-describedby="back-amount-hint"
+                  onChange={(event) => setSelectedSen(sen(Number(event.target.value) * 100))}
+                />
+                <output className="slider-field__value numeric" htmlFor="back-amount">
+                  {formatRinggit(selectedSen)}
+                </output>
+              </div>
+              <div className="slider-field__presets" aria-label="Quick amounts" role="group">
                 {PRESET_AMOUNTS.map(({ label, amountSen }) => (
-                  <label key={amountSen} className="draft-form__choice">
-                    <input
-                      type="radio"
-                      name="backer-amount"
-                      value={amountSen}
-                      checked={selectedSen === amountSen}
-                      onChange={() => setSelectedSen(amountSen)}
-                    />
-                    <span>{label}</span>
-                  </label>
+                  <button
+                    key={amountSen}
+                    type="button"
+                    className="button button--quiet button--compact"
+                    aria-pressed={selectedSen === amountSen}
+                    onClick={() => setSelectedSen(amountSen)}
+                  >
+                    {label}
+                  </button>
                 ))}
               </div>
-            </fieldset>
+            </div>
 
             <dl className="money-breakdown" aria-label="Bounty after your contribution">
               <div className="money-breakdown__row">

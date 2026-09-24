@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import {
+  CURRENT_POLICY_VERSION,
   duplicateSuggestionInputSchema,
   freePublicationInputSchema,
   publicationInputSchema,
@@ -52,7 +53,7 @@ export class WantedPublicationService {
     this.token = options.token ?? (() => randomBytes(32).toString("base64url"));
     this.paymentAvailability = options.paymentAvailability;
     this.feeRateBasisPoints = options.feeRateBasisPoints ?? 1000;
-    this.policyVersion = options.policyVersion ?? "2026-09-15.1";
+    this.policyVersion = options.policyVersion ?? CURRENT_POLICY_VERSION;
     this.tokenSecret = options.tokenSecret ?? "vaultix-local-marketplace-token-secret";
     this.freePublisher = options.freePublisher ?? null;
   }

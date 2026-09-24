@@ -57,12 +57,15 @@ describe("BackWantedModal", () => {
     global.fetch = originalFetch;
   });
 
-  it("renders preset contribution choices (RM1, RM5, RM10, RM20, RM50)", () => {
+  it("chooses the amount with an RM1–RM50 slider and quick amounts", () => {
     const wanted = createWantedDetail();
     render(<BackWantedModal wanted={wanted} onClose={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Back this Wanted" })).toBeInTheDocument();
-    const fieldset = screen.getByRole("group", { name: "Select contribution amount" });
+    const slider = screen.getByRole("slider", { name: "Your contribution" });
+    expect(slider).toHaveAttribute("min", "1");
+    expect(slider).toHaveAttribute("max", "50");
+    const fieldset = screen.getByRole("group", { name: "Quick amounts" });
     expect(within(fieldset).getByText("RM 1")).toBeInTheDocument();
     expect(within(fieldset).getByText("RM 5")).toBeInTheDocument();
     expect(within(fieldset).getByText("RM 10")).toBeInTheDocument();
@@ -78,8 +81,9 @@ describe("BackWantedModal", () => {
     expect(screen.getByText("RM 55")).toBeInTheDocument();
 
     // Select RM 20
-    const rm20Radio = screen.getByDisplayValue("2000");
-    fireEvent.click(rm20Radio);
+    fireEvent.change(screen.getByRole("slider", { name: "Your contribution" }), {
+      target: { value: "20" },
+    });
 
     // New total should be RM 70
     expect(screen.getByText("RM 70")).toBeInTheDocument();
@@ -159,7 +163,9 @@ describe("BackWantedModal", () => {
     );
 
     render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByDisplayValue("2000"));
+    fireEvent.change(screen.getByRole("slider", { name: "Your contribution" }), {
+      target: { value: "20" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
 
     await screen.findByText("Online payment is not open yet");

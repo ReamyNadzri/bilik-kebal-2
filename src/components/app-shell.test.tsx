@@ -62,7 +62,18 @@ describe("marketplace navigation", () => {
     const account = screen.getByRole("navigation", { name: "Account" });
 
     expect(within(account).getByRole("link", { name: "Notifications" })).toBeInTheDocument();
-    expect(within(account).getByRole("link", { name: "Profile" })).toBeInTheDocument();
+  });
+
+  test("badges unread notifications and says the count in words", () => {
+    renderShell({ unreadCount: 2 });
+
+    expect(screen.getByRole("link", { name: "Notifications, 2 unread" })).toBeInTheDocument();
+  });
+
+  test("shows no badge when nothing is unread", () => {
+    renderShell({ unreadCount: 0 });
+
+    expect(screen.getByRole("link", { name: "Notifications" })).toBeInTheDocument();
   });
 
   test("keeps account utilities out of the marketplace landmark", () => {
@@ -122,7 +133,7 @@ describe("current destination", () => {
     pathname.current = "/";
     renderShell();
 
-    for (const label of ["Wanted Board", "Hunt", "Archive", "Notifications", "Profile"]) {
+    for (const label of ["Wanted Board", "Hunt", "Archive", "Notifications"]) {
       expect(screen.getByRole("link", { name: label })).not.toHaveAttribute("aria-current");
     }
   });

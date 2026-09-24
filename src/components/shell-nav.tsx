@@ -21,6 +21,8 @@ export interface ShellNavProps {
    */
   readonly currentNavId?: NavItemId | null | undefined;
   readonly roleNav?: readonly NavItem[] | undefined;
+  /** Unread notifications; the badge shows only above zero. */
+  readonly unreadCount?: number | null | undefined;
 }
 
 /** Account utilities carry a small icon; the word always travels with it. */
@@ -29,7 +31,15 @@ const ACCOUNT_ICONS: Partial<Record<NavItemId, PixelIconName>> = {
   profile: "person",
 };
 
-function NavLink({ item, current }: { readonly item: NavItem; readonly current: boolean }) {
+function NavLink({
+  item,
+  current,
+  badge = null,
+}: {
+  readonly item: NavItem;
+  readonly current: boolean;
+  readonly badge?: number | null;
+}) {
   const icon = ACCOUNT_ICONS[item.id];
 
   return (
@@ -43,6 +53,12 @@ function NavLink({ item, current }: { readonly item: NavItem; readonly current: 
         <span className={icon === undefined ? undefined : "shell-nav__link-text--secondary"}>
           {item.label}
         </span>
+        {badge !== null && badge > 0 ? (
+          <span className="shell-nav__badge">
+            <span aria-hidden="true">{badge > 99 ? "99+" : badge}</span>
+            <span className="visually-hidden">{`, ${badge} unread`}</span>
+          </span>
+        ) : null}
       </Link>
     </li>
   );
@@ -68,7 +84,7 @@ function NavLink({ item, current }: { readonly item: NavItem; readonly current: 
  * role and institution scope server-side and through RLS; hiding a link is not
  * access control (context/architecture.md).
  */
-export function ShellNav({ currentNavId, roleNav = [] }: ShellNavProps) {
+export function ShellNav({ currentNavId, roleNav = [], unreadCount = null }: ShellNavProps) {
   const pathname = usePathname();
   const current = currentNavId === undefined ? activeNavId(pathname ?? "") : currentNavId;
 
@@ -99,7 +115,12 @@ export function ShellNav({ currentNavId, roleNav = [] }: ShellNavProps) {
       <nav aria-label="Account" className="shell-nav__account">
         <ul className="shell-nav__list">
           {ACCOUNT_NAV.map((item) => (
-            <NavLink key={item.id} item={item} current={current === item.id} />
+            <NavLink
+              key={item.id}
+              item={item}
+              current={current === item.id}
+              badge={item.id === "notifications" ? unreadCount : null}
+            />
           ))}
         </ul>
       </nav>

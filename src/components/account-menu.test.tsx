@@ -56,6 +56,36 @@ describe("signed out", () => {
 });
 
 describe("signed in", () => {
+  test("shows the picture, name, star and trust state, and links to the profile", () => {
+    renderMenu(
+      anAccountViewModel({
+        displayName: "Aina",
+        publicId: "11111111-1111-4111-8111-111111111111",
+        trust: { email: "verified", institution: "verified", restricted: false },
+      }),
+    );
+
+    expect(screen.getByText("Institution verified")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View my profile" })).toHaveAttribute(
+      "href",
+      "/u/11111111-1111-4111-8111-111111111111",
+    );
+    expect(screen.getByRole("link", { name: "Edit profile" })).toHaveAttribute("href", "/profile");
+  });
+
+  test("opens and closes the menu from the keyboard", () => {
+    renderMenu(anAccountViewModel({ displayName: "Aina" }));
+    const trigger = screen.getByRole("button", { name: /Aina/ });
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    act(() => trigger.click());
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    act(() => {
+      trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("names the account and offers the way out", () => {
     renderMenu(anAccountViewModel({ displayName: "Aina" }));
 

@@ -1,5 +1,8 @@
 import type {
+  CommunityWantedInput,
   CreateWantedDraftResult,
+  PublishCommunityWantedResult,
+  PublishFreeWantedResult,
   MarketplaceOperationCode,
   PrepareWantedPublicationResult,
   SuggestWantedDuplicatesResult,
@@ -108,5 +111,31 @@ export function createDraftContributionBill(
     draftPath(draftId, "/contribution"),
     { duplicateCheckToken, amountSen },
     "MONEY_UNAVAILABLE",
+  );
+}
+
+/**
+ * Opens a checked draft as a free request: no bounty, no payment, no fee.
+ * Carries the same one-use duplicate-check token as a paid publication.
+ */
+export function publishFreeWanted(
+  draftId: string,
+  duplicateCheckToken: string,
+): Promise<PublishFreeWantedResult> {
+  return callOperation<{ wantedId: string; state: "open" }, MarketplaceOperationCode>(
+    draftPath(draftId, "/free-publication"),
+    { duplicateCheckToken },
+    "MARKETPLACE_UNAVAILABLE",
+  );
+}
+
+/** Opens a missing-item or discussion Wanted in one step. Always free. */
+export function publishCommunityWanted(
+  input: CommunityWantedInput,
+): Promise<PublishCommunityWantedResult> {
+  return callOperation<{ wantedId: string; state: "open" }, MarketplaceOperationCode>(
+    "/api/marketplace/wanted/community",
+    input,
+    "MARKETPLACE_UNAVAILABLE",
   );
 }

@@ -17,8 +17,11 @@ import type { MoneyOperationCode } from "@/contracts/money";
 import {
   checkWantedDuplicates,
   createDraftContributionBill,
+  publishCommunityWanted,
+  publishFreeWanted,
   saveWantedDraft,
 } from "@/features/marketplace/draft-operations";
+import { POSTING_TERMS, TERMS_STATUS, TERMS_VERSION } from "@/features/legal/terms";
 import {
   messageFor,
   toDraftFieldErrors,
@@ -27,13 +30,18 @@ import {
 import { formatRinggit } from "@/features/marketplace/money";
 import { courseLabel, coursesFor, programmesFor } from "@/features/marketplace/taxonomy";
 import {
-  DURATION_DAYS,
+  MAX_DURATION_DAYS,
+  MIN_DURATION_DAYS,
   emptyDraft,
+  toCommunityInput,
   toDraftInput,
   validateDraft,
   type ValidatedDraft,
   type WantedDraftValues,
 } from "@/features/marketplace/wanted-draft";
+import { MAX_CONTRIBUTION_SEN, MIN_CONTRIBUTION_SEN } from "@/features/marketplace/wanted-draft";
+import { sen } from "@/features/marketplace/money";
+import type { WantedKind } from "@/contracts/marketplace";
 
 /**
  * `live` persists through the published Phase 3A operations. `preview` is the
@@ -87,7 +95,30 @@ type Outcome =
   | { readonly kind: "none" }
   | { readonly kind: "refused"; readonly heading: string; readonly message: string }
   | { readonly kind: "recheck"; readonly message: string }
-  | { readonly kind: "awaiting-payment"; readonly paymentUrl?: string };
+  | { readonly kind: "awaiting-payment"; readonly paymentUrl?: string }
+  | { readonly kind: "published"; readonly wantedId: string; readonly free: boolean };
+
+const KIND_CHOICES: readonly {
+  readonly kind: WantedKind;
+  readonly label: string;
+  readonly description: string;
+}[] = [
+  {
+    kind: "academic",
+    label: "Academic resource",
+    description: "Notes, past papers, worked answers. Hunters submit a file; a bounty is optional.",
+  },
+  {
+    kind: "missing_item",
+    label: "Missing item",
+    description: "Something you lost on campus. People reply if they have seen it. Always free.",
+  },
+  {
+    kind: "discussion",
+    label: "Discussion",
+    description: "A question for your campus. Classmates reply in writing. Always free.",
+  },
+];
 
 type Step = "idle" | "saving" | "checking" | "publishing";
 
@@ -151,7 +182,11 @@ interface SelectFieldProps {
   readonly label: string;
   readonly hint?: string;
   readonly value: string;
-  readonly options: readonly { readonly id: string; readonly label: string }[];
+  readonly options: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly disabled?: boolean;
+  }[];
   readonly placeholder: string;
   readonly error: string | undefined;
   readonly onChange: (value: string) => void;
@@ -200,7 +235,7 @@ function SelectField({
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (
-          <option key={option.id} value={option.id}>
+          <option key={option.id} value={option.id} disabled={option.disabled}>
             {option.label}
           </option>
         ))}
@@ -365,6 +400,11 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
 
     const result = validateDraft(values, taxonomy);
 
+    if (result.community !== null) {
+      await onPostCommunity(result.community);
+      return;
+    }
+
     if (result.draft === null) {
       refuseFields(result.errors);
       return;
@@ -414,6 +454,70 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
     }
   }
 
+  /**
+   * Missing items and discussions open in one step: no draft, no duplicate
+   * check and no payment, because they carry no bounty and no file.
+   */
+  async function onPostCommunity(
+    wanted: NonNullable<ReturnType<typeof validateDraft>["community"]>,
+  ) {
+    if (mode === "preview") {
+      setFeedback({
+        kind: "refusal",
+        status: "empty",
+        heading: "Preview only: nothing was posted",
+        message:
+          "This development preview has no account, so it saves nothing. The real screen posts this request straight to the Board.",
+      });
+      return;
+    }
+    busyRef.current = true;
+    try {
+      setFeedback({ kind: "none" });
+      setStep("publishing");
+      setAnnouncement("Posting your request.");
+      const posted = await publishCommunityWanted(toCommunityInput(wanted));
+      setAnnouncement("");
+      if (!posted.ok) {
+        const fields = toDraftFieldErrors(posted.fieldErrors);
+        if (fields.length > 0) refuseFields(fields);
+        else refuse(posted.code, posted.message);
+        return;
+      }
+      setOutcome({ kind: "published", wantedId: posted.data.wantedId, free: true });
+    } finally {
+      busyRef.current = false;
+      setStep("idle");
+    }
+  }
+
+  /** Opens the checked draft with no bounty. Nothing is charged. */
+  async function onPublishFree() {
+    if (busyRef.current || review === null || review.token === null || draftId === null) {
+      return;
+    }
+    busyRef.current = true;
+    try {
+      setStep("publishing");
+      setAnnouncement("Posting your free request.");
+      const result = await publishFreeWanted(draftId, review.token);
+      setAnnouncement("");
+      if (result.ok) {
+        setReview(null);
+        setOutcome({ kind: "published", wantedId: result.data.wantedId, free: true });
+        return;
+      }
+      if (result.code === "DUPLICATE_CHECK_REQUIRED" || result.code === "DUPLICATE_CHECK_EXPIRED") {
+        setOutcome({ kind: "recheck", message: messageFor(result.code, result.message) });
+        return;
+      }
+      refuse(result.code, result.message);
+    } finally {
+      busyRef.current = false;
+      setStep("idle");
+    }
+  }
+
   /** Runs the check again after the server refused a stale or spent token. */
   async function onCheckAgain() {
     if (busyRef.current || draftId === null || review === null) {
@@ -438,9 +542,16 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
    * second request the reader did not make.
    */
   async function onContinueToPayment() {
-    if (busyRef.current || review === null || review.token === null || draftId === null) {
+    if (
+      busyRef.current ||
+      review === null ||
+      review.token === null ||
+      draftId === null ||
+      review.draft.contributionSen === null
+    ) {
       return;
     }
+    const contributionSen = review.draft.contributionSen;
 
     busyRef.current = true;
 
@@ -448,11 +559,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
       setStep("publishing");
       setAnnouncement("Asking to prepare payment.");
 
-      const result = await createDraftContributionBill(
-        draftId,
-        review.token,
-        review.draft.contributionSen,
-      );
+      const result = await createDraftContributionBill(draftId, review.token, contributionSen);
 
       setAnnouncement("");
 
@@ -521,8 +628,36 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
     </p>
   );
 
+  if (outcome.kind === "published") {
+    return (
+      <div className="draft-form">
+        {announcer}
+        <UiStatus
+          kind="success"
+          heading="Your request is on the Board"
+          message={
+            outcome.free
+              ? "It was posted free: nothing was charged and no bounty is attached. You will be notified when someone responds."
+              : "Your request is open."
+          }
+          action={
+            <span className="dialog__actions">
+              <Link className="button button--primary" href={`/wanted/${outcome.wantedId}`}>
+                View your request
+              </Link>
+              <Link className="button button--quiet" href="/board">
+                Go to the Board
+              </Link>
+            </span>
+          }
+        />
+      </div>
+    );
+  }
+
   if (review !== null) {
     const { draft } = review;
+    const isFree = draft.contributionSen === null;
 
     return (
       <div className="draft-review">
@@ -563,15 +698,26 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
 
           <aside className="draft-review__ledger" aria-label="Money and policy">
             <div className="ledger-panel">
-              <BountyPlate
-                amountSen={draft.contributionSen}
-                label="Your first contribution"
-                size="large"
-              />
-              <p className="ledger-panel__backers">Starts the bounty</p>
+              {isFree ? (
+                <>
+                  <p className="free-plate">Free request</p>
+                  <p className="ledger-panel__backers">
+                    No bounty, no payment and no fee. You receive the resource a Sheriff approves.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <BountyPlate
+                    amountSen={draft.contributionSen ?? sen(0)}
+                    label="Your first contribution"
+                    size="large"
+                  />
+                  <p className="ledger-panel__backers">Starts the bounty</p>
+                </>
+              )}
             </div>
 
-            <div className="ledger-panel">
+            <div className="ledger-panel" hidden={isFree}>
               <h3 className="ledger-panel__heading">Fee and access</h3>
               <p className="ledger-panel__body">
                 A {FEE_RATE_BASIS_POINTS / 100}% platform fee is taken from the bounty when a claim
@@ -698,9 +844,9 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
               ) : null}
 
               <p className="policy-note">
-                Your draft is private to you until a confirmed first contribution opens it. A
-                Sheriff reviews every claim before any resource is released or any bounty is
-                released to a Hunter.
+                {isFree
+                  ? "Posting opens your request on the Board straight away. A Sheriff reviews every claim before any resource is released."
+                  : "Your draft is private to you until a confirmed first contribution opens it. A Sheriff reviews every claim before any resource is released or any bounty is released to a Hunter."}
               </p>
 
               <div className="draft-form__actions">
@@ -709,11 +855,15 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                     className="button button--primary"
                     type="button"
                     aria-disabled={busy ? true : undefined}
-                    onClick={onContinueToPayment}
+                    onClick={isFree ? onPublishFree : onContinueToPayment}
                   >
                     {step === "publishing"
-                      ? "Continue to payment (working…)"
-                      : `Continue to payment of ${formatRinggit(draft.contributionSen)}`}
+                      ? isFree
+                        ? "Post free request (working…)"
+                        : "Continue to payment (working…)"
+                      : isFree || draft.contributionSen === null
+                        ? "Post free request"
+                        : `Continue to payment of ${formatRinggit(draft.contributionSen)}`}
                   </button>
                 )}
                 <button className="button button--quiet" type="button" onClick={backToEdit}>
@@ -729,6 +879,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
 
   const programmes = programmesFor(taxonomy, values.facultyId === "" ? null : values.facultyId);
   const courses = coursesFor(taxonomy, values.programmeId === "" ? null : values.programmeId);
+  const isAcademic = values.kind === "academic";
   const durationError = errorFor("wanted-duration");
   const tagError = errorFor("wanted-tags");
   const policyError = errorFor("wanted-policy");
@@ -755,6 +906,33 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           ? "These options are development fixtures, not a reviewed institutional catalogue. The published taxonomy replaces them on the real screen."
           : "These options come from reviewed institutional records for your verified institution. If something is missing, it has not been published yet."}
       </p>
+
+      <section className="draft-form__section">
+        <h2 className="draft-form__section-heading">What kind of request?</h2>
+        <fieldset className="draft-form__fieldset" id="wanted-kind">
+          <legend className="visually-hidden">Request type</legend>
+          <div className="kind-choices">
+            {KIND_CHOICES.map((choice) => (
+              <label className="kind-choice" key={choice.kind}>
+                <input
+                  type="radio"
+                  name="wanted-kind"
+                  value={choice.kind}
+                  checked={values.kind === choice.kind}
+                  onChange={() =>
+                    update({
+                      kind: choice.kind,
+                      free: choice.kind === "academic" ? values.free : true,
+                    })
+                  }
+                />
+                <span className="kind-choice__label">{choice.label}</span>
+                <span className="kind-choice__description">{choice.description}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </section>
 
       <section className="draft-form__section">
         <h2 className="draft-form__section-heading">What you need</h2>
@@ -826,181 +1004,265 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           <SelectField
             id="wanted-campus"
             label="Campus"
+            hint="Campuses marked coming soon are not open for requests yet."
             value={values.campusId}
-            options={taxonomy.campuses}
+            options={taxonomy.campuses.map((campus) => ({
+              id: campus.id,
+              label: campus.regionOpen ? campus.label : `${campus.label} (coming soon)`,
+              disabled: !campus.regionOpen,
+            }))}
             placeholder="Choose a campus"
             error={errorFor("wanted-campus")}
             onChange={(campusId) => update({ campusId })}
           />
-          <SelectField
-            id="wanted-faculty"
-            label="Faculty or college"
-            value={values.facultyId}
-            options={taxonomy.faculties}
-            placeholder="Choose a faculty"
-            error={errorFor("wanted-faculty")}
-            onChange={chooseFaculty}
-          />
-          <SelectField
-            id="wanted-programme"
-            label="Programme"
-            hint="Available once a faculty is chosen."
-            value={values.programmeId}
-            options={programmes}
-            placeholder={values.facultyId === "" ? "Choose a faculty first" : "Choose a programme"}
-            error={errorFor("wanted-programme")}
-            onChange={chooseProgramme}
-          />
-          <SelectField
-            id="wanted-course"
-            label="Course"
-            hint="Available once a programme is chosen."
-            value={values.courseId}
-            options={courses.map((course: CourseOption) => ({
-              id: course.id,
-              label: courseLabel(course),
-            }))}
-            placeholder={values.programmeId === "" ? "Choose a programme first" : "Choose a course"}
-            error={errorFor("wanted-course")}
-            onChange={(courseId) => update({ courseId })}
-          />
-          <SelectField
-            id="wanted-session"
-            label="Academic session"
-            value={values.sessionId}
-            options={taxonomy.academicSessions}
-            placeholder="Choose a session"
-            error={errorFor("wanted-session")}
-            onChange={(sessionId) => update({ sessionId })}
-          />
-          <SelectField
-            id="wanted-resource-type"
-            label="Resource type"
-            value={values.resourceTypeId}
-            options={taxonomy.resourceTypes}
-            placeholder="Choose a resource type"
-            error={errorFor("wanted-resource-type")}
-            onChange={(resourceTypeId) => update({ resourceTypeId })}
-          />
-          <SelectField
-            id="wanted-language"
-            label="Language"
-            value={values.languageId}
-            options={taxonomy.languages}
-            placeholder="Choose a language"
-            error={errorFor("wanted-language")}
-            onChange={(languageId) => update({ languageId })}
-          />
+          {values.kind === "missing_item" ? (
+            <div className="form-field">
+              <label className="form-field__label" htmlFor="wanted-last-seen">
+                Where did you last see it?
+                <span className="form-field__required"> (optional)</span>
+              </label>
+              <p className="form-field__hint" id="wanted-last-seen-hint">
+                A building or room, for example &ldquo;Library level 2&rdquo;. Do not include phone
+                numbers or addresses.
+              </p>
+              {errorFor("wanted-last-seen") === undefined ? null : (
+                <p className="form-field__error" id="wanted-last-seen-error">
+                  {errorFor("wanted-last-seen")}
+                </p>
+              )}
+              <input
+                className="form-field__input"
+                id="wanted-last-seen"
+                type="text"
+                maxLength={160}
+                value={values.lastSeenLocation}
+                aria-describedby="wanted-last-seen-hint"
+                onChange={(event) => update({ lastSeenLocation: event.target.value })}
+              />
+            </div>
+          ) : null}
+          {isAcademic ? (
+            <>
+              <SelectField
+                id="wanted-faculty"
+                label="Faculty or college"
+                value={values.facultyId}
+                options={taxonomy.faculties}
+                placeholder="Choose a faculty"
+                error={errorFor("wanted-faculty")}
+                onChange={chooseFaculty}
+              />
+              <SelectField
+                id="wanted-programme"
+                label="Programme"
+                hint="Available once a faculty is chosen."
+                value={values.programmeId}
+                options={programmes}
+                placeholder={
+                  values.facultyId === "" ? "Choose a faculty first" : "Choose a programme"
+                }
+                error={errorFor("wanted-programme")}
+                onChange={chooseProgramme}
+              />
+              <SelectField
+                id="wanted-course"
+                label="Course"
+                hint="Available once a programme is chosen."
+                value={values.courseId}
+                options={courses.map((course: CourseOption) => ({
+                  id: course.id,
+                  label: courseLabel(course),
+                }))}
+                placeholder={
+                  values.programmeId === "" ? "Choose a programme first" : "Choose a course"
+                }
+                error={errorFor("wanted-course")}
+                onChange={(courseId) => update({ courseId })}
+              />
+              <SelectField
+                id="wanted-session"
+                label="Academic session"
+                value={values.sessionId}
+                options={taxonomy.academicSessions}
+                placeholder="Choose a session"
+                error={errorFor("wanted-session")}
+                onChange={(sessionId) => update({ sessionId })}
+              />
+              <SelectField
+                id="wanted-resource-type"
+                label="Resource type"
+                value={values.resourceTypeId}
+                options={taxonomy.resourceTypes}
+                placeholder="Choose a resource type"
+                error={errorFor("wanted-resource-type")}
+                onChange={(resourceTypeId) => update({ resourceTypeId })}
+              />
+              <SelectField
+                id="wanted-language"
+                label="Language"
+                value={values.languageId}
+                options={taxonomy.languages}
+                placeholder="Choose a language"
+                error={errorFor("wanted-language")}
+                onChange={(languageId) => update({ languageId })}
+              />
+            </>
+          ) : null}
         </div>
 
-        <fieldset className="draft-form__fieldset" id="wanted-tags">
-          <legend className="draft-form__legend">Tags (optional, up to five)</legend>
-          {tagError === undefined ? null : (
-            <p className="form-field__error" id="wanted-tags-error">
-              {tagError}
-            </p>
-          )}
-          <div className="draft-form__choices">
-            {taxonomy.tags.map((tag: TaxonomyItem) => (
-              <label className="draft-form__choice" key={tag.id}>
-                <input
-                  type="checkbox"
-                  checked={values.tagIds.includes(tag.id)}
-                  onChange={(event) => toggleTag(tag.id, event.target.checked)}
-                />
-                {tag.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        {isAcademic ? (
+          <fieldset className="draft-form__fieldset" id="wanted-tags">
+            <legend className="draft-form__legend">Tags (optional, up to five)</legend>
+            {tagError === undefined ? null : (
+              <p className="form-field__error" id="wanted-tags-error">
+                {tagError}
+              </p>
+            )}
+            <div className="draft-form__choices">
+              {taxonomy.tags.map((tag: TaxonomyItem) => (
+                <label className="draft-form__choice" key={tag.id}>
+                  <input
+                    type="checkbox"
+                    checked={values.tagIds.includes(tag.id)}
+                    onChange={(event) => toggleTag(tag.id, event.target.checked)}
+                  />
+                  {tag.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
       </section>
 
       <section className="draft-form__section">
         <h2 className="draft-form__section-heading">Duration and bounty</h2>
 
-        <fieldset className="draft-form__fieldset" id="wanted-duration">
-          <legend className="draft-form__legend">
+        <div className="form-field slider-field">
+          <label className="form-field__label" htmlFor="wanted-duration">
             How long should the request stay open?
-            <span className="form-field__required"> (required)</span>
-          </legend>
-          <p className="form-field__hint">
-            Chosen once and fixed at publication. A request cannot be extended in this release.
+          </label>
+          <p className="form-field__hint" id="wanted-duration-hint">
+            {MIN_DURATION_DAYS} to {MAX_DURATION_DAYS} days, fixed when it is published. A request
+            cannot be extended in this release.
           </p>
           {durationError === undefined ? null : (
             <p className="form-field__error" id="wanted-duration-error">
               {durationError}
             </p>
           )}
-          <div className="draft-form__choices">
-            {DURATION_DAYS.map((days) => (
-              <label className="draft-form__choice" key={days}>
+          <div className="slider-field__row">
+            <input
+              className="slider"
+              id="wanted-duration"
+              type="range"
+              min={MIN_DURATION_DAYS}
+              max={MAX_DURATION_DAYS}
+              step={1}
+              value={values.durationDays}
+              aria-valuetext={`${values.durationDays} days`}
+              aria-describedby="wanted-duration-hint"
+              onChange={(event) => update({ durationDays: event.target.value })}
+            />
+            <output className="slider-field__value" htmlFor="wanted-duration">
+              {values.durationDays} days
+            </output>
+          </div>
+        </div>
+
+        {isAcademic ? (
+          <fieldset className="draft-form__fieldset" id="wanted-bounty-choice">
+            <legend className="draft-form__legend">Bounty</legend>
+            <div className="draft-form__choices">
+              <label className="draft-form__choice">
                 <input
                   type="radio"
-                  name="wanted-duration-days"
-                  value={days}
-                  checked={values.durationDays === String(days)}
-                  onChange={() => update({ durationDays: String(days) })}
+                  name="wanted-bounty-choice"
+                  checked={!values.free}
+                  onChange={() => update({ free: false })}
                 />
-                {`${days} days`}
+                Offer a bounty
               </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="form-field draft-form__amount">
-          <label className="form-field__label" htmlFor="wanted-contribution">
-            Your first contribution
-            <span className="form-field__required"> (required)</span>
-          </label>
-          <p className="form-field__hint" id="wanted-contribution-hint">
-            Every contribution is RM1 to RM50. Yours starts the bounty; classmates add to it. The
-            payment provider adds its own charge on top of this amount.
+              <label className="draft-form__choice">
+                <input
+                  type="radio"
+                  name="wanted-bounty-choice"
+                  checked={values.free}
+                  onChange={() => update({ free: true })}
+                />
+                No bounty (free request)
+              </label>
+            </div>
+          </fieldset>
+        ) : (
+          <p className="policy-note">
+            Missing items and discussions are always free: no bounty, no payment and no fee.
           </p>
-          {errorFor("wanted-contribution") === undefined ? null : (
-            <p className="form-field__error" id="wanted-contribution-error">
-              {errorFor("wanted-contribution")}
+        )}
+
+        {isAcademic && !values.free ? (
+          <div className="form-field slider-field">
+            <label className="form-field__label" htmlFor="wanted-contribution">
+              Your first contribution
+            </label>
+            <p className="form-field__hint" id="wanted-contribution-hint">
+              RM{MIN_CONTRIBUTION_SEN / 100} to RM{MAX_CONTRIBUTION_SEN / 100}. Yours starts the
+              bounty; classmates add to it. The payment provider adds its own charge on top.
             </p>
-          )}
-          <div className="draft-form__amount-row">
-            <span className="draft-form__currency" aria-hidden="true">
-              RM
-            </span>
-            <input
-              className="form-field__input numeric"
-              id="wanted-contribution"
-              type="text"
-              inputMode="decimal"
-              value={values.contribution}
-              aria-invalid={errorFor("wanted-contribution") === undefined ? undefined : true}
-              aria-describedby={
-                errorFor("wanted-contribution") === undefined
-                  ? "wanted-contribution-hint"
-                  : "wanted-contribution-hint wanted-contribution-error"
-              }
-              onChange={(event) => update({ contribution: event.target.value })}
-            />
+            {errorFor("wanted-contribution") === undefined ? null : (
+              <p className="form-field__error" id="wanted-contribution-error">
+                {errorFor("wanted-contribution")}
+              </p>
+            )}
+            <div className="slider-field__row">
+              <input
+                className="slider"
+                id="wanted-contribution"
+                type="range"
+                min={MIN_CONTRIBUTION_SEN / 100}
+                max={MAX_CONTRIBUTION_SEN / 100}
+                step={1}
+                value={values.contribution}
+                aria-valuetext={`RM ${values.contribution}`}
+                aria-invalid={errorFor("wanted-contribution") === undefined ? undefined : true}
+                aria-describedby="wanted-contribution-hint"
+                onChange={(event) => update({ contribution: event.target.value })}
+              />
+              <output className="slider-field__value numeric" htmlFor="wanted-contribution">
+                RM {values.contribution}
+              </output>
+            </div>
           </div>
-          {values.contribution === "" ? null : (
-            <p className="draft-form__amount-echo">
-              {(() => {
-                const check = validateDraft(values, taxonomy);
-                return check.draft === null
-                  ? null
-                  : `That is ${formatRinggit(check.draft.contributionSen)}.`;
-              })()}
-            </p>
-          )}
-        </div>
+        ) : isAcademic ? (
+          <p className="policy-note">
+            A free request has no payment and no platform fee. When a Sheriff approves a claim, you
+            receive the resource. Classmates cannot add money to a free request.
+          </p>
+        ) : null}
       </section>
 
       <section className="draft-form__section">
-        <h2 className="draft-form__section-heading">Content policy</h2>
+        <h2 className="draft-form__section-heading">Terms and conditions</h2>
 
-        <p className="policy-note">
-          Request only material a student is allowed to share. Publisher textbooks, paid tutorial
-          material, leaked papers and institution-restricted documents are not permitted. A Sheriff
-          reviews every claim before any resource is released or any bounty is released to a Hunter.
-        </p>
+        <div
+          className="terms-box"
+          tabIndex={0}
+          role="region"
+          aria-label={`VAULTIX posting terms, version ${TERMS_VERSION}`}
+        >
+          <p className="terms-box__meta">
+            Version {TERMS_VERSION} · {TERMS_STATUS}
+          </p>
+          {POSTING_TERMS.map((section) => (
+            <section key={section.heading}>
+              <h3 className="terms-box__heading">{section.heading}</h3>
+              <ul>
+                {section.points.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
 
         {policyError === undefined ? null : (
           <p className="form-field__error" id="wanted-policy-error">
@@ -1008,7 +1270,10 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           </p>
         )}
 
-        <label className="form-field__checkbox draft-form__policy" htmlFor="wanted-policy">
+        <label
+          className={`consent draft-form__policy${policyError === undefined ? "" : " consent--attention"}`}
+          htmlFor="wanted-policy"
+        >
           <input
             id="wanted-policy"
             type="checkbox"
@@ -1018,8 +1283,8 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             onChange={(event) => update({ policyAccepted: event.target.checked })}
           />
           <span>
-            I have read the content policy and will only request material that may lawfully be
-            shared.
+            I have read and agree to the VAULTIX posting terms (version {TERMS_VERSION}), and I will
+            only request material that may lawfully be shared.
           </span>
         </label>
       </section>
@@ -1031,9 +1296,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           aria-disabled={busy ? true : undefined}
           onClick={onReview}
         >
-          {step === "saving" || step === "checking"
-            ? "Review request (working…)"
-            : "Review request"}
+          {`${isAcademic ? "Review request" : "Post request"}${busy ? " (working…)" : ""}`}
         </button>
         <Link className="button button--quiet" href="/board">
           Cancel and browse the Board

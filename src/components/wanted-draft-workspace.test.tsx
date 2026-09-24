@@ -95,9 +95,9 @@ function fillValidDraft() {
     /^What the resource needs to cover/,
     "Complete notes covering every chapter, with the key diagrams and worked examples.",
   );
-  fireEvent.click(screen.getByRole("radio", { name: /14 days/ }));
-  set(/^Your first contribution/, "12.50");
-  fireEvent.click(screen.getByRole("checkbox", { name: /content policy/i }));
+  set(/^How long should the request stay open/, "14");
+  set(/^Your first contribution/, "12");
+  fireEvent.click(screen.getByRole("checkbox", { name: /posting terms/i }));
 }
 
 async function reachReview() {
@@ -125,17 +125,58 @@ describe("the intake form", () => {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
 
-    expect(screen.getByRole("group", { name: /How long/ })).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: /How long/ })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /Tags/ })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /content policy/i })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /posting terms/i })).toBeInTheDocument();
   });
 
-  test("offers exactly the three approved durations", () => {
+  test("sets duration and bounty with sliders inside the allowed ranges", () => {
     renderWorkspace();
 
-    const duration = screen.getByRole("group", { name: /How long/ });
+    const duration = screen.getByRole("slider", { name: /How long/ });
+    const bounty = screen.getByRole("slider", { name: /Your first contribution/ });
 
-    expect(within(duration).getAllByRole("radio")).toHaveLength(3);
+    expect(duration).toHaveAttribute("min", "3");
+    expect(duration).toHaveAttribute("max", "30");
+    expect(bounty).toHaveAttribute("min", "1");
+    expect(bounty).toHaveAttribute("max", "50");
+  });
+
+  test("offers a free request with no bounty and hides the money slider", () => {
+    renderWorkspace();
+
+    fireEvent.click(screen.getByRole("radio", { name: /No bounty/ }));
+
+    expect(screen.queryByRole("slider", { name: /Your first contribution/ })).toBeNull();
+    expect(
+      screen.getByText(/A free request has no payment and no platform fee/),
+    ).toBeInTheDocument();
+  });
+
+  test("asks only for campus and a last-seen place for a missing item", () => {
+    renderWorkspace();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Missing item/ }));
+
+    expect(screen.getByLabelText(/^Where did you last see it/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Faculty or college/)).toBeNull();
+    expect(screen.queryByRole("slider", { name: /Your first contribution/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Post request" })).toBeInTheDocument();
+  });
+
+  test("marks a campus outside the open regions as coming soon and unselectable", () => {
+    renderWorkspace();
+
+    const locked = within(screen.getByLabelText(/^Campus/)).getByRole("option", {
+      name: /coming soon/,
+    });
+    expect(locked).toBeDisabled();
+  });
+
+  test("shows the versioned terms in a scrollable region", () => {
+    renderWorkspace();
+
+    expect(screen.getByRole("region", { name: /posting terms, version/ })).toBeInTheDocument();
   });
 
   test("narrows programme by faculty and course by programme", () => {
@@ -317,8 +358,8 @@ describe("persisting the draft", () => {
     await screen.findByRole("alert");
 
     expect(screen.getByLabelText(/^Title/)).toHaveValue("Final exam notes for the whole syllabus");
-    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12.50");
-    expect(screen.getByRole("checkbox", { name: /content policy/i })).toBeChecked();
+    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12");
+    expect(screen.getByRole("checkbox", { name: /posting terms/i })).toBeChecked();
   });
 
   test.each([
@@ -459,7 +500,7 @@ describe("asking to publish", () => {
     fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
 
     await waitFor(() =>
-      expect(requestWantedPublication).toHaveBeenCalledWith(DRAFT_ID, TOKEN, 1250),
+      expect(requestWantedPublication).toHaveBeenCalledWith(DRAFT_ID, TOKEN, 1200),
     );
   });
 
@@ -547,7 +588,7 @@ describe("asking to publish", () => {
     const summary = await screen.findByRole("alert");
 
     expect(within(summary).getByRole("link", { name: "Too small" })).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12.50");
+    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12");
   });
 
   test("says a payment out of range is out of range", async () => {
@@ -568,7 +609,7 @@ describe("asking to publish", () => {
       data: {
         id: "intent-1",
         provider: "toyyibpay",
-        amountSen: 1250,
+        amountSen: 1200,
         status: "pending",
         paymentUrl: "https://dev.toyyibpay.com/bill-123",
         expiresAt: "2026-09-15T10:00:00.000Z",
@@ -613,7 +654,7 @@ describe("the review sheet", () => {
     renderWorkspace();
     await reachReview();
 
-    expect(screen.getByText("Your first contribution RM 12.50")).toBeInTheDocument();
+    expect(screen.getByText("Your first contribution RM 12.00")).toBeInTheDocument();
     expect(screen.getByText(/10% platform fee/)).toBeInTheDocument();
     expect(screen.getByText(/contributors only/i)).toBeInTheDocument();
   });
@@ -626,9 +667,9 @@ describe("the review sheet", () => {
 
     expect(screen.getByLabelText(/^Title/)).toHaveValue("Final exam notes for the whole syllabus");
     expect(screen.getByLabelText(/^Course/)).toHaveValue(TAXONOMY_ID.course);
-    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12.50");
-    expect(screen.getByRole("radio", { name: /14 days/ })).toBeChecked();
-    expect(screen.getByRole("checkbox", { name: /content policy/i })).toBeChecked();
+    expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12");
+    expect(screen.getByRole("slider", { name: /How long/ })).toHaveValue("14");
+    expect(screen.getByRole("checkbox", { name: /posting terms/i })).toBeChecked();
   });
 
   test("accepts no file on this screen", async () => {

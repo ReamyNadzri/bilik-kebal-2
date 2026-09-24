@@ -1,4 +1,5 @@
 import {
+  CURRENT_POLICY_VERSION,
   communityWantedInputSchema,
   wantedReplyInputSchema,
   type ListWantedRepliesResult,
@@ -42,7 +43,7 @@ function databaseMessage(error: unknown): string {
 export class WantedCommunityService {
   constructor(
     private readonly repository: CommunityWantedRepository,
-    private readonly policyVersion = "2026-09-15.1",
+    private readonly policyVersion = CURRENT_POLICY_VERSION,
   ) {}
 
   async publish(actor: WantedActor | null, input: unknown): Promise<PublishCommunityWantedResult> {

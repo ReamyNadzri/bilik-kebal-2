@@ -5438,3 +5438,407 @@ textarea.form-field__input {
   border-bottom-color: var(--bg-canvas);
   color: var(--text-primary);
 }
+
+/* --------------------------------------------------------------------------
+   Avatar and account chip
+
+   The signed-in chip on the rail: picture, name with the verification star,
+   and the trust state in words. Its menu opens on hover, on focus inside it,
+   or on press, and every item stays in the tab order.
+   -------------------------------------------------------------------------- */
+
+.avatar-photo {
+  display: block;
+  flex: none;
+  object-fit: cover;
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--accent-brass);
+  border-radius: var(--radius-pill);
+  image-rendering: auto;
+}
+
+.avatar-photo--default {
+  image-rendering: pixelated;
+}
+
+.account-chip {
+  position: relative;
+}
+
+.account-chip__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+  background: var(--bg-rail-raised);
+  border: var(--border-width-1) solid var(--border-rail);
+  color: var(--text-on-dark);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-chip__trigger:hover,
+.account-chip--open .account-chip__trigger {
+  border-color: var(--accent-brass);
+}
+
+.account-chip__text {
+  display: grid;
+  line-height: 1.2;
+}
+
+.account-chip .account-menu__name {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-on-dark-strong);
+}
+
+.account-chip__star {
+  color: var(--accent-brass);
+}
+
+.account-chip__status {
+  font-size: var(--text-xs);
+  color: var(--text-on-dark-muted);
+}
+
+.account-chip__menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 50;
+  display: grid;
+  min-width: 13rem;
+  padding: var(--space-1);
+  background: var(--bg-canvas);
+  border: var(--border-width-2) solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  /* Collapsed, but still in the document and the tab order. */
+  clip-path: inset(0 0 100% 0);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+}
+
+/* A hover bridge: moving the pointer from the chip to the menu keeps it open. */
+.account-chip__menu::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--space-2)) 0 100% 0;
+}
+
+.account-chip:hover .account-chip__menu,
+.account-chip:focus-within .account-chip__menu,
+.account-chip--open .account-chip__menu {
+  clip-path: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.account-chip__item {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.account-chip__item:hover {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.account-chip__item--danger {
+  color: var(--state-error);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.shell-nav__badge {
+  min-width: 1.375rem;
+  padding: 0 var(--space-1);
+  background: var(--accent-primary);
+  border: var(--border-width-1) solid var(--text-on-dark);
+  color: var(--text-on-accent);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 30rem) {
+  .account-chip__status {
+    display: none;
+  }
+}
+
+.commissioner-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.commissioner-card .ledger-panel__commissioner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.commissioner-card__badge {
+  padding: 0 var(--space-2);
+  background: var(--stamp-success-bg);
+  border: var(--border-width-1) solid var(--state-success);
+  color: var(--stamp-success-ink);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.commissioner-card__joined {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Sliders
+
+   A range input with its value spelled out beside it. The track and thumb
+   are drawn from tokens; the value is always visible as text, never only as
+   a thumb position.
+   -------------------------------------------------------------------------- */
+
+.slider-field__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.slider-field__value {
+  min-width: 5.5rem;
+  padding: var(--space-1) var(--space-3);
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+  font-family: var(--font-money);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  text-align: center;
+}
+
+.slider-field__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.slider-field__presets .button[aria-pressed="true"] {
+  background: var(--accent-secondary);
+  border-color: var(--accent-secondary-hover);
+  color: var(--text-on-dark-strong);
+}
+
+.slider {
+  flex: 1;
+  min-width: 0;
+  height: 2.75rem;
+  margin: 0;
+  background: transparent;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+  appearance: none;
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 0.75rem;
+  background: var(--bg-track);
+  border: var(--border-width-1) solid var(--border-default);
+}
+
+.slider::-moz-range-track {
+  height: 0.75rem;
+  background: var(--bg-track);
+  border: var(--border-width-1) solid var(--border-default);
+}
+
+.slider::-webkit-slider-thumb {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: -0.4375rem;
+  background: var(--accent-primary);
+  border: var(--border-width-2) solid var(--accent-primary-shadow);
+  appearance: none;
+}
+
+.slider::-moz-range-thumb {
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--accent-primary);
+  border: var(--border-width-2) solid var(--accent-primary-shadow);
+  border-radius: 0;
+}
+
+.slider:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Request type choices: three cards, one selected. */
+.kind-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-3);
+}
+
+.kind-choice {
+  position: relative;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--border-default);
+  cursor: pointer;
+}
+
+.kind-choice input {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  accent-color: var(--accent-secondary);
+}
+
+.kind-choice__label {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kind-choice__description {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.kind-choice:has(input:checked) {
+  background: var(--bg-selected);
+  border-color: var(--accent-secondary);
+  box-shadow: inset 0 0 0 2px var(--accent-secondary);
+}
+
+.kind-choice:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* The posting terms: a bounded, scrollable, keyboard-focusable region. */
+.terms-box {
+  max-height: 18rem;
+  overflow-y: auto;
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-default);
+  font-size: var(--text-sm);
+}
+
+.terms-box__meta {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--state-warning);
+}
+
+.terms-box__heading {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--text-base);
+}
+
+.terms-box ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.terms-box li {
+  margin-bottom: var(--space-1);
+}
+
+.free-plate {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: var(--text-lg);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--accent-secondary);
+}
+
+.wanted-detail__replies {
+  min-width: 0;
+}
+
+@media (min-width: 62rem) {
+  .wanted-detail__replies {
+    grid-column: 1;
+  }
+}
+
+.replies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.replies__empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.replies__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reply {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-width: none;
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+}
+
+.reply__body {
+  min-width: 0;
+}
+
+.reply__meta {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.reply__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
