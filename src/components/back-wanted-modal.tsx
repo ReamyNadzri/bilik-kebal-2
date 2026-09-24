@@ -52,6 +52,12 @@ function describeRefusal(code: MoneyOperationCode): Refusal {
         action: { href: "/sign-in", label: "Sign in" },
       };
     case "EMAIL_NOT_VERIFIED":
+      return {
+        kind: "restricted",
+        heading: "Confirm your email address",
+        message: `Verify your email before funding a bounty. ${NO_CHARGE}`,
+        action: { href: "/verify-email", label: "Verify your email" },
+      };
     case "INSTITUTION_VERIFICATION_REQUIRED":
       return {
         kind: "restricted",
