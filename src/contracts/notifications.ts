@@ -11,6 +11,7 @@ export const notificationKinds = [
   "refund_recorded",
   "account_restricted",
   "appeal_updated",
+  "wanted_reply",
 ] as const;
 export type NotificationKind = (typeof notificationKinds)[number];
 
@@ -28,7 +29,16 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
   refund_recorded: "The Owner recorded a refund. Sign in to view its status.",
   account_restricted: "Your account has been restricted. Check your profile for details.",
   appeal_updated: "Your appeal has an update. Sign in to view its status.",
+  wanted_reply: "Someone replied to your request. Open it to read the reply.",
 };
+
+/** Where a notification leads, when its subject is a public page. */
+export function notificationHref(kind: NotificationKind, subjectId: string): string | null {
+  if (kind === "wanted_reply") return `/wanted/${subjectId}`;
+  if (kind.startsWith("claim_")) return "/claims";
+  if (kind.startsWith("institution_verification_")) return "/profile";
+  return null;
+}
 
 export interface NotificationItem {
   id: string;

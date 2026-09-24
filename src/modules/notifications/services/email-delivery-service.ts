@@ -42,6 +42,8 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   refund_recorded: "A refund was recorded",
   account_restricted: "An account restriction was recorded",
   appeal_updated: "Your appeal has an update",
+  // In-app only; the outbox never queues it (migration 202609290001).
+  wanted_reply: "Someone replied to your request",
 };
 
 export interface NotificationEmailDeliveryDependencies {

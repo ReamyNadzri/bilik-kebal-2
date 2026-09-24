@@ -699,3 +699,55 @@ begin
   return v_payout_id;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 6. Notifications for replies (in-app only)
+-- ---------------------------------------------------------------------------
+-- The poster of a missing-item or discussion Wanted is told when someone
+-- replies. The subject is the Wanted's public id, so the inbox can link to it.
+-- Reply notifications are not emailed: they are not among the email
+-- priorities in context/project-overview.md, and a busy thread would flood an
+-- inbox.
+
+alter table public.notifications drop constraint notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check check (kind in (
+  'claim_approved', 'claim_rejected', 'claim_information_requested', 'claim_not_selected',
+  'institution_verification_approved', 'institution_verification_rejected',
+  'payout_recorded', 'refund_recorded', 'account_restricted', 'appeal_updated',
+  'wanted_reply'
+));
+
+create function private.publish_wanted_reply_notification()
+returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare
+  target public.wanted_requests%rowtype;
+begin
+  select * into strict target from public.wanted_requests where id = new.wanted_request_id;
+  if target.commissioner_user_id <> new.author_user_id then
+    perform public.enqueue_notification(
+      new.id, target.commissioner_user_id, 'wanted_reply', target.public_id
+    );
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.publish_wanted_reply_notification() from public, anon, authenticated;
+
+create trigger wanted_reply_notification
+after insert on public.wanted_replies
+for each row execute function private.publish_wanted_reply_notification();
+
+create or replace function private.enqueue_notification_email()
+returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.kind = 'wanted_reply' then
+    return new;
+  end if;
+  insert into private.notification_email_outbox(notification_id)
+  values (new.id)
+  on conflict (notification_id) do nothing;
+  return new;
+end;
+$$;

@@ -6029,3 +6029,145 @@ textarea.form-field__input {
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* Notification inbox: one row per notice, unread ones marked New in words. */
+.notification-inbox {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.notification-inbox__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-inbox__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: none;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+  border-left: 4px solid var(--accent-primary);
+}
+
+.notification-inbox__item[data-read="true"] {
+  border-left-color: var(--border-subtle);
+  background: var(--bg-canvas);
+}
+
+.notification-inbox__text p {
+  margin: var(--space-1) 0;
+}
+
+.notification-inbox__text time,
+.notification-inbox__read {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.notification-inbox__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.appeal-list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.appeal-card {
+  max-width: none;
+}
+
+/* --------------------------------------------------------------------------
+   Sheriff Console
+
+   Section tabs across every console page and a dashboard of queue tiles.
+   -------------------------------------------------------------------------- */
+
+.console-nav {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.console-nav__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.console-nav__link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.console-nav__link[aria-current="page"] {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  border-bottom-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.console-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.console-tiles li {
+  max-width: none;
+}
+
+.console-tile {
+  display: grid;
+  gap: var(--space-1);
+  height: 100%;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--border-default);
+  border-top: 6px solid var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.console-tile:hover {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.console-tile__value {
+  font-family: var(--font-money);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.console-tile__label {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.console-tile__hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

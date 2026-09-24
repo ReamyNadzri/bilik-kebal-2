@@ -101,3 +101,36 @@ test("passes the server cursor through unchanged when loading another page", asy
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   expect(String(fetchMock.mock.calls[1]?.[0])).toContain(`cursor=${cursor}`);
 });
+
+test("links a reply notification to the request it is about", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: {
+          items: [
+            {
+              id: "60000000-0000-4000-8000-000000000003",
+              kind: "wanted_reply",
+              message: "Someone replied to your request. Open it to read the reply.",
+              subjectId: "11111111-1111-4111-8111-111111111111",
+              createdAt: "2026-09-24T10:00:00.000Z",
+              readAt: null,
+            },
+          ],
+          nextCursor: null,
+        },
+      }),
+    }),
+  );
+
+  render(<NotificationInbox />);
+
+  expect(await screen.findByRole("link", { name: "Open" })).toHaveAttribute(
+    "href",
+    "/wanted/11111111-1111-4111-8111-111111111111",
+  );
+  expect(screen.getByText("New")).toBeInTheDocument();
+});

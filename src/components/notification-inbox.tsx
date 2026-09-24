@@ -1,7 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { NotificationCode, NotificationItem } from "@/contracts/notifications";
+import {
+  notificationHref,
+  type NotificationCode,
+  type NotificationItem,
+} from "@/contracts/notifications";
 import { callOperation, readOperation } from "@/features/presentation/call-operation";
 import { UiStatus } from "./ui-status";
 
@@ -98,6 +103,7 @@ export function NotificationInbox() {
         action={
           <button
             type="button"
+            className="button button--secondary"
             onClick={() => {
               setState("loading");
               void load();
@@ -114,7 +120,7 @@ export function NotificationInbox() {
       <UiStatus
         kind="empty"
         heading="No notifications yet"
-        message="Important account, verification and claim updates will appear here."
+        message="Claim decisions, verification results and replies to your requests will appear here."
       />
     );
   }
@@ -135,23 +141,49 @@ export function NotificationInbox() {
             data-read={item.readAt ? "true" : "false"}
             key={item.id}
           >
-            <div>
+            <div className="notification-inbox__text">
+              {item.readAt ? null : (
+                <span className="status-stamp status-stamp--danger notification-inbox__new">
+                  New
+                </span>
+              )}
               <p>{item.message}</p>
-              <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>
+              <time dateTime={item.createdAt}>
+                {new Date(item.createdAt).toLocaleString("en-MY", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </time>
             </div>
-            {item.readAt ? (
-              <span>Read</span>
-            ) : (
-              <button type="button" onClick={() => void markRead(item)} disabled={busyId !== null}>
-                {busyId === item.id ? "Saving…" : "Mark as read"}
-              </button>
-            )}
+            <div className="notification-inbox__actions">
+              {notificationHref(item.kind, item.subjectId) ? (
+                <Link
+                  className="button button--secondary button--compact"
+                  href={notificationHref(item.kind, item.subjectId) ?? "/"}
+                >
+                  Open
+                </Link>
+              ) : null}
+              {item.readAt ? (
+                <span className="notification-inbox__read">Read</span>
+              ) : (
+                <button
+                  type="button"
+                  className="button button--quiet button--compact"
+                  onClick={() => void markRead(item)}
+                  disabled={busyId !== null}
+                >
+                  {busyId === item.id ? "Saving…" : "Mark as read"}
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
       {nextCursor ? (
         <button
           type="button"
+          className="button button--secondary"
           onClick={() => void load(nextCursor, true)}
           disabled={loadingMore}
           aria-busy={loadingMore}

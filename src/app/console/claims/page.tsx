@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ConsoleNav } from "@/components/console-nav";
 import { ClaimReviewConsole } from "@/components/claim-review-console";
 import { requireAccount } from "@/features/presentation/auth/require-account";
 
@@ -19,10 +19,7 @@ export default async function ClaimReviewsPage() {
 
   return (
     <>
-      <p className="cluster">
-        <Link href="/console">← Back to Sheriff Console</Link>
-        <Link href="/console/operations">Operations &amp; Payouts →</Link>
-      </p>
+      <ConsoleNav current="claims" />
       <ClaimReviewConsole />
     </>
   );

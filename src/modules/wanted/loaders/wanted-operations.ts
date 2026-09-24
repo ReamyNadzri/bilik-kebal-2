@@ -270,3 +270,68 @@ export async function listArchivedWanted(): Promise<
     return { ok: false, code: "MARKETPLACE_UNAVAILABLE" };
   }
 }
+
+export interface LibraryItem {
+  wanted: WantedSummary;
+  claimId: string;
+  grantedAt: string;
+  revoked: boolean;
+}
+
+/**
+ * The viewer's library: every resource they are entitled to (as a Backer, or
+ * as the poster of a free request). Entitlements are read with the viewer's
+ * own session, so row-level security limits them to the viewer's rows.
+ */
+export async function listOwnLibrary(): Promise<
+  | { ok: true; data: LibraryItem[] }
+  | { ok: false; code: "AUTH_REQUIRED" | "MARKETPLACE_UNAVAILABLE" }
+> {
+  try {
+    const client = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    if (!user) return { ok: false, code: "AUTH_REQUIRED" };
+    const entitlements = await client
+      .from("entitlements")
+      .select("wanted_request_id, claim_id, granted_at, is_revoked")
+      .eq("user_id", user.id)
+      .order("granted_at", { ascending: false });
+    if (entitlements.error) throw entitlements.error;
+    const rows = entitlements.data ?? [];
+    const summaries = await new SupabaseWantedRepository(
+      createSupabaseAdminClient(),
+    ).listWantedByIds(rows.map((row) => row.wanted_request_id));
+    // Summaries carry public ids; map internal ids through the rows' order.
+    const admin = createSupabaseAdminClient();
+    const ids = await admin
+      .from("wanted_requests")
+      .select("id, public_id")
+      .in(
+        "id",
+        rows.map((row) => row.wanted_request_id),
+      );
+    if (ids.error) throw ids.error;
+    const publicIdOf = new Map((ids.data ?? []).map((row) => [row.id, row.public_id]));
+    const summaryOf = new Map(summaries.map((summary) => [summary.id, summary]));
+    return {
+      ok: true,
+      data: rows.flatMap((row) => {
+        const summary = summaryOf.get(publicIdOf.get(row.wanted_request_id) ?? "");
+        return summary
+          ? [
+              {
+                wanted: summary,
+                claimId: row.claim_id,
+                grantedAt: row.granted_at,
+                revoked: row.is_revoked,
+              },
+            ]
+          : [];
+      }),
+    };
+  } catch {
+    return { ok: false, code: "MARKETPLACE_UNAVAILABLE" };
+  }
+}

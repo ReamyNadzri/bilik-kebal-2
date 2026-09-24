@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ConsoleDashboard } from "@/components/console-dashboard";
 import { ConsoleLanding } from "@/components/console-landing";
+import { ConsoleNav } from "@/components/console-nav";
 import { ReviewConsole } from "@/components/review-console";
 import { UiStatus } from "@/components/ui-status";
 import type { VerificationQueueItem } from "@/contracts";
@@ -67,10 +69,10 @@ export default async function ConsolePage() {
   return (
     <>
       <h1>Sheriff Console</h1>
-      <p className="cluster">
-        <Link href="/console/claims">Claim Reviews →</Link>
-        <Link href="/console/operations">Operations &amp; Payouts →</Link>
-      </p>
+      {outcome.kind === "refused" ? null : <ConsoleNav current="overview" />}
+      {outcome.kind === "ready" ? (
+        <ConsoleDashboard verificationCount={outcome.items.length} />
+      ) : null}
 
       {outcome.kind === "refused" ? <ConsoleLanding /> : null}
 
@@ -83,7 +85,11 @@ export default async function ConsolePage() {
         />
       ) : null}
 
-      {outcome.kind === "ready" ? <ReviewConsole items={outcome.items} /> : null}
+      {outcome.kind === "ready" ? (
+        <section id="verification-queue" aria-label="Institution verification queue">
+          <ReviewConsole items={outcome.items} />
+        </section>
+      ) : null}
     </>
   );
 }

@@ -17,6 +17,7 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   async function load() {
     setState({ kind: "loading" });
@@ -55,18 +56,11 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
       return;
     }
 
-    const defaultReason =
+    const reasonCode =
       decision === "overturned"
         ? "decision_overturned_evidence_valid"
         : "decision_upheld_policy_violation";
-
-    const reasonCode = window.prompt(
-      "Decision reason code (lowercase_with_underscores)",
-      defaultReason,
-    );
-    if (!reasonCode) return;
-
-    const notes = window.prompt("Optional reviewer rationale / notes:", "") ?? "";
+    const rationale = (notes[appeal.id] ?? "").trim();
 
     setBusyId(appeal.id);
     setNotice("");
@@ -75,7 +69,7 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
       const response = await fetch(`/api/sheriff/appeals/${appeal.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decision, reasonCode, notes }),
+        body: JSON.stringify({ decision, reasonCode, notes: rationale }),
       });
 
       const body = await response.json();
@@ -86,8 +80,8 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
 
       setNotice(
         decision === "overturned"
-          ? "Appeal overturned: Claim restored to review queue."
-          : "Appeal upheld: Claim rejection confirmed.",
+          ? "Appeal overturned. The claim is back in the review queue."
+          : "Appeal upheld. The rejection stands.",
       );
 
       setState((current) =>
@@ -96,29 +90,32 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
           : current,
       );
     } catch {
-      setNotice("Network error recording appeal decision.");
+      setNotice(
+        "VAULTIX could not confirm the decision was recorded. Reload the queue before retrying.",
+      );
     } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <section className="review-console mt-8" aria-labelledby="claim-appeals-heading">
-      <h2 id="claim-appeals-heading" className="text-xl font-bold tracking-tight text-stone-100">
-        Claim Appeals Queue
-      </h2>
-      <p className="mt-1 text-sm text-stone-400">
-        Segregation of duties: Appeals must be decided by an independent Sheriff who did not issue
-        the original decision.
-      </p>
+    <section className="panel ops-panel" aria-labelledby="claim-appeals-heading">
+      <div className="ops-panel__head">
+        <div>
+          <h2 id="claim-appeals-heading" className="ops-panel__title">
+            Claim appeals
+          </h2>
+          <p className="ops-panel__lede">
+            Each appeal must be decided by a different Sheriff from the one who made the original
+            decision. While an appeal is open, the request&rsquo;s expiry and refunds are paused.
+          </p>
+        </div>
+      </div>
 
       {notice ? (
-        <div
-          role="status"
-          className="mt-3 rounded-lg border border-amber-600/40 bg-amber-950/40 p-3 text-sm text-amber-200"
-        >
+        <p role="status" className="ops-alert ops-alert--info">
           {notice}
-        </div>
+        </p>
       ) : null}
 
       {state.kind === "loading" ? (
@@ -131,7 +128,7 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
           heading="Appeals queue unavailable"
           message={state.message}
           action={
-            <button type="button" onClick={() => void load()}>
+            <button type="button" className="button button--secondary" onClick={() => void load()}>
               Try again
             </button>
           }
@@ -141,63 +138,74 @@ export function SheriffAppealConsole({ currentSheriffUserId }: SheriffAppealCons
       {state.kind === "ready" && state.items.length === 0 ? (
         <UiStatus
           kind="empty"
-          heading="No pending claim appeals"
-          message="All claim appeals have been adjudicated."
+          heading="No appeals waiting"
+          message="Every appeal has been decided."
         />
       ) : null}
 
       {state.kind === "ready" && state.items.length > 0 ? (
-        <ul className="mt-4 space-y-4" aria-label={`${state.items.length} claim appeals waiting`}>
+        <ul className="appeal-list" aria-label={`${state.items.length} claim appeals waiting`}>
           {state.items.map((appeal) => {
             const isOriginalReviewer = appeal.reviewerUserId === currentSheriffUserId;
+            const notesId = `appeal-notes-${appeal.id}`;
 
             return (
-              <li
-                key={appeal.id}
-                className="rounded-xl border border-stone-800 bg-stone-900/90 p-5 shadow-lg"
-              >
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs text-stone-400">
-                    <span>Appeal ID: {appeal.id.slice(0, 8)}...</span>
-                    <span>Deadline: {new Date(appeal.appealDeadline).toLocaleDateString()}</span>
-                  </div>
+              <li key={appeal.id} className="locker-card appeal-card">
+                <div className="locker-card__top">
+                  <span className="pixel-label">Appeal {appeal.id.slice(0, 8)}</span>
+                  <span className="status-stamp status-stamp--warning">
+                    Decide by{" "}
+                    {new Date(appeal.appealDeadline).toLocaleDateString("en-MY", {
+                      dateStyle: "medium",
+                    })}
+                  </span>
+                </div>
 
-                  <div className="mt-2 rounded-lg bg-stone-800/60 p-3 text-sm text-stone-200">
-                    <strong className="block text-xs uppercase tracking-wider text-amber-400 mb-1">
-                      Appellant Justification:
-                    </strong>
-                    <p className="whitespace-pre-wrap">{appeal.reason}</p>
-                  </div>
+                <div className="locker-card__note">
+                  <strong>Why the Hunter is appealing</strong>
+                  <p className="reply__text">{appeal.reason}</p>
+                </div>
 
-                  {isOriginalReviewer ? (
-                    <div
-                      role="alert"
-                      className="mt-3 rounded-lg border border-red-600/40 bg-red-950/30 p-3 text-xs text-red-300"
-                    >
-                      🛡️ <strong>Segregation of Duties Enforced:</strong> You issued the original
-                      decision on this claim and cannot adjudicate this appeal. Another authorized
-                      Sheriff must review it.
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      disabled={busyId !== null || isOriginalReviewer}
-                      onClick={() => void decide(appeal, "upheld")}
-                      className="rounded-lg border border-stone-700 bg-stone-800 px-4 py-2 text-xs font-semibold text-stone-200 hover:bg-stone-700 disabled:opacity-40"
-                    >
-                      Upheld (Confirm Rejection)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busyId !== null || isOriginalReviewer}
-                      onClick={() => void decide(appeal, "overturned")}
-                      className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-40"
-                    >
-                      Overturn Decision
-                    </button>
+                {isOriginalReviewer ? (
+                  <p role="alert" className="ops-alert ops-alert--error">
+                    You made the original decision on this claim, so you cannot decide its appeal.
+                    Another Sheriff must review it.
+                  </p>
+                ) : (
+                  <div className="form-field">
+                    <label className="form-field__label" htmlFor={notesId}>
+                      Your reasoning <span className="form-field__required">(optional)</span>
+                    </label>
+                    <textarea
+                      id={notesId}
+                      className="form-field__input"
+                      rows={3}
+                      maxLength={1000}
+                      value={notes[appeal.id] ?? ""}
+                      onChange={(event) =>
+                        setNotes((current) => ({ ...current, [appeal.id]: event.target.value }))
+                      }
+                    />
                   </div>
+                )}
+
+                <div className="locker-card__actions">
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    disabled={busyId !== null || isOriginalReviewer}
+                    onClick={() => void decide(appeal, "upheld")}
+                  >
+                    Uphold rejection
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--green"
+                    disabled={busyId !== null || isOriginalReviewer}
+                    onClick={() => void decide(appeal, "overturned")}
+                  >
+                    Overturn decision
+                  </button>
                 </div>
               </li>
             );
