@@ -3,7 +3,7 @@ import { publishCommunityWanted } from "@/modules/wanted/loaders/wanted-operatio
 
 export const dynamic = "force-dynamic";
 
-/** Opens a missing-item or discussion Wanted. Always free. */
+/** Posts a missing-item or discussion Wanted, free or with a bounty. */
 export async function POST(request: Request): Promise<Response> {
   return executeMarketplaceJson(request, publishCommunityWanted, 201);
 }

@@ -180,7 +180,7 @@ describe("WantedPublicationService.publishFree", () => {
       data: { state: "open", wantedId: "11111111-1111-4111-8111-111111111111" },
     });
     expect(free.publishFree).toHaveBeenCalledWith(
-      expect.objectContaining({ draftId, policyVersion: "2026-09-24.1" }),
+      expect.objectContaining({ draftId, policyVersion: "2026-09-24.2" }),
     );
   });
 

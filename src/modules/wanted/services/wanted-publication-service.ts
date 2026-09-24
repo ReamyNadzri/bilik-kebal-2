@@ -93,7 +93,15 @@ export class WantedPublicationService {
         return failure("DUPLICATE_CHECK_REQUIRED", "Run a fresh duplicate check for this draft.");
       }
       return success({ state: "open", wantedId: published.publicId });
-    } catch {
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        String((error as { message: unknown }).message).includes("wanted_free_limit_reached")
+      ) {
+        return failure("FREE_LIMIT_REACHED", "");
+      }
       return failure(
         "MARKETPLACE_UNAVAILABLE",
         "Publishing is temporarily unavailable. Try again.",

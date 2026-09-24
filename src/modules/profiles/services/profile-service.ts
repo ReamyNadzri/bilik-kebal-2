@@ -1,6 +1,7 @@
 import { failure, success } from "@/contracts/operation-result";
 import {
   setAvatarInputSchema,
+  setAvatarPresetInputSchema,
   updateProfileInputSchema,
   type AvatarUploadResult,
   type ReadPublicProfileResult,
@@ -78,6 +79,19 @@ export class ProfileService {
         return failure("AVATAR_NOT_UPLOADED", "The picture did not finish uploading. Try again.");
       }
       return failure("PROFILE_UNAVAILABLE", "Your picture could not be saved. Try again.");
+    }
+  }
+
+  async setAvatarPreset(actor: ProfileActor | null, input: unknown): Promise<SetAvatarResult> {
+    if (!actor) return failure("AUTH_REQUIRED", "Sign in to change your picture.");
+    if (!actor.emailVerified) return failure("EMAIL_NOT_VERIFIED", "Verify your email first.");
+    const parsed = setAvatarPresetInputSchema.safeParse(input);
+    if (!parsed.success) return failure("VALIDATION_ERROR", "Choose one of the drawn avatars.");
+    try {
+      await this.repository.setOwnAvatarPreset(parsed.data.preset);
+      return success({ avatarUrl: this.repository.avatarUrl(null, parsed.data.preset) });
+    } catch {
+      return failure("PROFILE_UNAVAILABLE", "Your avatar could not be saved. Try again.");
     }
   }
 

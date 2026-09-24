@@ -68,8 +68,7 @@ export default async function ConsolePage() {
 
   return (
     <>
-      <h1>Sheriff Console</h1>
-      {outcome.kind === "refused" ? null : <ConsoleNav current="overview" />}
+      <ConsoleNav current="overview" showTabs={outcome.kind !== "refused"} />
       {outcome.kind === "ready" ? (
         <ConsoleDashboard verificationCount={outcome.items.length} />
       ) : null}

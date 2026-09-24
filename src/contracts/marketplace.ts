@@ -7,8 +7,8 @@ export type WantedDurationDays = number;
 export const WANTED_DURATION_MIN_DAYS = 3;
 export const WANTED_DURATION_MAX_DAYS = 30;
 /**
- * What a Wanted asks for. Academic requests take file claims and may carry a
- * bounty; missing items and discussions take text replies and are always free.
+ * What a Wanted asks for. Academic requests take file claims; missing items and
+ * discussions take text replies. Any kind may carry a bounty or be free.
  */
 export type WantedKind = "academic" | "missing_item" | "discussion";
 export const wantedKinds = ["academic", "missing_item", "discussion"] as const;
@@ -17,7 +17,7 @@ export const wantedKinds = ["academic", "missing_item", "discussion"] as const;
  * The posting terms version every new Wanted snapshots. Bumped whenever the
  * terms text in `src/features/legal/terms.ts` changes.
  */
-export const CURRENT_POLICY_VERSION = "2026-09-24.1";
+export const CURRENT_POLICY_VERSION = "2026-09-24.2";
 export type WantedLifecycle = "draft" | "awaiting_payment" | "open" | "reviewing" | "expired";
 
 export type MarketplaceOperationCode =
@@ -36,6 +36,7 @@ export type MarketplaceOperationCode =
   | "PAYMENT_UNAVAILABLE"
   | "AMOUNT_OUT_OF_RANGE"
   | "REGION_CLOSED"
+  | "FREE_LIMIT_REACHED"
   | "MARKETPLACE_UNAVAILABLE";
 
 const uuid = z.uuid();
@@ -55,7 +56,11 @@ export const wantedDraftInputSchema = z.object({
   facultyId: uuid,
   programmeId: uuid,
   courseId: uuid,
-  academicSessionId: uuid,
+  /** Optional: a request may cover any session. */
+  academicSessionId: z
+    .union([uuid, z.literal("")])
+    .nullish()
+    .transform((value) => value || null),
   resourceTypeId: uuid,
   languageId: uuid,
   tagIds: z
@@ -99,16 +104,26 @@ export const freePublicationInputSchema = z.object({
 
 export type PublishFreeWantedInput = z.input<typeof freePublicationInputSchema>;
 
-/** A missing-item or discussion Wanted, opened in one step and always free. */
-export const communityWantedInputSchema = z.object({
-  kind: z.enum(["missing_item", "discussion"]),
-  campusId: uuid,
-  title: authoredText(8, 120),
-  description: authoredText(20, 2000),
-  durationDays: durationDaysSchema,
-  lastSeenLocation: z.string().trim().min(2).max(160).optional(),
-  policyAccepted: z.literal(true),
-});
+/**
+ * A missing-item or discussion Wanted. A free one opens in one step and uses
+ * one of the member's free requests; a paid one needs a first contribution of
+ * RM1 to RM50, so it waits for the payment step like a paid academic request.
+ */
+export const communityWantedInputSchema = z
+  .object({
+    kind: z.enum(["missing_item", "discussion"]),
+    campusId: uuid,
+    title: authoredText(8, 120),
+    description: authoredText(20, 2000),
+    durationDays: durationDaysSchema,
+    lastSeenLocation: z.string().trim().min(2).max(160).optional(),
+    free: z.boolean().default(true),
+    initialContributionSen: z.number().int().safe().min(100).max(5000).optional(),
+    policyAccepted: z.literal(true),
+  })
+  .refine((value) => value.free || value.initialContributionSen !== undefined, {
+    path: ["initialContributionSen"],
+  });
 
 export type CommunityWantedInput = z.input<typeof communityWantedInputSchema>;
 
@@ -281,4 +296,49 @@ export type PublishCommunityWantedResult = OperationResult<
 export type ListWantedRepliesResult = OperationResult<WantedReply[], MarketplaceOperationCode>;
 export type PostWantedReplyResult = OperationResult<{ replyId: string }, MarketplaceOperationCode>;
 export type ResolveWantedResult = OperationResult<{ state: "closed" }, MarketplaceOperationCode>;
+/** Free requests: 3 for every member, plus any added by reward codes. */
+export interface FreeRequestAllowance {
+  base: number;
+  bonus: number;
+  used: number;
+  remaining: number;
+}
+export type ReadFreeAllowanceResult = OperationResult<
+  FreeRequestAllowance,
+  MarketplaceOperationCode
+>;
+
+/** The poster names the member who helped; a Sheriff decides. */
+export const communityPayoutInputSchema = z.object({
+  finderPublicId: uuid,
+  note: z.string().trim().max(500).optional(),
+});
+export type CommunityPayoutInput = z.input<typeof communityPayoutInputSchema>;
+export type RequestCommunityPayoutResult = OperationResult<
+  { requestId: string; state: "pending" },
+  MarketplaceOperationCode
+>;
+
+export interface CommunityPayoutRequestView {
+  id: string;
+  wanted: { id: string; title: string; kind: "missing_item" | "discussion" };
+  bountySen: Sen;
+  requester: PublicMemberCard;
+  finder: PublicMemberCard;
+  note: string | null;
+  createdAt: string;
+}
+export type ListCommunityPayoutRequestsResult = OperationResult<
+  CommunityPayoutRequestView[],
+  MarketplaceOperationCode
+>;
+export const communityPayoutDecisionSchema = z.object({
+  approve: z.boolean(),
+  note: z.string().trim().max(500).optional(),
+});
+export type DecideCommunityPayoutResult = OperationResult<
+  { state: "approved" | "rejected" },
+  MarketplaceOperationCode
+>;
+
 export type ListCampusRegionsResult = OperationResult<CampusRegion[], MarketplaceOperationCode>;

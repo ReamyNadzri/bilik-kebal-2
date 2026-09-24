@@ -43,6 +43,15 @@ export async function setOwnAvatar(input: unknown): Promise<SetAvatarResult> {
   }
 }
 
+export async function setOwnAvatarPreset(input: unknown): Promise<SetAvatarResult> {
+  try {
+    const loaded = await context();
+    return loaded.service.setAvatarPreset(loaded.actor, input);
+  } catch {
+    return unavailable();
+  }
+}
+
 export async function readPublicProfile(publicId: string): Promise<ReadPublicProfileResult> {
   try {
     const loaded = await context();

@@ -160,8 +160,41 @@ describe("the intake form", () => {
 
     expect(screen.getByLabelText(/^Where did you last see it/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Faculty or college/)).toBeNull();
-    expect(screen.queryByRole("slider", { name: /Your first contribution/ })).toBeNull();
+    expect(screen.getByRole("heading", { name: "What you lost" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Describe the item/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Post request" })).toBeInTheDocument();
+  });
+
+  test("offers a bounty or a free request for every kind of request", () => {
+    renderWorkspace();
+
+    fireEvent.click(screen.getByRole("radio", { name: /Discussion/ }));
+    expect(screen.getByRole("heading", { name: "What you want to discuss" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Offer a bounty" }));
+    expect(screen.getByRole("slider", { name: /Your first contribution/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "No bounty (free request)" }));
+    expect(screen.queryByRole("slider", { name: /Your first contribution/ })).toBeNull();
+  });
+
+  test("keeps the academic session optional", () => {
+    renderWorkspace();
+
+    expect(screen.getByLabelText(/^Academic session/)).toHaveDisplayValue("Any session");
+    expect(
+      screen.getByText(/\(optional\)/, { selector: "label[for=wanted-session] *" }),
+    ).toBeInTheDocument();
+  });
+
+  test("asks a Sheriff to add a missing course instead of accepting free text", () => {
+    renderWorkspace();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ask a Sheriff to add a course" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Ask a Sheriff to add a course" });
+    expect(within(dialog).getByLabelText("Course code")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Programme it belongs to")).toBeInTheDocument();
   });
 
   test("marks a campus outside the open regions as coming soon and unselectable", () => {

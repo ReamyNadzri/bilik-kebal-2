@@ -1,5 +1,9 @@
 import type {
   CampusRegion,
+  DecideCommunityPayoutResult,
+  ListCommunityPayoutRequestsResult,
+  ReadFreeAllowanceResult,
+  RequestCommunityPayoutResult,
   CreateWantedDraftResult,
   ListCampusRegionsResult,
   ListWantedRepliesResult,
@@ -45,7 +49,9 @@ async function context(): Promise<{
     tokenSecret: getMarketplaceTokenSecret(process.env),
     freePublisher: repository,
   });
-  const communityService = new WantedCommunityService(repository);
+  const communityService = new WantedCommunityService(repository, {
+    paymentAvailability: env.PAYMENT_MODE === "disabled" ? "disabled" : "unavailable",
+  });
   if (error || !user) return { actor: null, draftService, publicationService, communityService };
   const account = await new SupabaseIdentityReadRepository(client).readAccount(user);
   return {
@@ -333,5 +339,65 @@ export async function listOwnLibrary(): Promise<
     };
   } catch {
     return { ok: false, code: "MARKETPLACE_UNAVAILABLE" };
+  }
+}
+
+/** The signed-in member's free requests: 3 for life, plus reward-code credits. */
+export async function readFreeAllowance(): Promise<ReadFreeAllowanceResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.freeAllowance(loaded.actor);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function requestCommunityPayout(
+  publicId: string,
+  input: unknown,
+): Promise<RequestCommunityPayoutResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.requestPayout(loaded.actor, publicId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+/**
+ * The Sheriff queue of bounty releases. RLS on the caller's own client decides
+ * which releases they may review; the admin client only fills in names.
+ */
+export async function listPendingCommunityPayouts(): Promise<ListCommunityPayoutRequestsResult> {
+  try {
+    const client = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    if (!user) return failure("AUTH_REQUIRED", "");
+    const service = new WantedCommunityService(
+      new SupabaseWantedRepository(client, createSupabaseAdminClient()),
+    );
+    return service.listPendingPayouts({
+      emailVerified: Boolean(user.email_confirmed_at),
+      institutionId: null,
+      institutionVerified: false,
+      restricted: false,
+      userId: user.id,
+    });
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function decideCommunityPayout(
+  requestId: string,
+  input: unknown,
+): Promise<DecideCommunityPayoutResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.decidePayout(loaded.actor, requestId, input);
+  } catch {
+    return unavailable();
   }
 }

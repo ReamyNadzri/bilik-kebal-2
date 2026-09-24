@@ -31,10 +31,12 @@ export const POSTING_TERMS: readonly TermsSection[] = [
   {
     heading: "Bounties and money",
     points: [
-      "A bounty is optional. You may post any request for free; a free request has no payment, no fee and no payout.",
+      "A bounty is optional. Any request may be posted free; a free request has no payment, no fee and no payout.",
+      "Every member may post 3 free requests in total. A reward code adds more; each code can be redeemed once per member.",
+      "On a missing item or discussion with a bounty, you release it by naming the member who helped. A Sheriff approves the release before anyone is paid.",
       "Each contribution to a bounty is RM1 to RM50. The payment provider's own charge is added on top and does not go into the bounty.",
       "A bounty changes only after the payment provider confirms the payment directly to VAULTIX. A redirect back to the site is not a confirmation.",
-      "A platform fee (currently 10%) is taken from the bounty when a claim is approved. The rate is fixed at publication and does not change afterwards.",
+      "A platform fee (currently 10%) is taken from the bounty when a claim or a bounty release is approved. The rate is fixed at publication and does not change afterwards.",
       "If a request with a bounty expires without an approved claim, every confirmed contribution is refunded in full.",
     ],
   },

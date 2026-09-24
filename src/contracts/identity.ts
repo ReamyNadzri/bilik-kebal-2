@@ -55,6 +55,10 @@ export interface AccountViewModel {
   avatarUrl: string | null;
   /** When the account was created: the "joined" date on a profile. */
   joinedAt: string | null;
+  /** The drawn character chosen instead of a photo (0 to 11), if any. */
+  avatarPreset?: number | null;
+  /** The member's own sign-in address. Shown only to them, never publicly. */
+  email?: string | null;
   trust: {
     email: "unverified" | "verified";
     institution: "unverified" | "pending" | "verified" | "rejected";

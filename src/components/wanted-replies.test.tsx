@@ -95,3 +95,37 @@ test("lets only the poster mark the item found", async () => {
     expect(screen.getByRole("status")).toHaveTextContent(/marked this item as found/),
   );
 });
+
+test("lets the poster of a paid request name a replier for a Sheriff to approve", async () => {
+  const fetchMock = respond(
+    { ok: true, data: [reply] },
+    { ok: true, data: { requestId: "p1", state: "pending" } },
+  );
+  renderThread({ isPoster: true, bountySen: 2000 });
+
+  await screen.findByText(reply.body);
+  fireEvent.change(screen.getByLabelText("Who helped you?"), {
+    target: { value: reply.author.publicId },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Ask a Sheriff to release the bounty" }));
+
+  await waitFor(() =>
+    expect(screen.getByText(/A Sheriff is reviewing your bounty release/)).toBeInTheDocument(),
+  );
+  expect(fetchMock).toHaveBeenLastCalledWith(
+    `/api/marketplace/wanted/${ID}/payout-request`,
+    expect.objectContaining({ body: JSON.stringify({ finderPublicId: reply.author.publicId }) }),
+  );
+});
+
+test("offers no bounty release on a free request or to anyone but the poster", async () => {
+  respond({ ok: true, data: [reply] }, { ok: true, data: [reply] });
+  const { unmount } = renderThread({ isPoster: true, bountySen: 0 });
+  await screen.findByText(reply.body);
+  expect(screen.queryByText("Release the bounty")).toBeNull();
+  unmount();
+
+  renderThread({ isPoster: false, bountySen: 2000 });
+  await screen.findByText(reply.body);
+  expect(screen.queryByText("Release the bounty")).toBeNull();
+});

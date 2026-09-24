@@ -24,7 +24,6 @@ export default async function AppealsPage() {
 
   return (
     <>
-      <h1>Sheriff Console</h1>
       <ConsoleNav current="appeals" />
       <SheriffAppealConsole currentSheriffUserId={user?.id ?? ""} />
     </>

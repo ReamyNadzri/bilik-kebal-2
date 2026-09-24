@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { ErrorSummary } from "./error-summary";
+import { TaxonomyRequestDialog } from "./taxonomy-request-dialog";
 import { UiStatus, type UiStatusKind } from "./ui-status";
 import { WantedCard } from "./wanted-card";
 import type {
@@ -41,7 +42,8 @@ import {
 } from "@/features/marketplace/wanted-draft";
 import { MAX_CONTRIBUTION_SEN, MIN_CONTRIBUTION_SEN } from "@/features/marketplace/wanted-draft";
 import { sen } from "@/features/marketplace/money";
-import type { WantedKind } from "@/contracts/marketplace";
+import type { FreeRequestAllowance, WantedKind } from "@/contracts/marketplace";
+import type { TaxonomyRequestCategory } from "@/contracts/taxonomy-requests";
 
 /**
  * `live` persists through the published Phase 3A operations. `preview` is the
@@ -111,14 +113,49 @@ const KIND_CHOICES: readonly {
   {
     kind: "missing_item",
     label: "Missing item",
-    description: "Something you lost on campus. People reply if they have seen it. Always free.",
+    description:
+      "Something you lost on campus. People reply if they have seen it. Free, or with a reward.",
   },
   {
     kind: "discussion",
     label: "Discussion",
-    description: "A question for your campus. Classmates reply in writing. Always free.",
+    description:
+      "A question for your campus. Classmates reply in writing. Free, or with a bounty for the best answer.",
   },
 ];
+
+/** The "What you need" section follows the kind of request being written. */
+const NEED_COPY: Record<
+  WantedKind,
+  {
+    readonly heading: string;
+    readonly titleHint: string;
+    readonly descriptionLabel: string;
+    readonly descriptionHint: string;
+  }
+> = {
+  academic: {
+    heading: "What you need",
+    titleHint: "Name the resource the way a classmate would search for it.",
+    descriptionLabel: "What the resource needs to cover",
+    descriptionHint:
+      "Chapters, topics, and whether working or diagrams matter. Hunters answer what you ask for.",
+  },
+  missing_item: {
+    heading: "What you lost",
+    titleHint: "Name the item so people recognise it, for example “Blue Hydro Flask bottle”.",
+    descriptionLabel: "Describe the item",
+    descriptionHint:
+      "Colour, brand, markings and when you last had it. Do not include phone numbers: people reply on the request.",
+  },
+  discussion: {
+    heading: "What you want to discuss",
+    titleHint: "Ask the question the way you would say it to a classmate.",
+    descriptionLabel: "Your question or topic",
+    descriptionHint:
+      "Give enough context for a useful answer. Classmates reply in writing on the request.",
+  },
+};
 
 type Step = "idle" | "saving" | "checking" | "publishing";
 
@@ -163,6 +200,15 @@ function refusalFor(code: MarketplaceOperationCode | MoneyOperationCode): Refusa
       };
     case "NOT_AUTHORIZED":
       return { status: "restricted", heading: "That action is not available to this account" };
+    case "FREE_LIMIT_REACHED":
+      return {
+        status: "restricted",
+        heading: "You have used all your free requests",
+        action: <Link href="/profile#reward-code">Redeem a reward code</Link>,
+      };
+    case "PAYMENT_DISABLED":
+    case "PAYMENT_UNAVAILABLE":
+      return { status: "offline", heading: "Paid requests are not available yet" };
     case "DRAFT_NOT_FOUND":
       return { status: "expired", heading: "That draft is no longer on your account" };
     case "DRAFT_NOT_EDITABLE":
@@ -190,6 +236,10 @@ interface SelectFieldProps {
   readonly placeholder: string;
   readonly error: string | undefined;
   readonly onChange: (value: string) => void;
+  /** Optional fields say so and let the placeholder stand as an answer. */
+  readonly optional?: boolean;
+  /** A "not listed?" action under the field. */
+  readonly request?: ReactNode;
 }
 
 function SelectField({
@@ -201,6 +251,8 @@ function SelectField({
   placeholder,
   error,
   onChange,
+  optional = false,
+  request,
 }: SelectFieldProps) {
   const hintId = hint === undefined ? undefined : `${id}-hint`;
   const errorId = error === undefined ? undefined : `${id}-error`;
@@ -210,7 +262,7 @@ function SelectField({
     <div className="form-field">
       <label className="form-field__label" htmlFor={id}>
         {label}
-        <span className="form-field__required"> (required)</span>
+        <span className="form-field__required">{optional ? " (optional)" : " (required)"}</span>
       </label>
 
       {hint === undefined ? null : (
@@ -240,6 +292,7 @@ function SelectField({
           </option>
         ))}
       </select>
+      {request === undefined ? null : <p className="form-field__request">{request}</p>}
     </div>
   );
 }
@@ -284,6 +337,8 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   const [step, setStep] = useState<Step>("idle");
   const [announcement, setAnnouncement] = useState("");
   const [draftId, setDraftId] = useState<string | null>(null);
+  const [allowance, setAllowance] = useState<FreeRequestAllowance | null>(null);
+  const [entryRequest, setEntryRequest] = useState<TaxonomyRequestCategory | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
 
@@ -292,6 +347,22 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
       summaryRef.current?.focus();
     }
   }, [feedback]);
+
+  // Free requests left (3 for life, plus reward codes). Advisory: the
+  // database enforces the limit when the request is posted.
+  useEffect(() => {
+    if (mode !== "live") return;
+    let cancelled = false;
+    fetch("/api/marketplace/allowance", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((body: { ok: boolean; data?: FreeRequestAllowance }) => {
+        if (!cancelled && body.ok && body.data) setAllowance(body.data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
 
   const busy = step !== "idle";
 
@@ -679,7 +750,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
               <SummaryRow term="Faculty">{draft.faculty.label}</SummaryRow>
               <SummaryRow term="Programme">{draft.programme.label}</SummaryRow>
               <SummaryRow term="Course">{courseLabel(draft.course)}</SummaryRow>
-              <SummaryRow term="Session">{draft.session.label}</SummaryRow>
+              <SummaryRow term="Session">{draft.session?.label ?? "Any session"}</SummaryRow>
               <SummaryRow term="Resource">{draft.resourceType.label}</SummaryRow>
               <SummaryRow term="Language">{draft.language.label}</SummaryRow>
               <SummaryRow term="Open for">{`${draft.durationDays} days`}</SummaryRow>
@@ -880,6 +951,16 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   const programmes = programmesFor(taxonomy, values.facultyId === "" ? null : values.facultyId);
   const courses = coursesFor(taxonomy, values.programmeId === "" ? null : values.programmeId);
   const isAcademic = values.kind === "academic";
+  const need = NEED_COPY[values.kind];
+  const noFreeLeft = allowance !== null && allowance.remaining <= 0;
+  const askSheriff = (category: TaxonomyRequestCategory, what: string) => (
+    <>
+      Not listed?{" "}
+      <button type="button" className="link-button" onClick={() => setEntryRequest(category)}>
+        Ask a Sheriff to add {what}
+      </button>
+    </>
+  );
   const durationError = errorFor("wanted-duration");
   const tagError = errorFor("wanted-tags");
   const policyError = errorFor("wanted-policy");
@@ -919,12 +1000,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                   name="wanted-kind"
                   value={choice.kind}
                   checked={values.kind === choice.kind}
-                  onChange={() =>
-                    update({
-                      kind: choice.kind,
-                      free: choice.kind === "academic" ? values.free : true,
-                    })
-                  }
+                  onChange={() => update({ kind: choice.kind })}
                 />
                 <span className="kind-choice__label">{choice.label}</span>
                 <span className="kind-choice__description">{choice.description}</span>
@@ -935,7 +1011,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
       </section>
 
       <section className="draft-form__section">
-        <h2 className="draft-form__section-heading">What you need</h2>
+        <h2 className="draft-form__section-heading">{need.heading}</h2>
 
         <div className="form-field">
           <label className="form-field__label" htmlFor="wanted-title">
@@ -943,7 +1019,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             <span className="form-field__required"> (required)</span>
           </label>
           <p className="form-field__hint" id="wanted-title-hint">
-            Name the resource the way a classmate would search for it.
+            {need.titleHint}
           </p>
           {errorFor("wanted-title") === undefined ? null : (
             <p className="form-field__error" id="wanted-title-error">
@@ -968,12 +1044,11 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
 
         <div className="form-field">
           <label className="form-field__label" htmlFor="wanted-description">
-            What the resource needs to cover
+            {need.descriptionLabel}
             <span className="form-field__required"> (required)</span>
           </label>
           <p className="form-field__hint" id="wanted-description-hint">
-            Chapters, topics, and whether working or diagrams matter. Hunters answer what you ask
-            for.
+            {need.descriptionHint}
           </p>
           {errorFor("wanted-description") === undefined ? null : (
             <p className="form-field__error" id="wanted-description-error">
@@ -1014,6 +1089,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             placeholder="Choose a campus"
             error={errorFor("wanted-campus")}
             onChange={(campusId) => update({ campusId })}
+            request={askSheriff("campus", "a campus")}
           />
           {values.kind === "missing_item" ? (
             <div className="form-field">
@@ -1051,6 +1127,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 placeholder="Choose a faculty"
                 error={errorFor("wanted-faculty")}
                 onChange={chooseFaculty}
+                request={askSheriff("faculty", "a faculty")}
               />
               <SelectField
                 id="wanted-programme"
@@ -1063,6 +1140,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 }
                 error={errorFor("wanted-programme")}
                 onChange={chooseProgramme}
+                request={askSheriff("programme", "a programme")}
               />
               <SelectField
                 id="wanted-course"
@@ -1078,15 +1156,19 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 }
                 error={errorFor("wanted-course")}
                 onChange={(courseId) => update({ courseId })}
+                request={askSheriff("course", "a course")}
               />
               <SelectField
                 id="wanted-session"
                 label="Academic session"
+                hint="Leave as any session if it does not matter."
                 value={values.sessionId}
                 options={taxonomy.academicSessions}
-                placeholder="Choose a session"
+                placeholder="Any session"
+                optional
                 error={errorFor("wanted-session")}
                 onChange={(sessionId) => update({ sessionId })}
+                request={askSheriff("academic_session", "a session")}
               />
               <SelectField
                 id="wanted-resource-type"
@@ -1096,6 +1178,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 placeholder="Choose a resource type"
                 error={errorFor("wanted-resource-type")}
                 onChange={(resourceTypeId) => update({ resourceTypeId })}
+                request={askSheriff("resource_type", "a resource type")}
               />
               <SelectField
                 id="wanted-language"
@@ -1118,18 +1201,24 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 {tagError}
               </p>
             )}
-            <div className="draft-form__choices">
-              {taxonomy.tags.map((tag: TaxonomyItem) => (
-                <label className="draft-form__choice" key={tag.id}>
-                  <input
-                    type="checkbox"
-                    checked={values.tagIds.includes(tag.id)}
-                    onChange={(event) => toggleTag(tag.id, event.target.checked)}
-                  />
-                  {tag.label}
-                </label>
-              ))}
-            </div>
+            {taxonomy.tags.length === 0 ? (
+              <p className="form-field__hint">No tags have been added yet.</p>
+            ) : (
+              <div className="draft-form__choices">
+                {taxonomy.tags.map((tag: TaxonomyItem) => (
+                  <label className="draft-form__choice" key={tag.id}>
+                    <input
+                      type="checkbox"
+                      checked={values.tagIds.includes(tag.id)}
+                      disabled={!values.tagIds.includes(tag.id) && values.tagIds.length >= 5}
+                      onChange={(event) => toggleTag(tag.id, event.target.checked)}
+                    />
+                    {tag.label}
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="form-field__request">{askSheriff("tag", "a tag")}</p>
           </fieldset>
         ) : null}
       </section>
@@ -1169,37 +1258,43 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           </div>
         </div>
 
-        {isAcademic ? (
-          <fieldset className="draft-form__fieldset" id="wanted-bounty-choice">
-            <legend className="draft-form__legend">Bounty</legend>
-            <div className="draft-form__choices">
-              <label className="draft-form__choice">
-                <input
-                  type="radio"
-                  name="wanted-bounty-choice"
-                  checked={!values.free}
-                  onChange={() => update({ free: false })}
-                />
-                Offer a bounty
-              </label>
-              <label className="draft-form__choice">
-                <input
-                  type="radio"
-                  name="wanted-bounty-choice"
-                  checked={values.free}
-                  onChange={() => update({ free: true })}
-                />
-                No bounty (free request)
-              </label>
-            </div>
-          </fieldset>
-        ) : (
-          <p className="policy-note">
-            Missing items and discussions are always free: no bounty, no payment and no fee.
+        <fieldset className="draft-form__fieldset" id="wanted-bounty-choice">
+          <legend className="draft-form__legend">Bounty</legend>
+          <div className="draft-form__choices">
+            <label className="draft-form__choice">
+              <input
+                type="radio"
+                name="wanted-bounty-choice"
+                checked={!values.free}
+                onChange={() => update({ free: false })}
+              />
+              Offer a bounty
+            </label>
+            <label className="draft-form__choice">
+              <input
+                type="radio"
+                name="wanted-bounty-choice"
+                checked={values.free}
+                disabled={noFreeLeft && !values.free}
+                aria-describedby="wanted-free-allowance"
+                onChange={() => update({ free: true })}
+              />
+              No bounty (free request)
+            </label>
+          </div>
+          <p className="allowance-note" id="wanted-free-allowance">
+            {allowance === null
+              ? "Every member can post 3 free requests. Reward codes add more."
+              : noFreeLeft
+                ? "You have used all your free requests. "
+                : `You have ${allowance.remaining} free request${allowance.remaining === 1 ? "" : "s"} left. `}
+            {allowance === null ? null : (
+              <Link href="/profile#reward-code">Redeem a reward code</Link>
+            )}
           </p>
-        )}
+        </fieldset>
 
-        {isAcademic && !values.free ? (
+        {!values.free ? (
           <div className="form-field slider-field">
             <label className="form-field__label" htmlFor="wanted-contribution">
               Your first contribution
@@ -1207,6 +1302,9 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             <p className="form-field__hint" id="wanted-contribution-hint">
               RM{MIN_CONTRIBUTION_SEN / 100} to RM{MAX_CONTRIBUTION_SEN / 100}. Yours starts the
               bounty; classmates add to it. The payment provider adds its own charge on top.
+              {isAcademic
+                ? null
+                : " You release it by naming the member who helped; a Sheriff approves before anyone is paid."}
             </p>
             {errorFor("wanted-contribution") === undefined ? null : (
               <p className="form-field__error" id="wanted-contribution-error">
@@ -1232,12 +1330,13 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
               </output>
             </div>
           </div>
-        ) : isAcademic ? (
+        ) : (
           <p className="policy-note">
-            A free request has no payment and no platform fee. When a Sheriff approves a claim, you
-            receive the resource. Classmates cannot add money to a free request.
+            {isAcademic
+              ? "A free request has no payment and no platform fee. When a Sheriff approves a claim, you receive the resource. Classmates cannot add money to a free request."
+              : "A free request has no payment and no platform fee. People reply in writing; classmates cannot add money to it."}
           </p>
-        ) : null}
+        )}
       </section>
 
       <section className="draft-form__section">
@@ -1302,6 +1401,28 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           Cancel and browse the Board
         </Link>
       </div>
+
+      {entryRequest === null ? null : (
+        <TaxonomyRequestDialog
+          category={entryRequest}
+          preview={mode === "preview"}
+          parents={
+            entryRequest === "programme"
+              ? taxonomy.faculties
+              : entryRequest === "course"
+                ? taxonomy.programmes
+                : []
+          }
+          defaultParentId={
+            entryRequest === "programme"
+              ? values.facultyId
+              : entryRequest === "course"
+                ? values.programmeId
+                : ""
+          }
+          onClose={() => setEntryRequest(null)}
+        />
+      )}
     </div>
   );
 }

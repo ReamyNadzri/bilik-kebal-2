@@ -44,12 +44,18 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Configurable UiTM campus, faculty/college, programme, course, session, semester, resource type, language, and tag taxonomy.
 - Required duplicate suggestions before a new Wanted request is published.
 - Duration of 3 to 30 days, chosen with a slider, with no extension in the first release.
-- Three request kinds: academic resources (paid or free), missing items and discussions (free only,
-  answered with text replies, never files or money).
-- Free academic requests: no bounty and no payment; the Commissioner is entitled to the approved
-  resource, and the same human Sheriff approval still applies.
-- Region lock: only open campuses (UiTM Shah Alam, Puncak Alam, Dungun, Bukit Besi) accept new
-  requests; other campuses appear on the map as "coming soon".
+- Three request kinds: academic resources (file claims), missing items and discussions (text
+  replies, never files). Any kind may carry a bounty or be free.
+- Free requests: each member may publish 3 free requests in their lifetime; Owner-created reward
+  codes add more (each code has a word, free requests per redemption and a maximum number of
+  redemptions; a member redeems a code once).
+- A paid missing item or discussion is released when the poster names the member who helped and a
+  Sheriff approves; approval creates the same manual payout task as an approved claim.
+- Members cannot type their own campus, faculty, programme, course, session, resource type or tag.
+  They ask a Sheriff to add it and are notified in the app and by email when it is decided.
+- The academic session is optional on an academic request.
+- Region lock: open campuses are UiTM Shah Alam, Puncak Alam, Kuala Terengganu, Dungun and Bukit
+  Besi; the other branch campuses appear on the map as "coming soon".
 - Public member profiles show name, avatar, joined date, verification badge and the member's
   public Wanted requests only — never email, evidence, claims or contributions.
 - Gross bounty, Backer count, age, status, and available action shown without previewing unverified content.

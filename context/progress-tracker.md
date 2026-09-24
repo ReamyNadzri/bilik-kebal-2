@@ -280,7 +280,33 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
 - Verified: 1000 unit tests, typecheck, lint and production build pass; no horizontal overflow on
   17 routes at 360 px and 1440 px.
 
+## 2026-09-24 (later) paid community requests, free limit, reward codes, entry requests
+
+- Migration `202609300001_paid_community_codes_and_taxonomy_requests.sql` — **not yet applied to
+  Supabase Cloud**. Verified locally: the whole migration chain applies on Postgres 16 with
+  stubbed `auth`/`storage`, and the free limit, reward codes, taxonomy requests (RLS, notification,
+  email outbox), community payout (request, Sheriff approval, payout task, 10% fee, conflicted
+  reviewer refused) and campus seeding behave as specified.
+- Decisions (user): missing items and discussions may be paid or free; the poster names the finder
+  and a Sheriff approves before payout; 3 free requests per member for life; reward codes carry a
+  word, free requests per redemption and a maximum number of redemptions, once per member; custom
+  taxonomy goes to a Sheriff for approval with in-app and email notice; academic session optional;
+  UiTM Kuala Terengganu and Dungun open; locked UiTM campuses seeded so the map shows grey pins.
+- Paid missing-item and discussion posting returns `PAYMENT_DISABLED` while payment is disabled and
+  writes nothing. `create_community_draft` exists for the gateway work; wiring its payment step is
+  part of the pending contribution endpoint.
+- Members may choose one of twelve drawn avatars (`profiles.avatar_preset`) instead of a photo.
+- Posting terms bumped to `2026-09-24.2` (free limit, bounty release). Still a draft pending legal
+  review.
+- Account deletion is shown as not available: it needs a retention decision (ledger and audit
+  records must be kept).
+- Reward codes are created by the Owner via `create_reward_code` or the SQL editor; there is no
+  Owner UI for codes yet.
+
 ## Open Questions
+
+- Account deletion and retention: what is deleted, anonymised or kept, and when.
+- Moderation of reward-code abuse beyond the 10 failed attempts per hour limit.
 
 - Legal review of the drafted posting terms (`src/features/legal/terms.ts`).
 - Moderation of free-text replies on missing-item and discussion requests (reporting exists for

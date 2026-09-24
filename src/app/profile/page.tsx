@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AccountSummary } from "@/components/account-summary";
-import { ProfileEditor } from "@/components/profile-editor";
+import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
 import { marketplaceNow } from "@/features/marketplace/wanted-source";
 import { requireAccount } from "@/features/presentation/auth/require-account";
 import { readPublicProfile } from "@/modules/profiles/loaders/profile-operations";
+import { listOwnTaxonomyRequests } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
+import { readFreeAllowance } from "@/modules/wanted/loaders/wanted-operations";
 
 export const metadata: Metadata = {
   title: "Profile | VAULTIX",
@@ -45,15 +46,20 @@ export default async function ProfilePage() {
   const account = outcome.account;
   // The member's own public card (bio, posted requests) comes from the same
   // read anyone else sees, so what they edit is exactly what others see.
-  const publicProfile = account.publicId ? await readPublicProfile(account.publicId) : null;
+  const [publicProfile, allowance, entryRequests] = await Promise.all([
+    account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
+    readFreeAllowance(),
+    listOwnTaxonomyRequests(),
+  ]);
   const profile = publicProfile?.ok ? publicProfile.data : null;
 
   return (
     <div className="page-bare profile-container">
-      <ProfileEditor
+      <ProfileSettings
         account={account}
         bio={profile?.bio ?? null}
-        postedCount={profile?.wanted.length ?? 0}
+        allowance={allowance.ok ? allowance.data : null}
+        entryRequests={entryRequests.ok ? entryRequests.data : null}
       />
 
       <ProfileWantedGrid
@@ -69,10 +75,6 @@ export default async function ProfilePage() {
           />
         }
       />
-
-      <div className="panel profile-panel">
-        <AccountSummary account={account} />
-      </div>
     </div>
   );
 }

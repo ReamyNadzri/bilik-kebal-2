@@ -76,7 +76,7 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
         <WantedPoster wanted={wanted} now={now} className="ledger-poster" />
 
         <div className="ledger-panel">
-          {academic && !wanted.isFree ? (
+          {!wanted.isFree ? (
             account?.capabilities?.transact && isOpen ? (
               <button
                 type="button"
@@ -114,22 +114,25 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           ) : null}
           <p className="ledger-panel__note">
             {!academic
-              ? "Replies need institution verification. There is no bounty, payment or file on this request."
+              ? wanted.isFree
+                ? "Replies need institution verification. This is a free request: no bounty, no payment and no file."
+                : "Backing and replying need institution verification. The poster names who helped, and a Sheriff approves before the bounty is paid. Payment is disabled in this build until the launch gate passes."
               : wanted.isFree
                 ? "This is a free request: no bounty and no payment. Submitting a claim needs institution verification."
                 : "Both actions need institution verification. Contributions are RM1 to RM50 per Backer, and payment is disabled in this build until the launch gate passes."}
           </p>
         </div>
 
-        <div className="ledger-panel" hidden={!academic || wanted.isFree}>
+        <div className="ledger-panel" hidden={wanted.isFree}>
           <h2 className="ledger-panel__heading">Fees</h2>
           <p className="ledger-panel__fee">
             <span>Platform fee, fixed at publication</span>
             <span className="numeric">{feePercent}%</span>
           </p>
           <p className="ledger-panel__body">
-            A {feePercent}% platform fee is taken from the bounty when a claim is approved. The rate
-            was fixed when this Wanted was published and does not change afterwards.
+            A {feePercent}% platform fee is taken from the bounty when{" "}
+            {academic ? "a claim is approved" : "a Sheriff approves its release"}. The rate was
+            fixed when this Wanted was published and does not change afterwards.
           </p>
           <p className="ledger-panel__body">
             The payment provider adds its own charge to a Backer&rsquo;s checkout total. It is paid
@@ -281,6 +284,8 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
               account.publicId === wanted.commissioner.publicId
             }
             now={now}
+            bountySen={wanted.isFree ? 0 : wanted.grossBountySen}
+            releasePending={wanted.status === "reviewing"}
           />
         </div>
       )}

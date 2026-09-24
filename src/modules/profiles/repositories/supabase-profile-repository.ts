@@ -1,3 +1,4 @@
+import { resolveAvatarUrl } from "@/lib/avatars";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicProfile } from "@/contracts/profiles";
 import type { Database } from "@/lib/supabase/database.types";
@@ -11,7 +12,8 @@ export interface ProfileRepository {
   createAvatarUpload(objectKey: string): Promise<{ signedUrl: string; token: string }>;
   updateOwnProfile(displayName: string, bio: string | null): Promise<void>;
   setOwnAvatar(objectKey: string | null): Promise<void>;
-  avatarUrl(objectKey: string | null): string | null;
+  avatarUrl(objectKey: string | null, preset?: number | null): string | null;
+  setOwnAvatarPreset(preset: number | null): Promise<void>;
   readPublicProfile(publicId: string): Promise<PublicProfile | null>;
 }
 
@@ -66,15 +68,19 @@ export class SupabaseProfileRepository implements ProfileRepository {
     if (error) throw error;
   }
 
-  avatarUrl(objectKey: string | null): string | null {
-    if (!objectKey) return null;
-    return this.readClient.storage.from("avatars").getPublicUrl(objectKey).data.publicUrl;
+  avatarUrl(objectKey: string | null, preset: number | null = null): string | null {
+    return resolveAvatarUrl(this.readClient, objectKey, preset);
+  }
+
+  async setOwnAvatarPreset(preset: number | null): Promise<void> {
+    const { error } = await this.writeClient.rpc("set_own_avatar_preset", { new_preset: preset });
+    if (error) throw error;
   }
 
   async readPublicProfile(publicId: string): Promise<PublicProfile | null> {
     const profile = await this.readClient
       .from("profiles")
-      .select("user_id, public_id, display_name, avatar_object_key, bio, created_at")
+      .select("user_id, public_id, display_name, avatar_object_key, avatar_preset, bio, created_at")
       .eq("public_id", publicId)
       .maybeSingle();
     if (profile.error) throw profile.error;
@@ -109,7 +115,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
     return {
       publicId: profile.data.public_id,
       displayName: profile.data.display_name,
-      avatarUrl: this.avatarUrl(profile.data.avatar_object_key),
+      avatarUrl: this.avatarUrl(profile.data.avatar_object_key, profile.data.avatar_preset),
       bio: profile.data.bio,
       joinedAt: profile.data.created_at,
       institutionName: institution.data?.name ?? null,

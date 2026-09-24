@@ -12,6 +12,8 @@ export interface AccountRecord {
   publicId?: string | null;
   avatarUrl?: string | null;
   joinedAt?: string | null;
+  avatarPreset?: number | null;
+  email?: string | null;
   emailConfirmedAt: string | null;
   institution: { id: string; name: string } | null;
   institutionVerificationState: IdentityTrust["institution"];
@@ -39,6 +41,8 @@ export function toAccountViewModel(record: AccountRecord): AccountViewModel {
     publicId: record.publicId ?? null,
     avatarUrl: record.avatarUrl ?? null,
     joinedAt: record.joinedAt ?? null,
+    ...(record.avatarPreset !== undefined ? { avatarPreset: record.avatarPreset } : {}),
+    ...(record.email !== undefined ? { email: record.email } : {}),
     institution: record.institution,
     latestVerificationRequest: record.latestVerificationRequest,
     trust,

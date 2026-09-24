@@ -90,6 +90,9 @@ These folders are the intended structure and will be created only after the impl
 - **Supabase Storage `verification-evidence`**: private evidence for manual institution verification, with restricted Sheriff access and automatic retention cleanup.
 - **Supabase Storage `avatars`**: the only public bucket. Holds 512 px WebP profile pictures re-encoded in the browser (camera metadata dropped), at most 512 KB, one folder per member's `public_id`, written only by the owner through RLS.
 - **`wanted_replies`**: text replies on missing-item and discussion requests; readable wherever the request is readable, written only by institution-verified members through `post_wanted_reply`. Reply notifications are in-app only and never emailed.
+- **`reward_codes` / `reward_code_redemptions`**: Owner-created codes that add free requests; redemptions are unique per code and member, and failed attempts are rate limited (10 per hour).
+- **`taxonomy_requests`**: member requests for new taxonomy entries; a Sheriff approval inserts the entry and notifies the member (in-app and email).
+- **`community_payout_requests`**: the poster of a paid missing item or discussion names the finder; a Sheriff (never a party to it) approves, which creates a `payout_tasks` row with no claim. `payout_tasks` now references exactly one of a claim or a community payout request.
 - **Queue tables**: durable operational messages; payloads contain identifiers, never raw file bodies, secrets, or unnecessary personal data.
 
 Database records store `storage_provider`, `bucket`, `object_key`, checksum, size, MIME type, and lifecycle state rather than public URLs. This permits a later hybrid migration to Cloudflare R2. New uploads can switch provider through configuration; migrations copy, verify the checksum, update the record transactionally, and only then delete the old object.

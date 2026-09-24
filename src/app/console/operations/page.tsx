@@ -15,7 +15,6 @@ export default async function OperationsConsolePage() {
   return (
     <>
       <ConsoleNav current="operations" />
-      <h1>Operations &amp; Fulfilment Console</h1>
       <OperationalConsole />
     </>
   );

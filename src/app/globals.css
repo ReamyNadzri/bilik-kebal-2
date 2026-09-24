@@ -6099,10 +6099,36 @@ textarea.form-field__input {
    Section tabs across every console page and a dashboard of queue tiles.
    -------------------------------------------------------------------------- */
 
-.console-nav {
+.console-head {
   display: grid;
   gap: var(--space-2);
   margin-bottom: var(--space-5);
+}
+
+/* One size on every console tab, whatever page-level heading rules apply. */
+.console-head .console-head__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+  line-height: var(--leading-tight);
+}
+
+.console-head__section {
+  margin: 0;
+}
+
+/* On timber (a `page-bare` screen) the heading is lettered light. */
+.page-bare .console-head .console-head__title {
+  color: var(--text-on-dark-strong);
+}
+
+.page-bare .console-head__section {
+  color: var(--text-on-dark-muted);
+}
+
+.console-nav {
+  display: grid;
+  gap: var(--space-2);
 }
 
 .console-nav__list {
@@ -6172,4 +6198,208 @@ textarea.form-field__input {
 .console-tile__hint {
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Link-style button: an action that reads like a link, such as
+   "Not listed? Ask a Sheriff", beside a form field.
+   -------------------------------------------------------------------------- */
+
+.link-button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--accent-primary);
+}
+
+.link-button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.form-field__request {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.allowance-note {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* --------------------------------------------------------------------------
+   Profile settings: the Hunter card (avatar picker) beside the profile,
+   verification, reward code and entry-request cards.
+   -------------------------------------------------------------------------- */
+
+.profile-settings {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .profile-settings {
+    grid-template-columns: minmax(18rem, 0.72fr) minmax(0, 1.28fr);
+  }
+}
+
+.profile-settings__main {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.hunter-card {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.hunter-card .hunter-card__portrait {
+  justify-self: center;
+  width: min(100%, 11.625rem);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 0;
+  border-color: var(--border-strong);
+}
+
+.hunter-card__heading {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xl);
+}
+
+.hunter-card__presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hunter-card__preset {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: var(--border-width-2) solid var(--border-default);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.hunter-card__preset img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+}
+
+.hunter-card__preset:hover {
+  border-color: var(--accent-brass);
+}
+
+.hunter-card__preset[aria-pressed="true"] {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 var(--border-width-2) var(--accent-primary);
+}
+
+.hunter-card__preset:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.hunter-card__preset:disabled {
+  cursor: progress;
+}
+
+.hunter-card__public {
+  font-size: var(--text-sm);
+}
+
+.profile-card {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.profile-card h2,
+.profile-card .profile-card__title {
+  margin: 0;
+}
+
+.profile-card__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.profile-card input[readonly] {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.trust-row,
+.entry-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width-1) solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.trust-row--plain {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.trust-row__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.trust-row__body {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.entry-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reward-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.reward-code .form-field {
+  flex: 1 1 12rem;
+  margin: 0;
 }

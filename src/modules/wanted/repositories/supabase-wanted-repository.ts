@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   CampusRegion,
+  CommunityPayoutRequestView,
+  FreeRequestAllowance,
   ListWantedQuery,
   Sen,
   ValidatedWantedDraftInput,
@@ -9,6 +11,7 @@ import type {
   WantedReply,
   WantedSummary,
 } from "@/contracts/marketplace";
+import { resolveAvatarUrl } from "@/lib/avatars";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
 import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-query";
@@ -17,6 +20,8 @@ import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./
 type Client = SupabaseClient<Database>;
 type WantedRow = Database["public"]["Tables"]["wanted_requests"]["Row"];
 
+/** Shown where an academic request names no session. */
+const ANY_SESSION = "Any session";
 const PUBLIC_STATUSES = ["open", "reviewing", "expired", "fulfilled", "closed"] as const;
 const KIND_LABEL: Record<WantedKind, string> = {
   academic: "Academic resource",
@@ -45,12 +50,19 @@ const present = (values: ReadonlyArray<string | null>): string[] => [
 ];
 
 export class SupabaseWantedRepository implements WantedRepository {
-  constructor(private readonly client: Client) {}
+  /**
+   * `client` carries the caller's session for writes and RLS-scoped reads;
+   * `readClient` (the admin client, after an authorisation check in the
+   * loader) enriches rows with names that RLS would otherwise hide.
+   */
+  constructor(
+    private readonly client: Client,
+    private readonly readClient: Client = client,
+  ) {}
 
-  /** Public URL of an avatar object, or null. The bucket is public by design. */
-  avatarUrl(objectKey: string | null): string | null {
-    if (!objectKey) return null;
-    return this.client.storage.from("avatars").getPublicUrl(objectKey).data.publicUrl;
+  /** Public URL of an avatar (photo or drawn character), or null. */
+  avatarUrl(objectKey: string | null, preset: number | null = null): string | null {
+    return resolveAvatarUrl(this.client, objectKey, preset);
   }
 
   async listPublicWanted(query: ListWantedQuery): Promise<WantedSummary[]> {
@@ -130,7 +142,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         .limit(20),
       this.client
         .from("profiles")
-        .select("display_name, public_id, avatar_object_key, created_at")
+        .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
         .eq("user_id", row.commissioner_user_id)
         .maybeSingle(),
       this.client
@@ -164,7 +176,10 @@ export class SupabaseWantedRepository implements WantedRepository {
       commissioner: {
         publicId: profile.data?.public_id ?? null,
         displayName: profile.data?.display_name ?? "VAULTIX member",
-        avatarUrl: this.avatarUrl(profile.data?.avatar_object_key ?? null),
+        avatarUrl: this.avatarUrl(
+          profile.data?.avatar_object_key ?? null,
+          profile.data?.avatar_preset ?? null,
+        ),
         joinedAt: profile.data?.created_at ?? null,
         emailVerified: true,
         institutionVerified: membership.data?.verification_state === "verified",
@@ -227,7 +242,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       const session = row.academic_session_id
         ? sessionById.get(row.academic_session_id)
         : undefined;
-      if (academic && (!course || !type || !session)) return [];
+      if (academic && (!course || !type)) return [];
       const cs = contributionRows.filter((x) => x.wanted_request_id === row.id);
       const bounty = cs.reduce((n, x) => n + Number(x.amount_sen), 0) as Sen;
       const status = wantedDisplayStatus(row.status, row.closes_at, bounty, now);
@@ -243,7 +258,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         campusId: row.campus_id,
         resourceType: type?.name ?? KIND_LABEL[row.kind],
         resourceTypeId: row.resource_type_id ?? "",
-        session: session?.name ?? "",
+        session: session?.name ?? (academic ? ANY_SESSION : ""),
         sessionId: row.academic_session_id ?? "",
         grossBountySen: bounty,
         backerCount: new Set(cs.map((x) => x.contributor_user_id)).size,
@@ -323,7 +338,7 @@ export class SupabaseWantedRepository implements WantedRepository {
     const authors = authorIds.length
       ? await this.client
           .from("profiles")
-          .select("user_id, public_id, display_name, avatar_object_key")
+          .select("user_id, public_id, display_name, avatar_object_key, avatar_preset")
           .in("user_id", authorIds)
       : { data: [], error: null };
     if (authors.error) throw authors.error;
@@ -337,7 +352,10 @@ export class SupabaseWantedRepository implements WantedRepository {
         author: {
           publicId: author?.public_id ?? "",
           displayName: author?.display_name ?? "VAULTIX member",
-          avatarUrl: this.avatarUrl(author?.avatar_object_key ?? null),
+          avatarUrl: this.avatarUrl(
+            author?.avatar_object_key ?? null,
+            author?.avatar_preset ?? null,
+          ),
         },
       };
     });
@@ -381,6 +399,111 @@ export class SupabaseWantedRepository implements WantedRepository {
     const row = await this.client.from("wanted_requests").select("public_id").eq("id", id).single();
     if (row.error) throw row.error;
     return row.data.public_id;
+  }
+
+  async readFreeAllowance(): Promise<FreeRequestAllowance> {
+    const { data, error } = await this.client.rpc("my_free_request_allowance");
+    if (error) throw error;
+    const row = data?.[0];
+    return {
+      base: row?.base ?? 3,
+      bonus: row?.bonus ?? 0,
+      used: row?.used ?? 0,
+      remaining: row?.remaining ?? 0,
+    };
+  }
+
+  async requestCommunityPayout(input: {
+    publicId: string;
+    finderPublicId: string;
+    note: string | null;
+  }): Promise<string> {
+    const { data, error } = await this.client.rpc("request_community_payout", {
+      finder_public_id: input.finderPublicId,
+      target_note: input.note,
+      target_public_id: input.publicId,
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Pending bounty releases the caller may review. RLS on the caller's client
+   * decides which rows are visible (reviewers, plus the two parties, who are
+   * filtered out so nobody reviews their own release); names come from the
+   * read client.
+   */
+  async listPendingCommunityPayouts(viewerUserId: string): Promise<CommunityPayoutRequestView[]> {
+    const requests = await this.client
+      .from("community_payout_requests")
+      .select("id, wanted_request_id, requester_user_id, finder_user_id, note, created_at")
+      .eq("status", "pending")
+      .neq("requester_user_id", viewerUserId)
+      .neq("finder_user_id", viewerUserId)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    if (requests.error) throw requests.error;
+    if (requests.data.length === 0) return [];
+    const wantedIds = requests.data.map((row) => row.wanted_request_id);
+    const userIds = requests.data.flatMap((row) => [row.requester_user_id, row.finder_user_id]);
+    const [wanted, people, contributions] = await Promise.all([
+      this.readClient
+        .from("wanted_requests")
+        .select("id, public_id, title, kind")
+        .in("id", wantedIds),
+      this.readClient
+        .from("profiles")
+        .select("user_id, public_id, display_name, avatar_object_key, avatar_preset")
+        .in("user_id", userIds),
+      this.readClient
+        .from("contributions")
+        .select("wanted_request_id, amount_sen")
+        .in("wanted_request_id", wantedIds),
+    ]);
+    if (wanted.error || people.error || contributions.error) {
+      throw wanted.error ?? people.error ?? contributions.error;
+    }
+    const wantedById = new Map(wanted.data.map((row) => [row.id, row]));
+    const personById = new Map(people.data.map((row) => [row.user_id, row]));
+    const card = (userId: string) => {
+      const person = personById.get(userId);
+      return {
+        publicId: person?.public_id ?? "",
+        displayName: person?.display_name ?? "VAULTIX member",
+        avatarUrl: this.avatarUrl(person?.avatar_object_key ?? null, person?.avatar_preset ?? null),
+      };
+    };
+    return requests.data.flatMap((row) => {
+      const target = wantedById.get(row.wanted_request_id);
+      if (!target || target.kind === "academic") return [];
+      const bounty = contributions.data
+        .filter((c) => c.wanted_request_id === row.wanted_request_id)
+        .reduce((total, c) => total + Number(c.amount_sen), 0);
+      return [
+        {
+          id: row.id,
+          wanted: { id: target.public_id, title: target.title, kind: target.kind },
+          bountySen: bounty as Sen,
+          requester: card(row.requester_user_id),
+          finder: card(row.finder_user_id),
+          note: row.note,
+          createdAt: row.created_at,
+        },
+      ];
+    });
+  }
+
+  async decideCommunityPayout(input: {
+    requestId: string;
+    approve: boolean;
+    note: string | null;
+  }): Promise<void> {
+    const { error } = await this.client.rpc("decide_community_payout", {
+      approve: input.approve,
+      target_note: input.note,
+      target_request_id: input.requestId,
+    });
+    if (error) throw error;
   }
 
   async publishFree(input: {
@@ -443,13 +566,16 @@ export class SupabaseWantedRepository implements WantedRepository {
         .eq("institution_id", institutionId)
         .eq("active", true)
         .maybeSingle(),
-      this.client
-        .from("academic_sessions")
-        .select("id")
-        .eq("id", values.academicSessionId)
-        .eq("institution_id", institutionId)
-        .eq("active", true)
-        .maybeSingle(),
+      // The session is optional; an absent one passes as present.
+      values.academicSessionId === null
+        ? Promise.resolve({ data: { id: "" }, error: null })
+        : this.client
+            .from("academic_sessions")
+            .select("id")
+            .eq("id", values.academicSessionId)
+            .eq("institution_id", institutionId)
+            .eq("active", true)
+            .maybeSingle(),
       this.client
         .from("resource_types")
         .select("id")
@@ -506,7 +632,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       state: row.status === "draft" ? "draft" : "awaiting_payment",
       updatedAt: row.updated_at,
       values: {
-        academicSessionId: row.academic_session_id ?? "",
+        academicSessionId: row.academic_session_id,
         campusId: row.campus_id,
         courseId: row.course_id ?? "",
         description: row.description,
@@ -575,12 +701,12 @@ export class SupabaseWantedRepository implements WantedRepository {
     const sessionById = byId(sessions.data);
 
     return wanted.data.flatMap((row) => {
-      if (!row.course_id || !row.resource_type_id || !row.academic_session_id) return [];
+      if (!row.course_id || !row.resource_type_id) return [];
       const course = courseById.get(row.course_id);
       const campus = campusById.get(row.campus_id);
       const resourceType = typeById.get(row.resource_type_id);
-      const session = sessionById.get(row.academic_session_id);
-      if (!course || !campus || !resourceType || !session || !row.published_at || !row.closes_at) {
+      const session = row.academic_session_id ? sessionById.get(row.academic_session_id) : null;
+      if (!course || !campus || !resourceType || !row.published_at || !row.closes_at) {
         return [];
       }
       return [
@@ -604,8 +730,8 @@ export class SupabaseWantedRepository implements WantedRepository {
             postedAt: row.published_at,
             resourceType: resourceType.name,
             resourceTypeId: row.resource_type_id,
-            session: session.name,
-            sessionId: row.academic_session_id,
+            session: session?.name ?? ANY_SESSION,
+            sessionId: row.academic_session_id ?? "",
             status: row.status === "reviewing" ? ("reviewing" as const) : ("open" as const),
             title: row.title,
           },

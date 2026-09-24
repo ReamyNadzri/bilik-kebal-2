@@ -597,6 +597,45 @@ export type Database = {
           },
         ];
       };
+      community_payout_requests: {
+        Row: {
+          created_at: string;
+          decided_at: string | null;
+          decision_note: string | null;
+          finder_user_id: string;
+          id: string;
+          note: string | null;
+          requester_user_id: string;
+          reviewer_user_id: string | null;
+          status: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          finder_user_id: string;
+          id?: string;
+          note?: string | null;
+          requester_user_id: string;
+          reviewer_user_id?: string | null;
+          status?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          created_at?: string;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          finder_user_id?: string;
+          id?: string;
+          note?: string | null;
+          requester_user_id?: string;
+          reviewer_user_id?: string | null;
+          status?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [];
+      };
       contribution_intents: {
         Row: {
           amount_sen: number;
@@ -1282,7 +1321,8 @@ export type Database = {
       };
       payout_tasks: {
         Row: {
-          claim_id: string;
+          claim_id: string | null;
+          community_payout_request_id: string | null;
           completed_at: string | null;
           created_at: string;
           evidence_notes: string | null;
@@ -1300,7 +1340,8 @@ export type Database = {
           wanted_request_id: string;
         };
         Insert: {
-          claim_id: string;
+          claim_id?: string | null;
+          community_payout_request_id?: string | null;
           completed_at?: string | null;
           created_at?: string;
           evidence_notes?: string | null;
@@ -1318,7 +1359,8 @@ export type Database = {
           wanted_request_id: string;
         };
         Update: {
-          claim_id?: string;
+          claim_id?: string | null;
+          community_payout_request_id?: string | null;
           completed_at?: string | null;
           created_at?: string;
           evidence_notes?: string | null;
@@ -1405,6 +1447,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_object_key: string | null;
+          avatar_preset: number | null;
           avatar_updated_at: string | null;
           bio: string | null;
           created_at: string;
@@ -1415,6 +1458,7 @@ export type Database = {
         };
         Insert: {
           avatar_object_key?: string | null;
+          avatar_preset?: number | null;
           avatar_updated_at?: string | null;
           bio?: string | null;
           created_at?: string;
@@ -1425,6 +1469,7 @@ export type Database = {
         };
         Update: {
           avatar_object_key?: string | null;
+          avatar_preset?: number | null;
           avatar_updated_at?: string | null;
           bio?: string | null;
           created_at?: string;
@@ -1599,6 +1644,30 @@ export type Database = {
           },
         ];
       };
+      reward_code_redemptions: {
+        Row: {
+          credits: number;
+          id: string;
+          redeemed_at: string;
+          reward_code_id: string;
+          user_id: string;
+        };
+        Insert: {
+          credits: number;
+          id?: string;
+          redeemed_at?: string;
+          reward_code_id: string;
+          user_id: string;
+        };
+        Update: {
+          credits?: number;
+          id?: string;
+          redeemed_at?: string;
+          reward_code_id?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       resource_types: {
         Row: {
           active: boolean;
@@ -1656,6 +1725,60 @@ export type Database = {
           slug?: string;
           sort_order?: number;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      taxonomy_requests: {
+        Row: {
+          category: string;
+          course_code: string | null;
+          created_at: string;
+          created_item_id: string | null;
+          decided_at: string | null;
+          decision_note: string | null;
+          id: string;
+          institution_id: string;
+          label: string;
+          note: string | null;
+          parent_faculty_id: string | null;
+          parent_programme_id: string | null;
+          requester_user_id: string;
+          reviewer_user_id: string | null;
+          status: string;
+        };
+        Insert: {
+          category: string;
+          course_code?: string | null;
+          created_at?: string;
+          created_item_id?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          id?: string;
+          institution_id: string;
+          label: string;
+          note?: string | null;
+          parent_faculty_id?: string | null;
+          parent_programme_id?: string | null;
+          requester_user_id: string;
+          reviewer_user_id?: string | null;
+          status?: string;
+        };
+        Update: {
+          category?: string;
+          course_code?: string | null;
+          created_at?: string;
+          created_item_id?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          id?: string;
+          institution_id?: string;
+          label?: string;
+          note?: string | null;
+          parent_faculty_id?: string | null;
+          parent_programme_id?: string | null;
+          requester_user_id?: string;
+          reviewer_user_id?: string | null;
+          status?: string;
         };
         Relationships: [];
       };
@@ -1957,6 +2080,65 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      create_community_draft: {
+        Args: {
+          target_campus_id: string;
+          target_description: string;
+          target_duration_days: number;
+          target_kind: Database["public"]["Enums"]["wanted_kind"];
+          target_last_seen_location: string | null;
+          target_title: string;
+        };
+        Returns: string;
+      };
+      create_reward_code: {
+        Args: {
+          target_code: string;
+          target_credits: number;
+          target_expires_at?: string | null;
+          target_max_redemptions: number;
+        };
+        Returns: string;
+      };
+      decide_community_payout: {
+        Args: { approve: boolean; target_note?: string | null; target_request_id: string };
+        Returns: string | null;
+      };
+      decide_taxonomy_request: {
+        Args: {
+          approve: boolean;
+          open_region?: boolean;
+          target_note?: string | null;
+          target_request_id: string;
+        };
+        Returns: string | null;
+      };
+      my_free_request_allowance: {
+        Args: never;
+        Returns: { base: number; bonus: number; remaining: number; used: number }[];
+      };
+      redeem_reward_code: {
+        Args: { target_code: string };
+        Returns: string;
+      };
+      request_community_payout: {
+        Args: { finder_public_id: string; target_note?: string | null; target_public_id: string };
+        Returns: string;
+      };
+      set_own_avatar_preset: {
+        Args: { new_preset: number | null };
+        Returns: undefined;
+      };
+      submit_taxonomy_request: {
+        Args: {
+          target_category: string;
+          target_course_code?: string | null;
+          target_label: string;
+          target_note?: string | null;
+          target_parent_id?: string | null;
+        };
+        Returns: string;
+      };
       post_wanted_reply: {
         Args: { reply_body: string; target_public_id: string };
         Returns: string;
@@ -2047,7 +2229,7 @@ export type Database = {
       };
       create_wanted_draft: {
         Args: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           campus_id: string;
           course_id: string;
           description: string;
@@ -2162,7 +2344,7 @@ export type Database = {
       };
       update_wanted_draft: {
         Args: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           campus_id: string;
           course_id: string;
           description: string;

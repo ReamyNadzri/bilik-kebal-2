@@ -11,6 +11,7 @@ function repository(overrides: Partial<ProfileRepository> = {}): ProfileReposito
   return {
     updateOwnProfile: vi.fn().mockResolvedValue(undefined),
     setOwnAvatar: vi.fn().mockResolvedValue(undefined),
+    setOwnAvatarPreset: vi.fn().mockResolvedValue(undefined),
     avatarUrl: vi.fn((key: string | null) => (key ? `https://cdn.test/${key}` : null)),
     readPublicProfile: vi.fn().mockResolvedValue(null),
     ownPublicId: vi.fn().mockResolvedValue(publicId),

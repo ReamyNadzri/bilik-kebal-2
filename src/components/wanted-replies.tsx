@@ -18,6 +18,10 @@ export interface WantedRepliesProps {
   /** Whether the viewer posted this Wanted, and so may mark it resolved. */
   readonly isPoster: boolean;
   readonly now: string;
+  /** The bounty in sen; 0 on a free request, which has nothing to release. */
+  readonly bountySen?: number;
+  /** A bounty release is already waiting for a Sheriff. */
+  readonly releasePending?: boolean;
 }
 
 type Load =
@@ -37,6 +41,8 @@ export function WantedReplies({
   canReply,
   isPoster,
   now,
+  bountySen = 0,
+  releasePending = false,
 }: WantedRepliesProps) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [body, setBody] = useState("");
@@ -44,6 +50,12 @@ export function WantedReplies({
   const [busy, setBusy] = useState(false);
   const [resolved, setResolved] = useState(!open);
   const [version, setVersion] = useState(0);
+  const [finder, setFinder] = useState("");
+  const [releaseNote, setReleaseNote] = useState("");
+  const [releaseState, setReleaseState] = useState<"idle" | "sent">(
+    releasePending ? "sent" : "idle",
+  );
+  const [releaseError, setReleaseError] = useState<string | null>(null);
   const path = `/api/marketplace/wanted/${encodeURIComponent(wantedId)}`;
 
   useEffect(() => {
@@ -99,7 +111,39 @@ export function WantedReplies({
     else setError(messageFor(result.code, result.message));
   }
 
+  async function onRelease(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (finder === "") {
+      setReleaseError("Choose the member who helped you.");
+      return;
+    }
+    setBusy(true);
+    setReleaseError(null);
+    const result = await callOperation<{ requestId: string }, MarketplaceOperationCode>(
+      `${path}/payout-request`,
+      { finderPublicId: finder, ...(releaseNote.trim() ? { note: releaseNote.trim() } : {}) },
+      "MARKETPLACE_UNAVAILABLE",
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setReleaseError(messageFor(result.code, result.message));
+      return;
+    }
+    setReleaseState("sent");
+  }
+
   const heading = kind === "missing_item" ? "Sightings and replies" : "Replies";
+  // Everyone who replied, once each: the poster names one of them.
+  const helpers =
+    load.state === "ready"
+      ? [
+          ...new Map(
+            load.replies
+              .filter((reply) => reply.author.publicId !== "")
+              .map((reply) => [reply.author.publicId, reply.author]),
+          ).values(),
+        ]
+      : [];
 
   return (
     <section className="panel replies" aria-labelledby="replies-heading">
@@ -157,6 +201,73 @@ export function WantedReplies({
           ))}
         </ol>
       )}
+
+      {isPoster && bountySen > 0 ? (
+        releaseState === "sent" ? (
+          <p className="ops-alert ops-alert--info" role="status">
+            A Sheriff is reviewing your bounty release. You will be notified when it is decided.
+          </p>
+        ) : (
+          <form className="ops-form release-form" onSubmit={onRelease} noValidate>
+            <h3 className="ops-panel__title">Release the bounty</h3>
+            <p className="form-field__hint">
+              {kind === "missing_item"
+                ? "Found it? Name the member who helped."
+                : "Name the member whose answer helped."}{" "}
+              A Sheriff checks it before anyone is paid, and the Owner records the payout.
+            </p>
+            {releaseError ? (
+              <p className="form-field__error" role="alert">
+                {releaseError}
+              </p>
+            ) : null}
+            {helpers.length === 0 ? (
+              <p className="replies__empty">
+                The member who helped needs to reply here first, so you can name them.
+              </p>
+            ) : (
+              <>
+                <div className="form-field">
+                  <label className="form-field__label" htmlFor="release-finder">
+                    Who helped you?
+                  </label>
+                  <select
+                    className="form-field__input"
+                    id="release-finder"
+                    value={finder}
+                    onChange={(event) => setFinder(event.target.value)}
+                  >
+                    <option value="">Choose a member who replied</option>
+                    {helpers.map((helper) => (
+                      <option key={helper.publicId} value={helper.publicId}>
+                        {helper.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-field__label" htmlFor="release-note">
+                    Note for the Sheriff <span className="form-field__required">(optional)</span>
+                  </label>
+                  <textarea
+                    className="form-field__input"
+                    id="release-note"
+                    rows={2}
+                    maxLength={500}
+                    value={releaseNote}
+                    onChange={(event) => setReleaseNote(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <button type="submit" className="button button--primary" disabled={busy}>
+                    Ask a Sheriff to release the bounty
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
+        )
+      ) : null}
 
       {!resolved && canReply ? (
         <form className="ops-form" onSubmit={onReply} noValidate>

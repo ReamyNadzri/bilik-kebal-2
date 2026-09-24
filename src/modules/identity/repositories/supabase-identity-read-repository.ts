@@ -1,3 +1,4 @@
+import { resolveAvatarUrl } from "@/lib/avatars";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -29,7 +30,7 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       await Promise.all([
         this.client
           .from("profiles")
-          .select("display_name, public_id, avatar_object_key, created_at")
+          .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
           .eq("user_id", user.id)
           .maybeSingle(),
         this.client
@@ -105,13 +106,16 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       membership.data?.verification_state ??
       (requestState === "pending" || requestState === "rejected" ? requestState : "unverified");
 
-    const avatarKey = profile.data.avatar_object_key;
     return {
       displayName: profile.data.display_name,
       publicId: profile.data.public_id,
-      avatarUrl: avatarKey
-        ? this.client.storage.from("avatars").getPublicUrl(avatarKey).data.publicUrl
-        : null,
+      avatarUrl: resolveAvatarUrl(
+        this.client,
+        profile.data.avatar_object_key,
+        profile.data.avatar_preset,
+      ),
+      avatarPreset: profile.data.avatar_preset,
+      email: user.email ?? null,
       joinedAt: profile.data.created_at,
       emailConfirmedAt: user.email_confirmed_at ?? null,
       hasActiveRestriction: Boolean(restriction.data),

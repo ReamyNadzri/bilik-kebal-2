@@ -129,7 +129,7 @@ export function publishFreeWanted(
   );
 }
 
-/** Opens a missing-item or discussion Wanted in one step. Always free. */
+/** Posts a missing-item or discussion Wanted: free opens at once; paid needs payment. */
 export function publishCommunityWanted(
   input: CommunityWantedInput,
 ): Promise<PublishCommunityWantedResult> {

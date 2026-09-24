@@ -24,6 +24,7 @@ const statusByCode: Readonly<Record<string, number>> = {
   MARKETPLACE_UNAVAILABLE: 503,
   AMOUNT_OUT_OF_RANGE: 422,
   REGION_CLOSED: 422,
+  FREE_LIMIT_REACHED: 409,
   VALIDATION_ERROR: 422,
 };
 

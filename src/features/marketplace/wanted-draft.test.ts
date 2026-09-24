@@ -96,7 +96,6 @@ describe("required fields", () => {
     ["faculty", { facultyId: "" }, "wanted-faculty"],
     ["programme", { programmeId: "" }, "wanted-programme"],
     ["course", { courseId: "" }, "wanted-course"],
-    ["session", { sessionId: "" }, "wanted-session"],
     ["resource type", { resourceTypeId: "" }, "wanted-resource-type"],
     ["language", { languageId: "" }, "wanted-language"],
     ["description", { description: "" }, "wanted-description"],
@@ -104,6 +103,42 @@ describe("required fields", () => {
     ["contribution", { contribution: "" }, "wanted-contribution"],
   ])("refuses a draft with no %s", (_name, values, fieldId) => {
     expect(errorFor(values as Partial<WantedDraftValues>, fieldId)).toBeDefined();
+  });
+
+  test("accepts a draft with no session, as covering any session", () => {
+    const result = validateDraft(aDraft({ sessionId: "" }), taxonomy());
+
+    expect(result.errors).toEqual([]);
+    expect(result.draft?.session).toBeNull();
+    expect(toDraftInput(result.draft!).academicSessionId).toBeNull();
+  });
+
+  test("refuses a session that is not in the list", () => {
+    expect(errorFor({ sessionId: "not-a-session" }, "wanted-session")).toBeDefined();
+  });
+
+  test("lets a missing item carry a bounty and validates its first contribution", () => {
+    const base = {
+      kind: "missing_item" as const,
+      title: "Lost blue water bottle",
+      description: "Left it in the library study room on level 2 on Monday afternoon.",
+    };
+    const paid = validateDraft(aDraft({ ...base, free: false, contribution: "15" }), taxonomy());
+    expect(paid.community?.contributionSen).toBe(1500);
+    expect(toCommunityInput(paid.community!)).toMatchObject({
+      free: false,
+      initialContributionSen: 1500,
+    });
+
+    const free = validateDraft(aDraft({ ...base, free: true }), taxonomy());
+    expect(toCommunityInput(free.community!)).toMatchObject({ free: true });
+    expect(toCommunityInput(free.community!)).not.toHaveProperty("initialContributionSen");
+
+    expect(
+      validateDraft(aDraft({ ...base, free: false, contribution: "80" }), taxonomy()).errors.map(
+        (error) => error.fieldId,
+      ),
+    ).toContain("wanted-contribution");
   });
 
   test("refuses a draft whose content policy was not accepted", () => {

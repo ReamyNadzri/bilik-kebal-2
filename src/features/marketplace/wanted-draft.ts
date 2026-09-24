@@ -47,7 +47,7 @@ const TAG_MAX = 5;
 /** What the form holds while it is being filled in: strings, as typed. */
 export interface WantedDraftValues {
   readonly kind: WantedKind;
-  /** Post without a bounty. Missing items and discussions are always free. */
+  /** Post without a bounty. Any kind may be free or carry a bounty. */
   readonly free: boolean;
   readonly lastSeenLocation: string;
   readonly title: string;
@@ -73,7 +73,8 @@ export interface ValidatedDraft {
   readonly faculty: TaxonomyItem;
   readonly programme: TaxonomyItem;
   readonly course: CourseOption;
-  readonly session: TaxonomyItem;
+  /** Null when the request covers any session. */
+  readonly session: TaxonomyItem | null;
   readonly resourceType: TaxonomyItem;
   readonly language: TaxonomyItem;
   readonly tags: readonly TaxonomyItem[];
@@ -90,6 +91,8 @@ export interface ValidatedCommunityWanted {
   readonly campus: TaxonomyItem;
   readonly lastSeenLocation: string | null;
   readonly durationDays: DurationDays;
+  /** Null when the request is posted free. */
+  readonly contributionSen: Sen | null;
 }
 
 export interface DraftFieldError {
@@ -133,6 +136,8 @@ export function toCommunityInput(wanted: ValidatedCommunityWanted): CommunityWan
     description: wanted.description,
     durationDays: wanted.durationDays,
     ...(wanted.lastSeenLocation === null ? {} : { lastSeenLocation: wanted.lastSeenLocation }),
+    free: wanted.contributionSen === null,
+    ...(wanted.contributionSen === null ? {} : { initialContributionSen: wanted.contributionSen }),
     policyAccepted: true,
   };
 }
@@ -155,7 +160,7 @@ export function toDraftInput(draft: ValidatedDraft): WantedDraftInput {
     facultyId: draft.faculty.id,
     programmeId: draft.programme.id,
     courseId: draft.course.id,
-    academicSessionId: draft.session.id,
+    academicSessionId: draft.session?.id ?? null,
     resourceTypeId: draft.resourceType.id,
     languageId: draft.language.id,
     tagIds: draft.tags.map((tag) => tag.id),
@@ -192,6 +197,33 @@ export function parseRinggitToSen(raw: string): AmountParse {
   }
 
   return { ok: true, sen: Number(whole) * 100 + Number(fraction.padEnd(2, "0")) };
+}
+
+/**
+ * The first contribution of a paid request, in sen, or null when free. Adds
+ * a field error and returns undefined when a paid amount is not valid.
+ */
+function validateContribution(
+  values: WantedDraftValues,
+  fail: (fieldId: string, message: string) => void,
+): number | null | undefined {
+  if (values.free) return null;
+  const amount = parseRinggitToSen(values.contribution);
+  if (values.contribution.trim() === "") {
+    fail("wanted-contribution", "Enter your first contribution.");
+  } else if (!amount.ok) {
+    fail(
+      "wanted-contribution",
+      amount.reason === "sub-sen"
+        ? "Enter an amount in Ringgit and sen, for example 10.50."
+        : "Enter your contribution as an amount, for example 10.",
+    );
+  } else if (amount.sen < MIN_CONTRIBUTION_SEN || amount.sen > MAX_CONTRIBUTION_SEN) {
+    fail("wanted-contribution", "Each contribution must be between RM1 and RM50.");
+  } else {
+    return amount.sen;
+  }
+  return undefined;
 }
 
 /**
@@ -248,10 +280,16 @@ export function validateDraft(
     if (durationDays === undefined) {
       fail("wanted-duration", `Choose ${MIN_DURATION_DAYS} to ${MAX_DURATION_DAYS} days.`);
     }
+    const communityContribution = validateContribution(values, fail);
     if (!values.policyAccepted) {
       fail("wanted-policy", "Accept the Terms before posting.");
     }
-    if (errors.length > 0 || campus === undefined || durationDays === undefined) {
+    if (
+      errors.length > 0 ||
+      campus === undefined ||
+      durationDays === undefined ||
+      communityContribution === undefined
+    ) {
       return { errors, draft: null, community: null };
     }
     return {
@@ -264,6 +302,7 @@ export function validateDraft(
         campus,
         lastSeenLocation: values.kind === "missing_item" && lastSeen.length >= 2 ? lastSeen : null,
         durationDays,
+        contributionSen: communityContribution === null ? null : sen(communityContribution),
       },
     };
   }
@@ -297,9 +336,11 @@ export function validateDraft(
     );
   }
 
-  const session = find(taxonomy.academicSessions, values.sessionId);
+  // Optional: an empty choice means the request covers any session.
+  const session =
+    values.sessionId === "" ? null : find(taxonomy.academicSessions, values.sessionId);
   if (session === undefined) {
-    fail("wanted-session", "Choose the academic session this request covers.");
+    fail("wanted-session", "Choose a session from the list, or leave it as any session.");
   }
 
   const resourceType = find(taxonomy.resourceTypes, values.resourceTypeId);
@@ -335,25 +376,7 @@ export function validateDraft(
     );
   }
 
-  const amount = parseRinggitToSen(values.contribution);
-  let contributionSen: number | null = null;
-
-  if (values.free) {
-    // No bounty: nothing to validate, nothing will be charged.
-  } else if (values.contribution.trim() === "") {
-    fail("wanted-contribution", "Enter your first contribution.");
-  } else if (!amount.ok) {
-    fail(
-      "wanted-contribution",
-      amount.reason === "sub-sen"
-        ? "Enter an amount in Ringgit and sen, for example 10.50."
-        : "Enter your contribution as an amount, for example 10.",
-    );
-  } else if (amount.sen < MIN_CONTRIBUTION_SEN || amount.sen > MAX_CONTRIBUTION_SEN) {
-    fail("wanted-contribution", "Each contribution must be between RM1 and RM50.");
-  } else {
-    contributionSen = amount.sen;
-  }
+  const contributionSen = validateContribution(values, fail);
 
   if (!values.policyAccepted) {
     fail("wanted-policy", "Accept the Terms before continuing.");
@@ -369,7 +392,7 @@ export function validateDraft(
     resourceType === undefined ||
     language === undefined ||
     durationDays === undefined ||
-    (!values.free && contributionSen === null)
+    contributionSen === undefined
   ) {
     return { errors, draft: null, community: null };
   }

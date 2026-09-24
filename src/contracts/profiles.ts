@@ -27,6 +27,11 @@ export const setAvatarInputSchema = z.object({
   objectKey: z.string().regex(AVATAR_OBJECT_KEY).nullable(),
 });
 
+/** One of the twelve drawn characters (0 to 11), or null for the default. */
+export const setAvatarPresetInputSchema = z.object({
+  preset: z.number().int().min(0).max(11).nullable(),
+});
+
 /**
  * What any verified member may see about another: display name, avatar, bio,
  * joined date, badges and the Wanteds they posted. Never an email address,

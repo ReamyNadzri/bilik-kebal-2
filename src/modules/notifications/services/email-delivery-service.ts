@@ -44,6 +44,11 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   appeal_updated: "Your appeal has an update",
   // In-app only; the outbox never queues it (migration 202609290001).
   wanted_reply: "Someone replied to your request",
+  taxonomy_request_approved: "The entry you asked for was added",
+  taxonomy_request_rejected: "The entry you asked for was not added",
+  community_payout_approved: "Your bounty release was approved",
+  community_payout_rejected: "Your bounty release was not approved",
+  community_bounty_awarded: "You were awarded a bounty",
 };
 
 export interface NotificationEmailDeliveryDependencies {
