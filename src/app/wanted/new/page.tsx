@@ -183,9 +183,10 @@ export default async function PostWantedPage() {
       <h1>Post a Wanted</h1>
 
       <p className="lede">
-        Ask for an academic resource, report a missing item or start a discussion. Choose how long it
-        stays open and, for academic requests, whether to offer a bounty or post it free. A Sheriff
-        reviews every claim before any resource is released or any bounty is paid to a Hunter.
+        Ask for an academic resource, report a missing item or start a discussion. Choose how long
+        it stays open and, for academic requests, whether to offer a bounty or post it free. A
+        Sheriff reviews every claim before any resource is released or any bounty is paid to a
+        Hunter.
       </p>
 
       {taxonomy === null ? (
