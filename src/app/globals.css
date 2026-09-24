@@ -158,9 +158,12 @@
 
   /* Type families. The variables are set on <html> by next/font in
      src/app/layout.tsx; the fallbacks keep every page readable without them. */
-  --font-ui: var(--font-family-karla), "Karla", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-ui:
+    var(--font-family-karla), "Karla", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial,
+    sans-serif;
   --font-display: var(--font-family-rye), "Rye", Georgia, "Times New Roman", serif;
-  --font-pixel: var(--font-family-silkscreen), "Silkscreen", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-pixel:
+    var(--font-family-silkscreen), "Silkscreen", ui-monospace, "Cascadia Mono", Consolas, monospace;
   /* Money is set in the readable family (context/ui-context.md, Typography).
      The design sets it in Rye; this one token is the switch if that rule changes. */
   --font-money: var(--font-ui);
