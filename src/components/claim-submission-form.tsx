@@ -34,6 +34,8 @@ export function ClaimSubmissionForm({
 }: ClaimSubmissionFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [rightsAttention, setRightsAttention] = useState(false);
+  const rightsRef = useRef<HTMLInputElement>(null);
   const [freeReleaseOptIn, setFreeReleaseOptIn] = useState(false);
   const [step, setStep] = useState<ClaimSubmissionStep | "idle" | "error">("idle");
   const [errorHeading, setErrorHeading] = useState<string>("");
@@ -84,9 +86,10 @@ export function ClaimSubmissionForm({
     }
 
     if (!rightsConfirmed) {
-      setStep("error");
-      setErrorHeading("Rights confirmation required");
-      setErrorMessage("You must confirm you have the rights to submit this resource.");
+      // Point at the box itself rather than replacing the form with an error:
+      // the Hunter's chosen file and opt-in stay exactly as they were.
+      setRightsAttention(true);
+      rightsRef.current?.focus();
       return;
     }
 
@@ -194,7 +197,7 @@ export function ClaimSubmissionForm({
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <p className="policy-note dialog__lede">
               Submitting for <strong>{wanted.title}</strong> ({wanted.courseCode}). Your file is
               kept private and reviewed by a Sheriff before anyone else can see it.
@@ -249,18 +252,28 @@ export function ClaimSubmissionForm({
             <fieldset className="consent-list">
               <legend className="draft-form__legend">Rights and release</legend>
 
-              <label className="consent">
+              <label className={`consent${rightsAttention ? " consent--attention" : ""}`}>
                 <input
+                  ref={rightsRef}
                   type="checkbox"
                   checked={rightsConfirmed}
-                  onChange={(e) => setRightsConfirmed(e.target.checked)}
-                  required
+                  onChange={(e) => {
+                    setRightsConfirmed(e.target.checked);
+                    if (e.target.checked) setRightsAttention(false);
+                  }}
+                  aria-invalid={rightsAttention ? true : undefined}
+                  aria-describedby={rightsAttention ? "claim-rights-error" : undefined}
                 />
                 <span>
                   <strong>I confirm I hold the rights</strong> to share this material, and it does
                   not break copyright, exam confidentiality or institution rules.
                 </span>
               </label>
+              {rightsAttention ? (
+                <p className="consent__error" id="claim-rights-error" role="alert">
+                  Tick this box to confirm you hold the rights before submitting.
+                </p>
+              ) : null}
 
               <label className="consent">
                 <input
@@ -279,11 +292,7 @@ export function ClaimSubmissionForm({
               <button type="button" className="button button--quiet" onClick={onClose}>
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="button button--primary"
-                disabled={!file || !rightsConfirmed}
-              >
+              <button type="submit" className="button button--primary" disabled={!file}>
                 Submit Claim
               </button>
             </div>

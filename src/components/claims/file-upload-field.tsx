@@ -46,6 +46,8 @@ export function FileUploadField({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   // Consent is an active choice: never pre-ticked on the Hunter's behalf.
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [rightsAttention, setRightsAttention] = useState(false);
+  const rightsRef = useRef<HTMLInputElement>(null);
   const [freeReleaseOptIn, setFreeReleaseOptIn] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -78,9 +80,10 @@ export function FileUploadField({
       }
 
       if (!rightsConfirmed) {
-        const errorMsg =
-          "Confirm that you are authorised to share this material, then choose your file again.";
-        setStage({ kind: "error", message: errorMsg });
+        const errorMsg = "Tick the rights confirmation, then choose your file again.";
+        setRightsAttention(true);
+        rightsRef.current?.focus();
+        if (fileInputRef.current) fileInputRef.current.value = "";
         onUploadError?.(errorMsg);
         return;
       }
@@ -310,18 +313,29 @@ export function FileUploadField({
         <>
           <fieldset className="consent-list">
             <legend className="draft-form__legend">Before you upload</legend>
-            <label className="consent">
+            <label className={`consent${rightsAttention ? " consent--attention" : ""}`}>
               <input
+                ref={rightsRef}
                 type="checkbox"
                 checked={rightsConfirmed}
-                onChange={(e) => setRightsConfirmed(e.target.checked)}
+                onChange={(e) => {
+                  setRightsConfirmed(e.target.checked);
+                  if (e.target.checked) setRightsAttention(false);
+                }}
                 disabled={disabled}
+                aria-invalid={rightsAttention ? true : undefined}
+                aria-describedby={rightsAttention ? "proof-rights-error" : undefined}
               />
               <span>
                 <strong>Required:</strong> I confirm I am authorised to share this academic material
                 and it follows the VAULTIX content policy.
               </span>
             </label>
+            {rightsAttention ? (
+              <p className="consent__error" id="proof-rights-error" role="alert">
+                Tick this box to confirm you are authorised to share the file, then choose it again.
+              </p>
+            ) : null}
 
             <label className="consent">
               <input

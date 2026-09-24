@@ -49,6 +49,12 @@ export type EvidenceUploadResult = OperationResult<
 
 export interface AccountViewModel {
   displayName: string;
+  /** Public profile address (`/u/[publicId]`); never the auth user id. */
+  publicId: string | null;
+  /** Public avatar image, or null for the drawn default. */
+  avatarUrl: string | null;
+  /** When the account was created: the "joined" date on a profile. */
+  joinedAt: string | null;
   trust: {
     email: "unverified" | "verified";
     institution: "unverified" | "pending" | "verified" | "rejected";

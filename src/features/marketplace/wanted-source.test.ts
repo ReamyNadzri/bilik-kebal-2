@@ -24,7 +24,11 @@ function aDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
     programme: "Bachelor of Computer Science",
     language: "English",
     tags: ["Final exam"],
-    commissioner: { displayName: "A student", emailVerified: true, institutionVerified: true },
+    commissioner: {
+      publicId: null,
+      avatarUrl: null,
+      joinedAt: null,
+      displayName: "A student", emailVerified: true, institutionVerified: true },
     feeRateBasisPoints: 1000,
     policyVersion: "2026-09-15.1",
     activity: [],

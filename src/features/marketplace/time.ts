@@ -48,6 +48,17 @@ export function formatPostedAge(postedAt: string, now: string): string {
   return `Posted ${describeAge(postedAt, now)}`;
 }
 
+/** "3 days old" — the poster's compact age, set beside the backer count. */
+export function formatAgeOld(postedAt: string, now: string): string {
+  const age = elapsed(postedAt, now);
+
+  if (age < DAY) {
+    return "New today";
+  }
+
+  return `${plural(Math.floor(age / DAY), "day")} old`;
+}
+
 /** "Submitted 3 days ago" — when the viewer sent their own claim. */
 export function formatSubmittedAge(submittedAt: string, now: string): string {
   return `Submitted ${describeAge(submittedAt, now)}`;
@@ -65,6 +76,8 @@ export interface ClosingTime {
 export interface FormatClosingOptions {
   /** The detail page has room for two units; a card has room for one. */
   readonly detail?: boolean;
+  /** `left` reads "11 days left", the poster's wording; `closes` reads "Closes in 11 days". */
+  readonly phrasing?: "closes" | "left";
 }
 
 /**
@@ -100,16 +113,19 @@ export function formatClosing(
     return { label: `${plural(hours, "hour")} ${plural(minutes, "minute")} left`, urgent };
   }
 
+  const phrase = (amount: string) =>
+    options.phrasing === "left" ? `${amount} left` : `Closes in ${amount}`;
+
   if (remaining >= DAY) {
-    return { label: `Closes in ${plural(Math.floor(remaining / DAY), "day")}`, urgent };
+    return { label: phrase(plural(Math.floor(remaining / DAY), "day")), urgent };
   }
 
   if (remaining >= HOUR) {
-    return { label: `Closes in ${plural(Math.floor(remaining / HOUR), "hour")}`, urgent };
+    return { label: phrase(plural(Math.floor(remaining / HOUR), "hour")), urgent };
   }
 
   return {
-    label: `Closes in ${plural(Math.max(1, Math.floor(remaining / MINUTE)), "minute")}`,
+    label: phrase(plural(Math.max(1, Math.floor(remaining / MINUTE)), "minute")),
     urgent,
   };
 }

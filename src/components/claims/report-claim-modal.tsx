@@ -68,46 +68,37 @@ export function ReportClaimModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="report-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="dialog-backdrop"
     >
-      <div className="w-full max-w-lg rounded-xl border border-stone-800 bg-stone-900 p-6 text-stone-100 shadow-2xl">
-        <h3 id="report-modal-title" className="text-xl font-bold tracking-tight">
+      <div className="dialog">
+        <h3 id="report-modal-title" className="dialog__title dialog__lede">
           Report Claim Submission
         </h3>
-        {claimTitle ? <p className="mt-1 text-sm text-stone-400">File: {claimTitle}</p> : null}
+        {claimTitle ? <p className="dialog__note">File: {claimTitle}</p> : null}
 
         {isHighRisk ? (
-          <div
-            role="alert"
-            className="mt-3 rounded-lg border border-amber-600/50 bg-amber-950/40 p-3 text-xs text-amber-200"
-          >
-            ⚠️ High-risk reports (personal data, malware, fraud) trigger an immediate temporary
+          <div role="alert" className="ops-alert ops-alert--warning dialog__lede">
+            High-risk reports (personal data, malware, fraud) trigger an immediate temporary
             quarantine restriction while under investigation.
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div
-            role="alert"
-            className="mt-3 rounded-lg border border-red-600/50 bg-red-950/40 p-3 text-xs text-red-200"
-          >
+          <div role="alert" className="ops-alert ops-alert--error dialog__lede">
             {errorMessage}
           </div>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
-            <label
-              htmlFor="report-category"
-              className="block text-xs font-semibold uppercase tracking-wider text-stone-400"
-            >
+        <form onSubmit={handleSubmit} className="ops-form">
+          <div className="form-field">
+            <label htmlFor="report-category" className="form-field__label">
               Issue Category
             </label>
             <select
               id="report-category"
               value={category}
               onChange={(e) => setCategory(e.target.value as ClaimReportCategory)}
-              className="mt-1 w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm text-stone-100 focus:border-amber-500 focus:outline-none"
+              className="select-field"
             >
               {CLAIM_REPORT_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -117,11 +108,8 @@ export function ReportClaimModal({
             </select>
           </div>
 
-          <div>
-            <label
-              htmlFor="report-description"
-              className="block text-xs font-semibold uppercase tracking-wider text-stone-400"
-            >
+          <div className="form-field">
+            <label htmlFor="report-description" className="form-field__label">
               Description & Evidence
             </label>
             <textarea
@@ -130,24 +118,20 @@ export function ReportClaimModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Explain why this claim violates academic standards or platform guidelines (min 10 characters)..."
-              className="mt-1 w-full rounded-lg border border-stone-700 bg-stone-800 p-3 text-sm text-stone-100 placeholder:text-stone-500 focus:border-amber-500 focus:outline-none"
+              className="form-field__input"
             />
           </div>
 
-          <div className="flex items-center justify-end space-x-3 pt-2">
+          <div className="dialog__actions">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-stone-400 hover:text-stone-200"
+              className="button button--quiet"
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-600 disabled:opacity-50"
-            >
+            <button type="submit" disabled={isSubmitting} className="button button--primary">
               {isSubmitting ? "Submitting..." : "Submit Report"}
             </button>
           </div>

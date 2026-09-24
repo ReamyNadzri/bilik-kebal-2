@@ -85,7 +85,7 @@ function items(group: string, labels: readonly string[]) {
 
 const TAXONOMY: MarketplaceTaxonomy = {
   provenance: "reviewed_configuration",
-  campuses: items("aaaa", CAMPUSES),
+  campuses: items("aaaa", CAMPUSES).map((campus) => ({ ...campus, regionOpen: true })),
   faculties: items("bbbb", FACULTIES),
   programmes: PROGRAMMES.map(([label, facultyIndex], index) => ({
     id: id("cccc", index),

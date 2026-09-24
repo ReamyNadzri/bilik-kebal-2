@@ -157,3 +157,71 @@ describe("WantedPublicationService", () => {
     ).toMatchObject({ ok: false, code });
   });
 });
+
+describe("WantedPublicationService.publishFree", () => {
+  const publisher = (outcome: "published" | "required" | "expired") => ({
+    publishFree: vi.fn().mockResolvedValue({
+      outcome,
+      publicId: outcome === "published" ? "11111111-1111-4111-8111-111111111111" : null,
+    }),
+  });
+
+  it("opens the draft with no payment step, even while payments are disabled", async () => {
+    const free = publisher("published");
+    const service = new WantedPublicationService(repository(), {
+      paymentAvailability: "disabled",
+      freePublisher: free,
+    });
+
+    const result = await service.publishFree(actor, { draftId, duplicateCheckToken: validToken });
+
+    expect(result).toEqual({
+      ok: true,
+      data: { state: "open", wantedId: "11111111-1111-4111-8111-111111111111" },
+    });
+    expect(free.publishFree).toHaveBeenCalledWith(
+      expect.objectContaining({ draftId, policyVersion: "2026-09-15.1" }),
+    );
+  });
+
+  it("refuses a forged duplicate token before touching the database", async () => {
+    const free = publisher("published");
+    const service = new WantedPublicationService(repository(), {
+      paymentAvailability: "disabled",
+      freePublisher: free,
+    });
+
+    const result = await service.publishFree(actor, {
+      draftId,
+      duplicateCheckToken: `${nonce}.${"0".repeat(64)}`,
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "DUPLICATE_CHECK_REQUIRED" });
+    expect(free.publishFree).not.toHaveBeenCalled();
+  });
+
+  it("reports an expired duplicate check rather than publishing", async () => {
+    const service = new WantedPublicationService(repository(), {
+      paymentAvailability: "disabled",
+      freePublisher: publisher("expired"),
+    });
+
+    const result = await service.publishFree(actor, { draftId, duplicateCheckToken: validToken });
+
+    expect(result).toMatchObject({ ok: false, code: "DUPLICATE_CHECK_EXPIRED" });
+  });
+
+  it("requires institution verification", async () => {
+    const service = new WantedPublicationService(repository(), {
+      paymentAvailability: "disabled",
+      freePublisher: publisher("published"),
+    });
+
+    const result = await service.publishFree(
+      { ...actor, institutionVerified: false },
+      { draftId, duplicateCheckToken: validToken },
+    );
+
+    expect(result).toMatchObject({ ok: false, code: "INSTITUTION_VERIFICATION_REQUIRED" });
+  });
+});

@@ -5,6 +5,9 @@ import type { WantedRepository } from "../repositories/wanted-repository";
 
 const summary = (id: string): WantedSummary => ({
   id,
+  kind: "academic",
+  isFree: false,
+  lastSeenLocation: null,
   title: "CSC510 Final Exam Notes",
   courseCode: "CSC510",
   courseName: "Advanced Computing",
@@ -29,7 +32,14 @@ const detail: WantedDetail = {
   programme: "Computer Science",
   language: "English",
   tags: ["exam"],
-  commissioner: { displayName: "A Student", emailVerified: true, institutionVerified: true },
+  commissioner: {
+    publicId: null,
+    avatarUrl: null,
+    joinedAt: null,
+    displayName: "A Student",
+    emailVerified: true,
+    institutionVerified: true,
+  },
   feeRateBasisPoints: 1000,
   policyVersion: "2026-09-01",
   activity: [],

@@ -27,7 +27,11 @@ function aDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
     programme: "Bachelor of Computer Science",
     language: "English",
     tags: ["Final exam", "Summary notes"],
-    commissioner: { displayName: "A classmate", emailVerified: true, institutionVerified: true },
+    commissioner: {
+      publicId: null,
+      avatarUrl: null,
+      joinedAt: null,
+      displayName: "A classmate", emailVerified: true, institutionVerified: true },
     feeRateBasisPoints: 1000,
     policyVersion: "2026-09-15.1",
     activity: [{ id: "event-1", at: "2026-09-12T09:00:00.000Z", summary: "Request published" }],
@@ -64,7 +68,7 @@ describe("reading one request", () => {
   test("renders the bounty from integer sen and the backer count", async () => {
     await renderPage();
 
-    expect(screen.getByText("Total bounty RM 85")).toBeInTheDocument();
+    expect(screen.getByText("Total bounty RM 85.00")).toBeInTheDocument();
     expect(screen.getByText("6 backers")).toBeInTheDocument();
   });
 
@@ -132,7 +136,10 @@ describe("the Commissioner as the reader sees them", () => {
       ok: true,
       data: aDetail({
         commissioner: {
-          displayName: "A classmate",
+      publicId: null,
+      avatarUrl: null,
+      joinedAt: null,
+      displayName: "A classmate",
           emailVerified: true,
           institutionVerified: false,
         },

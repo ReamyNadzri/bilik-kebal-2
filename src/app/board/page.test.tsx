@@ -191,7 +191,7 @@ describe("what the Board shows", () => {
       "href",
       "/wanted/one",
     );
-    expect(screen.getByText("Total bounty RM 85")).toBeInTheDocument();
+    expect(screen.getByText("Total bounty RM 85.00")).toBeInTheDocument();
     expect(screen.getByText("Total bounty RM 12.50")).toBeInTheDocument();
   });
 

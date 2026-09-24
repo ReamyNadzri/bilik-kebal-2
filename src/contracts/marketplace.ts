@@ -2,7 +2,16 @@ import { z } from "zod";
 import type { OperationResult } from "./operation-result";
 
 export type Sen = number & { readonly __brand: "Sen" };
-export type WantedDurationDays = 7 | 14 | 30;
+/** How long a request stays open: any whole number of days from 3 to 30. */
+export type WantedDurationDays = number;
+export const WANTED_DURATION_MIN_DAYS = 3;
+export const WANTED_DURATION_MAX_DAYS = 30;
+/**
+ * What a Wanted asks for. Academic requests take file claims and may carry a
+ * bounty; missing items and discussions take text replies and are always free.
+ */
+export type WantedKind = "academic" | "missing_item" | "discussion";
+export const wantedKinds = ["academic", "missing_item", "discussion"] as const;
 export type WantedLifecycle = "draft" | "awaiting_payment" | "open" | "reviewing" | "expired";
 
 export type MarketplaceOperationCode =
@@ -20,12 +29,13 @@ export type MarketplaceOperationCode =
   | "PAYMENT_DISABLED"
   | "PAYMENT_UNAVAILABLE"
   | "AMOUNT_OUT_OF_RANGE"
+  | "REGION_CLOSED"
   | "MARKETPLACE_UNAVAILABLE";
 
 const uuid = z.uuid();
 const authoredText = (minimum: number, maximum: number) =>
   z.string().trim().min(minimum).max(maximum);
-const durationDaysSchema = z.union([z.literal(7), z.literal(14), z.literal(30)]);
+const durationDaysSchema = z.number().int().min(3).max(30);
 
 export const senSchema = z
   .number()
@@ -75,10 +85,65 @@ export const publicationInputSchema = z.object({
 
 export type PrepareWantedPublicationInput = z.input<typeof publicationInputSchema>;
 
+/** Opens an academic draft with no bounty: no payment step and no fee. */
+export const freePublicationInputSchema = z.object({
+  draftId: uuid,
+  duplicateCheckToken: z.string().trim().min(32).max(512),
+});
+
+export type PublishFreeWantedInput = z.input<typeof freePublicationInputSchema>;
+
+/** A missing-item or discussion Wanted, opened in one step and always free. */
+export const communityWantedInputSchema = z.object({
+  kind: z.enum(["missing_item", "discussion"]),
+  campusId: uuid,
+  title: authoredText(8, 120),
+  description: authoredText(20, 2000),
+  durationDays: durationDaysSchema,
+  lastSeenLocation: z.string().trim().min(2).max(160).optional(),
+  policyAccepted: z.literal(true),
+});
+
+export type CommunityWantedInput = z.input<typeof communityWantedInputSchema>;
+
+export const wantedReplyInputSchema = z.object({
+  body: authoredText(2, 1000),
+});
+
+export interface WantedReply {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: PublicMemberCard;
+}
+
+/** The public face of a member: never an email, evidence, claim or contribution. */
+export interface PublicMemberCard {
+  publicId: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+/** A campus as the map shows it. Closed regions carry no counts. */
+export interface CampusRegion {
+  id: string;
+  name: string;
+  regionOpen: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  openWantedCount: number;
+  openBountySen: Sen;
+}
+
 export interface TaxonomyItem {
   id: string;
   slug: string;
   label: string;
+}
+
+export interface CampusOption extends TaxonomyItem {
+  /** Only campuses in an open region accept new Wanteds. */
+  regionOpen: boolean;
 }
 
 export interface ProgrammeOption extends TaxonomyItem {
@@ -92,7 +157,7 @@ export interface CourseOption extends TaxonomyItem {
 
 export interface MarketplaceTaxonomy {
   provenance: "reviewed_configuration";
-  campuses: TaxonomyItem[];
+  campuses: CampusOption[];
   faculties: TaxonomyItem[];
   programmes: ProgrammeOption[];
   courses: CourseOption[];
@@ -111,6 +176,9 @@ export interface WantedDraftView {
 
 export interface WantedSummary {
   id: string;
+  kind: WantedKind;
+  /** No bounty: nobody pays, no fee is taken, the poster receives the resource. */
+  isFree: boolean;
   title: string;
   courseCode: string;
   courseName: string;
@@ -126,6 +194,8 @@ export interface WantedSummary {
   status: "open" | "ending-soon" | "well-funded" | "reviewing" | "closed";
   postedAt: string;
   closesAt: string;
+  /** Missing items only: where it was last seen. */
+  lastSeenLocation: string | null;
 }
 
 export interface WantedDetail extends WantedSummary {
@@ -135,7 +205,10 @@ export interface WantedDetail extends WantedSummary {
   language: string;
   tags: string[];
   commissioner: {
+    publicId: string | null;
     displayName: string;
+    avatarUrl: string | null;
+    joinedAt: string | null;
     emailVerified: boolean;
     institutionVerified: boolean;
   };
@@ -157,6 +230,7 @@ export interface ListWantedQuery {
   resourceTypeId?: string;
   academicSessionId?: string;
   status?: "open" | "reviewing";
+  kind?: WantedKind;
   sort?: "newest" | "highest_bounty" | "ending_soon";
 }
 
@@ -187,3 +261,15 @@ export type PrepareWantedPublicationResult = OperationResult<
 >;
 export type ListWantedResult = OperationResult<WantedSummary[], MarketplaceOperationCode>;
 export type ReadWantedResult = OperationResult<WantedDetail, MarketplaceOperationCode>;
+export type PublishFreeWantedResult = OperationResult<
+  { wantedId: string; state: "open" },
+  MarketplaceOperationCode
+>;
+export type PublishCommunityWantedResult = OperationResult<
+  { wantedId: string; state: "open" },
+  MarketplaceOperationCode
+>;
+export type ListWantedRepliesResult = OperationResult<WantedReply[], MarketplaceOperationCode>;
+export type PostWantedReplyResult = OperationResult<{ replyId: string }, MarketplaceOperationCode>;
+export type ResolveWantedResult = OperationResult<{ state: "closed" }, MarketplaceOperationCode>;
+export type ListCampusRegionsResult = OperationResult<CampusRegion[], MarketplaceOperationCode>;

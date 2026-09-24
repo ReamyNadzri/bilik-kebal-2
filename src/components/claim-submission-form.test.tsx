@@ -8,6 +8,9 @@ import * as claimOps from "@/features/claims/claim-operations";
 function createWantedDetail(): WantedDetail {
   return {
     id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "CSC510 Operating Systems Lecture Notes",
     courseCode: "CSC510",
     courseName: "Operating Systems",
@@ -30,7 +33,11 @@ function createWantedDetail(): WantedDetail {
     programme: "Computer Science",
     language: "English",
     tags: [],
-    commissioner: { displayName: "Student A", emailVerified: true, institutionVerified: true },
+    commissioner: {
+      publicId: null,
+      avatarUrl: null,
+      joinedAt: null,
+      displayName: "Student A", emailVerified: true, institutionVerified: true },
     activity: [],
     similarIds: [],
   };
@@ -41,7 +48,7 @@ describe("ClaimSubmissionForm", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders upload dropzone, rights confirmation checkbox, and disabled submit button", () => {
+  it("renders upload dropzone, rights confirmation checkbox, and a submit that waits for a file", () => {
     const wanted = createWantedDetail();
     render(<ClaimSubmissionForm wanted={wanted} onClose={vi.fn()} />);
 
@@ -97,6 +104,26 @@ describe("ClaimSubmissionForm", () => {
       "/claims",
     );
     expect(onSubmitted).toHaveBeenCalledWith("claim-999");
+  });
+
+  it("highlights the rights box and keeps the chosen file when submitting unticked", () => {
+    render(<ClaimSubmissionForm wanted={createWantedDetail()} onClose={vi.fn()} />);
+
+    const file = new File(["notes"], "notes.pdf", { type: "application/pdf" });
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, {
+      target: { files: [file] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Claim" }));
+
+    const rights = screen.getByLabelText(/I confirm I hold the rights/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/tick this box/i);
+    expect(rights).toHaveAttribute("aria-invalid", "true");
+    expect(rights).toHaveFocus();
+    expect(rights.closest("label")).toHaveClass("consent--attention");
+    expect(screen.getByText("notes.pdf")).toBeInTheDocument();
+
+    fireEvent.click(rights);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("opens the file picker from the keyboard: the file input is labelled and focusable", () => {

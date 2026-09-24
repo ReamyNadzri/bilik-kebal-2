@@ -7,6 +7,9 @@ import { toSen } from "@/features/marketplace/money";
 function createWantedDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
   return {
     id: "wanted-123",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "CSC510 Operating Systems Lecture Notes",
     courseCode: "CSC510",
     courseName: "Operating Systems",
@@ -29,7 +32,11 @@ function createWantedDetail(overrides: Partial<WantedDetail> = {}): WantedDetail
     programme: "Computer Science",
     language: "English",
     tags: [],
-    commissioner: { displayName: "Student A", emailVerified: true, institutionVerified: true },
+    commissioner: {
+      publicId: null,
+      avatarUrl: null,
+      joinedAt: null,
+      displayName: "Student A", emailVerified: true, institutionVerified: true },
     activity: [],
     similarIds: [],
     ...overrides,

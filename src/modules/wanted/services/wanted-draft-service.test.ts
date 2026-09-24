@@ -104,7 +104,7 @@ describe("WantedDraftService", () => {
   it("returns field errors for malformed inputs", async () => {
     const result = await new WantedDraftService(repository()).create(actor, {
       ...input,
-      durationDays: 10,
+      durationDays: 45,
       title: "short",
     });
     expect(result).toMatchObject({

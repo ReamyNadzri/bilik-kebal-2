@@ -23,6 +23,7 @@ const statusByCode: Readonly<Record<string, number>> = {
   PAYMENT_PROVIDER_REJECTED: 200,
   MARKETPLACE_UNAVAILABLE: 503,
   AMOUNT_OUT_OF_RANGE: 422,
+  REGION_CLOSED: 422,
   VALIDATION_ERROR: 422,
 };
 

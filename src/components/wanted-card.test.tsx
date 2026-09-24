@@ -34,7 +34,7 @@ test("labels the campus, resource type and session rather than running them toge
 
   expect(within(details).getByText("Campus")).toBeInTheDocument();
   expect(within(details).getByText("UiTM Shah Alam")).toBeInTheDocument();
-  expect(within(details).getByText("Resource")).toBeInTheDocument();
+  expect(within(details).getByText("Type")).toBeInTheDocument();
   expect(within(details).getByText("Lecture notes")).toBeInTheDocument();
   expect(within(details).getByText("Session")).toBeInTheDocument();
   expect(within(details).getByText("Semester 2, 2024/2025")).toBeInTheDocument();
@@ -43,7 +43,7 @@ test("labels the campus, resource type and session rather than running them toge
 test("shows the gross bounty formatted in Ringgit", () => {
   renderCard({ grossBountySen: 8500 as never });
 
-  expect(screen.getByText("Total bounty RM 85")).toBeInTheDocument();
+  expect(screen.getByText("Total bounty RM 85.00")).toBeInTheDocument();
 });
 
 test("shows the backer count", () => {
@@ -67,7 +67,7 @@ test("invites the first backer when there are none", () => {
 test("shows how long is left while the request is open", () => {
   renderCard({ closesAt: "2026-09-17T00:00:00.000Z" });
 
-  expect(screen.getByText("Closes in 2 days")).toBeInTheDocument();
+  expect(screen.getByText("2 days left")).toBeInTheDocument();
 });
 
 test("shows how old a closed request is instead of a dead countdown", () => {

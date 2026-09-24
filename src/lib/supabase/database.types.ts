@@ -132,7 +132,10 @@ export type Database = {
           created_at: string;
           id: string;
           institution_id: string;
+          latitude: number | null;
+          longitude: number | null;
           name: string;
+          region_open: boolean;
           slug: string;
           sort_order: number;
           updated_at: string;
@@ -142,7 +145,10 @@ export type Database = {
           created_at?: string;
           id?: string;
           institution_id: string;
+          latitude?: number | null;
+          longitude?: number | null;
           name: string;
+          region_open?: boolean;
           slug: string;
           sort_order?: number;
           updated_at?: string;
@@ -152,7 +158,10 @@ export type Database = {
           created_at?: string;
           id?: string;
           institution_id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
           name?: string;
+          region_open?: boolean;
           slug?: string;
           sort_order?: number;
           updated_at?: string;
@@ -1389,20 +1398,32 @@ export type Database = {
       };
       profiles: {
         Row: {
+          avatar_object_key: string | null;
+          avatar_updated_at: string | null;
+          bio: string | null;
           created_at: string;
           display_name: string;
+          public_id: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
+          avatar_object_key?: string | null;
+          avatar_updated_at?: string | null;
+          bio?: string | null;
           created_at?: string;
           display_name: string;
+          public_id?: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
+          avatar_object_key?: string | null;
+          avatar_updated_at?: string | null;
+          bio?: string | null;
           created_at?: string;
           display_name?: string;
+          public_id?: string;
           updated_at?: string;
           user_id?: string;
         };
@@ -1735,89 +1756,125 @@ export type Database = {
           },
         ];
       };
+      wanted_replies: {
+        Row: {
+          author_user_id: string;
+          body: string;
+          created_at: string;
+          hidden_at: string | null;
+          id: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          author_user_id: string;
+          body: string;
+          created_at?: string;
+          hidden_at?: string | null;
+          id?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          author_user_id?: string;
+          body?: string;
+          created_at?: string;
+          hidden_at?: string | null;
+          id?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [];
+      };
       wanted_requests: {
         Row: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           access_basis_snapshot: Database["public"]["Enums"]["wanted_access_basis"] | null;
           campus_id: string;
           closes_at: string | null;
           commissioner_user_id: string;
-          course_id: string;
+          course_id: string | null;
           created_at: string;
           description: string;
           duration_days_snapshot: number | null;
-          faculty_id: string;
+          faculty_id: string | null;
           fee_rate_basis_points_snapshot: number | null;
           id: string;
           institution_id: string;
+          is_free: boolean;
           is_paused: boolean;
-          language_id: string;
+          kind: Database["public"]["Enums"]["wanted_kind"];
+          last_seen_location: string | null;
+          language_id: string | null;
           paused_at: string | null;
           policy_accepted_at: string;
           policy_version_snapshot: string | null;
-          programme_id: string;
+          programme_id: string | null;
           public_id: string;
           published_at: string | null;
           requested_duration_days: number;
-          resource_type_id: string;
+          resource_type_id: string | null;
           status: Database["public"]["Enums"]["wanted_status"];
           title: string;
           total_paused_duration: string;
           updated_at: string;
         };
         Insert: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           access_basis_snapshot?: Database["public"]["Enums"]["wanted_access_basis"] | null;
           campus_id: string;
           closes_at?: string | null;
           commissioner_user_id: string;
-          course_id: string;
+          course_id: string | null;
           created_at?: string;
           description: string;
           duration_days_snapshot?: number | null;
-          faculty_id: string;
+          faculty_id: string | null;
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id: string;
+          is_free?: boolean;
           is_paused?: boolean;
-          language_id: string;
+          kind?: Database["public"]["Enums"]["wanted_kind"];
+          last_seen_location?: string | null;
+          language_id: string | null;
           paused_at?: string | null;
           policy_accepted_at: string;
           policy_version_snapshot?: string | null;
-          programme_id: string;
+          programme_id: string | null;
           public_id?: string;
           published_at?: string | null;
           requested_duration_days: number;
-          resource_type_id: string;
+          resource_type_id: string | null;
           status?: Database["public"]["Enums"]["wanted_status"];
           title: string;
           total_paused_duration?: string;
           updated_at?: string;
         };
         Update: {
-          academic_session_id?: string;
+          academic_session_id?: string | null;
           access_basis_snapshot?: Database["public"]["Enums"]["wanted_access_basis"] | null;
           campus_id?: string;
           closes_at?: string | null;
           commissioner_user_id?: string;
-          course_id?: string;
+          course_id?: string | null;
           created_at?: string;
           description?: string;
           duration_days_snapshot?: number | null;
-          faculty_id?: string;
+          faculty_id?: string | null;
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id?: string;
+          is_free?: boolean;
           is_paused?: boolean;
-          language_id?: string;
+          kind?: Database["public"]["Enums"]["wanted_kind"];
+          last_seen_location?: string | null;
+          language_id?: string | null;
           paused_at?: string | null;
           policy_accepted_at?: string;
           policy_version_snapshot?: string | null;
-          programme_id?: string;
+          programme_id?: string | null;
           public_id?: string;
           published_at?: string | null;
           requested_duration_days?: number;
-          resource_type_id?: string;
+          resource_type_id?: string | null;
           status?: Database["public"]["Enums"]["wanted_status"];
           title?: string;
           total_paused_duration?: string;
@@ -1894,6 +1951,43 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      post_wanted_reply: {
+        Args: { reply_body: string; target_public_id: string };
+        Returns: string;
+      };
+      publish_community_wanted: {
+        Args: {
+          target_campus_id: string;
+          target_description: string;
+          target_duration_days: number;
+          target_kind: Database["public"]["Enums"]["wanted_kind"];
+          target_last_seen_location: string | null;
+          target_policy_version: string;
+          target_title: string;
+        };
+        Returns: string;
+      };
+      publish_free_wanted: {
+        Args: {
+          target_criteria_hash_hex: string;
+          target_draft_id: string;
+          target_policy_version: string;
+          target_token_hash_hex: string;
+        };
+        Returns: string;
+      };
+      resolve_own_community_wanted: {
+        Args: { target_public_id: string };
+        Returns: undefined;
+      };
+      set_own_avatar: {
+        Args: { new_object_key: string | null };
+        Returns: undefined;
+      };
+      update_own_profile: {
+        Args: { new_bio: string | null; new_display_name: string };
+        Returns: undefined;
+      };
       approve_winning_claim_and_fulfill: {
         Args: {
           target_claim_id: string;
@@ -2110,7 +2204,8 @@ export type Database = {
       platform_role: "owner" | "platform_sheriff";
       refund_task_status: "pending" | "processing" | "completed" | "failed";
       verification_request_state: "pending" | "approved" | "rejected";
-      wanted_access_basis: "contributors_only";
+      wanted_access_basis: "contributors_only" | "commissioner_free";
+      wanted_kind: "academic" | "missing_item" | "discussion";
       wanted_status:
         "draft" | "awaiting_payment" | "open" | "reviewing" | "expired" | "fulfilled" | "closed";
     };
@@ -2269,7 +2364,8 @@ export const Constants = {
       platform_role: ["owner", "platform_sheriff"],
       refund_task_status: ["pending", "processing", "completed", "failed"],
       verification_request_state: ["pending", "approved", "rejected"],
-      wanted_access_basis: ["contributors_only"],
+      wanted_access_basis: ["contributors_only", "commissioner_free"],
+      wanted_kind: ["academic", "missing_item", "discussion"],
       wanted_status: [
         "draft",
         "awaiting_payment",

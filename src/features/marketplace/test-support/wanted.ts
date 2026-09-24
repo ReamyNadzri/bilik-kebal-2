@@ -14,6 +14,9 @@ import type { HuntOpportunity, WantedSummary } from "../types";
 export function aWanted(overrides: Partial<WantedSummary> = {}): WantedSummary {
   return {
     id: "csc510-final-exam-notes",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Final exam notes and summary for chapters 1 to 12",
     courseCode: "CSC510",
     courseName: "Database Systems",

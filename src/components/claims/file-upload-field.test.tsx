@@ -194,7 +194,9 @@ describe("FileUploadField", () => {
       target: { files: [new File([new Uint8Array(10)], "notes.pdf", { type: "application/pdf" })] },
     });
 
-    expect(await screen.findByText(/confirm that you are authorised/i)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/tick this box/i);
+    expect(rights).toHaveFocus();
+    expect(rights.closest("label")).toHaveClass("consent--attention");
     expect(fetch).not.toHaveBeenCalled();
   });
 });

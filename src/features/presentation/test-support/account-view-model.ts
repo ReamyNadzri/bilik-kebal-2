@@ -15,6 +15,9 @@ import type { AccountViewModel } from "@/contracts";
 export function anAccountViewModel(overrides: Partial<AccountViewModel> = {}): AccountViewModel {
   return {
     displayName: "Synthetic Tester",
+    publicId: null,
+    avatarUrl: null,
+    joinedAt: null,
     trust: { email: "verified", institution: "unverified", restricted: false },
     capabilities: {
       browseMetadata: true,

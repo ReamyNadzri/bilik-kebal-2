@@ -40,6 +40,8 @@ export const MARKETPLACE_MESSAGE: Record<MarketplaceOperationCode | MoneyOperati
   PAYMENT_PROVIDER_REJECTED: "The payment provider rejected this bill request.",
   PAYMENT_CALLBACK_INVALID: "The payment callback payload was invalid.",
   PAYMENT_CALLBACK_REPLAY: "This payment event has already been processed.",
+  REGION_CLOSED:
+    "This campus is not open for new requests yet. VAULTIX is opening campuses region by region.",
 };
 
 /** The operation's own message when it sent one, this module's copy otherwise. */

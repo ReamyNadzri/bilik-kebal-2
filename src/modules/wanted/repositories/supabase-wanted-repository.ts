@@ -1,9 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  CampusRegion,
   ListWantedQuery,
   Sen,
   ValidatedWantedDraftInput,
   WantedDetail,
+  WantedKind,
+  WantedReply,
   WantedSummary,
 } from "@/contracts/marketplace";
 import type { Database } from "@/lib/supabase/database.types";
@@ -12,30 +15,13 @@ import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-
 import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./wanted-repository";
 
 type Client = SupabaseClient<Database>;
-type ContributionRow = {
-  wanted_request_id: string;
-  amount_sen: number;
-  contributor_user_id: string;
-};
-type WantedRow = {
-  id: string;
-  public_id: string;
-  commissioner_user_id: string;
-  institution_id: string;
-  campus_id: string;
-  faculty_id: string;
-  programme_id: string;
-  course_id: string;
-  academic_session_id: string;
-  resource_type_id: string;
-  language_id: string;
-  title: string;
-  description: string;
-  status: Database["public"]["Enums"]["wanted_status"];
-  published_at: string | null;
-  closes_at: string | null;
-  fee_rate_basis_points_snapshot: number | null;
-  policy_version_snapshot: string | null;
+type WantedRow = Database["public"]["Tables"]["wanted_requests"]["Row"];
+
+const PUBLIC_STATUSES = ["open", "reviewing", "expired", "fulfilled", "closed"] as const;
+const KIND_LABEL: Record<WantedKind, string> = {
+  academic: "Academic resource",
+  missing_item: "Missing item",
+  discussion: "Discussion",
 };
 
 function rpcArgs(values: ValidatedWantedDraftInput) {
@@ -54,8 +40,18 @@ function rpcArgs(values: ValidatedWantedDraftInput) {
   };
 }
 
+const present = (values: ReadonlyArray<string | null>): string[] => [
+  ...new Set(values.filter((value): value is string => value !== null)),
+];
+
 export class SupabaseWantedRepository implements WantedRepository {
   constructor(private readonly client: Client) {}
+
+  /** Public URL of an avatar object, or null. The bucket is public by design. */
+  avatarUrl(objectKey: string | null): string | null {
+    if (!objectKey) return null;
+    return this.client.storage.from("avatars").getPublicUrl(objectKey).data.publicUrl;
+  }
 
   async listPublicWanted(query: ListWantedQuery): Promise<WantedSummary[]> {
     let request = this.client
@@ -65,6 +61,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       .order("published_at", { ascending: false })
       .limit(100);
     if (query.status) request = request.eq("status", query.status);
+    if (query.kind) request = request.eq("kind", query.kind);
     if (query.campusId) request = request.eq("campus_id", query.campusId);
     if (query.courseId) request = request.eq("course_id", query.courseId);
     if (query.resourceTypeId) request = request.eq("resource_type_id", query.resourceTypeId);
@@ -76,22 +73,54 @@ export class SupabaseWantedRepository implements WantedRepository {
     return sortWantedSummaries(await this.toSummaries(data ?? []), query.sort);
   }
 
+  /** Published Wanteds by internal id, newest first (profiles, archive). */
+  async listWantedByIds(ids: readonly string[]): Promise<WantedSummary[]> {
+    if (ids.length === 0) return [];
+    const { data, error } = await this.client
+      .from("wanted_requests")
+      .select("*")
+      .in("id", [...ids])
+      .in("status", [...PUBLIC_STATUSES])
+      .order("published_at", { ascending: false });
+    if (error) throw error;
+    return this.toSummaries(data ?? []);
+  }
+
+  /** Fulfilled and resolved Wanteds: the Archive. */
+  async listArchivedWanted(limit = 60): Promise<WantedSummary[]> {
+    const { data, error } = await this.client
+      .from("wanted_requests")
+      .select("*")
+      .in("status", ["fulfilled", "closed"])
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return this.toSummaries(data ?? []);
+  }
+
   async readPublicWanted(publicId: string): Promise<WantedDetail | null> {
-    const { data: row, error } = (await this.client
+    const { data: row, error } = await this.client
       .from("wanted_requests")
       .select("*")
       .eq("public_id", publicId)
-      .in("status", ["open", "reviewing", "expired"])
-      .maybeSingle()) as { data: WantedRow | null; error: Error | null };
+      .in("status", [...PUBLIC_STATUSES])
+      .maybeSingle();
     if (error) throw error;
     if (!row) return null;
     const summaries = await this.toSummaries([row]);
     const summary = summaries[0];
     if (!summary) return null;
+    const optionalName = async (
+      table: "faculties" | "programmes" | "languages",
+      id: string | null,
+    ) => {
+      if (!id) return { data: null, error: null };
+      return this.client.from(table).select("name").eq("id", id).maybeSingle();
+    };
     const [faculty, programme, language, tags, events, profile, membership] = await Promise.all([
-      this.client.from("faculties").select("name").eq("id", row.faculty_id).maybeSingle(),
-      this.client.from("programmes").select("name").eq("id", row.programme_id).maybeSingle(),
-      this.client.from("languages").select("name").eq("id", row.language_id).maybeSingle(),
+      optionalName("faculties", row.faculty_id),
+      optionalName("programmes", row.programme_id),
+      optionalName("languages", row.language_id),
       this.client.from("wanted_request_tags").select("tag_id").eq("wanted_request_id", row.id),
       this.client
         .from("wanted_public_events")
@@ -101,7 +130,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         .limit(20),
       this.client
         .from("profiles")
-        .select("display_name")
+        .select("display_name, public_id, avatar_object_key, created_at")
         .eq("user_id", row.commissioner_user_id)
         .maybeSingle(),
       this.client
@@ -111,24 +140,15 @@ export class SupabaseWantedRepository implements WantedRepository {
         .eq("institution_id", row.institution_id)
         .maybeSingle(),
     ]);
-    if (
-      faculty.error ||
-      programme.error ||
-      language.error ||
-      tags.error ||
-      events.error ||
-      profile.error ||
-      membership.error
-    )
-      throw (
-        faculty.error ??
-        programme.error ??
-        language.error ??
-        tags.error ??
-        events.error ??
-        profile.error ??
-        membership.error
-      );
+    const failed =
+      faculty.error ??
+      programme.error ??
+      language.error ??
+      tags.error ??
+      events.error ??
+      profile.error ??
+      membership.error;
+    if (failed) throw failed;
     const tagIds = (tags.data ?? []).map((x: { tag_id: string }) => x.tag_id);
     const tagRows = tagIds.length
       ? await this.client.from("tags").select("name").in("id", tagIds)
@@ -142,7 +162,10 @@ export class SupabaseWantedRepository implements WantedRepository {
       language: language.data?.name ?? "",
       tags: (tagRows.data ?? []).map((x: { name: string }) => x.name),
       commissioner: {
+        publicId: profile.data?.public_id ?? null,
         displayName: profile.data?.display_name ?? "VAULTIX member",
+        avatarUrl: this.avatarUrl(profile.data?.avatar_object_key ?? null),
+        joinedAt: profile.data?.created_at ?? null,
         emailVerified: true,
         institutionVerified: membership.data?.verification_state === "verified",
       },
@@ -161,24 +184,23 @@ export class SupabaseWantedRepository implements WantedRepository {
 
   private async toSummaries(rows: WantedRow[]): Promise<WantedSummary[]> {
     if (!rows.length) return [];
-    const ids = (values: string[]) => [...new Set(values)];
     const [courses, campuses, types, sessions, contributions] = await Promise.all([
       this.client
         .from("courses")
         .select("id, code, name")
-        .in("id", ids(rows.map((x) => x.course_id))),
+        .in("id", present(rows.map((x) => x.course_id))),
       this.client
         .from("campuses")
         .select("id, name")
-        .in("id", ids(rows.map((x) => x.campus_id))),
+        .in("id", present(rows.map((x) => x.campus_id))),
       this.client
         .from("resource_types")
         .select("id, name")
-        .in("id", ids(rows.map((x) => x.resource_type_id))),
+        .in("id", present(rows.map((x) => x.resource_type_id))),
       this.client
         .from("academic_sessions")
         .select("id, name")
-        .in("id", ids(rows.map((x) => x.academic_session_id))),
+        .in("id", present(rows.map((x) => x.academic_session_id))),
       this.client
         .from("contributions")
         .select("wanted_request_id, amount_sen, contributor_user_id")
@@ -190,42 +212,197 @@ export class SupabaseWantedRepository implements WantedRepository {
     if (courses.error || campuses.error || types.error || sessions.error || contributions.error)
       throw courses.error ?? campuses.error ?? types.error ?? sessions.error ?? contributions.error;
     const by = <T extends { id: string }>(values: T[]) => new Map(values.map((x) => [x.id, x]));
-    const cb = by(courses.data ?? []),
-      cab = by(campuses.data ?? []),
-      tb = by(types.data ?? []),
-      sb = by(sessions.data ?? []);
+    const courseById = by(courses.data ?? []);
+    const campusById = by(campuses.data ?? []);
+    const typeById = by(types.data ?? []);
+    const sessionById = by(sessions.data ?? []);
     const now = Date.now();
-    const contributionRows = (contributions.data ?? []) as ContributionRow[];
+    const contributionRows = contributions.data ?? [];
     return rows.flatMap((row) => {
-      const c = cb.get(row.course_id),
-        ca = cab.get(row.campus_id),
-        t = tb.get(row.resource_type_id),
-        s = sb.get(row.academic_session_id);
-      if (!c || !ca || !t || !s || !row.published_at || !row.closes_at) return [];
+      const campus = campusById.get(row.campus_id);
+      if (!campus || !row.published_at || !row.closes_at) return [];
+      const academic = row.kind === "academic";
+      const course = row.course_id ? courseById.get(row.course_id) : undefined;
+      const type = row.resource_type_id ? typeById.get(row.resource_type_id) : undefined;
+      const session = row.academic_session_id
+        ? sessionById.get(row.academic_session_id)
+        : undefined;
+      if (academic && (!course || !type || !session)) return [];
       const cs = contributionRows.filter((x) => x.wanted_request_id === row.id);
       const bounty = cs.reduce((n, x) => n + Number(x.amount_sen), 0) as Sen;
       const status = wantedDisplayStatus(row.status, row.closes_at, bounty, now);
-      return [
-        {
-          id: row.public_id,
-          title: row.title,
-          courseCode: c.code,
-          courseName: c.name,
-          courseId: row.course_id,
-          campus: ca.name,
-          campusId: row.campus_id,
-          resourceType: t.name,
-          resourceTypeId: row.resource_type_id,
-          session: s.name,
-          sessionId: row.academic_session_id,
-          grossBountySen: bounty,
-          backerCount: new Set(cs.map((x) => x.contributor_user_id)).size,
-          status,
-          postedAt: row.published_at,
-          closesAt: row.closes_at,
-        } as WantedSummary,
-      ];
+      const summary: WantedSummary = {
+        id: row.public_id,
+        kind: row.kind,
+        isFree: row.is_free,
+        title: row.title,
+        courseCode: course?.code ?? "",
+        courseName: course?.name ?? "",
+        courseId: row.course_id ?? "",
+        campus: campus.name,
+        campusId: row.campus_id,
+        resourceType: type?.name ?? KIND_LABEL[row.kind],
+        resourceTypeId: row.resource_type_id ?? "",
+        session: session?.name ?? "",
+        sessionId: row.academic_session_id ?? "",
+        grossBountySen: bounty,
+        backerCount: new Set(cs.map((x) => x.contributor_user_id)).size,
+        status,
+        postedAt: row.published_at,
+        closesAt: row.closes_at,
+        lastSeenLocation: row.last_seen_location,
+      };
+      return [summary];
     });
+  }
+
+  /** Every active campus with its region state and live open-Wanted totals. */
+  async listCampusRegions(): Promise<CampusRegion[]> {
+    const [campuses, wanted] = await Promise.all([
+      this.client
+        .from("campuses")
+        .select("id, name, region_open, latitude, longitude")
+        .eq("active", true)
+        .order("sort_order")
+        .order("name"),
+      this.client
+        .from("wanted_requests")
+        .select("id, campus_id")
+        .in("status", ["open", "reviewing"]),
+    ]);
+    if (campuses.error || wanted.error) throw campuses.error ?? wanted.error;
+    const ids = (wanted.data ?? []).map((row) => row.id);
+    const contributions = ids.length
+      ? await this.client
+          .from("contributions")
+          .select("wanted_request_id, amount_sen")
+          .in("wanted_request_id", ids)
+      : { data: [], error: null };
+    if (contributions.error) throw contributions.error;
+    const campusOf = new Map((wanted.data ?? []).map((row) => [row.id, row.campus_id]));
+    const counts = new Map<string, number>();
+    const totals = new Map<string, number>();
+    for (const row of wanted.data ?? [])
+      counts.set(row.campus_id, (counts.get(row.campus_id) ?? 0) + 1);
+    for (const row of contributions.data ?? []) {
+      const campusId = campusOf.get(row.wanted_request_id);
+      if (campusId) totals.set(campusId, (totals.get(campusId) ?? 0) + Number(row.amount_sen));
+    }
+    return (campuses.data ?? []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      regionOpen: row.region_open,
+      latitude: row.latitude === null ? null : Number(row.latitude),
+      longitude: row.longitude === null ? null : Number(row.longitude),
+      openWantedCount: row.region_open ? (counts.get(row.id) ?? 0) : 0,
+      openBountySen: (row.region_open ? (totals.get(row.id) ?? 0) : 0) as Sen,
+    }));
+  }
+
+  async listReplies(publicId: string): Promise<WantedReply[]> {
+    const { data: wanted, error } = await this.client
+      .from("wanted_requests")
+      .select("id")
+      .eq("public_id", publicId)
+      .in("kind", ["missing_item", "discussion"])
+      .in("status", ["open", "closed"])
+      .maybeSingle();
+    if (error) throw error;
+    if (!wanted) return [];
+    const replies = await this.client
+      .from("wanted_replies")
+      .select("id, body, created_at, author_user_id")
+      .eq("wanted_request_id", wanted.id)
+      .is("hidden_at", null)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (replies.error) throw replies.error;
+    const authorIds = present((replies.data ?? []).map((row) => row.author_user_id));
+    const authors = authorIds.length
+      ? await this.client
+          .from("profiles")
+          .select("user_id, public_id, display_name, avatar_object_key")
+          .in("user_id", authorIds)
+      : { data: [], error: null };
+    if (authors.error) throw authors.error;
+    const authorById = new Map((authors.data ?? []).map((row) => [row.user_id, row]));
+    return (replies.data ?? []).map((row) => {
+      const author = authorById.get(row.author_user_id);
+      return {
+        id: row.id,
+        body: row.body,
+        createdAt: row.created_at,
+        author: {
+          publicId: author?.public_id ?? "",
+          displayName: author?.display_name ?? "VAULTIX member",
+          avatarUrl: this.avatarUrl(author?.avatar_object_key ?? null),
+        },
+      };
+    });
+  }
+
+  async postReply(publicId: string, body: string): Promise<string> {
+    const { data, error } = await this.client.rpc("post_wanted_reply", {
+      reply_body: body,
+      target_public_id: publicId,
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  async resolveCommunityWanted(publicId: string): Promise<void> {
+    const { error } = await this.client.rpc("resolve_own_community_wanted", {
+      target_public_id: publicId,
+    });
+    if (error) throw error;
+  }
+
+  async publishCommunityWanted(input: {
+    kind: "missing_item" | "discussion";
+    campusId: string;
+    title: string;
+    description: string;
+    durationDays: number;
+    lastSeenLocation: string | null;
+    policyVersion: string;
+  }): Promise<string> {
+    const { data: id, error } = await this.client.rpc("publish_community_wanted", {
+      target_campus_id: input.campusId,
+      target_description: input.description,
+      target_duration_days: input.durationDays,
+      target_kind: input.kind,
+      target_last_seen_location: input.lastSeenLocation,
+      target_policy_version: input.policyVersion,
+      target_title: input.title,
+    });
+    if (error) throw error;
+    const row = await this.client.from("wanted_requests").select("public_id").eq("id", id).single();
+    if (row.error) throw row.error;
+    return row.data.public_id;
+  }
+
+  async publishFree(input: {
+    draftId: string;
+    tokenHash: string;
+    criteriaHash: string;
+    policyVersion: string;
+  }): Promise<{ outcome: "published" | "required" | "expired"; publicId: string | null }> {
+    const { data, error } = await this.client.rpc("publish_free_wanted", {
+      target_criteria_hash_hex: input.criteriaHash,
+      target_draft_id: input.draftId,
+      target_policy_version: input.policyVersion,
+      target_token_hash_hex: input.tokenHash,
+    });
+    if (error) throw error;
+    const outcome = data === "published" || data === "expired" ? data : "required";
+    if (outcome !== "published") return { outcome, publicId: null };
+    const row = await this.client
+      .from("wanted_requests")
+      .select("public_id")
+      .eq("id", input.draftId)
+      .single();
+    if (row.error) throw row.error;
+    return { outcome, publicId: row.data.public_id };
   }
 
   async taxonomyMatchesInstitution(
@@ -239,6 +416,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         .eq("id", values.campusId)
         .eq("institution_id", institutionId)
         .eq("active", true)
+        .eq("region_open", true)
         .maybeSingle(),
       this.client
         .from("faculties")
@@ -326,16 +504,16 @@ export class SupabaseWantedRepository implements WantedRepository {
       state: row.status === "draft" ? "draft" : "awaiting_payment",
       updatedAt: row.updated_at,
       values: {
-        academicSessionId: row.academic_session_id,
+        academicSessionId: row.academic_session_id ?? "",
         campusId: row.campus_id,
-        courseId: row.course_id,
+        courseId: row.course_id ?? "",
         description: row.description,
-        durationDays: row.requested_duration_days as 7 | 14 | 30,
-        facultyId: row.faculty_id,
-        languageId: row.language_id,
+        durationDays: row.requested_duration_days,
+        facultyId: row.faculty_id ?? "",
+        languageId: row.language_id ?? "",
         policyAccepted: true,
-        programmeId: row.programme_id,
-        resourceTypeId: row.resource_type_id,
+        programmeId: row.programme_id ?? "",
+        resourceTypeId: row.resource_type_id ?? "",
         tagIds: tagsResult.data.map(({ tag_id }) => tag_id),
         title: row.title,
       },
@@ -360,30 +538,30 @@ export class SupabaseWantedRepository implements WantedRepository {
         "public_id, title, course_id, campus_id, resource_type_id, academic_session_id, status, published_at, closes_at",
       )
       .eq("institution_id", draft.institutionId)
+      .eq("kind", "academic")
       .in("status", ["open", "reviewing"])
       .neq("id", draft.id)
       .limit(50);
     if (wanted.error) throw wanted.error;
     if (wanted.data.length === 0) return [];
 
-    const unique = (values: string[]) => [...new Set(values)];
     const [courses, campuses, resourceTypes, sessions] = await Promise.all([
       this.client
         .from("courses")
         .select("id, code, name")
-        .in("id", unique(wanted.data.map(({ course_id }) => course_id))),
+        .in("id", present(wanted.data.map(({ course_id }) => course_id))),
       this.client
         .from("campuses")
         .select("id, name")
-        .in("id", unique(wanted.data.map(({ campus_id }) => campus_id))),
+        .in("id", present(wanted.data.map(({ campus_id }) => campus_id))),
       this.client
         .from("resource_types")
         .select("id, name")
-        .in("id", unique(wanted.data.map(({ resource_type_id }) => resource_type_id))),
+        .in("id", present(wanted.data.map(({ resource_type_id }) => resource_type_id))),
       this.client
         .from("academic_sessions")
         .select("id, name")
-        .in("id", unique(wanted.data.map(({ academic_session_id }) => academic_session_id))),
+        .in("id", present(wanted.data.map(({ academic_session_id }) => academic_session_id))),
     ]);
     if (courses.error || campuses.error || resourceTypes.error || sessions.error) {
       throw courses.error ?? campuses.error ?? resourceTypes.error ?? sessions.error;
@@ -395,6 +573,7 @@ export class SupabaseWantedRepository implements WantedRepository {
     const sessionById = byId(sessions.data);
 
     return wanted.data.flatMap((row) => {
+      if (!row.course_id || !row.resource_type_id || !row.academic_session_id) return [];
       const course = courseById.get(row.course_id);
       const campus = campusById.get(row.campus_id);
       const resourceType = typeById.get(row.resource_type_id);
@@ -408,6 +587,9 @@ export class SupabaseWantedRepository implements WantedRepository {
           courseId: row.course_id,
           resourceTypeId: row.resource_type_id,
           wanted: {
+            kind: "academic" as const,
+            isFree: false,
+            lastSeenLocation: null,
             backerCount: 0,
             campus: campus.name,
             campusId: row.campus_id,

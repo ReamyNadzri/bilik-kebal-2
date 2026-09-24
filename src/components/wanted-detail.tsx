@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BountyPlate } from "./bounty-plate";
-import { ResourceEmblem } from "./resource-emblem";
 import { StatusStamp } from "./status-stamp";
 import { WantedCard } from "./wanted-card";
+import { WantedPoster } from "./wanted-poster";
 import { BackWantedModal } from "./back-wanted-modal";
 import { ClaimSubmissionForm } from "./claim-submission-form";
 import type { AccountViewModel } from "@/contracts/identity";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
-import { formatClosing, formatPostedAge } from "@/features/marketplace/time";
+import { formatPostedAge } from "@/features/marketplace/time";
 import type { WantedDetail as Detail, WantedSummary } from "@/features/marketplace/types";
 
 export interface WantedDetailProps {
@@ -18,14 +17,6 @@ export interface WantedDetailProps {
   readonly similar: readonly WantedSummary[];
   readonly now: string;
   readonly account?: AccountViewModel | null;
-}
-
-function describeBackers(count: number): string {
-  if (count === 0) {
-    return "No backers yet";
-  }
-
-  return `${count} backer${count === 1 ? "" : "s"}`;
 }
 
 /**
@@ -51,7 +42,6 @@ function describeBackers(count: number): string {
 export function WantedDetail({ wanted, similar, now, account }: WantedDetailProps) {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
-  const closing = formatClosing(wanted.closesAt, now, { detail: true });
   const feePercent = wanted.feeRateBasisPoints / 100;
 
   return (
@@ -78,25 +68,7 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           would leave the tab order disagreeing with what is on screen. Grid
           placement puts this column on the right at desktop. */}
       <aside className="wanted-detail__ledger" aria-label="Bounty and actions">
-        <div className="ledger-poster poster-paper pin">
-          <p className="poster-masthead">
-            <span className="poster-masthead__word" aria-hidden="true">
-              Wanted
-            </span>
-          </p>
-          <ResourceEmblem resourceType={wanted.resourceType} />
-          <p className="wanted-card__course">
-            <span className="wanted-card__course-code">{wanted.courseCode}</span>
-            <span className="wanted-card__course-name">{wanted.courseName}</span>
-          </p>
-          <div className="wanted-card__money">
-            <BountyPlate amountSen={wanted.grossBountySen} size="large" />
-            <p className="ledger-panel__backers numeric">{describeBackers(wanted.backerCount)}</p>
-          </div>
-          <p className="ledger-panel__closing">
-            <time dateTime={wanted.closesAt}>{closing.label}</time>
-          </p>
-        </div>
+        <WantedPoster wanted={wanted} now={now} className="ledger-poster" />
 
         <div className="ledger-panel">
           {account?.capabilities?.transact && wanted.status === "open" ? (

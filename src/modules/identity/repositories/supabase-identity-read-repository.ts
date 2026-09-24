@@ -27,7 +27,11 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
   async readAccount(user: User): Promise<AccountRecord | null> {
     const [profile, membership, restriction, latestRequest, platformRoles, institutionRoles] =
       await Promise.all([
-        this.client.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
+        this.client
+          .from("profiles")
+          .select("display_name, public_id, avatar_object_key, created_at")
+          .eq("user_id", user.id)
+          .maybeSingle(),
         this.client
           .from("institution_memberships")
           .select("institution_id, verification_state")
@@ -101,8 +105,14 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       membership.data?.verification_state ??
       (requestState === "pending" || requestState === "rejected" ? requestState : "unverified");
 
+    const avatarKey = profile.data.avatar_object_key;
     return {
       displayName: profile.data.display_name,
+      publicId: profile.data.public_id,
+      avatarUrl: avatarKey
+        ? this.client.storage.from("avatars").getPublicUrl(avatarKey).data.publicUrl
+        : null,
+      joinedAt: profile.data.created_at,
       emailConfirmedAt: user.email_confirmed_at ?? null,
       hasActiveRestriction: Boolean(restriction.data),
       hasConsoleAccess: platformRoles.data.length > 0 || institutionRoles.data.length > 0,

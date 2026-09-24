@@ -5,7 +5,7 @@ import { toSen } from "@/features/marketplace/money";
 test("reads as one money value to assistive technology", () => {
   render(<BountyPlate amountSen={toSen(85)} />);
 
-  expect(screen.getByText("Total bounty RM 85")).toBeInTheDocument();
+  expect(screen.getByText("Total bounty RM 85.00")).toBeInTheDocument();
 });
 
 test("splits the unit from the amount for the stacked plate", () => {
@@ -37,5 +37,5 @@ test("shows a part-Ringgit amount with its sen", () => {
 test("takes a caller's wording when the plate is not a total", () => {
   render(<BountyPlate amountSen={toSen(10)} label="Your contribution" />);
 
-  expect(screen.getByText("Your contribution RM 10")).toBeInTheDocument();
+  expect(screen.getByText("Your contribution RM 10.00")).toBeInTheDocument();
 });
