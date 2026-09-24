@@ -42,9 +42,9 @@ export function SignOutButton({
         {busy ? "Signing out…" : label}
       </button>
       {state.error === null ? null : (
-        <p className="account-menu__error" role="alert">
+<span className="account-menu__error" role="alert">
           {state.error}
-        </p>
+        </span>
       )}
     </>
   );
