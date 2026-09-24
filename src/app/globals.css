@@ -5842,3 +5842,169 @@ textarea.form-field__input {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* Avatar editor: a square stage with a circular window. */
+.avatar-editor {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.avatar-editor__stage {
+  overflow: hidden;
+  position: relative;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+}
+
+.avatar-editor__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--border-default);
+}
+
+.avatar-editor__canvas:active {
+  cursor: grabbing;
+}
+
+.avatar-editor__mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 0 999px var(--bg-scrim);
+  outline: var(--border-width-2) dashed var(--accent-brass);
+  outline-offset: -2px;
+}
+
+.avatar-editor__tools {
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   Profiles
+
+   Picture on the left, name and counts beside it, bio under — the same card
+   for a member's own profile and anyone else's. Stacks at 360 px.
+   -------------------------------------------------------------------------- */
+
+.profile-container {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.profile-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5) var(--space-6);
+}
+
+.profile-header__picture {
+  flex: none;
+}
+
+.profile-header__avatar {
+  width: 132px;
+  height: 132px;
+  border-width: var(--border-width-3);
+}
+
+.profile-header__picture-button {
+  position: relative;
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.profile-header__picture-hint {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-header__body {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.profile-header__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.profile-header__name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.profile-header__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.profile-header__stat {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.profile-header__stat dd {
+  margin: 0;
+  font-family: var(--font-money);
+  font-size: var(--text-xl);
+  font-weight: 800;
+}
+
+.profile-header__stat dt {
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.profile-header__meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.profile-header__bio {
+  margin: var(--space-2) 0 0;
+  white-space: pre-wrap;
+}
+
+.profile-form {
+  max-width: 40rem;
+}
+
+@media (max-width: 30rem) {
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

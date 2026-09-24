@@ -6,6 +6,9 @@ import { SupabaseWantedRepository } from "@/modules/wanted/repositories/supabase
 type Client = SupabaseClient<Database>;
 
 export interface ProfileRepository {
+  /** The signed-in member's own public id, read through their session. */
+  ownPublicId(): Promise<string | null>;
+  createAvatarUpload(objectKey: string): Promise<{ signedUrl: string; token: string }>;
   updateOwnProfile(displayName: string, bio: string | null): Promise<void>;
   setOwnAvatar(objectKey: string | null): Promise<void>;
   avatarUrl(objectKey: string | null): string | null;
@@ -22,6 +25,33 @@ export class SupabaseProfileRepository implements ProfileRepository {
     private readonly writeClient: Client,
     private readonly readClient: Client = writeClient,
   ) {}
+
+  async ownPublicId(): Promise<string | null> {
+    const {
+      data: { user },
+    } = await this.writeClient.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await this.writeClient
+      .from("profiles")
+      .select("public_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.public_id ?? null;
+  }
+
+  /**
+   * A one-time upload slot in the member's own avatar folder. The storage
+   * policy re-checks the folder against the session, and the bucket accepts
+   * only WebP up to 512 KB.
+   */
+  async createAvatarUpload(objectKey: string): Promise<{ signedUrl: string; token: string }> {
+    const { data, error } = await this.writeClient.storage
+      .from("avatars")
+      .createSignedUploadUrl(objectKey, { upsert: false });
+    if (error || !data) throw error ?? new Error("Avatar upload URL creation failed");
+    return { signedUrl: data.signedUrl, token: data.token };
+  }
 
   async updateOwnProfile(displayName: string, bio: string | null): Promise<void> {
     const { error } = await this.writeClient.rpc("update_own_profile", {

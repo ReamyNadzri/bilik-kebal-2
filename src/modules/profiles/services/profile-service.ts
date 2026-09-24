@@ -2,6 +2,7 @@ import { failure, success } from "@/contracts/operation-result";
 import {
   setAvatarInputSchema,
   updateProfileInputSchema,
+  type AvatarUploadResult,
   type ReadPublicProfileResult,
   type SetAvatarResult,
   type UpdateProfileResult,
@@ -43,6 +44,24 @@ export class ProfileService {
       return success({ bio, displayName: parsed.data.displayName });
     } catch {
       return failure("PROFILE_UNAVAILABLE", "Your profile could not be saved. Try again.");
+    }
+  }
+
+  /** Issues a one-time upload slot for a new, already-cropped WebP avatar. */
+  async requestAvatarUpload(
+    actor: ProfileActor | null,
+    now: () => number = Date.now,
+  ): Promise<AvatarUploadResult> {
+    if (!actor) return failure("AUTH_REQUIRED", "Sign in to change your picture.");
+    if (!actor.emailVerified) return failure("EMAIL_NOT_VERIFIED", "Verify your email first.");
+    try {
+      const publicId = await this.repository.ownPublicId();
+      if (!publicId) return failure("PROFILE_NOT_FOUND", "Your profile could not be found.");
+      const objectKey = `${publicId}/avatar-${now()}.webp`;
+      const upload = await this.repository.createAvatarUpload(objectKey);
+      return success({ objectKey, ...upload });
+    } catch {
+      return failure("PROFILE_UNAVAILABLE", "Picture uploads are unavailable. Try again.");
     }
   }
 

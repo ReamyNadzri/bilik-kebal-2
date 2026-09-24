@@ -13,6 +13,10 @@ function repository(overrides: Partial<ProfileRepository> = {}): ProfileReposito
     setOwnAvatar: vi.fn().mockResolvedValue(undefined),
     avatarUrl: vi.fn((key: string | null) => (key ? `https://cdn.test/${key}` : null)),
     readPublicProfile: vi.fn().mockResolvedValue(null),
+    ownPublicId: vi.fn().mockResolvedValue(publicId),
+    createAvatarUpload: vi
+      .fn()
+      .mockResolvedValue({ signedUrl: "https://storage.test/upload", token: "t" }),
     ...overrides,
   };
 }
@@ -40,6 +44,17 @@ describe("ProfileService", () => {
     const result = await new ProfileService(repo).setAvatar(actor, { objectKey });
 
     expect(result).toEqual({ ok: true, data: { avatarUrl: `https://cdn.test/${objectKey}` } });
+  });
+
+  it("issues an upload slot inside the member's own folder", async () => {
+    const repo = repository();
+    const result = await new ProfileService(repo).requestAvatarUpload(actor, () => 1790266488000);
+
+    expect(result).toEqual({
+      ok: true,
+      data: { objectKey, signedUrl: "https://storage.test/upload", token: "t" },
+    });
+    expect(repo.createAvatarUpload).toHaveBeenCalledWith(objectKey);
   });
 
   it("rejects an avatar key outside the expected shape", async () => {

@@ -1,5 +1,6 @@
 import { failure } from "@/contracts/operation-result";
 import type {
+  AvatarUploadResult,
   ReadPublicProfileResult,
   SetAvatarResult,
   UpdateProfileResult,
@@ -46,6 +47,15 @@ export async function readPublicProfile(publicId: string): Promise<ReadPublicPro
   try {
     const loaded = await context();
     return loaded.service.readPublic(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function requestAvatarUpload(): Promise<AvatarUploadResult> {
+  try {
+    const loaded = await context();
+    return loaded.service.requestAvatarUpload(loaded.actor);
   } catch {
     return unavailable();
   }

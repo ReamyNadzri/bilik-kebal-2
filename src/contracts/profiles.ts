@@ -47,5 +47,9 @@ export type UpdateProfileResult = OperationResult<
   { displayName: string; bio: string | null },
   ProfileOperationCode
 >;
+export type AvatarUploadResult = OperationResult<
+  { objectKey: string; signedUrl: string; token: string },
+  ProfileOperationCode
+>;
 export type SetAvatarResult = OperationResult<{ avatarUrl: string | null }, ProfileOperationCode>;
 export type ReadPublicProfileResult = OperationResult<PublicProfile, ProfileOperationCode>;
