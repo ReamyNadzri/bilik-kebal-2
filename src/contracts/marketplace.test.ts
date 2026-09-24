@@ -36,7 +36,7 @@ describe("Wanted draft input", () => {
     expect(result.durationDays).toBe(7);
   });
 
-  test.each([10, 0, 31])("rejects unsupported duration %s", (durationDays) => {
+  test.each([2, 0, 31])("rejects unsupported duration %s", (durationDays) => {
     expect(() => wantedDraftInputSchema.parse(validDraft({ durationDays } as never))).toThrow();
   });
 
