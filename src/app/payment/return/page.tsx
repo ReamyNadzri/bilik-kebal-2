@@ -29,7 +29,7 @@ export default async function PaymentReturnPage({ searchParams }: PaymentReturnP
   const providerReportedFailure = statusHint === "3";
 
   return (
-    <div className="page-bare">
+    <>
       <h1>Back from payment</h1>
 
       {providerReportedFailure ? (
@@ -52,6 +52,6 @@ export default async function PaymentReturnPage({ searchParams }: PaymentReturnP
         Returning to this page does not confirm a payment. If money left your account but the bounty
         does not change within a day, contact support with your payment receipt.
       </p>
-    </div>
+    </>
   );
 }

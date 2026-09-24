@@ -38,7 +38,8 @@ export default async function NewClaimPage({ searchParams }: NewClaimPageProps) 
   const rawFrom = params["from"];
   const from = typeof rawFrom === "string" ? rawFrom : "";
 
-  const returnTo = from === "wanted" && wantedId ? `/wanted/${wantedId}` : "/claims";
+  const returnTo =
+    from === "wanted" && wantedId ? `/wanted/${encodeURIComponent(wantedId)}` : "/claims";
   const returnLabel = from === "wanted" && wantedId ? "← Back to Wanted" : "← Back to Hunt";
 
   const outcome = await readAccount();
@@ -48,14 +49,10 @@ export default async function NewClaimPage({ searchParams }: NewClaimPageProps) 
   if (!hasAccess && !isDev) {
     if (outcome.kind === "unauthenticated") {
       return (
-        <div style={{ maxWidth: "56rem", marginInline: "auto", width: "100%" }}>
-          <header className="panel" style={{ marginBottom: "1.5rem" }}>
-            <p className="pixel-label" style={{ marginBottom: "0.25rem" }}>
-              Bounty Hunter · Fulfill Bounty
-            </p>
-            <h1 style={{ margin: 0, fontSize: "1.75rem", color: "var(--text-primary, #2a2118)" }}>
-              Fulfill Bounty
-            </h1>
+        <div className="page-narrow">
+          <header className="panel">
+            <p className="pixel-label">Bounty Hunter · Fulfill Bounty</p>
+            <h1 className="page-head__title">Fulfill Bounty</h1>
           </header>
           <UiStatus
             kind="restricted"
@@ -69,13 +66,17 @@ export default async function NewClaimPage({ searchParams }: NewClaimPageProps) 
 
     if (outcome.kind === "unavailable") {
       return (
-        <div style={{ maxWidth: "56rem", marginInline: "auto", width: "100%" }}>
+        <div className="page-narrow">
           <UiStatus
             kind="offline"
             heading="Your account could not be verified"
             message="We could not verify your session. Please try again shortly."
             action={
-              <Link href={`/claims/new${wantedId ? `?wantedId=${wantedId}` : ""}`}>Try again</Link>
+              <Link
+                href={`/claims/new${wantedId ? `?wantedId=${encodeURIComponent(wantedId)}` : ""}`}
+              >
+                Try again
+              </Link>
             }
           />
         </div>
@@ -83,20 +84,35 @@ export default async function NewClaimPage({ searchParams }: NewClaimPageProps) 
     }
 
     return (
-      <div style={{ maxWidth: "56rem", marginInline: "auto", width: "100%" }}>
-        <header className="panel" style={{ marginBottom: "1.5rem" }}>
-          <p className="pixel-label" style={{ marginBottom: "0.25rem" }}>
-            Bounty Hunter · Fulfill Bounty
-          </p>
-          <h1 style={{ margin: 0, fontSize: "1.75rem", color: "var(--text-primary, #2a2118)" }}>
-            Fulfill Bounty
-          </h1>
+      <div className="page-narrow">
+        <header className="panel">
+          <p className="pixel-label">Bounty Hunter · Fulfill Bounty</p>
+          <h1 className="page-head__title">Fulfill Bounty</h1>
         </header>
         <UiStatus
           kind="restricted"
           heading="Institution verification required"
           message="Only institution-verified students can claim bounties and upload academic evidence."
           action={<Link href="/profile/institution-verification">Verify your institution</Link>}
+        />
+      </div>
+    );
+  }
+
+  // Outside development a claim needs a real Wanted request to attach to; a
+  // missing or malformed identifier gets a plain explanation, not a form that
+  // would refuse after the Hunter has picked a file.
+  const isWantedUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    wantedId,
+  );
+  if (!isDev && !isWantedUuid) {
+    return (
+      <div className="page-narrow">
+        <UiStatus
+          kind="empty"
+          heading="Choose a Wanted request to claim"
+          message="A claim is always attached to one Wanted request. Open the request you can fulfil and choose Submit a Claim there."
+          action={<Link href="/board">Browse the Wanted Board</Link>}
         />
       </div>
     );
@@ -147,7 +163,7 @@ export default async function NewClaimPage({ searchParams }: NewClaimPageProps) 
           : [];
 
   return (
-    <div style={{ maxWidth: "56rem", marginInline: "auto", width: "100%" }}>
+    <div className="page-narrow">
       {isDev && !hasAccess && (
         <FixtureNotice screen="Claim Proof & Evidence Locker Workspace (Dev Preview)" />
       )}

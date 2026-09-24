@@ -25,7 +25,7 @@ export default function SignOutPage() {
           heading="Sign out of VAULTIX"
           message="Click the button below to end your session, or return to your profile."
           action={
-            <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <div className="cluster">
               <SignOutButton />
               <Link className="button button--secondary" href="/profile">
                 Return to Profile

@@ -19,7 +19,7 @@ export default async function ClaimReviewsPage() {
 
   return (
     <>
-      <p style={{ display: "flex", gap: "1rem" }}>
+      <p className="cluster">
         <Link href="/console">← Back to Sheriff Console</Link>
         <Link href="/console/operations">Operations &amp; Payouts →</Link>
       </p>

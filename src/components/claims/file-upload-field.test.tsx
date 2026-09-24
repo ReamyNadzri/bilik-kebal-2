@@ -136,6 +136,7 @@ describe("FileUploadField", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("checkbox", { name: /authorised to share/i }));
     const input = screen.getByTestId("proof-file-input");
     const validFile = new File([new Uint8Array(500)], "proof_screenshot.png", {
       type: "image/png",
@@ -161,13 +162,14 @@ describe("FileUploadField", () => {
     const onRemoveProof = vi.fn();
     render(<FileUploadField wantedId="non-uuid-fixture" onRemoveProof={onRemoveProof} />);
 
+    fireEvent.click(screen.getByRole("checkbox", { name: /authorised to share/i }));
     const input = screen.getByTestId("proof-file-input");
     const validFile = new File([new Uint8Array(200)], "my_notes.pdf", { type: "application/pdf" });
     fireEvent.change(input, { target: { files: [validFile] } });
 
     await waitFor(
       () => {
-        expect(screen.getByText(/uploaded and sent for screening/i)).toBeInTheDocument();
+        expect(screen.getByText(/preview only: nothing was uploaded/i)).toBeInTheDocument();
       },
       { timeout: 3000 },
     );
@@ -180,5 +182,19 @@ describe("FileUploadField", () => {
       }),
     );
     expect(screen.getByText(/click to attach proof file/i)).toBeInTheDocument();
+  });
+
+  it("leaves the rights confirmation unticked and refuses an upload until it is ticked", async () => {
+    render(<FileUploadField wantedId="74000000-0000-4000-8000-000000000001" />);
+
+    const rights = screen.getByRole("checkbox", { name: /authorised to share/i });
+    expect(rights).not.toBeChecked();
+
+    fireEvent.change(screen.getByTestId("proof-file-input"), {
+      target: { files: [new File([new Uint8Array(10)], "notes.pdf", { type: "application/pdf" })] },
+    });
+
+    expect(await screen.findByText(/confirm that you are authorised/i)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

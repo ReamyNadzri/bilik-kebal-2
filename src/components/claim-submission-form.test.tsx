@@ -128,8 +128,6 @@ describe("ClaimSubmissionForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit Claim" }));
 
     expect(await screen.findByText("Uploads are switched off")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Claim uploads are not open yet/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Claim uploads are not open yet/i)).toBeInTheDocument();
   });
 });

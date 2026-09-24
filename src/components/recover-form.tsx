@@ -137,17 +137,14 @@ export function RecoverForm() {
       <ErrorSummary errors={errors} ref={summaryRef} />
 
       {outcome.kind === "accepted" ? (
-        <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
+        <div className="stack">
           <UiStatus
             kind="empty"
             heading="If an account exists for that address, a recovery code is on its way"
             message="Check your email for the 6-digit verification code. Once received, enter it to set a new password."
           />
-          <p className="auth-form__links" style={{ textAlign: "center" }}>
-            <Link
-              href="/reset-password"
-              style={{ fontWeight: "bold", textDecoration: "underline" }}
-            >
+          <p className="auth-form__links text-center">
+            <Link href="/reset-password" className="link-strong">
               Enter 6-digit recovery code &rarr;
             </Link>
           </p>

@@ -63,58 +63,18 @@ export function ClaimSubmissionWorkspace({
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.75rem",
-        maxWidth: "52rem",
-        marginInline: "auto",
-        width: "100%",
-      }}
-    >
+    <div className="page-narrow">
       {/* Masthead Banner */}
-      <header
-        className="panel"
-        style={{
-          borderRadius: "4px",
-          padding: "1.5rem 1.75rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
+      <header className="panel page-head">
         <div>
-          <p className="pixel-label" style={{ marginBottom: "0.35rem" }}>
-            Bounty Hunter · Fulfill Bounty Desk
-          </p>
-          <h1
-            style={{
-              margin: "0 0 0.25rem 0",
-              fontSize: "1.75rem",
-              color: "var(--text-primary, #2a2118)",
-            }}
-          >
-            Fulfill Bounty
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "0.95rem",
-              color: "var(--text-muted, #5e4f37)",
-            }}
-          >
-            Upload academic resource proof to claim and fulfill this bounty request.
+          <p className="pixel-label">Bounty Hunter · Fulfill Bounty Desk</p>
+          <h1 className="page-head__title">Fulfill Bounty</h1>
+          <p className="page-head__lede">
+            Upload your proof file to claim this bounty. A Sheriff reviews every claim.
           </p>
         </div>
 
-        <Link
-          href={returnTo ?? `/claims`}
-          className="button button--secondary"
-          style={{ whiteSpace: "nowrap" }}
-        >
+        <Link href={returnTo ?? `/claims`} className="button button--secondary">
           {returnLabel ?? "← Back to Hunt"}
         </Link>
       </header>

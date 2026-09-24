@@ -269,8 +269,8 @@ export function ClaimSubmissionForm({
                   onChange={(e) => setFreeReleaseOptIn(e.target.checked)}
                 />
                 <span>
-                  Offer this resource for free release. It is released free only if a Sheriff
-                  also confirms the rights; otherwise only this Wanted&rsquo;s Backers get access.
+                  Offer this resource for free release. It is released free only if a Sheriff also
+                  confirms the rights; otherwise only this Wanted&rsquo;s Backers get access.
                 </span>
               </label>
             </fieldset>

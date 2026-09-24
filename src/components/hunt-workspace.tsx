@@ -61,27 +61,17 @@ function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now:
           <dt>Eligibility</dt>
           <dd>{ELIGIBILITY[hunt.eligibility]}</dd>
         </dl>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.5rem",
-            marginTop: "auto",
-            paddingTop: "0.5rem",
-          }}
-        >
+        <div className="card-actions">
           <Link
-            className="button button--primary"
-            style={{ width: "100%", textAlign: "center", justifyContent: "center" }}
-            href={`/claims/new?wantedId=${hunt.id}&from=hunt`}
+            className="button button--primary button--block"
+            href={`/claims/new?wantedId=${encodeURIComponent(hunt.id)}&from=hunt`}
             aria-label={`Fulfill bounty: ${hunt.title}`}
           >
             Fulfill Bounty <span aria-hidden="true">→</span>
           </Link>
           <Link
-            className="button button--secondary"
-            style={{ width: "100%", textAlign: "center", justifyContent: "center" }}
-            href={`/wanted/${hunt.id}`}
+            className="button button--secondary button--block"
+            href={`/wanted/${encodeURIComponent(hunt.id)}`}
             aria-label={`View hunt details: ${hunt.title}`}
           >
             View Wanted Details
