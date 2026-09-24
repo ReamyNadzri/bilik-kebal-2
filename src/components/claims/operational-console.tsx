@@ -61,7 +61,7 @@ export function OperationalConsole() {
         problems.push(refusalMessage(refundsData, "Refund tasks could not be loaded."));
       }
 
-      if (problems.length > 0) setError(problems.join(" "));
+      if (problems.length > 0) setError([...new Set(problems)].join(" "));
     } catch {
       setError("The operations queues could not be reached. Nothing was changed. Try again.");
     } finally {

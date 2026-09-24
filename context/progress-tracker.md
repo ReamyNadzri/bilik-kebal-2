@@ -218,8 +218,40 @@ Update this file after every meaningful implementation or specification change.
   - Enhanced `ResetPasswordForm` to accept email and 6-digit recovery code inputs, with automatic sessionStorage retrieval when transitioning from `/recover`.
   - Immunized password recovery against Microsoft 365 Defender Safe Links / Outlook email prefetching consuming single-use magic links for `@student.uitm.edu.my`.
 
+- 2026-09-24 frontend consistency and bug sweep (Claude Code, branch
+  `claude/compassionate-ramanujan-lpcrpr`):
+  - Claims and operations screens (payout/refund queues, operations console, evidence locker,
+    upload field, dispatch banner/toast, claim workspace, `/claims/new`) moved from ~250 inline
+    styles with rounded corners and off-palette reds/greens onto shared tokenised classes
+    (`.dialog`, `.ops-*`, `.locker-*`, `.upload-*`, `.dispatch-banner`, `.toast`, layout helpers).
+  - Payment placeholder: the Back-this-Wanted dialog maps every refusal to its own message and
+    treats the absent `POST /api/marketplace/wanted/[id]/contribution` route as "online payment is
+    not open yet"; every branch states that no charge was made. Added `/payment/return` for
+    `TOYYIBPAY_RETURN_URL`; it never treats the redirect as payment and never echoes provider
+    references.
+  - Fixed: Close/Cancel on paper dialogs used the timber-only ghost button (unreadable);
+    claim file input was unreachable by keyboard; upload rights confirmation was pre-ticked;
+    a malformed `wantedId` produced a simulated "uploaded" success in production; payout queue
+    hard-coded a 10% fee instead of the snapshotted rate; SignOutButton navigated away even when
+    sign-out was refused; operations tabs lacked tabpanel and arrow-key support; two
+    set-state-in-effect lint errors in the recovery forms.
+  - Removed invented policy copy (a 48-hour free-release delay, an "only refundable on expiry"
+    rule, encryption claims). Free release copy now states only the invariant: Hunter opt-in plus
+    Sheriff-confirmed rights, otherwise Backers only.
+  - Desktop rail fits one row from 1280 px: the search starts at 8rem and grows to 15rem, the
+    account control precedes Post a Wanted, and the account utilities are icon-only below 85rem.
+  - Verification: typecheck, lint, format, 949 unit tests and production build pass; no route
+    overflows at 360 px or 1440 px. Playwright against a production build without Supabase
+    credentials: 135 passed / 85 failed, versus 134 / 86 on the untouched base `e032efe` — no new
+    failures. The remaining failures need a reachable Supabase (sign-in refusal states, the
+    Wanted intake form) or are strict-mode selector clashes in the specs.
+  - Design system recorded as a Design System artifact built from `src/app/globals.css` and the
+    handoff images; `bounty sample.png` in the handoff is third-party artwork and is reference only.
+
 ## Next Up
 
+0. Codex lane: publish `POST /api/marketplace/wanted/[id]/contribution` (Backer contribution
+   intent) — the Back-this-Wanted dialog already calls it and handles every `MoneyOperationCode`.
 1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
 2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.

@@ -776,7 +776,28 @@ textarea {
   font-size: 0.875rem;
 }
 
-@media (max-width: 70rem) {
+/* Desktop: one row. The search starts narrow and grows into spare room, since
+   a wrapping flex row breaks lines before it shrinks anything; the
+   account control sits before the one primary action so the rail ends on it. */
+@media (min-width: 60.0625rem) {
+  .shell-nav__search {
+    flex: 1 1 8rem;
+    width: auto;
+    max-width: 15rem;
+  }
+
+  .app-shell__account {
+    order: 1;
+  }
+
+  .shell-nav__post {
+    order: 2;
+  }
+}
+
+/* The account utilities drop to their icons (their names stay for assistive
+   technology) wherever the full labels would push the rail onto a second row. */
+@media (max-width: 85rem) {
   .shell-nav__link-text--secondary {
     position: absolute;
     width: 1px;
