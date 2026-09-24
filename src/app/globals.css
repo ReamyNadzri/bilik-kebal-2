@@ -23,6 +23,11 @@
   --bg-board: #3f2a16;
   --bg-office: #26170b;
   --bg-band: rgb(16 9 4 / 0.62);
+  /* Behind a modal dialog: the page stays visible but recedes. */
+  --bg-scrim: rgb(16 9 4 / 0.78);
+  /* Ghost buttons on timber: a faint paper wash, stronger on hover. */
+  --bg-ghost: rgb(243 230 200 / 0.1);
+  --bg-ghost-hover: rgb(243 230 200 / 0.2);
 
   /* Paper — every piece of content is written on one of these. */
   --bg-canvas: #f3e6c8;
@@ -771,7 +776,28 @@ textarea {
   font-size: 0.875rem;
 }
 
-@media (max-width: 70rem) {
+/* Desktop: one row. The search starts narrow and grows into spare room, since
+   a wrapping flex row breaks lines before it shrinks anything; the
+   account control sits before the one primary action so the rail ends on it. */
+@media (min-width: 60.0625rem) {
+  .shell-nav__search {
+    flex: 1 1 8rem;
+    width: auto;
+    max-width: 15rem;
+  }
+
+  .app-shell__account {
+    order: 1;
+  }
+
+  .shell-nav__post {
+    order: 2;
+  }
+}
+
+/* The account utilities drop to their icons (their names stay for assistive
+   technology) wherever the full labels would push the rail onto a second row. */
+@media (max-width: 85rem) {
   .shell-nav__link-text--secondary {
     position: absolute;
     width: 1px;
@@ -1068,13 +1094,13 @@ textarea {
 }
 
 .button--ghost {
-  background: rgb(243 230 200 / 0.1);
+  background: var(--bg-ghost);
   border-color: var(--accent-brass);
   color: var(--text-on-dark);
 }
 
 .button--ghost:hover {
-  background: rgb(243 230 200 / 0.2);
+  background: var(--bg-ghost-hover);
   color: var(--text-on-dark-strong);
 }
 
@@ -4138,7 +4164,7 @@ textarea.form-field__input {
   font-weight: 600;
 }
 
-/* Hunter Licence - Facebook Profile Card Style */
+/* Hunter licence: the profile card, a plank cover over a paper body. */
 .profile-workshop {
   display: grid;
   gap: var(--space-5);
@@ -4160,16 +4186,7 @@ textarea.form-field__input {
 .hunter-licence__cover {
   height: 120px;
   width: 100%;
-  background:
-    linear-gradient(135deg, rgba(42, 26, 15, 0.85), rgba(74, 46, 26, 0.7)),
-    repeating-linear-gradient(
-      45deg,
-      rgba(0, 0, 0, 0.05) 0,
-      rgba(0, 0, 0, 0.05) 10px,
-      transparent 10px,
-      transparent 20px
-    ),
-    var(--bg-surface);
+  background: var(--bg-office) var(--texture-plank) center / cover;
   border-bottom: var(--border-width-2) solid var(--border-subtle);
   display: flex;
   align-items: flex-end;
@@ -4183,11 +4200,11 @@ textarea.form-field__input {
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--bg-band);
   color: var(--accent-brass);
-  padding: 0.25rem 0.6rem;
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(212, 163, 89, 0.3);
+  border: var(--border-width-1) solid var(--border-rail);
 }
 
 .hunter-licence__body {
@@ -4381,23 +4398,23 @@ textarea.form-field__input {
   width: 14px;
   height: 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid rgb(0 0 0 / 0.2);
+  border: var(--border-width-1) solid var(--border-strong);
 }
 
 .tone-choice__swatch--fair {
-  background: #fce5d8;
+  background: var(--swatch-fair);
 }
 .tone-choice__swatch--light {
-  background: #f3cfb6;
+  background: var(--swatch-light);
 }
 .tone-choice__swatch--medium {
-  background: #dca882;
+  background: var(--swatch-medium);
 }
 .tone-choice__swatch--tan {
-  background: #b07d58;
+  background: var(--swatch-tan);
 }
 .tone-choice__swatch--deep {
-  background: #6e462e;
+  background: var(--swatch-deep);
 }
 
 /* ==========================================================================
@@ -4425,7 +4442,7 @@ textarea.form-field__input {
   height: 76px !important;
   border-radius: var(--radius-pill);
   border: var(--border-width-2) solid var(--accent-brass);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  box-shadow: var(--shadow-pin);
   object-fit: cover;
   background: var(--bg-surface);
   display: block;
@@ -4515,4 +4532,879 @@ textarea.form-field__input {
     min-width: 0;
     padding-inline: var(--space-1);
   }
+}
+
+/* --------------------------------------------------------------------------
+   Dialog
+
+   One modal shape for every overlay form: a scrim over the page and a paper
+   panel that scrolls inside itself, so a 360 px screen never scrolls the page
+   behind it. Buttons on the panel use the paper variants (primary, secondary,
+   quiet); ghost is a timber-only variant and is unreadable here.
+   -------------------------------------------------------------------------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--bg-scrim);
+}
+
+.dialog-backdrop:focus {
+  outline: none;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 32rem;
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-5);
+  background: var(--bg-canvas);
+  border: var(--border-width-2) solid var(--border-default);
+  box-shadow: var(--shadow-panel), var(--shadow-lg);
+}
+
+.dialog--wide {
+  max-width: 36rem;
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.dialog__close {
+  min-width: 2.75rem;
+  padding-inline: var(--space-3);
+}
+
+.dialog__lede {
+  margin-bottom: var(--space-4);
+}
+
+.dialog__note {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.dialog__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (max-width: 30rem) {
+  .dialog {
+    padding: var(--space-4);
+  }
+
+  .dialog__actions > .button {
+    flex: 1 1 100%;
+  }
+}
+
+/* A receipt-style breakdown of money: label left, figure right, total ruled. */
+.money-breakdown {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.money-breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-1);
+}
+
+.money-breakdown__row dd {
+  margin: 0;
+  font-family: var(--font-money);
+  font-variant-numeric: tabular-nums;
+}
+
+.money-breakdown__row--total {
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-2);
+  border-top: var(--border-width-1) solid var(--border-default);
+  font-weight: 800;
+}
+
+.money-breakdown__row--total dd {
+  color: var(--money-ink);
+}
+
+/* File drop zone. The real control is the file input inside the label, so a
+   keyboard or screen-reader user reaches it by Tab and opens it with Space. */
+.dropzone {
+  display: block;
+  margin-bottom: var(--space-4);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  background: var(--bg-surface);
+  border: var(--border-width-2) dashed var(--border-dashed);
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone--active {
+  background: var(--bg-selected);
+  border-color: var(--accent-secondary);
+}
+
+.dropzone:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.dropzone__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.dropzone__title {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+}
+
+.dropzone__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Stacked consent checkboxes: text wraps beside the box instead of a chip. */
+.consent-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.consent input {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.15em;
+  accent-color: var(--accent-secondary);
+}
+
+.progress-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.progress-note p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Operations panels
+
+   The Owner and Sheriff queues: a paper panel with a heading row, a count
+   stamp, an outcome alert, an empty state and a scrolling ledger table.
+   Status uses the stamp tokens, so a queue never invents its own red.
+   -------------------------------------------------------------------------- */
+
+.ops-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ops-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-1) solid var(--border-subtle);
+}
+
+.ops-panel__title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.ops-panel__lede {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.ops-panel__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.button--compact {
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.ops-alert {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width-1) solid currentcolor;
+  border-left-width: 6px;
+  font-size: var(--text-sm);
+}
+
+.ops-alert--success {
+  background: var(--stamp-success-bg);
+  color: var(--stamp-success-ink);
+}
+
+.ops-alert--error {
+  background: var(--stamp-danger-bg);
+  color: var(--stamp-danger-ink);
+}
+
+.ops-alert--warning {
+  background: var(--stamp-warning-bg);
+  color: var(--stamp-warning-ink);
+}
+
+.ops-alert--info {
+  background: var(--stamp-info-bg);
+  color: var(--stamp-info-ink);
+}
+
+.ops-empty {
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: var(--border-width-1) dashed var(--border-dashed);
+}
+
+/* The table scrolls inside its own frame, so a 360 px screen never scrolls
+   the page sideways. The frame is focusable so the keyboard can scroll it. */
+.ops-table-wrap {
+  overflow-x: auto;
+  border: var(--border-width-1) solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.ops-table {
+  width: 100%;
+  min-width: 36rem;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+.ops-table th {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width-2) solid var(--border-default);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.ops-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width-1) solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.ops-table tbody tr:hover {
+  background: var(--bg-selected);
+}
+
+.ops-table__name {
+  font-weight: 700;
+}
+
+.ops-table__money {
+  font-family: var(--font-money);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: var(--money-ink);
+  white-space: nowrap;
+}
+
+.ops-table__meta {
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.ops-table__end {
+  text-align: right;
+}
+
+.ops-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ops-form .form-field {
+  margin: 0;
+}
+
+.ops-summary {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Tabs for the operations console: a row of paper tabs over a rule. */
+.ops-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: var(--border-width-2) solid var(--border-default);
+}
+
+.ops-tab {
+  min-height: 2.75rem;
+  margin-bottom: calc(-1 * var(--border-width-2));
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: var(--border-width-2) solid transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ops-tab:hover {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.ops-tab[aria-selected="true"] {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  border-bottom-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.ops-console {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.ops-form--narrow {
+  max-width: 32rem;
+}
+
+/* --------------------------------------------------------------------------
+   Evidence locker
+
+   A Hunter's filed proofs as paper cards: type and status stamp on top, the
+   file, a four-stage pipeline, any reviewer note, then date and actions.
+   -------------------------------------------------------------------------- */
+
+.locker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+  gap: var(--space-4);
+}
+
+.locker-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.locker-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.locker-card__file {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  overflow-wrap: anywhere;
+}
+
+.locker-card__type {
+  flex: none;
+  min-width: 3rem;
+  padding: var(--space-1) var(--space-2);
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.locker-card__name {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+}
+
+.locker-card__size {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.locker-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--bg-canvas);
+  border: var(--border-width-1) solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.locker-pipeline li {
+  max-width: none;
+}
+
+.locker-pipeline__done {
+  color: var(--state-success);
+}
+
+.locker-pipeline__current {
+  color: var(--text-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.locker-card__note {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--stamp-warning-bg);
+  border-left: 4px solid var(--state-warning);
+  font-size: var(--text-sm);
+}
+
+.locker-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.locker-card__date {
+  font-size: var(--text-xs);
+  color: var(--text-soft);
+}
+
+.locker-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.locker-card__blocked {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--state-error);
+}
+
+.button--danger-outline {
+  background: var(--bg-surface);
+  border-color: var(--state-error);
+  color: var(--state-error);
+}
+
+.button--danger-outline:hover {
+  background: var(--stamp-danger-bg);
+  color: var(--stamp-danger-ink);
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+}
+
+.skeleton-line {
+  height: 1rem;
+  background: var(--bg-track);
+}
+
+.skeleton-line--short {
+  width: 35%;
+}
+
+.skeleton-line--mid {
+  width: 50%;
+}
+
+.skeleton-line--long {
+  width: 75%;
+}
+
+.ops-alert__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ops-empty__title {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ops-empty__body {
+  margin: 0 auto;
+  max-width: 28rem;
+  font-size: var(--text-sm);
+}
+
+.ops-empty--error {
+  background: var(--stamp-danger-bg);
+  border: var(--border-width-2) solid var(--state-error);
+}
+
+.ops-empty--error .ops-empty__title {
+  color: var(--stamp-danger-ink);
+}
+
+.ops-empty__action {
+  margin-top: var(--space-4);
+}
+
+/* Claim proof upload: one card that changes state in place. */
+.upload-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-default);
+}
+
+.upload-card--success {
+  background: var(--stamp-success-bg);
+  border: var(--border-width-2) solid var(--state-success);
+}
+
+.upload-card--error {
+  background: var(--stamp-danger-bg);
+  border: var(--border-width-2) solid var(--state-error);
+}
+
+.upload-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.upload-card__name {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.upload-card__meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.upload-card__percent {
+  font-family: var(--font-money);
+  font-size: var(--text-xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.upload-card__heading {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+}
+
+.upload-card--error .upload-card__heading {
+  color: var(--stamp-danger-ink);
+}
+
+.upload-card--success .upload-card__heading {
+  color: var(--stamp-success-ink);
+}
+
+.upload-progress {
+  height: 0.75rem;
+  background: var(--bg-track);
+  border: var(--border-width-1) solid var(--border-subtle);
+}
+
+.upload-progress__bar {
+  height: 100%;
+  background: var(--accent-secondary);
+  transition: width var(--motion-base) var(--motion-ease);
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Claim status notices: the stamp tint and ink for the tone, a heavy left
+   rule, and a text tag so the tone never depends on colour alone. */
+.dispatch-banner {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width-1) solid currentcolor;
+  border-left-width: 6px;
+}
+
+.dispatch-banner--neutral {
+  background: var(--stamp-neutral-bg);
+  color: var(--stamp-neutral-ink);
+}
+
+.dispatch-banner--info {
+  background: var(--stamp-info-bg);
+  color: var(--stamp-info-ink);
+}
+
+.dispatch-banner--warning {
+  background: var(--stamp-warning-bg);
+  color: var(--stamp-warning-ink);
+}
+
+.dispatch-banner--success {
+  background: var(--stamp-success-bg);
+  color: var(--stamp-success-ink);
+}
+
+.dispatch-banner--danger {
+  background: var(--stamp-danger-bg);
+  color: var(--stamp-danger-ink);
+}
+
+.dispatch-banner--muted {
+  background: var(--stamp-muted-bg);
+  color: var(--stamp-muted-ink);
+}
+
+.dispatch-banner__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.dispatch-banner__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: inherit;
+}
+
+.dispatch-banner__tag {
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dispatch-banner__message {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.toast {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 70;
+  width: calc(100vw - 2 * var(--space-4));
+  max-width: 24rem;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--border-default);
+  border-left-width: 6px;
+  box-shadow: var(--shadow-md);
+}
+
+.toast--success {
+  border-color: var(--state-success);
+}
+
+.toast--warning {
+  border-color: var(--state-warning);
+}
+
+.toast--error {
+  border-color: var(--state-error);
+}
+
+.toast__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.toast__tag {
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.toast__close {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+
+.toast__title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.toast__message {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Layout helpers
+
+   Small, named layouts so pages never restate flex values inline.
+   -------------------------------------------------------------------------- */
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.page-narrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 56rem;
+  margin-inline: auto;
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.page-head__title {
+  margin: var(--space-1) 0;
+}
+
+.page-head__lede {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+.text-center {
+  text-align: center;
+}
+
+.link-strong {
+  font-weight: 700;
 }

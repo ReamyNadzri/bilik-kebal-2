@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { callOperation } from "@/features/presentation/call-operation";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { UiStatus } from "./ui-status";
+
+const subscribeToNothing = () => () => {};
+const noStoredEmail = () => "";
+
+/** The address the recovery request was sent for, kept for this tab only. */
+function readStoredEmail(): string {
+  try {
+    return sessionStorage.getItem("vaultix_recovery_email") ?? "";
+  } catch {
+    return "";
+  }
+}
 
 type Outcome = "idle" | "submitting" | "updated" | "expired" | "failed";
 
@@ -16,19 +28,11 @@ export function ResetPasswordForm({
   expired?: boolean | undefined;
   initialEmail?: string | undefined;
 }) {
-  const [email, setEmail] = useState(initialEmail);
+  const storedEmail = useSyncExternalStore(subscribeToNothing, readStoredEmail, noStoredEmail);
+  const email = initialEmail || storedEmail;
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>(expired ? "expired" : "idle");
   const summaryRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!initialEmail && typeof window !== "undefined") {
-      try {
-        const stored = sessionStorage.getItem("vaultix_recovery_email");
-        if (stored) setEmail(stored);
-      } catch {}
-    }
-  }, [initialEmail]);
 
   useEffect(() => {
     if (errors.length > 0) summaryRef.current?.focus();
@@ -113,18 +117,13 @@ export function ResetPasswordForm({
 
   if (outcome === "expired") {
     return (
-      <section className="auth-form">
+      <section className="auth-form stack">
         <UiStatus
           kind="expired"
           heading="This recovery link is invalid or expired"
           message="If you received a 6-digit recovery code by email, you can enter it below, or request a new code."
         />
-        <button
-          type="button"
-          className="auth-form__submit"
-          onClick={() => setOutcome("idle")}
-          style={{ marginBottom: "1rem" }}
-        >
+        <button type="button" className="auth-form__submit" onClick={() => setOutcome("idle")}>
           Enter 6-digit recovery code
         </button>
         <p className="auth-form__links">

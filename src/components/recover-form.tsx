@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { UiStatus } from "./ui-status";
@@ -13,17 +13,18 @@ import { useHydrated } from "@/features/presentation/use-hydrated";
 const COOLDOWN_SECONDS = 120;
 const STORAGE_KEY = "vaultix_recovery_cooldown";
 
-function getInitialCooldown(): number {
-  if (typeof window === "undefined") return 0;
+/** The stored cooldown expiry, read once the form is in the browser. */
+function readStoredExpiry(): number | null {
   try {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (!stored) return 0;
-    const remaining = Math.ceil((Number(stored) - Date.now()) / 1000);
-    return remaining > 0 ? remaining : 0;
+    const stored = Number(sessionStorage.getItem(STORAGE_KEY));
+    return Number.isFinite(stored) && stored > 0 ? stored : null;
   } catch {
-    return 0;
+    return null;
   }
 }
+
+const subscribeToNothing = () => () => {};
+const noStoredExpiry = () => null;
 
 function formatCooldown(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -48,13 +49,13 @@ type Outcome =
 export function RecoverForm() {
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
-  const [cooldown, setCooldown] = useState(0);
+  const storedExpiry = useSyncExternalStore(subscribeToNothing, readStoredExpiry, noStoredExpiry);
+  const [issuedExpiry, setIssuedExpiry] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const summaryRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
-
-  useEffect(() => {
-    setCooldown(getInitialCooldown());
-  }, []);
+  const expiry = issuedExpiry ?? storedExpiry;
+  const cooldown = expiry === null ? 0 : Math.max(0, Math.ceil((expiry - now) / 1000));
 
   useEffect(() => {
     if (errors.length > 0) {
@@ -65,18 +66,16 @@ export function RecoverForm() {
   useEffect(() => {
     if (cooldown <= 0) return;
     const timer = setInterval(() => {
-      setCooldown((prev) => {
-        if (prev <= 1) {
-          try {
-            sessionStorage.removeItem(STORAGE_KEY);
-          } catch {}
-          return 0;
-        }
-        return prev - 1;
-      });
+      const current = Date.now();
+      setNow(current);
+      if (expiry !== null && current >= expiry) {
+        try {
+          sessionStorage.removeItem(STORAGE_KEY);
+        } catch {}
+      }
     }, 1000);
     return () => clearInterval(timer);
-  }, [cooldown]);
+  }, [cooldown, expiry]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,7 +108,8 @@ export function RecoverForm() {
         sessionStorage.setItem(STORAGE_KEY, String(expiry));
         sessionStorage.setItem("vaultix_recovery_email", email);
       } catch {}
-      setCooldown(COOLDOWN_SECONDS);
+      setNow(Date.now());
+      setIssuedExpiry(expiry);
       return;
     }
 
@@ -137,17 +137,14 @@ export function RecoverForm() {
       <ErrorSummary errors={errors} ref={summaryRef} />
 
       {outcome.kind === "accepted" ? (
-        <div style={{ display: "grid", gap: "0.75rem", marginBottom: "1rem" }}>
+        <div className="stack">
           <UiStatus
             kind="empty"
             heading="If an account exists for that address, a recovery code is on its way"
             message="Check your email for the 6-digit verification code. Once received, enter it to set a new password."
           />
-          <p className="auth-form__links" style={{ textAlign: "center" }}>
-            <Link
-              href="/reset-password"
-              style={{ fontWeight: "bold", textDecoration: "underline" }}
-            >
+          <p className="auth-form__links text-center">
+            <Link href="/reset-password" className="link-strong">
               Enter 6-digit recovery code &rarr;
             </Link>
           </p>

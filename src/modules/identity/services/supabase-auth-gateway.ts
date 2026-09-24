@@ -99,10 +99,7 @@ export class SupabaseAuthGateway implements AuthGateway {
     );
   }
 
-  async verifyRecoveryOtp(input: {
-    email: string;
-    token: string;
-  }): Promise<AuthGatewayResult> {
+  async verifyRecoveryOtp(input: { email: string; token: string }): Promise<AuthGatewayResult> {
     return toResult(
       await this.auth.verifyOtp({
         email: input.email,

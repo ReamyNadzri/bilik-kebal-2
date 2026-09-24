@@ -18,7 +18,7 @@ export type UploadStage =
   | { kind: "validating"; file: File }
   | { kind: "uploading"; file: File; progress: number }
   | { kind: "confirming"; file: File }
-  | { kind: "success"; proof: CompletedClaimProof }
+  | { kind: "success"; proof: CompletedClaimProof; simulated?: boolean }
   | { kind: "error"; message: string; file?: File };
 
 function formatBytes(bytes: number): string {
@@ -44,7 +44,8 @@ export function FileUploadField({
 }: FileUploadFieldProps) {
   const [stage, setStage] = useState<UploadStage>({ kind: "idle" });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [rightsConfirmed, setRightsConfirmed] = useState(true);
+  // Consent is an active choice: never pre-ticked on the Hunter's behalf.
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [freeReleaseOptIn, setFreeReleaseOptIn] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -61,13 +62,6 @@ export function FileUploadField({
 
   const handleStartUpload = useCallback(
     async (file: File) => {
-      if (!rightsConfirmed) {
-        const errorMsg = "You must confirm you are authorised to share this material.";
-        setStage({ kind: "error", message: errorMsg, file });
-        onUploadError?.(errorMsg);
-        return;
-      }
-
       // 1. Validation
       if (!claimMimeTypes.includes(file.type as ClaimMimeType)) {
         const errorMsg = "Unsupported file type. Allowed: PDF, PNG, JPEG, WEBP, DOCX, PPTX, XLSX.";
@@ -79,6 +73,14 @@ export function FileUploadField({
       if (file.size > maxSizeBytes) {
         const errorMsg = `File too large (${formatBytes(file.size)}). Maximum allowed is ${formatBytes(maxSizeBytes)}.`;
         setStage({ kind: "error", message: errorMsg, file });
+        onUploadError?.(errorMsg);
+        return;
+      }
+
+      if (!rightsConfirmed) {
+        const errorMsg =
+          "Confirm that you are authorised to share this material, then choose your file again.";
+        setStage({ kind: "error", message: errorMsg });
         onUploadError?.(errorMsg);
         return;
       }
@@ -96,7 +98,7 @@ export function FileUploadField({
       try {
         sha256 = await computeSha256Hex(file);
       } catch {
-        const errorMsg = "Failed to calculate file checksum. Try another browser.";
+        const errorMsg = "Your browser could not check this file. Try again in another browser.";
         setStage({ kind: "error", message: errorMsg, file });
         onUploadError?.(errorMsg);
         return;
@@ -107,8 +109,17 @@ export function FileUploadField({
         wantedId,
       );
 
+      if (!isUuid && process.env.NODE_ENV === "production") {
+        const errorMsg =
+          "This page is not linked to a valid Wanted request, so nothing was uploaded. Open the claim form from the Wanted request instead.";
+        setStage({ kind: "error", message: errorMsg });
+        onUploadError?.(errorMsg);
+        return;
+      }
+
       if (!isUuid) {
-        // Development / fixture preview mode: simulate the upload lifecycle
+        // Development and test fixture preview only: simulates the upload
+        // lifecycle. The success state says plainly that nothing was uploaded.
         let cancelled = false;
         abortUploadRef.current = () => {
           cancelled = true;
@@ -142,8 +153,7 @@ export function FileUploadField({
           completedAt: new Date().toISOString(),
         };
 
-        setStage({ kind: "success", proof });
-        onUploadComplete?.(proof);
+setStage({ kind: "success", proof, simulated: true });
         return;
       }
 
@@ -170,7 +180,7 @@ export function FileUploadField({
 
         const json = await res.json();
         if (!res.ok || !json.ok) {
-          const errorMsg = json.message || "Failed to initialize upload session.";
+          const errorMsg = json.message || "The upload could not be started. Nothing was uploaded.";
           setStage({ kind: "error", message: errorMsg, file });
           onUploadError?.(errorMsg);
           return;
@@ -178,7 +188,7 @@ export function FileUploadField({
 
         uploadSession = json.data;
       } catch {
-        const errorMsg = "Connection error while preparing upload.";
+        const errorMsg = "VAULTIX could not be reached, so nothing was uploaded. Try again.";
         setStage({ kind: "error", message: errorMsg, file });
         onUploadError?.(errorMsg);
         return;
@@ -228,7 +238,7 @@ export function FileUploadField({
       } catch (uploadErr) {
         abortUploadRef.current = null;
         const errorMsg =
-          uploadErr instanceof Error ? uploadErr.message : "Failed to upload file to storage.";
+          uploadErr instanceof Error ? uploadErr.message : "The file could not be uploaded.";
         setStage({ kind: "error", message: errorMsg, file });
         onUploadError?.(errorMsg);
         return;
@@ -248,7 +258,8 @@ export function FileUploadField({
 
         const confirmJson = await confirmRes.json();
         if (!confirmRes.ok || !confirmJson.ok) {
-          const errorMsg = confirmJson.message || "Failed to confirm upload.";
+          const errorMsg =
+            confirmJson.message || "The upload finished but could not be recorded. Try again.";
           setStage({ kind: "error", message: errorMsg, file });
           onUploadError?.(errorMsg);
           return;
@@ -258,7 +269,7 @@ export function FileUploadField({
         setStage({ kind: "success", proof });
         onUploadComplete?.(proof);
       } catch {
-        const errorMsg = "Failed to record upload completion.";
+        const errorMsg = "The upload finished but could not be recorded. Try again.";
         setStage({ kind: "error", message: errorMsg, file });
         onUploadError?.(errorMsg);
       }
@@ -290,49 +301,44 @@ export function FileUploadField({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  return (
-    <div
-      className="panel"
-      style={{
-        borderRadius: "4px",
-        padding: "1.75rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.5rem",
-      }}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        id="proof-file-input"
-        data-testid="proof-file-input"
-        disabled={disabled || stage.kind === "uploading" || stage.kind === "validating"}
-        accept="image/png,image/jpeg,image/webp,application/pdf,.docx,.pptx,.xlsx"
-        onChange={handleFileChange}
-        style={{ display: "none" }}
-      />
+  const busy = stage.kind === "uploading" || stage.kind === "validating";
 
-      {/* IDLE STATE */}
+  return (
+    <div className="panel ops-panel">
       {stage.kind === "idle" && (
         <>
-          <div
-            className="file-upload-dropzone"
-            style={{
-              border: isDragOver
-                ? "2px solid var(--accent-brass, #c89b3c)"
-                : "2px dashed var(--border-default, #9c8558)",
-              borderRadius: "4px",
-              padding: "2.5rem 1.5rem",
-              textAlign: "center",
-              cursor: disabled ? "not-allowed" : "pointer",
-              background: isDragOver ? "var(--bg-selected, #e3d6b4)" : "var(--bg-surface, #fbf3e0)",
-              transition: "all 0.15s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.75rem",
-            }}
+          <fieldset className="consent-list">
+            <legend className="draft-form__legend">Before you upload</legend>
+            <label className="consent">
+              <input
+                type="checkbox"
+                checked={rightsConfirmed}
+                onChange={(e) => setRightsConfirmed(e.target.checked)}
+                disabled={disabled}
+              />
+              <span>
+                <strong>Required:</strong> I confirm I am authorised to share this academic material
+                and it follows the VAULTIX content policy.
+              </span>
+            </label>
+
+            <label className="consent">
+              <input
+                type="checkbox"
+                checked={freeReleaseOptIn}
+                onChange={(e) => setFreeReleaseOptIn(e.target.checked)}
+                disabled={disabled}
+              />
+              <span>
+                <strong>Optional:</strong> Offer this resource for free release. It is released free
+                only if a Sheriff also confirms the rights; otherwise only this Wanted&rsquo;s
+                Backers get access.
+              </span>
+            </label>
+          </fieldset>
+
+          <label
+            className={`dropzone${isDragOver ? " dropzone--active" : ""}`}
             onDragOver={(e) => {
               e.preventDefault();
               if (!disabled) setIsDragOver(true);
@@ -344,233 +350,74 @@ export function FileUploadField({
               const file = e.dataTransfer.files?.[0];
               if (file && !disabled) void handleStartUpload(file);
             }}
-            onClick={() => !disabled && fileInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (!disabled && (e.key === "Enter" || e.key === " ")) {
-                fileInputRef.current?.click();
-              }
-            }}
-            tabIndex={disabled ? -1 : 0}
-            role="button"
-            aria-label="Click to attach proof file"
           >
-            <div
-              style={{
-                width: "54px",
-                height: "54px",
-                borderRadius: "50%",
-                background: "var(--bg-canvas, #f3e6c8)",
-                border: "1px solid var(--border-default, #9c8558)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.75rem",
-              }}
-            >
-              📁
-            </div>
-
-            <div>
-              <p
-                style={{
-                  fontWeight: "700",
-                  fontSize: "1.1rem",
-                  margin: "0 0 0.35rem 0",
-                  color: "var(--text-primary, #2a2118)",
-                }}
-              >
-                Click to attach proof file
-              </p>
-              <p
-                style={{
-                  fontSize: "0.875rem",
-                  color: "var(--text-muted, #5e4f37)",
-                  margin: 0,
-                }}
-              >
-                Drag and drop your file here, or click to browse
-              </p>
-              <p
-                style={{
-                  fontSize: "0.8rem",
-                  color: "var(--text-soft, #6b5a3f)",
-                  margin: "0.25rem 0 0 0",
-                }}
-              >
-                PNG, JPEG, WEBP, PDF, or Office documents (Max {formatBytes(maxSizeBytes)})
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="button button--secondary"
-              style={{ marginTop: "0.5rem", pointerEvents: "none" }}
-              tabIndex={-1}
-            >
-              Select File
-            </button>
-          </div>
-
-          {/* Policy Checklist */}
-          <div
-            style={{
-              background: "var(--bg-surface, #fbf3e0)",
-              border: "1px solid var(--border-subtle, #d3bc92)",
-              borderRadius: "4px",
-              padding: "1rem 1.25rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.75rem",
-            }}
-          >
-            <label
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "0.75rem",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-                color: "var(--text-primary, #2a2118)",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={rightsConfirmed}
-                onChange={(e) => setRightsConfirmed(e.target.checked)}
-                style={{ marginTop: "0.2rem", accentColor: "var(--accent-brass, #c89b3c)" }}
-              />
-              <span>
-                <strong>Required:</strong> I confirm I am authorised to share this academic material
-                and it complies with VAULTIX content policy.
-              </span>
-            </label>
-
-            <label
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "0.75rem",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-                color: "var(--text-muted, #5e4f37)",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={freeReleaseOptIn}
-                onChange={(e) => setFreeReleaseOptIn(e.target.checked)}
-                style={{ marginTop: "0.2rem", accentColor: "var(--accent-brass, #c89b3c)" }}
-              />
-              <span>
-                <strong>Optional:</strong> Allow free release to all verified students 48 hours
-                after Sheriff approval.
-              </span>
-            </label>
-          </div>
+            <input
+              ref={fileInputRef}
+              className="dropzone__input"
+              type="file"
+              id="proof-file-input"
+              data-testid="proof-file-input"
+              aria-describedby="proof-file-hint"
+              disabled={disabled || busy}
+              accept="image/png,image/jpeg,image/webp,application/pdf,.docx,.pptx,.xlsx"
+              onChange={handleFileChange}
+            />
+            <span className="dropzone__title">Click to attach proof file</span>
+            <span className="dropzone__hint" id="proof-file-hint">
+              Or drag and drop it here. PNG, JPEG, WEBP, PDF or Office documents, up to{" "}
+              {formatBytes(maxSizeBytes)}.
+            </span>
+          </label>
         </>
       )}
 
-      {/* VALIDATING STATE */}
       {stage.kind === "validating" && (
-        <div
-          style={{
-            padding: "2rem",
-            textAlign: "center",
-            background: "var(--bg-surface, #fbf3e0)",
-            border: "1px solid var(--border-default, #9c8558)",
-            borderRadius: "4px",
-          }}
-        >
-          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏳</div>
-          <p style={{ margin: "0 0 0.25rem 0", fontWeight: "700" }}>
-            Validating &amp; Calculating Checksum
-          </p>
-          <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-muted, #5e4f37)" }}>
-            Hashing <strong>{stage.file.name}</strong> ({formatBytes(stage.file.size)}) using
-            SHA-256...
+        <div className="upload-card" role="status" aria-live="polite">
+          <p className="upload-card__heading">Checking your file</p>
+          <p className="upload-card__meta">
+            <strong>{stage.file.name}</strong> ({formatBytes(stage.file.size)}) stays on this device
+            while it is checked.
           </p>
         </div>
       )}
 
-      {/* UPLOADING OR CONFIRMING STATE */}
       {(stage.kind === "uploading" || stage.kind === "confirming") && (
-        <div
-          style={{
-            padding: "1.5rem",
-            background: "var(--bg-surface, #fbf3e0)",
-            border: "1px solid var(--border-default, #9c8558)",
-            borderRadius: "4px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1rem",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="upload-card">
+          <div className="upload-card__row">
             <div>
-              <p
-                style={{
-                  margin: "0 0 0.2rem 0",
-                  fontWeight: "700",
-                  fontSize: "1rem",
-                  color: "var(--text-primary, #2a2118)",
-                }}
-              >
-                {stage.file.name}
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.85rem",
-                  color: "var(--text-muted, #5e4f37)",
-                }}
-              >
+              <p className="upload-card__name">{stage.file.name}</p>
+              <p className="upload-card__meta" aria-live="polite">
                 {formatBytes(stage.file.size)} ·{" "}
                 {stage.kind === "uploading"
-                  ? "Uploading to private quarantine..."
-                  : "Finalizing submission..."}
+                  ? "Uploading to private review storage…"
+                  : "Finishing your submission…"}
               </p>
             </div>
-            <span
-              className="numeric"
-              style={{
-                fontFamily: "var(--font-display, serif)",
-                fontSize: "1.25rem",
-                fontWeight: "700",
-                color: "var(--accent-brass, #c89b3c)",
-              }}
-            >
+            <span className="upload-card__percent">
               {stage.kind === "uploading" ? `${stage.progress}%` : "100%"}
             </span>
           </div>
 
-          {/* Progress Bar */}
           <div
-            style={{
-              width: "100%",
-              height: "10px",
-              borderRadius: "5px",
-              background: "var(--bg-selected, #e3d6b4)",
-              overflow: "hidden",
-              border: "1px solid var(--border-subtle, #d3bc92)",
-            }}
+            className="upload-progress"
+            role="progressbar"
+            aria-label="Upload progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={stage.kind === "uploading" ? stage.progress : 100}
           >
             <div
               data-testid="upload-progress-bar"
-              style={{
-                height: "100%",
-                width: stage.kind === "uploading" ? `${stage.progress}%` : "100%",
-                background: "linear-gradient(90deg, #b79763, #c89b3c)",
-                transition: "width 0.2s ease",
-              }}
+              className="upload-progress__bar"
+              style={{ width: `${stage.kind === "uploading" ? stage.progress : 100}%` }}
             />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div className="upload-actions">
             <button
               type="button"
-              className="button button--secondary"
+              className="button button--secondary button--compact"
               onClick={handleCancel}
-              style={{ fontSize: "0.85rem" }}
             >
               Cancel Upload
             </button>
@@ -578,67 +425,28 @@ export function FileUploadField({
         </div>
       )}
 
-      {/* SUCCESS STATE */}
       {stage.kind === "success" && (
-        <div
-          style={{
-            border: "2px solid var(--state-success, #2e7d32)",
-            background: "rgba(46, 125, 50, 0.08)",
-            padding: "1.5rem",
-            borderRadius: "4px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "1rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <div
-              style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "50%",
-                background: "var(--state-success, #2e7d32)",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "1.25rem",
-                fontWeight: "bold",
-              }}
-            >
-              ✓
-            </div>
-            <div>
-              <p
-                style={{
-                  margin: "0 0 0.25rem 0",
-                  fontWeight: "700",
-                  fontSize: "1.05rem",
-                  color: "var(--text-primary, #2a2118)",
-                }}
-              >
-                {stage.proof.fileName}
-              </p>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted, #5e4f37)" }}>
-                {formatBytes(stage.proof.sizeBytes)} · Uploaded and sent for screening
-              </p>
-            </div>
+        <div className="upload-card upload-card--success" role="status">
+          <div>
+            <p className="upload-card__heading">
+              {stage.simulated ? "Preview only: nothing was uploaded" : "Uploaded"}
+            </p>
+            <p className="upload-card__name">{stage.proof.fileName}</p>
+            <p className="upload-card__meta">
+              {formatBytes(stage.proof.sizeBytes)} ·{" "}
+              {stage.simulated
+                ? "Fixture preview of the upload flow; no file left this device."
+                : "Uploaded and sent for screening"}
+            </p>
           </div>
 
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <div className="upload-actions">
             <button
               type="button"
-              className="button button--secondary"
+              className="button button--danger-outline button--compact"
               onClick={() => {
                 onRemoveProof?.(stage.proof);
                 handleReset();
-              }}
-              style={{
-                fontSize: "0.85rem",
-                color: "var(--state-error, #b71c1c)",
-                borderColor: "rgba(183, 28, 28, 0.4)",
               }}
               aria-label={`Cancel upload: ${stage.proof.fileName}`}
             >
@@ -646,9 +454,8 @@ export function FileUploadField({
             </button>
             <button
               type="button"
-              className="button button--secondary"
+              className="button button--secondary button--compact"
               onClick={handleReset}
-              style={{ fontSize: "0.85rem" }}
             >
               Upload Another File
             </button>
@@ -656,62 +463,24 @@ export function FileUploadField({
         </div>
       )}
 
-      {/* ERROR STATE */}
       {stage.kind === "error" && (
-        <div
-          style={{
-            border: "2px solid var(--state-error, #b71c1c)",
-            background: "rgba(183, 28, 28, 0.08)",
-            padding: "1.25rem 1.5rem",
-            borderRadius: "4px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.75rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
-            <span
-              style={{
-                color: "var(--state-error, #b71c1c)",
-                fontSize: "1.2rem",
-                fontWeight: "bold",
-              }}
-            >
-              ⚠
-            </span>
-            <div>
-              <p
-                style={{
-                  margin: "0 0 0.2rem 0",
-                  fontWeight: "700",
-                  color: "var(--state-error, #b71c1c)",
-                }}
-              >
-                Upload Refused
-              </p>
-              <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-primary, #2a2118)" }}>
-                {stage.message}
-              </p>
-            </div>
+        <div className="upload-card upload-card--error" role="alert">
+          <div>
+            <p className="upload-card__heading">Upload refused</p>
+            <p className="upload-card__meta">{stage.message}</p>
           </div>
 
-          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.25rem" }}>
+          <div className="upload-actions">
             {stage.file && (
               <button
                 type="button"
                 className="button button--primary"
                 onClick={() => stage.file && void handleStartUpload(stage.file)}
-                style={{ fontSize: "0.85rem" }}
               >
                 Retry
               </button>
             )}
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={handleReset}
-              style={{ fontSize: "0.85rem" }}
-            >
+            <button type="button" className="button button--secondary" onClick={handleReset}>
               Choose Different File
             </button>
           </div>

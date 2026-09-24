@@ -54,6 +54,8 @@ describe("OwnerPayoutQueue", () => {
     expect(screen.getByText("Ahmad Albab")).toBeInTheDocument();
     expect(screen.getByText("RM 50.00")).toBeInTheDocument();
     expect(screen.getByText("- RM 5.00")).toBeInTheDocument();
+    // The fee rate shown is the one snapshotted on the task, never a constant.
+    expect(screen.getAllByText("(10%)").length).toBeGreaterThan(0);
     expect(screen.getByText("RM 45.00")).toBeInTheDocument();
 
     expect(screen.getByText("Siti Hunter")).toBeInTheDocument();

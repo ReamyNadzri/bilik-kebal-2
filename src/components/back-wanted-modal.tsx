@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import type { MoneyOperationCode } from "@/contracts/money";
 import type { WantedDetail } from "@/features/marketplace/types";
 import { formatRinggit, sen, type Sen } from "@/features/marketplace/money";
-import { UiStatus } from "./ui-status";
+import { callOperation } from "@/features/presentation/call-operation";
+import { UiStatus, type UiStatusKind } from "./ui-status";
 
 export interface BackWantedModalProps {
   readonly wanted: WantedDetail;
@@ -18,19 +21,92 @@ const PRESET_AMOUNTS: readonly { label: string; amountSen: Sen }[] = [
   { label: "RM 50", amountSen: sen(5000) },
 ];
 
+interface Refusal {
+  readonly kind: UiStatusKind;
+  readonly heading: string;
+  readonly message: string;
+  readonly action?: { readonly href: string; readonly label: string };
+}
+
+const NO_CHARGE = "No charge was made and the bounty is unchanged.";
+
 /**
- * Modal dialog for institution-verified students to add RM1–RM50 backer
- * contributions to an open Wanted request.
+ * What a refused contribution tells the Backer. Every branch says plainly that
+ * nothing was charged, because the one misreading with a real cost is a
+ * student believing they paid when they did not, or the reverse.
+ */
+function describeRefusal(code: MoneyOperationCode): Refusal {
+  switch (code) {
+    case "PAYMENT_DISABLED":
+    case "PAYMENT_UNAVAILABLE":
+      return {
+        kind: "offline",
+        heading: "Online payment is not open yet",
+        message: `The payment gateway is still being connected, so backing a Wanted is not available in this build. ${NO_CHARGE}`,
+      };
+    case "AUTH_REQUIRED":
+      return {
+        kind: "restricted",
+        heading: "Sign in again to back this Wanted",
+        message: `Your session has ended. ${NO_CHARGE}`,
+        action: { href: "/sign-in", label: "Sign in" },
+      };
+    case "EMAIL_NOT_VERIFIED":
+      return {
+        kind: "restricted",
+        heading: "Confirm your email address",
+        message: `Verify your email before funding a bounty. ${NO_CHARGE}`,
+        action: { href: "/verify-email", label: "Verify your email" },
+      };
+    case "INSTITUTION_VERIFICATION_REQUIRED":
+      return {
+        kind: "restricted",
+        heading: "Institution verification is needed",
+        message: `Funding a bounty needs a verified institution account. ${NO_CHARGE}`,
+        action: { href: "/profile/institution-verification", label: "Verify your institution" },
+      };
+    case "ACCOUNT_RESTRICTED":
+      return {
+        kind: "restricted",
+        heading: "Your account cannot fund bounties right now",
+        message: `A restriction on your account blocks contributions. ${NO_CHARGE}`,
+        action: { href: "/profile", label: "View your profile" },
+      };
+    case "WANTED_NOT_FOUND":
+      return {
+        kind: "expired",
+        heading: "This Wanted is no longer open",
+        message: `It may have closed or been fulfilled. ${NO_CHARGE}`,
+      };
+    case "AMOUNT_OUT_OF_RANGE":
+      return {
+        kind: "error",
+        heading: "Choose an amount from RM1 to RM50",
+        message: `Each contribution must be between RM1 and RM50. ${NO_CHARGE}`,
+      };
+    default:
+      return {
+        kind: "offline",
+        heading: "Payment could not be prepared",
+        message: `Something went wrong before checkout started. ${NO_CHARGE} Try again shortly.`,
+      };
+  }
+}
+
+/**
+ * Modal dialog for institution-verified students to add a RM1–RM50 backer
+ * contribution to an open Wanted request.
  *
- * Enforces:
- * - Integer sen branding at all times (100–5,000 sen).
- * - Transparent explanation of provider charges.
- * - Launch-gate awareness: informative refusal notice when payments are disabled.
- * - Accessible dialog semantics, keyboard navigation, and escape-to-close.
+ * - Money stays integer sen (100–5,000) end to end.
+ * - Nothing here confirms a payment. Success is a redirect to the provider;
+ *   only a verified provider callback ever changes the bounty.
+ * - Until the gateway is connected, the dialog says so before the Backer
+ *   chooses an amount, and every refusal says no charge was made.
  */
 export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
   const [selectedSen, setSelectedSen] = useState<Sen>(sen(500));
-  const [status, setStatus] = useState<"idle" | "submitting" | "refused">("idle");
+  const [status, setStatus] = useState<"idle" | "submitting">("idle");
+  const [refusal, setRefusal] = useState<Refusal | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,124 +125,83 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
   async function handleProceed() {
     setStatus("submitting");
 
-    // In this MVP phase, live payments are protected by launch gates (PAYMENT_MODE=disabled/sandbox).
-    // Simulated or refusal path demonstrates safe launch gate response.
-    try {
-      const response = await fetch(`/api/marketplace/wanted/${wanted.id}/contribution`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountSen: selectedSen }),
-      });
+    const result = await callOperation<{ paymentUrl?: string }, MoneyOperationCode>(
+      `/api/marketplace/wanted/${encodeURIComponent(wanted.id)}/contribution`,
+      { amountSen: selectedSen },
+      "PAYMENT_UNAVAILABLE",
+    );
 
-      if (!response.ok) {
-        setStatus("refused");
-        return;
-      }
-
-      const result = await response.json();
-      if (result.ok && result.data?.paymentUrl) {
-        window.location.href = result.data.paymentUrl;
-        return;
-      }
-
-      setStatus("refused");
-    } catch {
-      setStatus("refused");
+    if (result.ok && result.data?.paymentUrl) {
+      window.location.assign(result.data.paymentUrl);
+      return;
     }
+
+    setStatus("idle");
+    setRefusal(describeRefusal(result.ok ? "PAYMENT_UNAVAILABLE" : result.code));
   }
 
   const projectedTotalSen = sen(wanted.grossBountySen + selectedSen);
+  const submitting = status === "submitting";
 
   return (
     <div
-      className="evidence-viewer"
+      className="dialog-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="back-wanted-title"
       ref={dialogRef}
       tabIndex={-1}
-      style={{
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-      }}
     >
-      <div
-        className="panel"
-        style={{
-          maxWidth: "32rem",
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          <h2 id="back-wanted-title" style={{ margin: 0, fontSize: "var(--text-lg)" }}>
+      <div className="dialog">
+        <div className="dialog__head">
+          <h2 id="back-wanted-title" className="dialog__title">
             Back this Wanted
           </h2>
           <button
             type="button"
-            className="button button--ghost"
+            className="button button--quiet dialog__close"
             onClick={onClose}
             aria-label="Close dialog"
           >
-            ✕
+            <span aria-hidden="true">✕</span>
           </button>
         </div>
 
-        {status === "refused" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-            <UiStatus
-              kind="offline"
-              heading="Payments are switched off"
-              message="Backer contributions are currently disabled pending launch-gate clearance. No charge was made and the bounty remains unchanged."
-              action={
+        {refusal !== null ? (
+          <UiStatus
+            kind={refusal.kind}
+            heading={refusal.heading}
+            message={refusal.message}
+            action={
+              <span className="dialog__actions">
+                {refusal.action ? (
+                  <Link className="button button--secondary" href={refusal.action.href}>
+                    {refusal.action.label}
+                  </Link>
+                ) : null}
                 <button type="button" className="button button--primary" onClick={onClose}>
-                  Understood
+                  Close
                 </button>
-              }
-            />
-          </div>
+              </span>
+            }
+          />
         ) : (
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleProceed();
+              void handleProceed();
             }}
           >
-            <p className="policy-note" style={{ marginBottom: "var(--space-4)" }}>
-              Add to the bounty for <strong>{wanted.title}</strong> ({wanted.courseCode}). Every
+            <p className="policy-note dialog__lede">
+              Add to the bounty for <strong>{wanted.title}</strong> ({wanted.courseCode}). Each
               contribution is RM1 to RM50.
             </p>
 
-            <fieldset className="draft-form__fieldset" style={{ marginBottom: "var(--space-4)" }}>
+            <fieldset className="draft-form__fieldset">
               <legend className="draft-form__legend">Select contribution amount</legend>
-              <div
-                className="draft-form__choices"
-                style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}
-              >
+              <div className="draft-form__choices">
                 {PRESET_AMOUNTS.map(({ label, amountSen }) => (
-                  <label
-                    key={amountSen}
-                    className="draft-form__choice"
-                    style={{
-                      cursor: "pointer",
-                      padding: "var(--space-2) var(--space-3)",
-                      border: "var(--border-width-1) solid var(--border-default)",
-                      borderRadius: "var(--radius-sm)",
-                      background:
-                        selectedSen === amountSen
-                          ? "var(--bg-surface-elevated)"
-                          : "var(--bg-surface)",
-                    }}
-                  >
+                  <label key={amountSen} className="draft-form__choice">
                     <input
                       type="radio"
                       name="backer-amount"
@@ -174,84 +209,43 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
                       checked={selectedSen === amountSen}
                       onChange={() => setSelectedSen(amountSen)}
                     />
-                    <span style={{ fontWeight: selectedSen === amountSen ? "bold" : "normal" }}>
-                      {label}
-                    </span>
+                    <span>{label}</span>
                   </label>
                 ))}
               </div>
             </fieldset>
 
-            <div
-              className="panel"
-              style={{
-                background: "var(--bg-canvas)",
-                padding: "var(--space-3)",
-                marginBottom: "var(--space-4)",
-                fontSize: "var(--text-sm)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "var(--space-1)",
-                }}
-              >
-                <span>Current bounty:</span>
-                <span className="numeric">{formatRinggit(wanted.grossBountySen)}</span>
+            <dl className="money-breakdown" aria-label="Bounty after your contribution">
+              <div className="money-breakdown__row">
+                <dt>Current bounty</dt>
+                <dd>{formatRinggit(wanted.grossBountySen)}</dd>
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "var(--space-1)",
-                }}
-              >
-                <span>Your contribution:</span>
-                <span className="numeric">+{formatRinggit(selectedSen)}</span>
+              <div className="money-breakdown__row">
+                <dt>Your contribution</dt>
+                <dd>+{formatRinggit(selectedSen)}</dd>
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontWeight: "bold",
-                  borderTop: "1px solid var(--border-default)",
-                  paddingTop: "var(--space-1)",
-                }}
-              >
-                <span>New bounty total:</span>
-                <span className="numeric">{formatRinggit(projectedTotalSen)}</span>
+              <div className="money-breakdown__row money-breakdown__row--total">
+                <dt>New bounty total</dt>
+                <dd>{formatRinggit(projectedTotalSen)}</dd>
               </div>
-            </div>
+            </dl>
 
-            <p
-              style={{
-                fontSize: "var(--text-xs)",
-                color: "var(--text-muted)",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              The payment provider adds its own charge on top of your contribution total. A bounty
-              contribution cannot be cancelled or refunded once confirmed, unless the Wanted request
-              expires unfulfilled.
+            <p className="dialog__note">
+              The payment provider adds its own charge on top of your contribution. The bounty only
+              changes after the provider confirms your payment.
             </p>
 
-            <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "flex-end" }}>
+            <div className="dialog__actions">
               <button
                 type="button"
-                className="button button--ghost"
+                className="button button--quiet"
                 onClick={onClose}
-                disabled={status === "submitting"}
+                disabled={submitting}
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="button button--primary"
-                disabled={status === "submitting"}
-              >
-                {status === "submitting"
+              <button type="submit" className="button button--primary" disabled={submitting}>
+                {submitting
                   ? "Connecting to payment…"
                   : `Proceed to payment of ${formatRinggit(selectedSen)}`}
               </button>

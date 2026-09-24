@@ -83,7 +83,7 @@ export function OwnerRefundQueue({
         });
 
         if (!res.ok) {
-          setFormError(res.error ?? "Failed to record refund.");
+          setFormError(res.error ?? "The refund could not be recorded.");
           setIsSubmitting(false);
           return;
         }
@@ -99,7 +99,7 @@ export function OwnerRefundQueue({
         });
         const data = await res.json();
         if (!res.ok || !data.ok) {
-          setFormError(data.error ?? "Failed to complete refund.");
+          setFormError(data.message || data.error || "The refund could not be recorded.");
           setIsSubmitting(false);
           return;
         }
@@ -111,193 +111,103 @@ export function OwnerRefundQueue({
       setSelectedTask(null);
       onRefresh?.();
     } catch {
-      setFormError("Network error while recording refund.");
+      setFormError("VAULTIX could not confirm whether the refund was recorded. Refresh the queue before retrying.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <section
-      className="panel"
-      aria-labelledby="refund-queue-heading"
-      style={{
-        borderRadius: "4px",
-        padding: "1.5rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.25rem",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "0.75rem",
-          borderBottom: "1px solid var(--border-subtle, #d3bc92)",
-          paddingBottom: "0.75rem",
-        }}
-      >
+    <section className="panel ops-panel" aria-labelledby="refund-queue-heading">
+      <div className="ops-panel__head">
         <div>
-          <h2
-            id="refund-queue-heading"
-            style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-primary, #2a2118)" }}
-          >
-            🔄 Owner Refund Queue
+          <h2 id="refund-queue-heading" className="ops-panel__title">
+            Refund queue
           </h2>
-          <p
-            style={{
-              margin: "0.25rem 0 0 0",
-              fontSize: "0.85rem",
-              color: "var(--text-muted, #5e4f37)",
-            }}
-          >
-            Individual contributor reimbursement tasks generated when unfulfilled bounties expire
+          <p className="ops-panel__lede">
+            One task per contribution to a bounty that expired unfulfilled. Record each refund after
+            you have sent it outside VAULTIX.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <div
+        <div className="ops-panel__tools">
+          <span
             data-testid="refund-summary-badge"
-            style={{
-              padding: "0.35rem 0.75rem",
-              borderRadius: "4px",
-              background: "rgba(183, 28, 28, 0.1)",
-              border: "1px solid var(--state-error, #b71c1c)",
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              color: "var(--state-error, #b71c1c)",
-            }}
+            className="status-stamp status-stamp--warning numeric"
           >
             Pending: {pendingTasks.length} ({formatSenToRm(totalPendingSen)})
-          </div>
+          </span>
           {onRefresh && (
             <button
               type="button"
               onClick={onRefresh}
               disabled={isLoading}
-              className="button button--secondary"
-              style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+              className="button button--secondary button--compact"
             >
-              {isLoading ? "Refreshing..." : "Refresh"}
+              {isLoading ? "Refreshing…" : "Refresh"}
             </button>
           )}
         </div>
       </div>
 
       {successMessage && (
-        <div
+        <p
           role="status"
           data-testid="refund-success-alert"
-          style={{
-            padding: "0.6rem 0.8rem",
-            borderRadius: "4px",
-            background: "rgba(46, 125, 50, 0.1)",
-            border: "1px solid var(--state-success, #2e7d32)",
-            color: "var(--state-success, #2e7d32)",
-            fontSize: "0.85rem",
-          }}
+          className="ops-alert ops-alert--success"
         >
-          ✓ {successMessage}
-        </div>
+          {successMessage}
+        </p>
       )}
 
       {tasks.length === 0 ? (
-        <div
-          data-testid="refund-empty-state"
-          style={{
-            padding: "2rem",
-            textAlign: "center",
-            color: "var(--text-muted, #5e4f37)",
-            background: "var(--bg-surface, #fbf3e0)",
-            borderRadius: "4px",
-            border: "1px dashed var(--border-default, #9c8558)",
-          }}
-        >
-          No refund tasks recorded. Unfulfilled expired bounties automatically create refund tasks.
-        </div>
+        <p data-testid="refund-empty-state" className="ops-empty">
+          No refund tasks yet. A task appears here for each contribution when a bounty expires
+          unfulfilled.
+        </p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "0.85rem",
-              textAlign: "left",
-            }}
-          >
+        <div className="ops-table-wrap" tabIndex={0} role="region" aria-label="Refund tasks">
+          <table className="ops-table">
             <thead>
-              <tr
-                style={{
-                  borderBottom: "2px solid var(--border-default, #9c8558)",
-                  color: "var(--text-muted, #5e4f37)",
-                }}
-              >
-                <th style={{ padding: "0.6rem 0.5rem" }}>Contributor</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Refund Amount</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Status</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Date</th>
-                <th style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>Action</th>
+              <tr>
+                <th scope="col">Contributor</th>
+                <th scope="col">Refund amount</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created</th>
+                <th scope="col" className="ops-table__end">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {tasks.map((task) => {
                 const isPending = task.status === "pending";
                 return (
-                  <tr
-                    key={task.id}
-                    data-testid={`refund-row-${task.id}`}
-                    style={{
-                      borderBottom: "1px solid var(--border-subtle, #d3bc92)",
-                    }}
-                  >
-                    <td style={{ padding: "0.6rem 0.5rem", fontWeight: 600 }}>
+                  <tr key={task.id} data-testid={`refund-row-${task.id}`}>
+                    <td className="ops-table__name">
                       {task.contributorDisplayName ??
                         `Contributor (${task.contributorUserId.slice(0, 8)})`}
                     </td>
-                    <td
-                      style={{
-                        padding: "0.6rem 0.5rem",
-                        fontWeight: 700,
-                        color: "var(--state-error, #b71c1c)",
-                      }}
-                    >
-                      {formatSenToRm(task.amountSen)}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.5rem" }}>
+                    <td className="ops-table__money">{formatSenToRm(task.amountSen)}</td>
+                    <td>
                       <span
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.15rem 0.5rem",
-                          borderRadius: "3px",
-                          fontWeight: 700,
-                          background: isPending
-                            ? "rgba(200, 155, 60, 0.15)"
-                            : "rgba(46, 125, 50, 0.12)",
-                          color: isPending ? "#8a6100" : "#1b5e20",
-                          border: `1px solid ${isPending ? "rgba(200, 155, 60, 0.4)" : "rgba(46, 125, 50, 0.3)"}`,
-                        }}
+                        className={`status-stamp ${isPending ? "status-stamp--warning" : "status-stamp--success"}`}
                       >
                         {isPending ? "Pending" : "Completed"}
                       </span>
                     </td>
-                    <td style={{ padding: "0.6rem 0.5rem", color: "var(--text-soft, #6b5a3f)" }}>
-                      {formatDate(task.createdAt)}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
+                    <td className="ops-table__meta">{formatDate(task.createdAt)}</td>
+                    <td className="ops-table__end">
                       {isPending ? (
                         <button
                           type="button"
                           onClick={() => handleOpenCompleteModal(task)}
-                          className="button button--secondary"
-                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
+                          className="button button--secondary button--compact"
                           aria-label={`Process refund of ${formatSenToRm(task.amountSen)}`}
                         >
-                          Process Refund
+                          Process refund
                         </button>
                       ) : (
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted, #5e4f37)" }}>
+                        <span className="ops-table__meta">
                           Ref: {task.externalReference ?? "N/A"}
                         </span>
                       )}
@@ -310,194 +220,95 @@ export function OwnerRefundQueue({
         </div>
       )}
 
-      {/* MODAL: Record Refund Completion */}
       {selectedTask && (
         <div
+          className="dialog-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="refund-modal-title"
           data-testid="refund-completion-modal"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "1rem",
-          }}
         >
-          <div
-            style={{
-              background: "var(--bg-surface, #fbf3e0)",
-              border: "2px solid var(--border-default, #9c8558)",
-              borderRadius: "6px",
-              padding: "1.5rem",
-              width: "100%",
-              maxWidth: "480px",
-              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            <h3
-              id="refund-modal-title"
-              style={{
-                margin: "0 0 0.5rem 0",
-                fontSize: "1.15rem",
-                color: "var(--text-primary, #2a2118)",
-              }}
-            >
-              Record External Refund
-            </h3>
-            <p
-              style={{
-                margin: "0 0 1rem 0",
-                fontSize: "0.85rem",
-                color: "var(--text-muted, #5e4f37)",
-              }}
-            >
+          <div className="dialog">
+            <div className="dialog__head">
+              <h3 id="refund-modal-title" className="dialog__title">
+                Record an external refund
+              </h3>
+            </div>
+            <p className="ops-summary">
               Contributor:{" "}
               <strong>
                 {selectedTask.contributorDisplayName ?? selectedTask.contributorUserId}
               </strong>
               <br />
-              Refund Amount: <strong>{formatSenToRm(selectedTask.amountSen)}</strong>
+              Refund amount:{" "}
+              <strong className="numeric">{formatSenToRm(selectedTask.amountSen)}</strong>
             </p>
 
             {formError && (
-              <div
-                role="alert"
-                style={{
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "4px",
-                  background: "rgba(183, 28, 28, 0.1)",
-                  border: "1px solid var(--state-error, #b71c1c)",
-                  color: "var(--state-error, #b71c1c)",
-                  fontSize: "0.8rem",
-                  marginBottom: "1rem",
-                }}
-              >
-                ⚠️ {formError}
-              </div>
+              <p role="alert" className="ops-alert ops-alert--error dialog__lede">
+                {formError}
+              </p>
             )}
 
-            <form
-              onSubmit={handleSubmit}
-              style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}
-            >
-              <div>
-                <label
-                  htmlFor="refund-external-reference"
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Bank / Gateway Reference *
+            <form onSubmit={handleSubmit} className="ops-form">
+              <div className="form-field">
+                <label htmlFor="refund-external-reference" className="form-field__label">
+                  Bank / gateway reference <span className="form-field__required">(required)</span>
                 </label>
                 <input
                   id="refund-external-reference"
+                  className="form-field__input"
                   type="text"
                   required
                   value={externalReference}
                   onChange={(e) => setExternalReference(e.target.value)}
                   placeholder="e.g. REV-TOYYIBPAY-09283"
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border-default, #9c8558)",
-                    fontSize: "0.85rem",
-                  }}
                 />
               </div>
 
-              <div>
-                <label
-                  htmlFor="refund-method"
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Refund Method *
+              <div className="form-field">
+                <label htmlFor="refund-method" className="form-field__label">
+                  Refund method <span className="form-field__required">(required)</span>
                 </label>
                 <select
                   id="refund-method"
+                  className="select-field"
                   value={refundMethod}
                   onChange={(e) => setRefundMethod(e.target.value as RefundMethod)}
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border-default, #9c8558)",
-                    fontSize: "0.85rem",
-                  }}
                 >
-                  <option value="toyyibpay_reversal">ToyyibPay Gateway Reversal</option>
-                  <option value="duitnow">DuitNow (Instant Transfer)</option>
+                  <option value="toyyibpay_reversal">ToyyibPay reversal</option>
+                  <option value="duitnow">DuitNow transfer</option>
                   <option value="bank_transfer">Interbank GIRO (IBG)</option>
                   <option value="touch_n_go">Touch &apos;n Go eWallet</option>
-                  <option value="other">Other Settlement</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 
-              <div>
-                <label
-                  htmlFor="refund-evidence-notes"
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Evidence / Notes (optional)
+              <div className="form-field">
+                <label htmlFor="refund-evidence-notes" className="form-field__label">
+                  Evidence or notes <span className="form-field__required">(optional)</span>
                 </label>
                 <textarea
                   id="refund-evidence-notes"
+                  className="form-field__input"
                   rows={3}
                   value={evidenceNotes}
                   onChange={(e) => setEvidenceNotes(e.target.value)}
-                  placeholder="e.g. Reversal initiated on ToyyibPay portal after bounty expired."
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border-default, #9c8558)",
-                    fontSize: "0.85rem",
-                  }}
+                  placeholder="e.g. Reversal made in the ToyyibPay portal after the bounty expired."
                 />
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "0.5rem",
-                  marginTop: "0.5rem",
-                }}
-              >
+              <div className="dialog__actions">
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   disabled={isSubmitting}
-                  className="button button--secondary"
-                  style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}
+                  className="button button--quiet"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="button button--primary"
-                  style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}
-                >
-                  {isSubmitting ? "Recording..." : "Confirm Refund Recorded"}
+                <button type="submit" disabled={isSubmitting} className="button button--primary">
+                  {isSubmitting ? "Recording…" : "Confirm refund recorded"}
                 </button>
               </div>
             </form>

@@ -142,7 +142,7 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
       <HunterOffice claims={account ? claims : null} account={account} />
 
       {!account ? (
-        <div className="panel" style={{ marginBottom: "var(--space-4)" }}>
+        <div className="panel">
           <UiStatus
             kind="restricted"
             heading="Sign in to submit and track claims"
