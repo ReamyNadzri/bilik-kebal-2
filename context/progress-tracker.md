@@ -258,7 +258,33 @@ Update this file after every meaningful implementation or specification change.
 4. Verify the existing Supabase Cloud connection and applied migration history, then validate pending migrations and RLS tests in a designated cloud test environment.
 5. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
+## 2026-09-24 frontend overhaul and full-stack additions (PR #1)
+
+User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
+
+- Migration `202609290001_profiles_free_requests_and_regions.sql` — **not yet applied to Supabase
+  Cloud**. It adds request kinds (`academic`, `missing_item`, `discussion`), free requests
+  (`is_free`, access basis `commissioner_free`), replies and reply notifications, profile
+  `public_id`/avatar/bio, the public `avatars` bucket, campus region lock and map positions, the
+  3–30 day duration, and adds `fulfilled`/`closed` to the lifecycle check (approval previously
+  violated it). Open campuses are matched by name (`ilike`), so verify the four open campuses after
+  applying.
+- Decisions (user): free requests for all kinds; missing items and discussions are free-only with
+  text replies; paid bounties stay academic-only; public profiles show name, avatar, joined date,
+  badge and public Wanteds only; duration and contribution use sliders (duration 3–30 days replaces
+  7/14/30).
+- Posting terms `TERMS_VERSION` / policy version `2026-09-24.1` were drafted from the context files
+  and are labelled **"Draft — pending legal review"**. They must be reviewed before public launch.
+- Payment stays `disabled`; the Back modal slider only prepares an amount. The backer contribution
+  endpoint still needs the ToyyibPay key and remains a launch gate.
+- Verified: 1000 unit tests, typecheck, lint and production build pass; no horizontal overflow on
+  17 routes at 360 px and 1440 px.
+
 ## Open Questions
+
+- Legal review of the drafted posting terms (`src/features/legal/terms.ts`).
+- Moderation of free-text replies on missing-item and discussion requests (reporting exists for
+  claims only).
 
 ### Critical Before Public Launch
 

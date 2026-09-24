@@ -88,6 +88,8 @@ These folders are the intended structure and will be created only after the impl
 - **Supabase Storage `quarantine`**: private unapproved uploads. Users never receive a direct storage URL.
 - **Supabase Storage `approved`**: private approved originals and safe derivatives. Access requires an entitlement or public-release rule and a short-lived signed URL.
 - **Supabase Storage `verification-evidence`**: private evidence for manual institution verification, with restricted Sheriff access and automatic retention cleanup.
+- **Supabase Storage `avatars`**: the only public bucket. Holds 512 px WebP profile pictures re-encoded in the browser (camera metadata dropped), at most 512 KB, one folder per member's `public_id`, written only by the owner through RLS.
+- **`wanted_replies`**: text replies on missing-item and discussion requests; readable wherever the request is readable, written only by institution-verified members through `post_wanted_reply`. Reply notifications are in-app only and never emailed.
 - **Queue tables**: durable operational messages; payloads contain identifiers, never raw file bodies, secrets, or unnecessary personal data.
 
 Database records store `storage_provider`, `bucket`, `object_key`, checksum, size, MIME type, and lifecycle state rather than public URLs. This permits a later hybrid migration to Cloudflare R2. New uploads can switch provider through configuration; migrations copy, verify the checksum, update the record transactionally, and only then delete the old object.
