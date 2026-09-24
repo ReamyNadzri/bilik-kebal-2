@@ -134,6 +134,8 @@ export type Database = {
           institution_id: string;
           latitude: number | null;
           longitude: number | null;
+          map_x: number | null;
+          map_y: number | null;
           name: string;
           region_open: boolean;
           slug: string;
@@ -147,6 +149,8 @@ export type Database = {
           institution_id: string;
           latitude?: number | null;
           longitude?: number | null;
+          map_x?: number | null;
+          map_y?: number | null;
           name: string;
           region_open?: boolean;
           slug: string;
@@ -160,6 +164,8 @@ export type Database = {
           institution_id?: string;
           latitude?: number | null;
           longitude?: number | null;
+          map_x?: number | null;
+          map_y?: number | null;
           name?: string;
           region_open?: boolean;
           slug?: string;

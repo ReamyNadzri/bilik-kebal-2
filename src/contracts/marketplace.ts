@@ -137,6 +137,9 @@ export interface CampusRegion {
   regionOpen: boolean;
   latitude: number | null;
   longitude: number | null;
+  /** Pin position on the illustrated map (percent), or null for list only. */
+  mapX: number | null;
+  mapY: number | null;
   openWantedCount: number;
   openBountySen: Sen;
 }

@@ -194,21 +194,47 @@ grant execute on function public.set_own_avatar(text) to authenticated;
 alter table public.campuses
   add column if not exists region_open boolean not null default false,
   add column if not exists latitude numeric(8, 5),
-  add column if not exists longitude numeric(8, 5);
+  add column if not exists longitude numeric(8, 5),
+  -- Pin position on the illustrated map, as a percentage of its width and
+  -- height. The illustration is not to scale, so it cannot be projected from
+  -- latitude and longitude.
+  add column if not exists map_x numeric(5, 2),
+  add column if not exists map_y numeric(5, 2);
 
 alter table public.campuses
   add constraint campuses_latitude_check check (latitude is null or latitude between -90 and 90),
-  add constraint campuses_longitude_check check (longitude is null or longitude between -180 and 180);
+  add constraint campuses_longitude_check check (longitude is null or longitude between -180 and 180),
+  add constraint campuses_map_x_check check (map_x is null or map_x between 0 and 100),
+  add constraint campuses_map_y_check check (map_y is null or map_y between 0 and 100);
 
--- The first open regions. Coordinates are the public campus locations.
-update public.campuses set region_open = true, latitude = 3.06940, longitude = 101.50270
+-- The first open regions: Selangor (Shah Alam, Puncak Alam) and Terengganu
+-- (Dungun, Bukit Besi). Coordinates are the public campus locations.
+update public.campuses
+set region_open = true, latitude = 3.06940, longitude = 101.50270, map_x = 16, map_y = 49
 where name ilike '%shah alam%';
-update public.campuses set region_open = true, latitude = 3.24310, longitude = 101.42520
+update public.campuses
+set region_open = true, latitude = 3.24310, longitude = 101.42520, map_x = 14.5, map_y = 46
 where name ilike '%puncak alam%';
-update public.campuses set region_open = true, latitude = 4.79530, longitude = 103.42010
+update public.campuses
+set region_open = true, latitude = 4.79530, longitude = 103.42010, map_x = 41, map_y = 39
 where name ilike '%dungun%';
-update public.campuses set region_open = true, latitude = 4.64830, longitude = 103.19990
+update public.campuses
+set region_open = true, latitude = 4.64830, longitude = 103.19990, map_x = 38, map_y = 41
 where name ilike '%bukit besi%';
+
+-- Other campuses stay locked (region_open = false) but keep their place on
+-- the map so members can see what is coming.
+update public.campuses set map_x = 7, map_y = 13 where name ilike '%arau%';
+update public.campuses set map_x = 14, map_y = 22 where name ilike '%sungai petani%';
+update public.campuses set map_x = 6, map_y = 31 where name ilike '%pulau pinang%' or name ilike '%permatang pauh%';
+update public.campuses set map_x = 17, map_y = 37 where name ilike '%seri iskandar%';
+update public.campuses set map_x = 28, map_y = 26 where name ilike '%kota bharu%' or name ilike '%machang%';
+update public.campuses set map_x = 32, map_y = 51 where name ilike '%raub%';
+update public.campuses set map_x = 21, map_y = 60 where name ilike '%seremban%' or name ilike '%kuala pilah%';
+update public.campuses set map_x = 25, map_y = 69 where name ilike '%jasin%' or name ilike '%alor gajah%';
+update public.campuses set map_x = 34, map_y = 77 where name ilike '%segamat%';
+update public.campuses set map_x = 62, map_y = 63 where name ilike '%samarahan%';
+update public.campuses set map_x = 86, map_y = 53 where name ilike '%kota kinabalu%';
 
 -- Taxonomy validation now also requires an open region. Same signature, so
 -- every caller (create and update draft) picks it up.

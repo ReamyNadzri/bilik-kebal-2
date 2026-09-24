@@ -6008,3 +6008,24 @@ textarea.form-field__input {
     align-items: flex-start;
   }
 }
+
+/* Locked (coming soon) campuses: grey pin, muted list row. */
+.campus-map__pin[data-locked="true"] .campus-map__pin-head {
+  background: var(--stamp-neutral-ink);
+  border-style: dashed;
+}
+
+.campus-list__button[data-locked="true"] {
+  opacity: 0.85;
+}
+
+.campus-list__locked-heading {
+  margin-top: var(--space-5);
+  font-size: var(--text-lg);
+}
+
+.campus-card__note {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

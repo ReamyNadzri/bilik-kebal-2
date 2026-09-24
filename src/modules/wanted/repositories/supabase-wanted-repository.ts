@@ -261,7 +261,7 @@ export class SupabaseWantedRepository implements WantedRepository {
     const [campuses, wanted] = await Promise.all([
       this.client
         .from("campuses")
-        .select("id, name, region_open, latitude, longitude")
+        .select("id, name, region_open, latitude, longitude, map_x, map_y")
         .eq("active", true)
         .order("sort_order")
         .order("name"),
@@ -294,6 +294,8 @@ export class SupabaseWantedRepository implements WantedRepository {
       regionOpen: row.region_open,
       latitude: row.latitude === null ? null : Number(row.latitude),
       longitude: row.longitude === null ? null : Number(row.longitude),
+      mapX: row.map_x === null ? null : Number(row.map_x),
+      mapY: row.map_y === null ? null : Number(row.map_y),
       openWantedCount: row.region_open ? (counts.get(row.id) ?? 0) : 0,
       openBountySen: (row.region_open ? (totals.get(row.id) ?? 0) : 0) as Sen,
     }));
