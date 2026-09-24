@@ -210,7 +210,9 @@ export class AuthService {
     const updateResult = await this.gateway.updatePassword({
       password: parsed.data.password,
     });
-    return updateResult.ok ? success({ updated: true as const }) : providerFailure(updateResult.reason);
+    return updateResult.ok
+      ? success({ updated: true as const })
+      : providerFailure(updateResult.reason);
   }
 
   async resendVerification(email: unknown): Promise<ResendVerificationResult> {

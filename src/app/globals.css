@@ -23,6 +23,11 @@
   --bg-board: #3f2a16;
   --bg-office: #26170b;
   --bg-band: rgb(16 9 4 / 0.62);
+  /* Behind a modal dialog: the page stays visible but recedes. */
+  --bg-scrim: rgb(16 9 4 / 0.78);
+  /* Ghost buttons on timber: a faint paper wash, stronger on hover. */
+  --bg-ghost: rgb(243 230 200 / 0.1);
+  --bg-ghost-hover: rgb(243 230 200 / 0.2);
 
   /* Paper — every piece of content is written on one of these. */
   --bg-canvas: #f3e6c8;
@@ -1068,13 +1073,13 @@ textarea {
 }
 
 .button--ghost {
-  background: rgb(243 230 200 / 0.1);
+  background: var(--bg-ghost);
   border-color: var(--accent-brass);
   color: var(--text-on-dark);
 }
 
 .button--ghost:hover {
-  background: rgb(243 230 200 / 0.2);
+  background: var(--bg-ghost-hover);
   color: var(--text-on-dark-strong);
 }
 
@@ -4515,4 +4520,208 @@ textarea.form-field__input {
     min-width: 0;
     padding-inline: var(--space-1);
   }
+}
+
+/* --------------------------------------------------------------------------
+   Dialog
+
+   One modal shape for every overlay form: a scrim over the page and a paper
+   panel that scrolls inside itself, so a 360 px screen never scrolls the page
+   behind it. Buttons on the panel use the paper variants (primary, secondary,
+   quiet); ghost is a timber-only variant and is unreadable here.
+   -------------------------------------------------------------------------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--bg-scrim);
+}
+
+.dialog-backdrop:focus {
+  outline: none;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 32rem;
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-5);
+  background: var(--bg-canvas);
+  border: var(--border-width-2) solid var(--border-default);
+  box-shadow: var(--shadow-panel), var(--shadow-lg);
+}
+
+.dialog--wide {
+  max-width: 36rem;
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.dialog__close {
+  min-width: 2.75rem;
+  padding-inline: var(--space-3);
+}
+
+.dialog__lede {
+  margin-bottom: var(--space-4);
+}
+
+.dialog__note {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.dialog__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (max-width: 30rem) {
+  .dialog {
+    padding: var(--space-4);
+  }
+
+  .dialog__actions > .button {
+    flex: 1 1 100%;
+  }
+}
+
+/* A receipt-style breakdown of money: label left, figure right, total ruled. */
+.money-breakdown {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.money-breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-1);
+}
+
+.money-breakdown__row dd {
+  margin: 0;
+  font-family: var(--font-money);
+  font-variant-numeric: tabular-nums;
+}
+
+.money-breakdown__row--total {
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-2);
+  border-top: var(--border-width-1) solid var(--border-default);
+  font-weight: 800;
+}
+
+.money-breakdown__row--total dd {
+  color: var(--money-ink);
+}
+
+/* File drop zone. The real control is the file input inside the label, so a
+   keyboard or screen-reader user reaches it by Tab and opens it with Space. */
+.dropzone {
+  display: block;
+  margin-bottom: var(--space-4);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  background: var(--bg-surface);
+  border: var(--border-width-2) dashed var(--border-dashed);
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone--active {
+  background: var(--bg-selected);
+  border-color: var(--accent-secondary);
+}
+
+.dropzone:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.dropzone__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.dropzone__title {
+  margin: 0 0 var(--space-1);
+  font-weight: 700;
+}
+
+.dropzone__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Stacked consent checkboxes: text wraps beside the box instead of a chip. */
+.consent-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.consent input {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.15em;
+  accent-color: var(--accent-secondary);
+}
+
+.progress-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.progress-note p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }

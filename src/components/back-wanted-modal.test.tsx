@@ -106,11 +106,54 @@ describe("BackWantedModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
 
-    expect(await screen.findByText("Payments are switched off")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Backer contributions are currently disabled pending launch-gate clearance/i,
+    expect(await screen.findByText("Online payment is not open yet")).toBeInTheDocument();
+    expect(screen.getByText(/No charge was made and the bounty is unchanged/i)).toBeInTheDocument();
+  });
+
+  it("treats a missing contribution endpoint as payment not open, not as a charge", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce(
+      new Response("<html>Not found</html>", { status: 404 }),
+    );
+
+    render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
+
+    expect(await screen.findByText("Online payment is not open yet")).toBeInTheDocument();
+  });
+
+  it("sends a Backer who needs institution verification to verify, and says nothing was charged", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ ok: false, code: "INSTITUTION_VERIFICATION_REQUIRED", message: "" }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
       ),
-    ).toBeInTheDocument();
+    );
+
+    render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
+
+    expect(await screen.findByText("Institution verification is needed")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Verify your institution" })).toHaveAttribute(
+      "href",
+      "/profile/institution-verification",
+    );
+    expect(screen.getByText(/No charge was made/)).toBeInTheDocument();
+  });
+
+  it("sends the chosen amount in integer sen", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: false, code: "PAYMENT_DISABLED", message: "" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByDisplayValue("2000"));
+    fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
+
+    await screen.findByText("Online payment is not open yet");
+    const [, init] = vi.mocked(global.fetch).mock.calls[0]!;
+    expect(JSON.parse(String(init?.body))).toEqual({ amountSen: 2000 });
   });
 });

@@ -45,7 +45,7 @@ describe("ClaimSubmissionForm", () => {
     const wanted = createWantedDetail();
     render(<ClaimSubmissionForm wanted={wanted} onClose={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { name: "Submit a Claim for Bounty" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Submit a Claim" })).toBeInTheDocument();
     expect(screen.getByText(/Drag and drop your claim file here/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/I confirm I hold the rights/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit Claim" })).toBeDisabled();
@@ -99,6 +99,16 @@ describe("ClaimSubmissionForm", () => {
     expect(onSubmitted).toHaveBeenCalledWith("claim-999");
   });
 
+  it("opens the file picker from the keyboard: the file input is labelled and focusable", () => {
+    render(<ClaimSubmissionForm wanted={createWantedDetail()} onClose={vi.fn()} />);
+
+    const input = screen.getByLabelText(/Drag and drop your claim file here/i);
+    expect(input).toHaveAttribute("type", "file");
+    expect(input).not.toHaveStyle({ display: "none" });
+    input.focus();
+    expect(input).toHaveFocus();
+  });
+
   it("displays launch gate notice when uploads are disabled (UPLOAD_UNAVAILABLE)", async () => {
     vi.spyOn(claimOps, "submitClaimFile").mockResolvedValueOnce({
       ok: false,
@@ -119,9 +129,7 @@ describe("ClaimSubmissionForm", () => {
 
     expect(await screen.findByText("Uploads are switched off")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /Public claim uploads are currently disabled pending launch-gate clearance/i,
-      ),
+      screen.getByText(/Claim uploads are not open yet/i),
     ).toBeInTheDocument();
   });
 });
