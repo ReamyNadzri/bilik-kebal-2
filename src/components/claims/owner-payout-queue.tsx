@@ -117,7 +117,9 @@ export function OwnerPayoutQueue({
       setSelectedTask(null);
       onRefresh?.();
     } catch {
-      setFormError("VAULTIX could not confirm whether the payout was recorded. Refresh the queue before retrying.");
+      setFormError(
+        "VAULTIX could not confirm whether the payout was recorded. Refresh the queue before retrying.",
+      );
     } finally {
       setIsSubmitting(false);
     }

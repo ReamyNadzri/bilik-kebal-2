@@ -111,7 +111,9 @@ export function OwnerRefundQueue({
       setSelectedTask(null);
       onRefresh?.();
     } catch {
-      setFormError("VAULTIX could not confirm whether the refund was recorded. Refresh the queue before retrying.");
+      setFormError(
+        "VAULTIX could not confirm whether the refund was recorded. Refresh the queue before retrying.",
+      );
     } finally {
       setIsSubmitting(false);
     }

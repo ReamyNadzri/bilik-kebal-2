@@ -191,8 +191,8 @@ export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
         </ul>
       )}
       <p className="hunt-ledger__note">
-        Not selected means your claim was valid but another claim was chosen. Rejected is a
-        separate outcome and can be appealed.
+        Not selected means your claim was valid but another claim was chosen. Rejected is a separate
+        outcome and can be appealed.
       </p>
     </section>
   );

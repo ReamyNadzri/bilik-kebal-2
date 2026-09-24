@@ -156,7 +156,7 @@ export function FileUploadField({
           completedAt: new Date().toISOString(),
         };
 
-setStage({ kind: "success", proof, simulated: true });
+        setStage({ kind: "success", proof, simulated: true });
         return;
       }
 

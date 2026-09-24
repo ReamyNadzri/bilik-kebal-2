@@ -37,7 +37,10 @@ function createWantedDetail(): WantedDetail {
       publicId: null,
       avatarUrl: null,
       joinedAt: null,
-      displayName: "Student A", emailVerified: true, institutionVerified: true },
+      displayName: "Student A",
+      emailVerified: true,
+      institutionVerified: true,
+    },
     activity: [],
     similarIds: [],
   };
