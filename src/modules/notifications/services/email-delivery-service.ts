@@ -49,6 +49,8 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   community_payout_approved: "Your bounty release was approved",
   community_payout_rejected: "Your bounty release was not approved",
   community_bounty_awarded: "You were awarded a bounty",
+  institution_verification_submitted: "New institution verification request",
+  welcome: "Welcome to VAULTIX",
 };
 
 export interface NotificationEmailDeliveryDependencies {
