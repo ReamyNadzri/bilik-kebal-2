@@ -184,8 +184,11 @@ function renderText(content: EmailContent, appUrl: string): string {
  */
 export function renderEmail(content: EmailContent, appUrl: string): { html: string; text: string } {
   const origin = appUrl.replace(/\/+$/, "");
+  const markup = renderToStaticMarkup(<EmailDocument content={content} appUrl={origin} />)
+    // React 19 hoists image preload hints into <head>; mail clients have no use for them.
+    .replace(/<link rel="preload" as="image"[^>]*\/>/g, "");
   return {
-    html: `<!DOCTYPE html>${renderToStaticMarkup(<EmailDocument content={content} appUrl={origin} />)}`,
+    html: `<!DOCTYPE html>${markup}`,
     text: renderText(content, origin),
   };
 }

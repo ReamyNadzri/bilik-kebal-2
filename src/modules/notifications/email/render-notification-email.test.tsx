@@ -14,6 +14,7 @@ describe.each(notificationKinds.filter((kind) => kind !== "wanted_reply"))("%s",
     expect(email.html).toContain('<html lang="en"');
     expect(email.html).toContain(`${APP}/brand/email/logo.png`);
     expect(email.html).toContain('alt="VAULTIX"');
+    expect(email.html).not.toContain('rel="preload"');
     expect(email.html).toContain("Mark it Not spam");
     expect(email.text).toContain("Mark it Not spam");
     const action =
