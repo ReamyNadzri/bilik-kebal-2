@@ -27,7 +27,14 @@ function aDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
     programme: "Bachelor of Computer Science",
     language: "English",
     tags: ["Final exam", "Summary notes"],
-    commissioner: { displayName: "A classmate", emailVerified: true, institutionVerified: true },
+    commissioner: {
+      publicId: null,
+      avatarUrl: null,
+      joinedAt: null,
+      displayName: "A classmate",
+      emailVerified: true,
+      institutionVerified: true,
+    },
     feeRateBasisPoints: 1000,
     policyVersion: "2026-09-15.1",
     activity: [{ id: "event-1", at: "2026-09-12T09:00:00.000Z", summary: "Request published" }],
@@ -46,6 +53,38 @@ async function renderPage(id = "csc510-final-exam-notes") {
 }
 
 describe("reading one request", () => {
+  test("names who posted it with their joined date and a link to their profile", async () => {
+    readPublicWanted.mockResolvedValue({
+      ok: true,
+      data: aDetail({
+        commissioner: {
+          publicId: "11111111-1111-4111-8111-111111111111",
+          avatarUrl: null,
+          joinedAt: "2026-09-02T02:00:00.000Z",
+          displayName: "Aina",
+          emailVerified: true,
+          institutionVerified: true,
+        },
+      }),
+    });
+    await renderPage();
+
+    expect(screen.getByRole("link", { name: "Aina" })).toHaveAttribute(
+      "href",
+      "/u/11111111-1111-4111-8111-111111111111",
+    );
+    expect(screen.getByText("September 2026")).toBeInTheDocument();
+  });
+
+  test("offers no way to add money to a free request", async () => {
+    readPublicWanted.mockResolvedValue({ ok: true, data: aDetail({ isFree: true }) });
+    await renderPage();
+
+    expect(screen.queryByRole("link", { name: "Back this Wanted" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Back this Wanted" })).toBeNull();
+    expect(screen.getAllByText("Free request").length).toBeGreaterThan(0);
+  });
+
   test("asks by the opaque public identifier from the address", async () => {
     await renderPage("csc510-final-exam-notes");
 
@@ -64,7 +103,7 @@ describe("reading one request", () => {
   test("renders the bounty from integer sen and the backer count", async () => {
     await renderPage();
 
-    expect(screen.getByText("Total bounty RM 85")).toBeInTheDocument();
+    expect(screen.getByText("Total bounty RM 85.00")).toBeInTheDocument();
     expect(screen.getByText("6 backers")).toBeInTheDocument();
   });
 
@@ -132,6 +171,9 @@ describe("the Commissioner as the reader sees them", () => {
       ok: true,
       data: aDetail({
         commissioner: {
+          publicId: null,
+          avatarUrl: null,
+          joinedAt: null,
           displayName: "A classmate",
           emailVerified: true,
           institutionVerified: false,

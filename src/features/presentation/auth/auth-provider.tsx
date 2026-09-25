@@ -23,6 +23,7 @@ import {
 } from "./auth-state";
 import { isGuestPath, signInPathFor } from "./redirect-target";
 import { onSessionExpired } from "./session-expiry";
+import { IdleSessionGuard } from "@/components/idle-session-guard";
 
 export interface AuthContextValue {
   readonly state: AuthState;
@@ -200,6 +201,19 @@ export function AuthProvider({ children, initialAccount }: AuthProviderProps) {
     router.refresh();
   }, [router]);
 
+  /** Idle sign-out: the session ends on the server, then the viewer is told why. */
+  const expireIdle = useCallback(async () => {
+    await callOperation<{ signedOut: true }, "AUTH_UNAVAILABLE">(
+      "/api/auth/sign-out",
+      {},
+      "AUTH_UNAVAILABLE",
+    );
+    setState({ account: null, status: "unauthenticated", error: null });
+    const target = signInPathFor(pathname);
+    router.replace(`${target}${target.includes("?") ? "&" : "?"}idle=1`);
+    router.refresh();
+  }, [pathname, router]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       state,
@@ -212,7 +226,17 @@ export function AuthProvider({ children, initialAccount }: AuthProviderProps) {
     [state, signIn, signOut, refreshAccount],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {state.status === "authenticated" && state.account !== null ? (
+        <IdleSessionGuard
+          staff={state.account.console?.hasAccess === true}
+          onExpire={() => void expireIdle()}
+        />
+      ) : null}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {

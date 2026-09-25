@@ -1,3 +1,4 @@
+import { resolveAvatarUrl } from "@/lib/avatars";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -27,7 +28,11 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
   async readAccount(user: User): Promise<AccountRecord | null> {
     const [profile, membership, restriction, latestRequest, platformRoles, institutionRoles] =
       await Promise.all([
-        this.client.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
+        this.client
+          .from("profiles")
+          .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
+          .eq("user_id", user.id)
+          .maybeSingle(),
         this.client
           .from("institution_memberships")
           .select("institution_id, verification_state")
@@ -35,7 +40,7 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
           .maybeSingle(),
         this.client
           .from("account_restrictions")
-          .select("id")
+          .select("id, expires_at")
           .eq("user_id", user.id)
           .is("lifted_at", null)
           .limit(1)
@@ -103,8 +108,18 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
 
     return {
       displayName: profile.data.display_name,
+      publicId: profile.data.public_id,
+      avatarUrl: resolveAvatarUrl(
+        this.client,
+        profile.data.avatar_object_key,
+        profile.data.avatar_preset,
+      ),
+      avatarPreset: profile.data.avatar_preset,
+      email: user.email ?? null,
+      joinedAt: profile.data.created_at,
       emailConfirmedAt: user.email_confirmed_at ?? null,
       hasActiveRestriction: Boolean(restriction.data),
+      restrictionExpiresAt: restriction.data?.expires_at ?? null,
       hasConsoleAccess: platformRoles.data.length > 0 || institutionRoles.data.length > 0,
       institution,
       institutionVerificationState,

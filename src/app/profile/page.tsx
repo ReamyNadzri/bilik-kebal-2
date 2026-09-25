@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AccountSummary } from "@/components/account-summary";
-import { FixtureNotice } from "@/components/fixture-notice";
-import { ProfileStudio } from "@/components/profile-studio";
+import { ProfileSettings } from "@/components/profile-settings";
+import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
+import { marketplaceNow } from "@/features/marketplace/wanted-source";
 import { requireAccount } from "@/features/presentation/auth/require-account";
+import { readPublicProfile } from "@/modules/profiles/loaders/profile-operations";
+import { listOwnTaxonomyRequests } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
+import { readFreeAllowance } from "@/modules/wanted/loaders/wanted-operations";
 
 export const metadata: Metadata = {
   title: "Profile | VAULTIX",
@@ -21,28 +24,13 @@ export default async function ProfilePage() {
   /**
    * Protected: an unauthenticated viewer is redirected to sign in and returned
    * here afterwards, before any of this page is rendered. An unreachable
-   * identity service is reported in place instead — it is not the viewer's
-   * problem to solve by signing in again.
+   * identity service is reported in place instead.
    */
   const outcome = await requireAccount("/profile");
 
-  return (
-    <div className="page-bare profile-container">
-      <div className="panel page-heading">
-        <div>
-          <h1>Profile</h1>
-          <p className="page-heading__lede">
-            Check your account trust state, and customize your hunter licence identity.
-          </p>
-        </div>
-      </div>
-
-      {/*
-        No signed-out branch: the guard redirects that viewer to sign in before
-        this page renders, and returns them here afterwards. An unreachable
-        identity service is a different matter and is reported in place.
-      */}
-      {outcome.kind === "unavailable" ? (
+  if (outcome.kind !== "account") {
+    return (
+      <div className="page-bare profile-container">
         <div className="panel">
           <UiStatus
             kind="offline"
@@ -51,18 +39,42 @@ export default async function ProfilePage() {
             action={<Link href="/profile">Try again</Link>}
           />
         </div>
-      ) : null}
-
-      {outcome.kind === "account" ? (
-        <div className="panel profile-panel">
-          <AccountSummary account={outcome.account} />
-        </div>
-      ) : null}
-
-      <div className="panel profile-studio-panel">
-        <FixtureNotice screen="The hunter licence editor" />
-        <ProfileStudio />
       </div>
+    );
+  }
+
+  const account = outcome.account;
+  // The member's own public card (bio, posted requests) comes from the same
+  // read anyone else sees, so what they edit is exactly what others see.
+  const [publicProfile, allowance, entryRequests] = await Promise.all([
+    account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
+    readFreeAllowance(),
+    listOwnTaxonomyRequests(),
+  ]);
+  const profile = publicProfile?.ok ? publicProfile.data : null;
+
+  return (
+    <div className="page-bare profile-container">
+      <ProfileSettings
+        account={account}
+        bio={profile?.bio ?? null}
+        allowance={allowance.ok ? allowance.data : null}
+        entryRequests={entryRequests.ok ? entryRequests.data : null}
+      />
+
+      <ProfileWantedGrid
+        heading="Your requests"
+        wanted={profile?.wanted ?? []}
+        now={marketplaceNow()}
+        empty={
+          <UiStatus
+            kind="empty"
+            heading="You have not posted a request yet"
+            message="Ask for a resource, report a missing item or start a discussion."
+            action={<Link href="/wanted/new">Post a Wanted</Link>}
+          />
+        }
+      />
     </div>
   );
 }

@@ -17,6 +17,8 @@ export interface AppShellProps {
    * The shell renders what it is given and decides no permission itself.
    */
   roleNav?: readonly NavItem[];
+  /** Unread notification count for the rail badge; null hides it. */
+  unreadCount?: number | null;
   /**
    * The signed-in identity and the way out of it.
    *
@@ -41,7 +43,13 @@ export interface AppShellProps {
  * `app-shell__sheet` is that paper for every screen that does not compose
  * its own panels; a page that does marks its root `page-bare`.
  */
-export function AppShell({ accountMenu, children, currentNavId, roleNav = [] }: AppShellProps) {
+export function AppShell({
+  accountMenu,
+  children,
+  currentNavId,
+  roleNav = [],
+  unreadCount = null,
+}: AppShellProps) {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -63,7 +71,7 @@ export function AppShell({ accountMenu, children, currentNavId, roleNav = [] }: 
             VAULTIX
           </Link>
 
-          <ShellNav currentNavId={currentNavId} roleNav={roleNav} />
+          <ShellNav currentNavId={currentNavId} roleNav={roleNav} unreadCount={unreadCount} />
 
           {accountMenu === undefined ? null : (
             <div className="app-shell__account">{accountMenu}</div>

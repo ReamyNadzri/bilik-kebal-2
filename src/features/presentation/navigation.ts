@@ -33,7 +33,6 @@ export const MARKETPLACE_NAV: readonly NavItem[] = [
 /** Account utilities. Secondary to the marketplace, never hidden from it. */
 export const ACCOUNT_NAV: readonly NavItem[] = [
   { id: "notifications", label: "Notifications", href: "/notifications" },
-  { id: "profile", label: "Profile", href: "/profile" },
 ] as const;
 
 /**

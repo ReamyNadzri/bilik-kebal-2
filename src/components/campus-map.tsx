@@ -3,34 +3,46 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import type { CampusDemand } from "@/features/marketplace/campus-demand-fixtures";
+import type { CampusRegion } from "@/contracts/marketplace";
 import { formatRinggit } from "@/features/marketplace/money";
 
 export interface CampusMapProps {
-  readonly campuses: readonly CampusDemand[];
-  readonly initialCampusId: string;
+  readonly campuses: readonly CampusRegion[];
+  /** False for a viewer who may not see live counts (signed out, unverified email). */
+  readonly showCounts: boolean;
 }
 
 function describeOpen(count: number): string {
   return `${count} open request${count === 1 ? "" : "s"}`;
 }
 
+function pinLabel(campus: CampusRegion, showCounts: boolean): string {
+  if (!campus.regionOpen) return `Map pin: ${campus.name}, coming soon`;
+  return showCounts
+    ? `Map pin: ${campus.name}, ${describeOpen(campus.openWantedCount)}`
+    : `Map pin: ${campus.name}, open for requests`;
+}
+
 /**
- * The Explore Map: campus pins over the illustrated map, a panel for the
+ * The Explore Map: campus pins over the illustrated map, a card for the
  * selected campus, and the same campuses as a list.
+ *
+ * Every figure is live: campuses, their region state and their open-request
+ * counts and bounty totals come from the published regions read. Campuses
+ * whose region is not open yet are shown locked ("coming soon") and accept no
+ * requests; the lock is enforced by the database, not by this screen.
  *
  * The pins and the list are two ways to make one choice, and both are real
  * buttons carrying `aria-pressed`, so a keyboard or screen-reader user is never
- * left with the list alone while a pointer user gets the map. The pins are
- * named "Map pin: …" so the two controls for one campus are distinguishable.
- *
- * Selection lives in component state only. It filters nothing and requests
- * nothing: "View the Wanted Board" links to the Board as it is, because the
- * figures here are fixtures and a campus link would imply they are not.
+ * left with the list alone while a pointer user gets the map.
  */
-export function CampusMap({ campuses, initialCampusId }: CampusMapProps) {
-  const [selectedId, setSelectedId] = useState(initialCampusId);
-  const selected = campuses.find((campus) => campus.id === selectedId) ?? campuses[0];
+export function CampusMap({ campuses, showCounts }: CampusMapProps) {
+  const firstOpen = campuses.find((campus) => campus.regionOpen) ?? campuses[0];
+  const [selectedId, setSelectedId] = useState(firstOpen?.id ?? "");
+  const selected = campuses.find((campus) => campus.id === selectedId) ?? firstOpen;
+  const pinned = campuses.filter((campus) => campus.mapX !== null && campus.mapY !== null);
+  const openCampuses = campuses.filter((campus) => campus.regionOpen);
+  const lockedCampuses = campuses.filter((campus) => !campus.regionOpen);
 
   if (selected === undefined) {
     return null;
@@ -42,24 +54,52 @@ export function CampusMap({ campuses, initialCampusId }: CampusMapProps) {
         <section className="panel campus-map__intro" aria-labelledby="campus-map-title">
           <p className="pixel-label">Welcome, Hunter</p>
           <h1 id="campus-map-title">Where is knowledge needed?</h1>
-          <p>Select a campus pin to see its open requests and bounty.</p>
+          <p>
+            VAULTIX is opening campus by campus. Select an open campus to see its requests; locked
+            campuses are coming soon.
+          </p>
 
           <div className="campus-card" aria-live="polite">
             <h2 className="campus-card__name">{selected.name}</h2>
-            <p className="campus-card__state">{selected.state}</p>
-            <dl className="campus-card__figures">
-              <div>
-                <dt>Open</dt>
-                <dd className="numeric">{selected.openCount}</dd>
-              </div>
-              <div>
-                <dt>Bounty</dt>
-                <dd className="numeric">{formatRinggit(selected.grossBountySen)}</dd>
-              </div>
-            </dl>
-            <Link className="button button--green button--block" href="/board">
-              View the Wanted Board <span aria-hidden="true">→</span>
-            </Link>
+            {selected.regionOpen ? (
+              <>
+                <p className="campus-card__state">
+                  <span className="status-stamp status-stamp--success">Open</span>
+                </p>
+                {showCounts ? (
+                  <dl className="campus-card__figures">
+                    <div>
+                      <dt>Open</dt>
+                      <dd className="numeric">{selected.openWantedCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Bounty</dt>
+                      <dd className="numeric">{formatRinggit(selected.openBountySen)}</dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="campus-card__note">
+                    <Link href="/sign-in?next=/map">Sign in</Link> with a verified email to see open
+                    requests and bounties.
+                  </p>
+                )}
+                <Link
+                  className="button button--green button--block"
+                  href={`/board?campus=${encodeURIComponent(selected.id)}`}
+                >
+                  View requests here <span aria-hidden="true">→</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="campus-card__state">
+                  <span className="status-stamp status-stamp--muted">Coming soon</span>
+                </p>
+                <p className="campus-card__note">
+                  This campus is not open for requests yet. VAULTIX is opening region by region.
+                </p>
+              </>
+            )}
           </div>
         </section>
 
@@ -73,22 +113,23 @@ export function CampusMap({ campuses, initialCampusId }: CampusMapProps) {
             sizes="(min-width: 56rem) 60rem, 100vw"
             priority
           />
-          {campuses.map((campus) => (
+          {pinned.map((campus) => (
             <button
               key={campus.id}
               type="button"
               className="campus-map__pin"
-              style={{ left: `${campus.x}%`, top: `${campus.y}%` }}
+              style={{ left: `${campus.mapX}%`, top: `${campus.mapY}%` }}
               data-selected={campus.id === selected.id}
+              data-locked={!campus.regionOpen}
               aria-pressed={campus.id === selected.id}
-              aria-label={`Map pin: ${campus.name}, ${describeOpen(campus.openCount)}`}
+              aria-label={pinLabel(campus, showCounts)}
               onClick={() => setSelectedId(campus.id)}
             >
               <span className="campus-map__pin-head" aria-hidden="true" />
             </button>
           ))}
           <figcaption className="campus-map__hint">
-            Select a campus pin on the map, or pick one from Bounty by campus below.
+            Red pins are open campuses. Grey pins are coming soon.
           </figcaption>
         </figure>
       </div>
@@ -96,36 +137,77 @@ export function CampusMap({ campuses, initialCampusId }: CampusMapProps) {
       <section className="board-surface" aria-labelledby="campus-list-title">
         <div className="board-surface__head">
           <h2 className="board-surface__heading" id="campus-list-title">
-            Bounty by campus
+            Open campuses
           </h2>
           <p className="board-surface__lede">
-            Open requests and gross bounty for each campus. Development figures, not live totals.
+            {showCounts
+              ? "Live open requests and gross bounty for each open campus."
+              : "Campuses accepting requests now."}
           </p>
         </div>
-        <ul className="campus-list" aria-label="Campuses">
-          {campuses.map((campus) => (
-            <li key={campus.id}>
-              <button
-                type="button"
-                className="campus-list__button"
-                aria-pressed={campus.id === selected.id}
-                onClick={() => setSelectedId(campus.id)}
-              >
-                <span className="campus-list__count numeric" aria-hidden="true">
-                  {campus.openCount}
-                </span>
-                <span className="campus-list__text">
-                  <span className="campus-list__name">{campus.name}</span>
-                  <span className="campus-list__meta">
-                    {campus.state} · {formatRinggit(campus.grossBountySen)} bounty
-                    <span className="visually-hidden">{`, ${describeOpen(campus.openCount)}`}</span>
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <CampusList
+          campuses={openCampuses}
+          selectedId={selected.id}
+          showCounts={showCounts}
+          onSelect={setSelectedId}
+        />
+        {lockedCampuses.length === 0 ? null : (
+          <>
+            <h3 className="board-surface__heading campus-list__locked-heading">Coming soon</h3>
+            <CampusList
+              campuses={lockedCampuses}
+              selectedId={selected.id}
+              showCounts={false}
+              onSelect={setSelectedId}
+            />
+          </>
+        )}
       </section>
     </div>
+  );
+}
+
+function CampusList({
+  campuses,
+  selectedId,
+  showCounts,
+  onSelect,
+}: {
+  readonly campuses: readonly CampusRegion[];
+  readonly selectedId: string;
+  readonly showCounts: boolean;
+  readonly onSelect: (id: string) => void;
+}) {
+  return (
+    <ul className="campus-list" aria-label="Campuses">
+      {campuses.map((campus) => (
+        <li key={campus.id}>
+          <button
+            type="button"
+            className="campus-list__button"
+            data-locked={!campus.regionOpen}
+            aria-pressed={campus.id === selectedId}
+            onClick={() => onSelect(campus.id)}
+          >
+            <span className="campus-list__count numeric" aria-hidden="true">
+              {campus.regionOpen ? (showCounts ? campus.openWantedCount : "✓") : "—"}
+            </span>
+            <span className="campus-list__text">
+              <span className="campus-list__name">{campus.name}</span>
+              <span className="campus-list__meta">
+                {!campus.regionOpen
+                  ? "Coming soon"
+                  : showCounts
+                    ? `${formatRinggit(campus.openBountySen)} bounty`
+                    : "Open for requests"}
+                {campus.regionOpen && showCounts ? (
+                  <span className="visually-hidden">{`, ${describeOpen(campus.openWantedCount)}`}</span>
+                ) : null}
+              </span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

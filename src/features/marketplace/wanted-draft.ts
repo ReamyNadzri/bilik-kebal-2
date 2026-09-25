@@ -1,10 +1,14 @@
 import { sen, type Sen } from "./money";
 import { coursesFor, programmesFor } from "./taxonomy";
-import type {
-  CourseOption,
-  MarketplaceTaxonomy,
-  TaxonomyItem,
-  WantedDraftInput,
+import {
+  WANTED_DURATION_MAX_DAYS,
+  WANTED_DURATION_MIN_DAYS,
+  type CommunityWantedInput,
+  type CourseOption,
+  type MarketplaceTaxonomy,
+  type TaxonomyItem,
+  type WantedDraftInput,
+  type WantedKind,
 } from "@/contracts/marketplace";
 
 /**
@@ -17,17 +21,19 @@ import type {
  * that the backend is stricter, and nothing may be added that the backend does
  * not also enforce.
  *
- * The limits mirror the published contract
- * (docs/integration/marketplace-http-contract.md): exactly 7, 14 or 30 days,
- * and a first contribution of 100–5,000 sen. The contribution is validated
- * here but is not part of a draft — it travels only with the publication
- * request, because a draft holds no money.
+ * The limits mirror the published contract: 3 to 30 days, and an optional
+ * first contribution of 100–5,000 sen. A request posted without a bounty is
+ * free: no payment, no fee. The contribution is validated here but is not
+ * part of a draft — it travels only with the publication request, because a
+ * draft holds no money.
  */
 
-/** The only durations a Wanted may be published with. */
-export const DURATION_DAYS = [7, 14, 30] as const;
+export const MIN_DURATION_DAYS = WANTED_DURATION_MIN_DAYS;
+export const MAX_DURATION_DAYS = WANTED_DURATION_MAX_DAYS;
+export const DEFAULT_DURATION_DAYS = 14;
+export const DEFAULT_CONTRIBUTION_RINGGIT = 10;
 
-export type DurationDays = (typeof DURATION_DAYS)[number];
+export type DurationDays = number;
 
 export const MIN_CONTRIBUTION_SEN = 100;
 export const MAX_CONTRIBUTION_SEN = 5000;
@@ -40,6 +46,10 @@ const TAG_MAX = 5;
 
 /** What the form holds while it is being filled in: strings, as typed. */
 export interface WantedDraftValues {
+  readonly kind: WantedKind;
+  /** Post without a bounty. Any kind may be free or carry a bounty. */
+  readonly free: boolean;
+  readonly lastSeenLocation: string;
   readonly title: string;
   readonly campusId: string;
   readonly facultyId: string;
@@ -63,12 +73,26 @@ export interface ValidatedDraft {
   readonly faculty: TaxonomyItem;
   readonly programme: TaxonomyItem;
   readonly course: CourseOption;
-  readonly session: TaxonomyItem;
+  /** Null when the request covers any session. */
+  readonly session: TaxonomyItem | null;
   readonly resourceType: TaxonomyItem;
   readonly language: TaxonomyItem;
   readonly tags: readonly TaxonomyItem[];
   readonly durationDays: DurationDays;
-  readonly contributionSen: Sen;
+  /** Null when the request is posted free. */
+  readonly contributionSen: Sen | null;
+}
+
+/** A missing-item or discussion request that passed validation. */
+export interface ValidatedCommunityWanted {
+  readonly kind: "missing_item" | "discussion";
+  readonly title: string;
+  readonly description: string;
+  readonly campus: TaxonomyItem;
+  readonly lastSeenLocation: string | null;
+  readonly durationDays: DurationDays;
+  /** Null when the request is posted free. */
+  readonly contributionSen: Sen | null;
 }
 
 export interface DraftFieldError {
@@ -79,10 +103,14 @@ export interface DraftFieldError {
 export interface DraftValidation {
   readonly errors: readonly DraftFieldError[];
   readonly draft: ValidatedDraft | null;
+  readonly community: ValidatedCommunityWanted | null;
 }
 
 export function emptyDraft(): WantedDraftValues {
   return {
+    kind: "academic",
+    free: false,
+    lastSeenLocation: "",
     title: "",
     campusId: "",
     facultyId: "",
@@ -93,9 +121,24 @@ export function emptyDraft(): WantedDraftValues {
     languageId: "",
     tagIds: [],
     description: "",
-    durationDays: "",
-    contribution: "",
+    durationDays: String(DEFAULT_DURATION_DAYS),
+    contribution: String(DEFAULT_CONTRIBUTION_RINGGIT),
     policyAccepted: false,
+  };
+}
+
+/** The body `POST .../wanted/community` accepts. */
+export function toCommunityInput(wanted: ValidatedCommunityWanted): CommunityWantedInput {
+  return {
+    kind: wanted.kind,
+    campusId: wanted.campus.id,
+    title: wanted.title,
+    description: wanted.description,
+    durationDays: wanted.durationDays,
+    ...(wanted.lastSeenLocation === null ? {} : { lastSeenLocation: wanted.lastSeenLocation }),
+    free: wanted.contributionSen === null,
+    ...(wanted.contributionSen === null ? {} : { initialContributionSen: wanted.contributionSen }),
+    policyAccepted: true,
   };
 }
 
@@ -117,7 +160,7 @@ export function toDraftInput(draft: ValidatedDraft): WantedDraftInput {
     facultyId: draft.faculty.id,
     programmeId: draft.programme.id,
     courseId: draft.course.id,
-    academicSessionId: draft.session.id,
+    academicSessionId: draft.session?.id ?? null,
     resourceTypeId: draft.resourceType.id,
     languageId: draft.language.id,
     tagIds: draft.tags.map((tag) => tag.id),
@@ -157,6 +200,33 @@ export function parseRinggitToSen(raw: string): AmountParse {
 }
 
 /**
+ * The first contribution of a paid request, in sen, or null when free. Adds
+ * a field error and returns undefined when a paid amount is not valid.
+ */
+function validateContribution(
+  values: WantedDraftValues,
+  fail: (fieldId: string, message: string) => void,
+): number | null | undefined {
+  if (values.free) return null;
+  const amount = parseRinggitToSen(values.contribution);
+  if (values.contribution.trim() === "") {
+    fail("wanted-contribution", "Enter your first contribution.");
+  } else if (!amount.ok) {
+    fail(
+      "wanted-contribution",
+      amount.reason === "sub-sen"
+        ? "Enter an amount in Ringgit and sen, for example 10.50."
+        : "Enter your contribution as an amount, for example 10.",
+    );
+  } else if (amount.sen < MIN_CONTRIBUTION_SEN || amount.sen > MAX_CONTRIBUTION_SEN) {
+    fail("wanted-contribution", "Each contribution must be between RM1 and RM50.");
+  } else {
+    return amount.sen;
+  }
+  return undefined;
+}
+
+/**
  * Validates every field, collecting failures rather than stopping at the
  * first. A reader fixing one problem at a time and resubmitting to find the
  * next is the worst version of this screen.
@@ -180,9 +250,61 @@ export function validateDraft(
     fail("wanted-title", `The title must be ${TITLE_MAX} characters or fewer.`);
   }
 
-  const campus = find(taxonomy.campuses, values.campusId);
-  if (campus === undefined) {
+  const campusOption = taxonomy.campuses.find((option) => option.id === values.campusId);
+  const campus = campusOption?.regionOpen ? campusOption : undefined;
+  if (campusOption === undefined) {
     fail("wanted-campus", "Choose the campus this request is for.");
+  } else if (!campusOption.regionOpen) {
+    fail("wanted-campus", "That campus is not open for new requests yet. Choose an open campus.");
+  }
+
+  const days = Number(values.durationDays);
+  const durationDays =
+    Number.isInteger(days) && days >= MIN_DURATION_DAYS && days <= MAX_DURATION_DAYS
+      ? days
+      : undefined;
+
+  if (values.kind !== "academic") {
+    const description = values.description.trim();
+    if (description === "") {
+      fail("wanted-description", "Describe what you are looking for.");
+    } else if (description.length < DESCRIPTION_MIN) {
+      fail("wanted-description", `The description must be at least ${DESCRIPTION_MIN} characters.`);
+    } else if (description.length > DESCRIPTION_MAX) {
+      fail("wanted-description", "The description must be 2,000 characters or fewer.");
+    }
+    const lastSeen = values.lastSeenLocation.trim();
+    if (values.kind === "missing_item" && lastSeen.length > 160) {
+      fail("wanted-last-seen", "Keep the location to 160 characters.");
+    }
+    if (durationDays === undefined) {
+      fail("wanted-duration", `Choose ${MIN_DURATION_DAYS} to ${MAX_DURATION_DAYS} days.`);
+    }
+    const communityContribution = validateContribution(values, fail);
+    if (!values.policyAccepted) {
+      fail("wanted-policy", "Accept the Terms before posting.");
+    }
+    if (
+      errors.length > 0 ||
+      campus === undefined ||
+      durationDays === undefined ||
+      communityContribution === undefined
+    ) {
+      return { errors, draft: null, community: null };
+    }
+    return {
+      errors,
+      draft: null,
+      community: {
+        kind: values.kind,
+        title,
+        description,
+        campus,
+        lastSeenLocation: values.kind === "missing_item" && lastSeen.length >= 2 ? lastSeen : null,
+        durationDays,
+        contributionSen: communityContribution === null ? null : sen(communityContribution),
+      },
+    };
   }
 
   const faculty = find(taxonomy.faculties, values.facultyId);
@@ -214,9 +336,11 @@ export function validateDraft(
     );
   }
 
-  const session = find(taxonomy.academicSessions, values.sessionId);
+  // Optional: an empty choice means the request covers any session.
+  const session =
+    values.sessionId === "" ? null : find(taxonomy.academicSessions, values.sessionId);
   if (session === undefined) {
-    fail("wanted-session", "Choose the academic session this request covers.");
+    fail("wanted-session", "Choose a session from the list, or leave it as any session.");
   }
 
   const resourceType = find(taxonomy.resourceTypes, values.resourceTypeId);
@@ -245,31 +369,17 @@ export function validateDraft(
     fail("wanted-description", "The description must be 2,000 characters or fewer.");
   }
 
-  const durationDays = DURATION_DAYS.find((days) => String(days) === values.durationDays);
   if (durationDays === undefined) {
-    fail("wanted-duration", "Choose how long the request stays open: 7, 14 or 30 days.");
-  }
-
-  const amount = parseRinggitToSen(values.contribution);
-  let contributionSen: number | null = null;
-
-  if (values.contribution.trim() === "") {
-    fail("wanted-contribution", "Enter your first contribution.");
-  } else if (!amount.ok) {
     fail(
-      "wanted-contribution",
-      amount.reason === "sub-sen"
-        ? "Enter an amount in Ringgit and sen, for example 10.50."
-        : "Enter your contribution as an amount, for example 10.",
+      "wanted-duration",
+      `Choose how long the request stays open: ${MIN_DURATION_DAYS} to ${MAX_DURATION_DAYS} days.`,
     );
-  } else if (amount.sen < MIN_CONTRIBUTION_SEN || amount.sen > MAX_CONTRIBUTION_SEN) {
-    fail("wanted-contribution", "Each contribution must be between RM1 and RM50.");
-  } else {
-    contributionSen = amount.sen;
   }
+
+  const contributionSen = validateContribution(values, fail);
 
   if (!values.policyAccepted) {
-    fail("wanted-policy", "Accept the content policy before continuing.");
+    fail("wanted-policy", "Accept the Terms before continuing.");
   }
 
   if (
@@ -282,9 +392,9 @@ export function validateDraft(
     resourceType === undefined ||
     language === undefined ||
     durationDays === undefined ||
-    contributionSen === null
+    contributionSen === undefined
   ) {
-    return { errors, draft: null };
+    return { errors, draft: null, community: null };
   }
 
   return {
@@ -301,7 +411,8 @@ export function validateDraft(
       language,
       tags: tags.filter((tag): tag is TaxonomyItem => tag !== undefined),
       durationDays,
-      contributionSen: sen(contributionSen),
+      contributionSen: contributionSen === null ? null : sen(contributionSen),
     },
+    community: null,
   };
 }

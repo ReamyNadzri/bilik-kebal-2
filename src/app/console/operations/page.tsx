@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ConsoleNav } from "@/components/console-nav";
 import { OperationalConsole } from "@/components/claims/operational-console";
 import { requireAccount } from "@/features/presentation/auth/require-account";
 
@@ -14,10 +14,7 @@ export default async function OperationsConsolePage() {
 
   return (
     <>
-      <p>
-        <Link href="/console">← Back to Sheriff Console</Link>
-      </p>
-      <h1>Operations &amp; Fulfilment Console</h1>
+      <ConsoleNav current="operations" />
       <OperationalConsole />
     </>
   );

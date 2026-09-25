@@ -8,6 +8,9 @@ import {
 
 const item = (id: string, bounty: number, postedAt: string, closesAt: string): WantedSummary => ({
   id,
+  kind: "academic",
+  isFree: false,
+  lastSeenLocation: null,
   title: id,
   courseCode: "CSC510",
   courseName: "Computing",

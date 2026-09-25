@@ -4,8 +4,7 @@ import { NextResponse } from "next/server";
 import { safeNextPath } from "@/modules/identity/delivery/auth-http";
 import { resolveAuthCallbackPath } from "@/modules/identity/delivery/auth-callback";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getIdentityPendingCookieSecret } from "@/lib/config/server-env";
-import { createPasswordRecoveryGrant } from "@/modules/identity/services/password-recovery-grant";
+import { setRecoveryGrantCookie } from "@/modules/identity/delivery/recovery-grant-cookie";
 
 const allowedOtpTypes: ReadonlySet<string> = new Set([
   "email",
@@ -52,17 +51,7 @@ export async function GET(request: Request): Promise<Response> {
       failedResponse.headers.set("Cache-Control", "private, no-store");
       return failedResponse;
     }
-    response.cookies.set(
-      "vaultix_password_recovery",
-      createPasswordRecoveryGrant(user.id, getIdentityPendingCookieSecret(process.env)),
-      {
-        httpOnly: true,
-        maxAge: 15 * 60,
-        path: "/api/auth/reset-password",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      },
-    );
+    setRecoveryGrantCookie(response, user.id);
   }
   response.headers.set("Cache-Control", "private, no-store");
   return response;

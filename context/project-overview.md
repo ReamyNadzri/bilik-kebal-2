@@ -16,7 +16,7 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 
 1. A user registers with any email address and verifies ownership of the email.
 2. The user becomes institution verified automatically through an approved UiTM email domain or manually through Sheriff review. Institution-verified accounts receive a star emblem.
-3. A Commissioner creates a Wanted request with UiTM academic metadata, chooses a 7-, 14-, or 30-day duration, accepts the content policy, and makes the first RM1-RM50 contribution.
+3. A Commissioner creates a Wanted request with UiTM academic metadata, chooses a duration of 3 to 30 days, accepts the content policy, and makes the first RM1-RM50 contribution.
 4. ToyyibPay confirms payment through a verified callback. The internal ledger records the contribution once and activates or updates the bounty.
 5. Other institution-verified Backers contribute RM1-RM50. Payment-provider charges are added to their checkout total; the contribution itself increases the bounty by the stated amount.
 6. A Hunter submits an allowed file of at most 50 MB, supplies metadata, declares the right to share it, acknowledges the takedown and payout policy, and chooses whether it may become free after approval.
@@ -43,7 +43,21 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Searchable and filterable UiTM Wanted Board.
 - Configurable UiTM campus, faculty/college, programme, course, session, semester, resource type, language, and tag taxonomy.
 - Required duplicate suggestions before a new Wanted request is published.
-- Selectable 7-, 14-, or 30-day duration with no extension in the first release.
+- Duration of 3 to 30 days, chosen with a slider, with no extension in the first release.
+- Three request kinds: academic resources (file claims), missing items and discussions (text
+  replies, never files). Any kind may carry a bounty or be free.
+- Free requests: each member may publish 3 free requests in their lifetime; Owner-created reward
+  codes add more (each code has a word, free requests per redemption and a maximum number of
+  redemptions; a member redeems a code once).
+- A paid missing item or discussion is released when the poster names the member who helped and a
+  Sheriff approves; approval creates the same manual payout task as an approved claim.
+- Members cannot type their own campus, faculty, programme, course, session, resource type or tag.
+  They ask a Sheriff to add it and are notified in the app and by email when it is decided.
+- The academic session is optional on an academic request.
+- Region lock: open campuses are UiTM Shah Alam, Puncak Alam, Kuala Terengganu, Dungun and Bukit
+  Besi; the other branch campuses appear on the map as "coming soon".
+- Public member profiles show name, avatar, joined date, verification badge and the member's
+  public Wanted requests only — never email, evidence, claims or contributions.
 - Gross bounty, Backer count, age, status, and available action shown without previewing unverified content.
 
 ### Contributions, Fees, Payouts, and Refunds

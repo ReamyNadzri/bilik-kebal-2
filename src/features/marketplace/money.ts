@@ -47,6 +47,11 @@ export interface FormatRinggitOptions {
    * the caller's responsibility.
    */
   readonly unit?: "include" | "omit";
+  /**
+   * `always` keeps the `.00` tail on whole Ringgit. The poster plate uses it
+   * so every bounty on a Board reads in the same shape (RM 42.00, RM 7.50).
+   */
+  readonly cents?: "auto" | "always";
 }
 
 const GROUPED = new Intl.NumberFormat("en-MY", {
@@ -68,7 +73,7 @@ const GROUPED_WITH_CENTS = new Intl.NumberFormat("en-MY", {
  * payout) still shows its sen.
  */
 export function formatRinggit(amount: Sen, options: FormatRinggitOptions = {}): string {
-  const whole = amount % 100 === 0;
+  const whole = amount % 100 === 0 && options.cents !== "always";
   const digits = whole ? GROUPED.format(amount / 100) : GROUPED_WITH_CENTS.format(amount / 100);
 
   return options.unit === "omit" ? digits : `RM ${digits}`;

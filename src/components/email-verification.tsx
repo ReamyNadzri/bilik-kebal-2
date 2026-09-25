@@ -7,6 +7,7 @@ import { UiStatus } from "./ui-status";
 import type { IdentityOperationCode, ResendVerificationResult } from "@/contracts";
 import { callOperation } from "@/features/presentation/call-operation";
 import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
+import { EmailDeliveryHint } from "./email-delivery-hint";
 
 export type EmailVerificationStatus = "pending" | "verified" | "expired" | "invalid";
 
@@ -92,15 +93,18 @@ export function EmailVerification({ status, address }: EmailVerificationProps) {
       </p>
 
       {status === "pending" ? (
-        <UiStatus
-          kind="offline"
-          heading="Check your email"
-          message={
-            address === null
-              ? "Open the verification link that was emailed to you to confirm the address belongs to you."
-              : `A verification link was sent to ${address}. Open it to confirm the address belongs to you.`
-          }
-        />
+        <>
+          <UiStatus
+            kind="offline"
+            heading="Check your email"
+            message={
+              address === null
+                ? "Open the verification link that was emailed to you to confirm the address belongs to you."
+                : `A verification link was sent to ${address}. Open it to confirm the address belongs to you.`
+            }
+          />
+          <EmailDeliveryHint />
+        </>
       ) : null}
 
       {status === "expired" ? (
@@ -156,10 +160,12 @@ export function EmailVerification({ status, address }: EmailVerificationProps) {
           {sending ? <UiStatus kind="loading" heading="Sending a new link" /> : null}
 
           {resend.kind === "sent" ? (
-            <p className="email-verification__sent">
-              If that address still needs a link, one is on its way. Check your inbox and your spam
-              folder.
-            </p>
+            <>
+              <p className="email-verification__sent">
+                If that address still needs a link, one is on its way.
+              </p>
+              {status === "pending" ? null : <EmailDeliveryHint />}
+            </>
           ) : null}
 
           {resend.kind === "failed" ? (

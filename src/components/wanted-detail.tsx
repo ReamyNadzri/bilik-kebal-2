@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BountyPlate } from "./bounty-plate";
-import { ResourceEmblem } from "./resource-emblem";
 import { StatusStamp } from "./status-stamp";
 import { WantedCard } from "./wanted-card";
+import { WantedPoster } from "./wanted-poster";
+import { WantedReplies } from "./wanted-replies";
+import { Avatar } from "./avatar";
 import { BackWantedModal } from "./back-wanted-modal";
 import { ClaimSubmissionForm } from "./claim-submission-form";
 import type { AccountViewModel } from "@/contracts/identity";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
-import { formatClosing, formatPostedAge } from "@/features/marketplace/time";
+import { formatJoined, formatPostedAge } from "@/features/marketplace/time";
 import type { WantedDetail as Detail, WantedSummary } from "@/features/marketplace/types";
 
 export interface WantedDetailProps {
@@ -18,14 +19,6 @@ export interface WantedDetailProps {
   readonly similar: readonly WantedSummary[];
   readonly now: string;
   readonly account?: AccountViewModel | null;
-}
-
-function describeBackers(count: number): string {
-  if (count === 0) {
-    return "No backers yet";
-  }
-
-  return `${count} backer${count === 1 ? "" : "s"}`;
 }
 
 /**
@@ -50,8 +43,10 @@ function describeBackers(count: number): string {
  */
 export function WantedDetail({ wanted, similar, now, account }: WantedDetailProps) {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const academic = wanted.kind === "academic";
+  const isOpen =
+    wanted.status === "open" || wanted.status === "ending-soon" || wanted.status === "well-funded";
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
-  const closing = formatClosing(wanted.closesAt, now, { detail: true });
   const feePercent = wanted.feeRateBasisPoints / 100;
 
   return (
@@ -78,74 +73,66 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           would leave the tab order disagreeing with what is on screen. Grid
           placement puts this column on the right at desktop. */}
       <aside className="wanted-detail__ledger" aria-label="Bounty and actions">
-        <div className="ledger-poster poster-paper pin">
-          <p className="poster-masthead">
-            <span className="poster-masthead__word" aria-hidden="true">
-              Wanted
-            </span>
-          </p>
-          <ResourceEmblem resourceType={wanted.resourceType} />
-          <p className="wanted-card__course">
-            <span className="wanted-card__course-code">{wanted.courseCode}</span>
-            <span className="wanted-card__course-name">{wanted.courseName}</span>
-          </p>
-          <div className="wanted-card__money">
-            <BountyPlate amountSen={wanted.grossBountySen} size="large" />
-            <p className="ledger-panel__backers numeric">{describeBackers(wanted.backerCount)}</p>
-          </div>
-          <p className="ledger-panel__closing">
-            <time dateTime={wanted.closesAt}>{closing.label}</time>
-          </p>
-        </div>
+        <WantedPoster wanted={wanted} now={now} className="ledger-poster" />
 
         <div className="ledger-panel">
-          {account?.capabilities?.transact && wanted.status === "open" ? (
-            <button
-              type="button"
-              className="button button--primary ledger-panel__action"
-              onClick={() => setIsBackModalOpen(true)}
-            >
-              Back this Wanted
-            </button>
-          ) : (
-            <Link
-              className="button button--primary ledger-panel__action"
-              href="/profile/institution-verification"
-            >
-              Back this Wanted
-            </Link>
-          )}
-          {account?.capabilities?.submitClaim && wanted.status === "open" ? (
-            <button
-              type="button"
-              className="button button--secondary ledger-panel__action"
-              onClick={() => setIsClaimModalOpen(true)}
-            >
-              Submit a Claim
-            </button>
-          ) : (
-            <Link
-              className="button button--secondary ledger-panel__action"
-              href="/profile/institution-verification"
-            >
-              Submit a Claim
-            </Link>
-          )}
+          {!wanted.isFree ? (
+            account?.capabilities?.transact && isOpen ? (
+              <button
+                type="button"
+                className="button button--primary ledger-panel__action"
+                onClick={() => setIsBackModalOpen(true)}
+              >
+                Back this Wanted
+              </button>
+            ) : (
+              <Link
+                className="button button--primary ledger-panel__action"
+                href="/profile/institution-verification"
+              >
+                Back this Wanted
+              </Link>
+            )
+          ) : null}
+          {academic ? (
+            account?.capabilities?.submitClaim && isOpen ? (
+              <button
+                type="button"
+                className="button button--secondary ledger-panel__action"
+                onClick={() => setIsClaimModalOpen(true)}
+              >
+                Submit a Claim
+              </button>
+            ) : (
+              <Link
+                className="button button--secondary ledger-panel__action"
+                href="/profile/institution-verification"
+              >
+                Submit a Claim
+              </Link>
+            )
+          ) : null}
           <p className="ledger-panel__note">
-            Both actions need institution verification. Contributions are RM1 to RM50 per Backer,
-            and payment is disabled in this build until the launch gate passes.
+            {!academic
+              ? wanted.isFree
+                ? "Replies need institution verification. This is a free request: no bounty, no payment and no file."
+                : "Backing and replying need institution verification. The poster names who helped, and a Sheriff approves before the bounty is paid. Payment is disabled in this build until the launch gate passes."
+              : wanted.isFree
+                ? "This is a free request: no bounty and no payment. Submitting a claim needs institution verification."
+                : "Both actions need institution verification. Contributions are RM1 to RM50 per Backer, and payment is disabled in this build until the launch gate passes."}
           </p>
         </div>
 
-        <div className="ledger-panel">
+        <div className="ledger-panel" hidden={wanted.isFree}>
           <h2 className="ledger-panel__heading">Fees</h2>
           <p className="ledger-panel__fee">
             <span>Platform fee, fixed at publication</span>
             <span className="numeric">{feePercent}%</span>
           </p>
           <p className="ledger-panel__body">
-            A {feePercent}% platform fee is taken from the bounty when a claim is approved. The rate
-            was fixed when this Wanted was published and does not change afterwards.
+            A {feePercent}% platform fee is taken from the bounty when{" "}
+            {academic ? "a claim is approved" : "a Sheriff approves its release"}. The rate was
+            fixed when this Wanted was published and does not change afterwards.
           </p>
           <p className="ledger-panel__body">
             The payment provider adds its own charge to a Backer&rsquo;s checkout total. It is paid
@@ -155,7 +142,33 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
 
         <div className="ledger-panel">
           <h2 className="ledger-panel__heading">Who posted this</h2>
-          <p className="ledger-panel__commissioner">{wanted.commissioner.displayName}</p>
+          <div className="commissioner-card">
+            <Avatar src={wanted.commissioner.avatarUrl} size={48} />
+            <div>
+              <p className="ledger-panel__commissioner">
+                {wanted.commissioner.publicId ? (
+                  <Link href={`/u/${wanted.commissioner.publicId}`}>
+                    {wanted.commissioner.displayName}
+                  </Link>
+                ) : (
+                  wanted.commissioner.displayName
+                )}
+                {wanted.commissioner.institutionVerified ? (
+                  <span className="commissioner-card__badge">
+                    <span aria-hidden="true">★ </span>Verified
+                  </span>
+                ) : null}
+              </p>
+              {wanted.commissioner.joinedAt ? (
+                <p className="commissioner-card__joined">
+                  Joined{" "}
+                  <time dateTime={wanted.commissioner.joinedAt}>
+                    {formatJoined(wanted.commissioner.joinedAt)}
+                  </time>
+                </p>
+              ) : null}
+            </div>
+          </div>
           <dl className="index-grid ledger-panel__trust">
             <dt>Email verified</dt>
             <dd>
@@ -226,7 +239,7 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           </ul>
         )}
 
-        <section className="wanted-detail__section">
+        <section className="wanted-detail__section" hidden={!academic}>
           <h2>What may be submitted</h2>
           <p className="policy-note">
             A claim may contain only material the Hunter is allowed to share. Publisher textbooks,
@@ -244,7 +257,7 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
         </section>
 
         <section className="wanted-detail__section">
-          <h2>Bounty activity</h2>
+          <h2>{academic ? "Bounty activity" : "Activity"}</h2>
           <ol className="activity" aria-label="Activity on this Wanted">
             {wanted.activity.map((event) => (
               <li className="activity__event" key={event.id}>
@@ -257,6 +270,26 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           </ol>
         </section>
       </article>
+
+      <div className="wanted-detail__replies">
+        <WantedReplies
+          wantedId={wanted.id}
+          kind={wanted.kind}
+          open={isOpen}
+          canReply={account?.capabilities?.transact === true}
+          isPoster={
+            account?.publicId !== null &&
+            account?.publicId !== undefined &&
+            account.publicId === wanted.commissioner.publicId
+          }
+          now={now}
+          bountySen={wanted.isFree ? 0 : wanted.grossBountySen}
+          releasePending={wanted.status === "reviewing"}
+          {...(wanted.thread ? { thread: wanted.thread } : {})}
+          viewerPublicId={account?.publicId ?? null}
+          canModerate={account?.console?.hasAccess === true}
+        />
+      </div>
 
       {/* Deliberately outside the case file: these are other people's requests,
           and nesting them in this request's article would make every poster's

@@ -28,6 +28,7 @@ test("claims and validates private email jobs through the service-only RPC", asy
       attempt: 2,
       idempotencyExpiresAt: job.idempotency_expires_at,
       correlationId: job.correlation_id,
+      context: {},
     },
   ]);
   expect(fetcher).toHaveBeenCalledWith(
@@ -41,6 +42,32 @@ test("claims and validates private email jobs through the service-only RPC", asy
       body: JSON.stringify({ batch_size: 5 }),
     }),
   );
+});
+
+test("keeps only allow-listed email context and defaults it to an empty object", async () => {
+  const withContext = {
+    ...job,
+    notification_kind: "institution_verification_submitted",
+    notification_context: {
+      requesterDisplayName: "Aina",
+      institutionName: "UiTM",
+      evidencePath: "never/forwarded",
+    },
+  };
+  const fetcher = vi.fn().mockResolvedValue(
+    new Response(JSON.stringify([withContext, { ...job, notification_context: null }]), {
+      status: 200,
+    }),
+  );
+  const repository = new SupabaseNotificationEmailOutboxRepository({
+    baseUrl: "https://project.supabase.co",
+    serviceRoleKey: "service-secret",
+    fetcher,
+  });
+
+  const [first, second] = await repository.claimBatch();
+  expect(first?.context).toEqual({ requesterDisplayName: "Aina", institutionName: "UiTM" });
+  expect(second?.context).toEqual({});
 });
 
 test("does not surface privileged PostgREST response details", async () => {

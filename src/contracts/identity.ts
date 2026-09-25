@@ -49,6 +49,16 @@ export type EvidenceUploadResult = OperationResult<
 
 export interface AccountViewModel {
   displayName: string;
+  /** Public profile address (`/u/[publicId]`); never the auth user id. */
+  publicId: string | null;
+  /** Public avatar image, or null for the drawn default. */
+  avatarUrl: string | null;
+  /** When the account was created: the "joined" date on a profile. */
+  joinedAt: string | null;
+  /** The drawn character chosen instead of a photo (0 to 11), if any. */
+  avatarPreset?: number | null;
+  /** The member's own sign-in address. Shown only to them, never publicly. */
+  email?: string | null;
   trust: {
     email: "unverified" | "verified";
     institution: "unverified" | "pending" | "verified" | "rejected";
@@ -70,6 +80,8 @@ export interface AccountViewModel {
     evidenceDeleteAfter: string;
   } | null;
   console: { hasAccess: boolean };
+  /** Present while a timeout runs: when it lifts by itself. */
+  restrictedUntil?: string;
 }
 
 export type AccountViewResult = OperationResult<

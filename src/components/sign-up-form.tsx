@@ -92,7 +92,7 @@ export function SignUpForm() {
     )) as RegistrationResult;
 
     if (result.ok) {
-      router.push("/sign-in");
+      router.push("/verify-email");
       return;
     }
 

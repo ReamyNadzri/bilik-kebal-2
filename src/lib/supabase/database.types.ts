@@ -76,6 +76,7 @@ export type Database = {
       };
       account_restrictions: {
         Row: {
+          expires_at: string | null;
           id: string;
           lifted_at: string | null;
           lifted_by: string | null;
@@ -85,6 +86,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          expires_at?: string | null;
           id?: string;
           lifted_at?: string | null;
           lifted_by?: string | null;
@@ -94,6 +96,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          expires_at?: string | null;
           id?: string;
           lifted_at?: string | null;
           lifted_by?: string | null;
@@ -132,7 +135,12 @@ export type Database = {
           created_at: string;
           id: string;
           institution_id: string;
+          latitude: number | null;
+          longitude: number | null;
+          map_x: number | null;
+          map_y: number | null;
           name: string;
+          region_open: boolean;
           slug: string;
           sort_order: number;
           updated_at: string;
@@ -142,7 +150,12 @@ export type Database = {
           created_at?: string;
           id?: string;
           institution_id: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          map_x?: number | null;
+          map_y?: number | null;
           name: string;
+          region_open?: boolean;
           slug: string;
           sort_order?: number;
           updated_at?: string;
@@ -152,7 +165,12 @@ export type Database = {
           created_at?: string;
           id?: string;
           institution_id?: string;
+          latitude?: number | null;
+          longitude?: number | null;
+          map_x?: number | null;
+          map_y?: number | null;
           name?: string;
+          region_open?: boolean;
           slug?: string;
           sort_order?: number;
           updated_at?: string;
@@ -581,6 +599,45 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      community_payout_requests: {
+        Row: {
+          created_at: string;
+          decided_at: string | null;
+          decision_note: string | null;
+          finder_user_id: string;
+          id: string;
+          note: string | null;
+          requester_user_id: string;
+          reviewer_user_id: string | null;
+          status: string;
+          wanted_request_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          finder_user_id: string;
+          id?: string;
+          note?: string | null;
+          requester_user_id: string;
+          reviewer_user_id?: string | null;
+          status?: string;
+          wanted_request_id: string;
+        };
+        Update: {
+          created_at?: string;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          finder_user_id?: string;
+          id?: string;
+          note?: string | null;
+          requester_user_id?: string;
+          reviewer_user_id?: string | null;
+          status?: string;
+          wanted_request_id?: string;
+        };
+        Relationships: [];
       };
       contribution_intents: {
         Row: {
@@ -1267,7 +1324,8 @@ export type Database = {
       };
       payout_tasks: {
         Row: {
-          claim_id: string;
+          claim_id: string | null;
+          community_payout_request_id: string | null;
           completed_at: string | null;
           created_at: string;
           evidence_notes: string | null;
@@ -1285,7 +1343,8 @@ export type Database = {
           wanted_request_id: string;
         };
         Insert: {
-          claim_id: string;
+          claim_id?: string | null;
+          community_payout_request_id?: string | null;
           completed_at?: string | null;
           created_at?: string;
           evidence_notes?: string | null;
@@ -1303,7 +1362,8 @@ export type Database = {
           wanted_request_id: string;
         };
         Update: {
-          claim_id?: string;
+          claim_id?: string | null;
+          community_payout_request_id?: string | null;
           completed_at?: string | null;
           created_at?: string;
           evidence_notes?: string | null;
@@ -1389,20 +1449,35 @@ export type Database = {
       };
       profiles: {
         Row: {
+          avatar_object_key: string | null;
+          avatar_preset: number | null;
+          avatar_updated_at: string | null;
+          bio: string | null;
           created_at: string;
           display_name: string;
+          public_id: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
+          avatar_object_key?: string | null;
+          avatar_preset?: number | null;
+          avatar_updated_at?: string | null;
+          bio?: string | null;
           created_at?: string;
           display_name: string;
+          public_id?: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
+          avatar_object_key?: string | null;
+          avatar_preset?: number | null;
+          avatar_updated_at?: string | null;
+          bio?: string | null;
           created_at?: string;
           display_name?: string;
+          public_id?: string;
           updated_at?: string;
           user_id?: string;
         };
@@ -1572,6 +1647,30 @@ export type Database = {
           },
         ];
       };
+      reward_code_redemptions: {
+        Row: {
+          credits: number;
+          id: string;
+          redeemed_at: string;
+          reward_code_id: string;
+          user_id: string;
+        };
+        Insert: {
+          credits: number;
+          id?: string;
+          redeemed_at?: string;
+          reward_code_id: string;
+          user_id: string;
+        };
+        Update: {
+          credits?: number;
+          id?: string;
+          redeemed_at?: string;
+          reward_code_id?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       resource_types: {
         Row: {
           active: boolean;
@@ -1629,6 +1728,60 @@ export type Database = {
           slug?: string;
           sort_order?: number;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      taxonomy_requests: {
+        Row: {
+          category: string;
+          course_code: string | null;
+          created_at: string;
+          created_item_id: string | null;
+          decided_at: string | null;
+          decision_note: string | null;
+          id: string;
+          institution_id: string;
+          label: string;
+          note: string | null;
+          parent_faculty_id: string | null;
+          parent_programme_id: string | null;
+          requester_user_id: string;
+          reviewer_user_id: string | null;
+          status: string;
+        };
+        Insert: {
+          category: string;
+          course_code?: string | null;
+          created_at?: string;
+          created_item_id?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          id?: string;
+          institution_id: string;
+          label: string;
+          note?: string | null;
+          parent_faculty_id?: string | null;
+          parent_programme_id?: string | null;
+          requester_user_id: string;
+          reviewer_user_id?: string | null;
+          status?: string;
+        };
+        Update: {
+          category?: string;
+          course_code?: string | null;
+          created_at?: string;
+          created_item_id?: string | null;
+          decided_at?: string | null;
+          decision_note?: string | null;
+          id?: string;
+          institution_id?: string;
+          label?: string;
+          note?: string | null;
+          parent_faculty_id?: string | null;
+          parent_programme_id?: string | null;
+          requester_user_id?: string;
+          reviewer_user_id?: string | null;
+          status?: string;
         };
         Relationships: [];
       };
@@ -1735,90 +1888,219 @@ export type Database = {
           },
         ];
       };
+      badges: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          id: string;
+          image_object_key: string | null;
+          name: string;
+          retired_at: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          description?: string | null;
+          id?: string;
+          image_object_key?: string | null;
+          name: string;
+          retired_at?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          id?: string;
+          image_object_key?: string | null;
+          name?: string;
+          retired_at?: string | null;
+        };
+        Relationships: [];
+      };
+      badge_awards: {
+        Row: {
+          awarded_at: string;
+          awarded_by: string;
+          badge_id: string;
+          id: string;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          awarded_at?: string;
+          awarded_by: string;
+          badge_id: string;
+          id?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          user_id: string;
+        };
+        Update: {
+          awarded_at?: string;
+          awarded_by?: string;
+          badge_id?: string;
+          id?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      wanted_replies: {
+        Row: {
+          author_user_id: string;
+          body: string;
+          created_at: string;
+          hidden_at: string | null;
+          id: string;
+          deleted_at: string | null;
+          edited_at: string | null;
+          hidden_by: string | null;
+          hidden_reason: string | null;
+          parent_reply_id: string | null;
+          wanted_request_id: string;
+        };
+        Insert: {
+          author_user_id: string;
+          body: string;
+          created_at?: string;
+          hidden_at?: string | null;
+          id?: string;
+          deleted_at?: string | null;
+          edited_at?: string | null;
+          hidden_by?: string | null;
+          hidden_reason?: string | null;
+          parent_reply_id?: string | null;
+          wanted_request_id: string;
+        };
+        Update: {
+          author_user_id?: string;
+          body?: string;
+          created_at?: string;
+          hidden_at?: string | null;
+          id?: string;
+          deleted_at?: string | null;
+          edited_at?: string | null;
+          hidden_by?: string | null;
+          hidden_reason?: string | null;
+          parent_reply_id?: string | null;
+          wanted_request_id?: string;
+        };
+        Relationships: [];
+      };
       wanted_requests: {
         Row: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           access_basis_snapshot: Database["public"]["Enums"]["wanted_access_basis"] | null;
           campus_id: string;
           closes_at: string | null;
           commissioner_user_id: string;
-          course_id: string;
+          course_id: string | null;
           created_at: string;
           description: string;
           duration_days_snapshot: number | null;
-          faculty_id: string;
+          faculty_id: string | null;
           fee_rate_basis_points_snapshot: number | null;
           id: string;
           institution_id: string;
+          is_free: boolean;
           is_paused: boolean;
-          language_id: string;
+          kind: Database["public"]["Enums"]["wanted_kind"];
+          last_seen_location: string | null;
+          language_id: string | null;
           paused_at: string | null;
           policy_accepted_at: string;
           policy_version_snapshot: string | null;
-          programme_id: string;
+          programme_id: string | null;
           public_id: string;
           published_at: string | null;
           requested_duration_days: number;
-          resource_type_id: string;
+          resource_type_id: string | null;
           status: Database["public"]["Enums"]["wanted_status"];
+          thread_auto_closed: boolean;
+          thread_closed_at: string | null;
+          thread_last_activity_at: string | null;
+          thread_purged_at: string | null;
+          thread_reply_count: number;
+          vanished_at: string | null;
           title: string;
           total_paused_duration: string;
           updated_at: string;
         };
         Insert: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           access_basis_snapshot?: Database["public"]["Enums"]["wanted_access_basis"] | null;
           campus_id: string;
           closes_at?: string | null;
           commissioner_user_id: string;
-          course_id: string;
+          course_id: string | null;
           created_at?: string;
           description: string;
           duration_days_snapshot?: number | null;
-          faculty_id: string;
+          faculty_id: string | null;
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id: string;
+          is_free?: boolean;
           is_paused?: boolean;
-          language_id: string;
+          kind?: Database["public"]["Enums"]["wanted_kind"];
+          last_seen_location?: string | null;
+          language_id: string | null;
           paused_at?: string | null;
           policy_accepted_at: string;
           policy_version_snapshot?: string | null;
-          programme_id: string;
+          programme_id: string | null;
           public_id?: string;
           published_at?: string | null;
           requested_duration_days: number;
-          resource_type_id: string;
+          resource_type_id: string | null;
           status?: Database["public"]["Enums"]["wanted_status"];
+          thread_auto_closed?: boolean;
+          thread_closed_at?: string | null;
+          thread_last_activity_at?: string | null;
+          thread_purged_at?: string | null;
+          thread_reply_count?: number;
+          vanished_at?: string | null;
           title: string;
           total_paused_duration?: string;
           updated_at?: string;
         };
         Update: {
-          academic_session_id?: string;
+          academic_session_id?: string | null;
           access_basis_snapshot?: Database["public"]["Enums"]["wanted_access_basis"] | null;
           campus_id?: string;
           closes_at?: string | null;
           commissioner_user_id?: string;
-          course_id?: string;
+          course_id?: string | null;
           created_at?: string;
           description?: string;
           duration_days_snapshot?: number | null;
-          faculty_id?: string;
+          faculty_id?: string | null;
           fee_rate_basis_points_snapshot?: number | null;
           id?: string;
           institution_id?: string;
+          is_free?: boolean;
           is_paused?: boolean;
-          language_id?: string;
+          kind?: Database["public"]["Enums"]["wanted_kind"];
+          last_seen_location?: string | null;
+          language_id?: string | null;
           paused_at?: string | null;
           policy_accepted_at?: string;
           policy_version_snapshot?: string | null;
-          programme_id?: string;
+          programme_id?: string | null;
           public_id?: string;
           published_at?: string | null;
           requested_duration_days?: number;
-          resource_type_id?: string;
+          resource_type_id?: string | null;
           status?: Database["public"]["Enums"]["wanted_status"];
+          thread_auto_closed?: boolean;
+          thread_closed_at?: string | null;
+          thread_last_activity_at?: string | null;
+          thread_purged_at?: string | null;
+          thread_reply_count?: number;
+          vanished_at?: string | null;
           title?: string;
           total_paused_duration?: string;
           updated_at?: string;
@@ -1894,6 +2176,168 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      create_community_draft: {
+        Args: {
+          target_campus_id: string;
+          target_description: string;
+          target_duration_days: number;
+          target_kind: Database["public"]["Enums"]["wanted_kind"];
+          target_last_seen_location: string | null;
+          target_title: string;
+        };
+        Returns: string;
+      };
+      create_reward_code: {
+        Args: {
+          target_code: string;
+          target_credits: number;
+          target_expires_at?: string | null;
+          target_max_redemptions: number;
+        };
+        Returns: string;
+      };
+      decide_community_payout: {
+        Args: { approve: boolean; target_note?: string | null; target_request_id: string };
+        Returns: string | null;
+      };
+      decide_taxonomy_request: {
+        Args: {
+          approve: boolean;
+          open_region?: boolean;
+          target_note?: string | null;
+          target_request_id: string;
+        };
+        Returns: string | null;
+      };
+      my_free_request_allowance: {
+        Args: never;
+        Returns: { base: number; bonus: number; remaining: number; used: number }[];
+      };
+      redeem_reward_code: {
+        Args: { target_code: string };
+        Returns: string;
+      };
+      request_community_payout: {
+        Args: { finder_public_id: string; target_note?: string | null; target_public_id: string };
+        Returns: string;
+      };
+      set_own_avatar_preset: {
+        Args: { new_preset: number | null };
+        Returns: undefined;
+      };
+      submit_taxonomy_request: {
+        Args: {
+          target_category: string;
+          target_course_code?: string | null;
+          target_label: string;
+          target_note?: string | null;
+          target_parent_id?: string | null;
+        };
+        Returns: string;
+      };
+      post_wanted_reply: {
+        Args: { parent_reply?: string | null; reply_body: string; target_public_id: string };
+        Returns: string;
+      };
+      edit_own_wanted_reply: {
+        Args: { new_body: string; target_reply_id: string };
+        Returns: undefined;
+      };
+      delete_own_wanted_reply: {
+        Args: { target_reply_id: string };
+        Returns: undefined;
+      };
+      set_wanted_reply_hidden: {
+        Args: { hide: boolean; reason_code?: string | null; target_reply_id: string };
+        Returns: undefined;
+      };
+      console_my_role: { Args: Record<PropertyKey, never>; Returns: string | null };
+      console_search_members: {
+        Args: { max_rows?: number; search?: string | null };
+        Returns: Json;
+      };
+      console_rename_member: {
+        Args: { new_name: string; reason_code: string; target_public_id: string };
+        Returns: undefined;
+      };
+      console_reset_member_avatar: {
+        Args: { reason_code: string; target_public_id: string };
+        Returns: undefined;
+      };
+      console_timeout_member: {
+        Args: { duration_hours: number; reason_code: string; target_public_id: string };
+        Returns: string;
+      };
+      console_restrict_member: {
+        Args: { reason_code: string; target_public_id: string };
+        Returns: string;
+      };
+      console_lift_member_restriction: { Args: { target_public_id: string }; Returns: undefined };
+      console_set_institution_verification: {
+        Args: {
+          reason_code: string;
+          target_institution_id: string;
+          target_public_id: string;
+          verified: boolean;
+        };
+        Returns: undefined;
+      };
+      console_set_sheriff: {
+        Args: { appoint: boolean; target_institution_id: string | null; target_public_id: string };
+        Returns: undefined;
+      };
+      console_list_hidden_replies: { Args: { max_rows?: number }; Returns: Json };
+      create_badge: {
+        Args: { badge_description?: string | null; badge_name: string; image_key?: string | null };
+        Returns: string;
+      };
+      retire_badge: { Args: { target_badge_id: string }; Returns: undefined };
+      set_member_badge: {
+        Args: { target_badge_id: string | null; target_public_id: string };
+        Returns: undefined;
+      };
+      timeout_account: {
+        Args: { duration_hours: number; reason_code: string; target_user_id: string };
+        Returns: string;
+      };
+      lift_account_restriction: { Args: { target_user_id: string }; Returns: undefined };
+      publish_community_wanted: {
+        Args: {
+          target_campus_id: string;
+          target_description: string;
+          target_duration_days: number;
+          target_kind: Database["public"]["Enums"]["wanted_kind"];
+          target_last_seen_location: string | null;
+          target_policy_version: string;
+          target_title: string;
+        };
+        Returns: string;
+      };
+      publish_free_wanted: {
+        Args: {
+          target_criteria_hash_hex: string;
+          target_draft_id: string;
+          target_policy_version: string;
+          target_token_hash_hex: string;
+        };
+        Returns: string;
+      };
+      reopen_own_community_wanted: {
+        Args: { target_public_id: string };
+        Returns: undefined;
+      };
+      resolve_own_community_wanted: {
+        Args: { target_public_id: string };
+        Returns: undefined;
+      };
+      set_own_avatar: {
+        Args: { new_object_key: string | null };
+        Returns: undefined;
+      };
+      update_own_profile: {
+        Args: { new_bio: string | null; new_display_name: string };
+        Returns: undefined;
+      };
       approve_winning_claim_and_fulfill: {
         Args: {
           target_claim_id: string;
@@ -1947,7 +2391,7 @@ export type Database = {
       };
       create_wanted_draft: {
         Args: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           campus_id: string;
           course_id: string;
           description: string;
@@ -2062,7 +2506,7 @@ export type Database = {
       };
       update_wanted_draft: {
         Args: {
-          academic_session_id: string;
+          academic_session_id: string | null;
           campus_id: string;
           course_id: string;
           description: string;
@@ -2110,7 +2554,8 @@ export type Database = {
       platform_role: "owner" | "platform_sheriff";
       refund_task_status: "pending" | "processing" | "completed" | "failed";
       verification_request_state: "pending" | "approved" | "rejected";
-      wanted_access_basis: "contributors_only";
+      wanted_access_basis: "contributors_only" | "commissioner_free";
+      wanted_kind: "academic" | "missing_item" | "discussion";
       wanted_status:
         "draft" | "awaiting_payment" | "open" | "reviewing" | "expired" | "fulfilled" | "closed";
     };
@@ -2269,7 +2714,8 @@ export const Constants = {
       platform_role: ["owner", "platform_sheriff"],
       refund_task_status: ["pending", "processing", "completed", "failed"],
       verification_request_state: ["pending", "approved", "rejected"],
-      wanted_access_basis: ["contributors_only"],
+      wanted_access_basis: ["contributors_only", "commissioner_free"],
+      wanted_kind: ["academic", "missing_item", "discussion"],
       wanted_status: [
         "draft",
         "awaiting_payment",

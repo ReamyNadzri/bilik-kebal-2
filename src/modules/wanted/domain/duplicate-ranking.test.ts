@@ -4,6 +4,9 @@ import { rankDuplicateCandidates, type DuplicateCandidate } from "./duplicate-ra
 
 const summary = (id: string, title: string): WantedSummary => ({
   id,
+  kind: "academic",
+  isFree: false,
+  lastSeenLocation: null,
   title,
   courseCode: "CSC510",
   courseName: "Database Systems",

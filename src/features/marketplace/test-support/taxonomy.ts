@@ -47,8 +47,8 @@ export function aTaxonomy(overrides: Partial<MarketplaceTaxonomy> = {}): Marketp
   return {
     provenance: "reviewed_configuration",
     campuses: [
-      { id: ID.campus, slug: "main-campus", label: "Main Campus" },
-      { id: ID.otherCampus, slug: "branch-campus", label: "Branch Campus" },
+      { id: ID.campus, slug: "main-campus", label: "Main Campus", regionOpen: true },
+      { id: ID.otherCampus, slug: "branch-campus", label: "Branch Campus", regionOpen: false },
     ],
     faculties: [
       { id: ID.faculty, slug: "computing", label: "Faculty of Computing" },

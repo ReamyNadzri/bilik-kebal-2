@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { ConfirmIdentity } from "./confirm-identity";
 import { UiStatus } from "./ui-status";
 import type {
   EvidenceReadResult,
@@ -22,13 +23,13 @@ type Evidence =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "open"; signedUrl: string; expiresAt: string }
-  | { kind: "failed"; message: string };
+  | { kind: "failed"; message: string; stepUp: boolean };
 
 type Review =
   | { kind: "idle" }
   | { kind: "confirming"; decision: Decision }
   | { kind: "recording"; decision: Decision }
-  | { kind: "failed"; decision: Decision; message: string; stale: boolean }
+  | { kind: "failed"; decision: Decision; message: string; stale: boolean; stepUp: boolean }
   | { kind: "done"; decision: Decision };
 
 /**
@@ -157,7 +158,11 @@ export function ReviewConsole({ items }: ReviewConsoleProps) {
       }
 
       // The failure never echoes the URL, the key, or the provider response.
-      setEvidence({ kind: "failed", message: messageFor(result.code, result.message) });
+      setEvidence({
+        kind: "failed",
+        message: messageFor(result.code, result.message),
+        stepUp: result.code === "RECENT_AUTH_REQUIRED",
+      });
     } finally {
       busyRef.current = false;
     }
@@ -218,6 +223,7 @@ export function ReviewConsole({ items }: ReviewConsoleProps) {
         decision,
         message: messageFor(result.code, result.message),
         stale: result.code === "VERIFICATION_CONFLICT" || result.code === "REQUEST_NOT_FOUND",
+        stepUp: result.code === "RECENT_AUTH_REQUIRED",
       });
     } finally {
       busyRef.current = false;
@@ -325,7 +331,12 @@ export function ReviewConsole({ items }: ReviewConsoleProps) {
                   <UiStatus kind="loading" heading="Opening the evidence" />
                 ) : null}
 
-                {evidence.kind === "failed" ? (
+                {evidence.kind === "failed" && evidence.stepUp ? (
+                  <ConfirmIdentity
+                    purpose="view this evidence"
+                    onConfirmed={() => void openEvidence(selected.requestId)}
+                  />
+                ) : evidence.kind === "failed" ? (
                   <UiStatus
                     kind="expired"
                     heading="The evidence could not be opened"
@@ -391,7 +402,12 @@ export function ReviewConsole({ items }: ReviewConsoleProps) {
                     </h3>
                     <p>{CONSEQUENCE[review.decision]}</p>
 
-                    {review.kind === "failed" ? (
+                    {review.kind === "failed" && review.stepUp ? (
+                      <ConfirmIdentity
+                        purpose="record this decision"
+                        onConfirmed={() => void confirmDecision(selected, review.decision)}
+                      />
+                    ) : review.kind === "failed" ? (
                       <UiStatus
                         kind="error"
                         heading="The decision was not recorded"

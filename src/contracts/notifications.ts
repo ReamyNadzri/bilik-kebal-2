@@ -11,6 +11,15 @@ export const notificationKinds = [
   "refund_recorded",
   "account_restricted",
   "appeal_updated",
+  "wanted_reply",
+  "taxonomy_request_approved",
+  "taxonomy_request_rejected",
+  "community_payout_approved",
+  "community_payout_rejected",
+  "community_bounty_awarded",
+  "institution_verification_submitted",
+  "welcome",
+  "wanted_thread_auto_closed",
 ] as const;
 export type NotificationKind = (typeof notificationKinds)[number];
 
@@ -28,7 +37,34 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
   refund_recorded: "The Owner recorded a refund. Sign in to view its status.",
   account_restricted: "Your account has been restricted. Check your profile for details.",
   appeal_updated: "Your appeal has an update. Sign in to view its status.",
+  wanted_reply: "Someone replied to your request. Open it to read the reply.",
+  taxonomy_request_approved:
+    "A Sheriff added the entry you asked for. You can now choose it when you post a Wanted.",
+  taxonomy_request_rejected:
+    "A Sheriff did not add the entry you asked for. Check your profile for the reason.",
+  community_payout_approved:
+    "A Sheriff approved releasing your bounty to the member you named. The Owner records the payout.",
+  community_payout_rejected:
+    "A Sheriff did not approve releasing your bounty. Open the request for the next step.",
+  community_bounty_awarded:
+    "A Sheriff approved a bounty for you. The Owner records the payout; sign in to view its status.",
+  institution_verification_submitted:
+    "A new institution verification request is waiting for review.",
+  welcome: "Welcome to VAULTIX. Your email is verified; check your email for a welcome reward.",
+  wanted_thread_auto_closed:
+    "Your request closed after 30 days without a new message. You can reopen it within 7 days; after that it leaves the Board.",
 };
+
+/** Where a notification leads, when its subject is a public page. */
+export function notificationHref(kind: NotificationKind, subjectId: string): string | null {
+  if (kind.startsWith("wanted_") || kind.startsWith("community_")) return `/wanted/${subjectId}`;
+  if (kind.startsWith("taxonomy_request_")) return "/profile#entry-requests";
+  if (kind.startsWith("claim_")) return "/claims";
+  // The Sheriff alert opens the review queue; the student's own outcomes open their profile.
+  if (kind === "institution_verification_submitted") return "/console";
+  if (kind.startsWith("institution_verification_")) return "/profile";
+  return null;
+}
 
 export interface NotificationItem {
   id: string;

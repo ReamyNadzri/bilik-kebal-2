@@ -15,6 +15,33 @@ function createGateway(): AuthGateway {
 }
 
 describe("AuthService", () => {
+  test("re-confirms the signed-in account with its own email, ignoring any email sent", async () => {
+    const gateway = createGateway();
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    const result = await service.reauthenticate("owner@example.com", {
+      email: "someone-else@example.com",
+      password: "SecurePass123",
+    });
+
+    expect(gateway.signIn).toHaveBeenCalledWith({
+      email: "owner@example.com",
+      password: "SecurePass123",
+    });
+    expect(result).toEqual({ ok: true, data: { next: "profile" } });
+  });
+
+  test("refuses an empty password for re-confirmation without calling the provider", async () => {
+    const gateway = createGateway();
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    expect(await service.reauthenticate("owner@example.com", { password: "" })).toMatchObject({
+      ok: false,
+      code: "VALIDATION_ERROR",
+    });
+    expect(gateway.signIn).not.toHaveBeenCalled();
+  });
+
   test("rejects invalid registration input before calling the provider", async () => {
     const gateway = createGateway();
     const service = new AuthService(gateway, "https://vaultix.example");

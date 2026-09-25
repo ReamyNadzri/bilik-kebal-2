@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BountyPlate } from "./bounty-plate";
 import { StatusStamp } from "./status-stamp";
+import { Tabs } from "./tabs";
 import { UiStatus } from "./ui-status";
 import {
   claimStages,
@@ -61,27 +62,17 @@ function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now:
           <dt>Eligibility</dt>
           <dd>{ELIGIBILITY[hunt.eligibility]}</dd>
         </dl>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.5rem",
-            marginTop: "auto",
-            paddingTop: "0.5rem",
-          }}
-        >
+        <div className="card-actions">
           <Link
-            className="button button--primary"
-            style={{ width: "100%", textAlign: "center", justifyContent: "center" }}
-            href={`/claims/new?wantedId=${hunt.id}&from=hunt`}
+            className="button button--primary button--block"
+            href={`/claims/new?wantedId=${encodeURIComponent(hunt.id)}&from=hunt`}
             aria-label={`Fulfill bounty: ${hunt.title}`}
           >
             Fulfill Bounty <span aria-hidden="true">→</span>
           </Link>
           <Link
-            className="button button--secondary"
-            style={{ width: "100%", textAlign: "center", justifyContent: "center" }}
-            href={`/wanted/${hunt.id}`}
+            className="button button--secondary button--block"
+            href={`/wanted/${encodeURIComponent(hunt.id)}`}
             aria-label={`View hunt details: ${hunt.title}`}
           >
             View Wanted Details
@@ -153,71 +144,68 @@ function ClaimCard({ claim, now }: { readonly claim: ClaimSummary; readonly now:
 }
 
 export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
+  const openHunts = (
+    <section className="board-surface hunt-section" aria-labelledby="open-hunts-title">
+      <div className="hunt-section__head">
+        <h2 id="open-hunts-title">Open hunts</h2>
+        <p>
+          One winning claim per Wanted. Files stay in quarantine until a Sheriff decides, and
+          submission opens only after identity checks.
+        </p>
+      </div>
+      {hunts.length === 0 ? (
+        <UiStatus
+          kind="empty"
+          heading="No open hunts right now"
+          message="New opportunities begin as students post and fund requests."
+          action={<Link href="/board">Browse the Wanted Board</Link>}
+        />
+      ) : (
+        <ul className="hunt-grid" aria-label="Open hunt opportunities">
+          {hunts.map((hunt) => (
+            <HuntCard key={hunt.id} hunt={hunt} now={now} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
+  const myClaims = (
+    <section className="panel hunt-section" aria-labelledby="my-claims-title">
+      <div className="hunt-section__head">
+        <h2 id="my-claims-title">My claims</h2>
+        <p>Every claim moves through five stations, and only a Sheriff can approve one.</p>
+      </div>
+      {claims.length === 0 ? (
+        <UiStatus
+          kind="empty"
+          heading="You have no claims yet"
+          message="Find an open hunt that matches material you are authorised to share."
+          action={<Link href="/board">Browse the Wanted Board</Link>}
+        />
+      ) : (
+        <ul className="claim-list" aria-label="My claim history">
+          {claims.map((claim) => (
+            <ClaimCard key={claim.id} claim={claim} now={now} />
+          ))}
+        </ul>
+      )}
+      <p className="hunt-ledger__note">
+        Not selected means your claim was valid but another claim was chosen. Rejected is a separate
+        outcome and can be appealed.
+      </p>
+    </section>
+  );
+
   return (
     <div className="hunt-workspace">
-      {/* Both sections are rendered, so these jump to them rather than switch
-          between them. Styled as index tabs, but never marked selected: that
-          would claim a state the page does not have. */}
-      <nav className="hunt-jump" aria-label="Skip to a Hunt section">
-        <a href="#open-hunts">Open hunts</a>
-        <a href="#my-claims">My claims</a>
-      </nav>
-
-      <section
-        className="board-surface hunt-section"
-        id="open-hunts"
-        aria-labelledby="open-hunts-title"
-      >
-        <div className="hunt-section__head">
-          <h2 id="open-hunts-title">Open hunts</h2>
-          <p>
-            One winning claim per Wanted. Files stay in quarantine until a Sheriff decides, and
-            submission opens only after identity checks.
-          </p>
-        </div>
-        {hunts.length === 0 ? (
-          <UiStatus
-            kind="empty"
-            heading="No open hunts right now"
-            message="New opportunities begin as students post and fund requests."
-            action={<Link href="/board">Browse the Wanted Board</Link>}
-          />
-        ) : (
-          <ul className="hunt-grid" aria-label="Open hunt opportunities">
-            {hunts.map((hunt) => (
-              <HuntCard key={hunt.id} hunt={hunt} now={now} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="panel hunt-section" id="my-claims" aria-labelledby="my-claims-title">
-        <div className="hunt-section__head">
-          <h2 id="my-claims-title">My claims</h2>
-          <p>
-            Every claim moves through five stations, and only a Sheriff can approve one. These
-            fixtures demonstrate language only and are not account records.
-          </p>
-        </div>
-        {claims.length === 0 ? (
-          <UiStatus
-            kind="empty"
-            heading="You have no claims yet"
-            message="Find an open hunt that matches material you are authorised to share."
-            action={<a href="#open-hunts">Explore open hunts</a>}
-          />
-        ) : (
-          <ul className="claim-list" aria-label="My claim history">
-            {claims.map((claim) => (
-              <ClaimCard key={claim.id} claim={claim} now={now} />
-            ))}
-          </ul>
-        )}
-        <p className="hunt-ledger__note">
-          Not selected means your claim was valid but another claim was chosen. Rejected is a
-          separate outcome and can be appealed.
-        </p>
-      </section>
+      <Tabs
+        label="Hunt sections"
+        items={[
+          { id: "open-hunts", label: `Open hunts (${hunts.length})`, panel: openHunts },
+          { id: "my-claims", label: `My claims (${claims.length})`, panel: myClaims },
+        ]}
+      />
     </div>
   );
 }

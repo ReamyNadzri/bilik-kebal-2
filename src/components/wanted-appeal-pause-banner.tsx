@@ -15,26 +15,22 @@ export function WantedAppealPauseBanner({
     <aside
       role="status"
       aria-label="Bounty Paused Notice"
-      className="mb-6 rounded-xl border border-amber-600/40 bg-amber-950/30 p-4 text-amber-200 shadow-md backdrop-blur-sm"
+      className="dispatch-banner dispatch-banner--warning"
     >
-      <div className="flex items-start gap-3">
-        <span className="text-xl" aria-hidden="true">
-          ⏸️
-        </span>
-        <div>
-          <h4 className="text-sm font-bold text-amber-100">Bounty Countdown & Refunds Paused</h4>
-          <p className="mt-1 text-xs text-amber-300/90 leading-relaxed">
-            A rejected claim on this Wanted request is currently undergoing formal 7-day appeal
-            review by an independent Sheriff. Expiry countdowns and refund disbursements are paused.
-            Once the appeal is resolved, the remaining bounty duration will be extended accordingly.
-          </p>
-          {totalPausedDurationText ? (
-            <p className="mt-2 text-xs font-medium text-amber-400">
-              Total appeal time paused so far: {totalPausedDurationText}
-            </p>
-          ) : null}
-        </div>
+      <div className="dispatch-banner__head">
+        <h4 className="dispatch-banner__title">Bounty Countdown & Refunds Paused</h4>
+        <span className="dispatch-banner__tag">Appeal open</span>
       </div>
+      <p className="dispatch-banner__message">
+        A rejected claim on this Wanted request is under a 7-day appeal with a different Sheriff.
+        The expiry countdown and any refunds are paused. When the appeal is decided, the remaining
+        time is extended by the paused time.
+      </p>
+      {totalPausedDurationText ? (
+        <p className="dispatch-banner__message">
+          <strong>Paused so far: {totalPausedDurationText}</strong>
+        </p>
+      ) : null}
     </aside>
   );
 }

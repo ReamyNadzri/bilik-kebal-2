@@ -13,7 +13,7 @@ export class SupabaseTaxonomyRepository implements TaxonomyRepository {
   async listActive(institutionId: string | null): Promise<MarketplaceTaxonomy> {
     const campusesQuery = this.client
       .from("campuses")
-      .select("id, slug, name")
+      .select("id, slug, name, region_open")
       .eq("active", true)
       .order("sort_order")
       .order("name");
@@ -101,7 +101,7 @@ export class SupabaseTaxonomyRepository implements TaxonomyRepository {
 
     return {
       provenance: "reviewed_configuration",
-      campuses: (campuses.data ?? []).map(item),
+      campuses: (campuses.data ?? []).map((row) => ({ ...item(row), regionOpen: row.region_open })),
       faculties: (faculties.data ?? []).map(item),
       programmes: (programmes.data ?? []).map((row) => ({
         ...item(row),

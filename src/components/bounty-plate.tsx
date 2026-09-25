@@ -29,12 +29,12 @@ export function BountyPlate({
 }: BountyPlateProps) {
   return (
     <p className={`bounty-plate bounty-plate--${size}`}>
-      <span className="visually-hidden">{`${label} ${formatRinggit(amountSen)}`}</span>
+      <span className="visually-hidden">{`${label} ${formatRinggit(amountSen, { cents: "always" })}`}</span>
       <span className="bounty-plate__unit" aria-hidden="true">
         RM
       </span>
       <span className="bounty-plate__value numeric" aria-hidden="true">
-        {formatRinggit(amountSen, { unit: "omit" })}
+        {formatRinggit(amountSen, { unit: "omit", cents: "always" })}
       </span>
     </p>
   );

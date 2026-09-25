@@ -4,14 +4,14 @@ export interface DuplicateCandidate {
   wanted: WantedSummary;
   courseId: string;
   resourceTypeId: string;
-  academicSessionId: string;
+  academicSessionId: string | null;
 }
 
 export interface DuplicateTarget {
   title: string;
   courseId: string;
   resourceTypeId: string;
-  academicSessionId: string;
+  academicSessionId: string | null;
 }
 
 const terms = (title: string) =>
@@ -41,7 +41,10 @@ export function rankDuplicateCandidates(
         reasons.push("same_resource_type");
         score += 4;
       }
-      if (candidate.academicSessionId === target.academicSessionId) {
+      if (
+        candidate.academicSessionId !== null &&
+        candidate.academicSessionId === target.academicSessionId
+      ) {
         reasons.push("same_session");
         score += 2;
       }

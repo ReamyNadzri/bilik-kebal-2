@@ -42,7 +42,7 @@ export interface WantedRepository {
     tokenHash: string;
     criteriaHash: string;
     amountSen: number;
-    durationDays: 7 | 14 | 30;
+    durationDays: number;
     feeRateBasisPoints: number;
     policyVersion: string;
     accessBasis: "contributors_only";

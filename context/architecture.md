@@ -66,6 +66,28 @@ Supabase Cloud is the active environment;
 validate the migration and access-control tests in a designated cloud test
 environment before rollout. No cloud database changes have been performed by this slice.
 
+### Branded auth and notification emails (2026-09-25)
+
+- Auth mail stays with Supabase Auth over Brevo SMTP. Its confirmation and recovery templates are
+  generated from `src/modules/notifications/email/auth-email-templates.ts` into
+  `supabase/templates/*.html` (a test fails if they drift) and pasted into the hosted project.
+- Emailed links open `/auth/confirm`, which only renders a button. The one-time token is spent by
+  `POST /api/auth/confirm` (`verifyOtp` with `token_hash`), so link scanners such as Microsoft
+  Defender Safe Links cannot use it up. Accepted types are `email` and `recovery`; recovery sets the
+  existing password-recovery grant cookie. A provider outage returns to the page with the token
+  unspent. `/auth/callback` keeps handling PKCE codes and older links.
+- Notification mail keeps the outbox and Brevo API path, now sending HTML and plain text rendered
+  by an escaped string template (`email-layout.ts`) from one content model; Next.js forbids
+  `react-dom/server` in App Routes. Colours are
+  literals mirrored from the provisional tokens and checked against `globals.css` by a test.
+- `private.notification_email_context` supplies allow-listed per-kind values through
+  `claim_notification_email_batch`: requester display name and institution name for
+  `institution_verification_submitted`, and the live `WELCOME` credit count for `welcome` (omitted
+  once the code is inactive, expired or used up). The repository strips any other key.
+- `institution_verification_submitted` goes to every platform Sheriff and the institution's
+  Sheriffs, never the requester. `welcome` is enqueued once per user when the email is first
+  confirmed; the trigger on `auth.users` swallows its own errors so it can never block sign-up.
+
 Modules may share identifiers and published domain events, but they must not reach into one another's internal tables or bypass the owning service's invariants.
 
 ## Expected Project Boundaries
@@ -88,6 +110,11 @@ These folders are the intended structure and will be created only after the impl
 - **Supabase Storage `quarantine`**: private unapproved uploads. Users never receive a direct storage URL.
 - **Supabase Storage `approved`**: private approved originals and safe derivatives. Access requires an entitlement or public-release rule and a short-lived signed URL.
 - **Supabase Storage `verification-evidence`**: private evidence for manual institution verification, with restricted Sheriff access and automatic retention cleanup.
+- **Supabase Storage `avatars`**: the only public bucket. Holds 512 px WebP profile pictures re-encoded in the browser (camera metadata dropped), at most 512 KB, one folder per member's `public_id`, written only by the owner through RLS.
+- **`wanted_replies`**: text replies on missing-item and discussion requests; readable wherever the request is readable, written only by institution-verified members through `post_wanted_reply`. Reply notifications are in-app only and never emailed.
+- **`reward_codes` / `reward_code_redemptions`**: Owner-created codes that add free requests; redemptions are unique per code and member, and failed attempts are rate limited (10 per hour).
+- **`taxonomy_requests`**: member requests for new taxonomy entries; a Sheriff approval inserts the entry and notifies the member (in-app and email).
+- **`community_payout_requests`**: the poster of a paid missing item or discussion names the finder; a Sheriff (never a party to it) approves, which creates a `payout_tasks` row with no claim. `payout_tasks` now references exactly one of a claim or a community payout request.
 - **Queue tables**: durable operational messages; payloads contain identifiers, never raw file bodies, secrets, or unnecessary personal data.
 
 Database records store `storage_provider`, `bucket`, `object_key`, checksum, size, MIME type, and lifecycle state rather than public URLs. This permits a later hybrid migration to Cloudflare R2. New uploads can switch provider through configuration; migrations copy, verify the checksum, update the record transactionally, and only then delete the old object.
@@ -137,7 +164,17 @@ Payment mode is one of `disabled`, `sandbox`, or `live_limited`. Sandbox and liv
 - Quarantined files: 90 days or until the investigation is formally closed, whichever is later.
 - Institution-verification evidence: 30 days after the final decision/appeal period.
 - Approved resources: retained while an entitlement or valid release obligation exists; not deleted merely to remain within a free tier.
+- Wanted chat threads (sightings, replies, academic questions): deleted 7 days after the thread closes (found, resolved, auto-closed after 30 quiet days, fulfilled or expired) by the daily `wanted-thread-retention` pg_cron job. A missing-item or discussion card leaves the Board then; a small record (title, dates, reply count) remains. Never deleted while a bounty release is pending, while a paid community bounty is neither released nor fully refunded, within 7 days of an academic claim review, or while an appeal is pending. Hidden (moderated) replies are kept.
 - Ledger, payout/refund, moderation, and audit metadata: retained according to the approved legal retention schedule and never deleted by file cleanup jobs.
+
+## Member console
+
+- Owner and Sheriff people management runs only through audited security-definer functions
+  (migration `202610100004`); there is no raw table editor, and money is not editable from it.
+- Timeouts are account restrictions with an `expires_at`, lifted every minute by pg_cron.
+  Permanent restrictions and their lifting are Owner-only.
+- Owner-awarded badges are a separate signal from the institution-verified star and never grant
+  a capability.
 
 ## Invariants
 

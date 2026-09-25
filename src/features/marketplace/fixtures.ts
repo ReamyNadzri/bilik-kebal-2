@@ -40,6 +40,9 @@ export const FIXTURE_NOW = "2026-09-14T09:00:00.000Z";
 const WANTED: readonly WantedSummary[] = [
   {
     id: "csc584-tutorial-solutions",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Tutorial solutions for sets 1 to 6",
     courseCode: "CSC584",
     courseName: "Machine Learning",
@@ -58,6 +61,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "law416-case-summaries",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Case summary pack for the whole syllabus",
     courseCode: "LAW416",
     courseName: "Malaysian Legal System",
@@ -76,6 +82,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "ctu551-lecture-notes",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Lecture notes for weeks 1 to 14",
     courseCode: "CTU551",
     courseName: "Islamic Thought and Civilisation",
@@ -94,6 +103,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "csc510-final-exam-notes",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Final exam notes and summary for chapters 1 to 12",
     courseCode: "CSC510",
     courseName: "Database Systems",
@@ -112,6 +124,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "bio220-lab-report-guide",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Lab report structure and marking guide",
     courseCode: "BIO220",
     courseName: "Cell Biology",
@@ -130,6 +145,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "bel422-writing-samples",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Academic writing samples with lecturer feedback",
     courseCode: "BEL422",
     courseName: "English for Academic Purposes",
@@ -148,6 +166,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "csc510-past-year-questions",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Past year questions from 2019 to 2024",
     courseCode: "CSC510",
     courseName: "Database Systems",
@@ -166,6 +187,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "mat183-revision-set",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Revision set with fully worked solutions",
     courseCode: "MAT183",
     courseName: "Calculus I",
@@ -184,6 +208,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "acc406-past-year-scheme",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Past year answer scheme from 2022 to 2024",
     courseCode: "ACC406",
     courseName: "Financial Reporting",
@@ -202,6 +229,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "csc510-midterm-revision",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Midterm revision notes for chapters 1 to 6",
     courseCode: "CSC510",
     courseName: "Database Systems",
@@ -220,6 +250,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "eco415-formula-sheet",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Formula sheet and worked examples",
     courseCode: "ECO415",
     courseName: "Economic Statistics",
@@ -238,6 +271,9 @@ const WANTED: readonly WantedSummary[] = [
   },
   {
     id: "phy210-past-year-answers",
+    kind: "academic",
+    isFree: false,
+    lastSeenLocation: null,
     title: "Past year questions and answers from 2021 to 2025",
     courseCode: "PHY210",
     courseName: "Physics for Engineers",

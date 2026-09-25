@@ -21,6 +21,11 @@ function formatSenToRm(sen: number): string {
   return `RM ${(sen / 100).toFixed(2)}`;
 }
 
+/** The fee rate fixed when the Wanted was published, as a percentage. */
+function formatFeeRate(basisPoints: number): string {
+  return `${basisPoints / 100}%`;
+}
+
 function formatDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString("en-MY", {
@@ -84,7 +89,7 @@ export function OwnerPayoutQueue({
         });
 
         if (!res.ok) {
-          setFormError(res.error ?? "Failed to record payout.");
+          setFormError(res.error ?? "The payout could not be recorded.");
           setIsSubmitting(false);
           return;
         }
@@ -100,7 +105,7 @@ export function OwnerPayoutQueue({
         });
         const data = await res.json();
         if (!res.ok || !data.ok) {
-          setFormError(data.error ?? "Failed to complete payout.");
+          setFormError(data.message || data.error || "The payout could not be recorded.");
           setIsSubmitting(false);
           return;
         }
@@ -112,202 +117,110 @@ export function OwnerPayoutQueue({
       setSelectedTask(null);
       onRefresh?.();
     } catch {
-      setFormError("Network error while recording payout.");
+      setFormError(
+        "VAULTIX could not confirm whether the payout was recorded. Refresh the queue before retrying.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <section
-      className="panel"
-      aria-labelledby="payout-queue-heading"
-      style={{
-        borderRadius: "4px",
-        padding: "1.5rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.25rem",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "0.75rem",
-          borderBottom: "1px solid var(--border-subtle, #d3bc92)",
-          paddingBottom: "0.75rem",
-        }}
-      >
+    <section className="panel ops-panel" aria-labelledby="payout-queue-heading">
+      <div className="ops-panel__head">
         <div>
-          <h2
-            id="payout-queue-heading"
-            style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-primary, #2a2118)" }}
-          >
-            💰 Owner Payout Queue
+          <h2 id="payout-queue-heading" className="ops-panel__title">
+            Payout queue
           </h2>
-          <p
-            style={{
-              margin: "0.25rem 0 0 0",
-              fontSize: "0.85rem",
-              color: "var(--text-muted, #5e4f37)",
-            }}
-          >
-            Manual disbursement tracking with snapshotted 10% platform fee and balanced ledger
-            entries
+          <p className="ops-panel__lede">
+            One task per approved winning claim. Pay the Hunter outside VAULTIX, then record it
+            here. The platform fee is the rate fixed when each Wanted was published.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <div
+        <div className="ops-panel__tools">
+          <span
             data-testid="payout-summary-badge"
-            style={{
-              padding: "0.35rem 0.75rem",
-              borderRadius: "4px",
-              background: "rgba(200, 155, 60, 0.15)",
-              border: "1px solid var(--state-warning, #c89b3c)",
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              color: "var(--text-primary, #2a2118)",
-            }}
+            className="status-stamp status-stamp--warning numeric"
           >
             Pending: {pendingTasks.length} ({formatSenToRm(totalNetPendingSen)})
-          </div>
+          </span>
           {onRefresh && (
             <button
               type="button"
               onClick={onRefresh}
               disabled={isLoading}
-              className="button button--secondary"
-              style={{ fontSize: "0.8rem", padding: "0.35rem 0.75rem" }}
+              className="button button--secondary button--compact"
             >
-              {isLoading ? "Refreshing..." : "Refresh"}
+              {isLoading ? "Refreshing…" : "Refresh"}
             </button>
           )}
         </div>
       </div>
 
       {successMessage && (
-        <div
+        <p
           role="status"
           data-testid="payout-success-alert"
-          style={{
-            padding: "0.6rem 0.8rem",
-            borderRadius: "4px",
-            background: "rgba(46, 125, 50, 0.1)",
-            border: "1px solid var(--state-success, #2e7d32)",
-            color: "var(--state-success, #2e7d32)",
-            fontSize: "0.85rem",
-          }}
+          className="ops-alert ops-alert--success"
         >
-          ✓ {successMessage}
-        </div>
+          {successMessage}
+        </p>
       )}
 
       {tasks.length === 0 ? (
-        <div
-          data-testid="payout-empty-state"
-          style={{
-            padding: "2rem",
-            textAlign: "center",
-            color: "var(--text-muted, #5e4f37)",
-            background: "var(--bg-surface, #fbf3e0)",
-            borderRadius: "4px",
-            border: "1px dashed var(--border-default, #9c8558)",
-          }}
-        >
-          No payout tasks recorded. Payout tasks are generated automatically when a winning claim is
-          approved.
-        </div>
+        <p data-testid="payout-empty-state" className="ops-empty">
+          No payout tasks yet. A task appears here when a Sheriff approves a winning claim.
+        </p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "0.85rem",
-              textAlign: "left",
-            }}
-          >
+        <div className="ops-table-wrap" tabIndex={0} role="region" aria-label="Payout tasks">
+          <table className="ops-table">
             <thead>
-              <tr
-                style={{
-                  borderBottom: "2px solid var(--border-default, #9c8558)",
-                  color: "var(--text-muted, #5e4f37)",
-                }}
-              >
-                <th style={{ padding: "0.6rem 0.5rem" }}>Hunter</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Gross Bounty</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Platform Fee (10%)</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Net Disbursement</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Status</th>
-                <th style={{ padding: "0.6rem 0.5rem" }}>Date</th>
-                <th style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>Action</th>
+              <tr>
+                <th scope="col">Hunter</th>
+                <th scope="col">Gross bounty</th>
+                <th scope="col">Platform fee</th>
+                <th scope="col">Net payout</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created</th>
+                <th scope="col" className="ops-table__end">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
               {tasks.map((task) => {
                 const isPending = task.status === "pending";
                 return (
-                  <tr
-                    key={task.id}
-                    data-testid={`payout-row-${task.id}`}
-                    style={{
-                      borderBottom: "1px solid var(--border-subtle, #d3bc92)",
-                    }}
-                  >
-                    <td style={{ padding: "0.6rem 0.5rem", fontWeight: 600 }}>
+                  <tr key={task.id} data-testid={`payout-row-${task.id}`}>
+                    <td className="ops-table__name">
                       {task.hunterDisplayName ?? `Hunter (${task.hunterUserId.slice(0, 8)})`}
                     </td>
-                    <td style={{ padding: "0.6rem 0.5rem" }}>
-                      {formatSenToRm(task.grossBountySen)}
+                    <td className="numeric">{formatSenToRm(task.grossBountySen)}</td>
+                    <td className="ops-table__meta">
+                      <span className="numeric">- {formatSenToRm(task.platformFeeSen)}</span>{" "}
+                      <span>({formatFeeRate(task.feeRateBasisPoints)})</span>
                     </td>
-                    <td style={{ padding: "0.6rem 0.5rem", color: "var(--text-muted, #5e4f37)" }}>
-                      - {formatSenToRm(task.platformFeeSen)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "0.6rem 0.5rem",
-                        fontWeight: 700,
-                        color: "var(--state-success, #2e7d32)",
-                      }}
-                    >
-                      {formatSenToRm(task.netPayoutSen)}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.5rem" }}>
+                    <td className="ops-table__money">{formatSenToRm(task.netPayoutSen)}</td>
+                    <td>
                       <span
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.15rem 0.5rem",
-                          borderRadius: "3px",
-                          fontWeight: 700,
-                          background: isPending
-                            ? "rgba(200, 155, 60, 0.15)"
-                            : "rgba(46, 125, 50, 0.12)",
-                          color: isPending ? "#8a6100" : "#1b5e20",
-                          border: `1px solid ${isPending ? "rgba(200, 155, 60, 0.4)" : "rgba(46, 125, 50, 0.3)"}`,
-                        }}
+                        className={`status-stamp ${isPending ? "status-stamp--warning" : "status-stamp--success"}`}
                       >
                         {isPending ? "Pending" : "Completed"}
                       </span>
                     </td>
-                    <td style={{ padding: "0.6rem 0.5rem", color: "var(--text-soft, #6b5a3f)" }}>
-                      {formatDate(task.createdAt)}
-                    </td>
-                    <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
+                    <td className="ops-table__meta">{formatDate(task.createdAt)}</td>
+                    <td className="ops-table__end">
                       {isPending ? (
                         <button
                           type="button"
                           onClick={() => handleOpenCompleteModal(task)}
-                          className="button button--primary"
-                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
+                          className="button button--secondary button--compact"
                           aria-label={`Complete payout for ${formatSenToRm(task.netPayoutSen)}`}
                         >
-                          Disburse
+                          Record payout
                         </button>
                       ) : (
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted, #5e4f37)" }}>
+                        <span className="ops-table__meta">
                           Ref: {task.externalReference ?? "N/A"}
                         </span>
                       )}
@@ -320,191 +233,92 @@ export function OwnerPayoutQueue({
         </div>
       )}
 
-      {/* MODAL: Record Payout Completion */}
       {selectedTask && (
         <div
+          className="dialog-backdrop"
           role="dialog"
           aria-modal="true"
           aria-labelledby="payout-modal-title"
           data-testid="payout-completion-modal"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "1rem",
-          }}
         >
-          <div
-            style={{
-              background: "var(--bg-surface, #fbf3e0)",
-              border: "2px solid var(--border-default, #9c8558)",
-              borderRadius: "6px",
-              padding: "1.5rem",
-              width: "100%",
-              maxWidth: "480px",
-              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.2)",
-            }}
-          >
-            <h3
-              id="payout-modal-title"
-              style={{
-                margin: "0 0 0.5rem 0",
-                fontSize: "1.15rem",
-                color: "var(--text-primary, #2a2118)",
-              }}
-            >
-              Record External Payout
-            </h3>
-            <p
-              style={{
-                margin: "0 0 1rem 0",
-                fontSize: "0.85rem",
-                color: "var(--text-muted, #5e4f37)",
-              }}
-            >
+          <div className="dialog">
+            <div className="dialog__head">
+              <h3 id="payout-modal-title" className="dialog__title">
+                Record an external payout
+              </h3>
+            </div>
+            <p className="ops-summary">
               Hunter: <strong>{selectedTask.hunterDisplayName ?? selectedTask.hunterUserId}</strong>
               <br />
-              Net Disbursement: <strong>{formatSenToRm(selectedTask.netPayoutSen)}</strong> (after
-              10% fee)
+              Net payout:{" "}
+              <strong className="numeric">{formatSenToRm(selectedTask.netPayoutSen)}</strong> (after
+              the {formatFeeRate(selectedTask.feeRateBasisPoints)} platform fee)
             </p>
 
             {formError && (
-              <div
-                role="alert"
-                style={{
-                  padding: "0.5rem 0.75rem",
-                  borderRadius: "4px",
-                  background: "rgba(183, 28, 28, 0.1)",
-                  border: "1px solid var(--state-error, #b71c1c)",
-                  color: "var(--state-error, #b71c1c)",
-                  fontSize: "0.8rem",
-                  marginBottom: "1rem",
-                }}
-              >
-                ⚠️ {formError}
-              </div>
+              <p role="alert" className="ops-alert ops-alert--error dialog__lede">
+                {formError}
+              </p>
             )}
 
-            <form
-              onSubmit={handleSubmit}
-              style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}
-            >
-              <div>
-                <label
-                  htmlFor="external-reference"
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Bank / Gateway Reference *
+            <form onSubmit={handleSubmit} className="ops-form">
+              <div className="form-field">
+                <label htmlFor="external-reference" className="form-field__label">
+                  Bank / gateway reference <span className="form-field__required">(required)</span>
                 </label>
                 <input
                   id="external-reference"
+                  className="form-field__input"
                   type="text"
                   required
                   value={externalReference}
                   onChange={(e) => setExternalReference(e.target.value)}
                   placeholder="e.g. DUITNOW-20260925-8831"
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border-default, #9c8558)",
-                    fontSize: "0.85rem",
-                  }}
                 />
               </div>
 
-              <div>
-                <label
-                  htmlFor="payout-method"
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Disbursement Method *
+              <div className="form-field">
+                <label htmlFor="payout-method" className="form-field__label">
+                  Payout method <span className="form-field__required">(required)</span>
                 </label>
                 <select
                   id="payout-method"
+                  className="select-field"
                   value={payoutMethod}
                   onChange={(e) => setPayoutMethod(e.target.value as PayoutMethod)}
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border-default, #9c8558)",
-                    fontSize: "0.85rem",
-                  }}
                 >
-                  <option value="duitnow">DuitNow (Instant Transfer)</option>
+                  <option value="duitnow">DuitNow transfer</option>
                   <option value="bank_transfer">Interbank GIRO (IBG)</option>
                   <option value="touch_n_go">Touch &apos;n Go eWallet</option>
-                  <option value="other">Other Manual Settlement</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
 
-              <div>
-                <label
-                  htmlFor="evidence-notes"
-                  style={{
-                    display: "block",
-                    fontSize: "0.8rem",
-                    fontWeight: 700,
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Evidence / Notes (optional)
+              <div className="form-field">
+                <label htmlFor="evidence-notes" className="form-field__label">
+                  Evidence or notes <span className="form-field__required">(optional)</span>
                 </label>
                 <textarea
                   id="evidence-notes"
+                  className="form-field__input"
                   rows={3}
                   value={evidenceNotes}
                   onChange={(e) => setEvidenceNotes(e.target.value)}
-                  placeholder="e.g. Account verified, receipt stored in accounting records."
-                  style={{
-                    width: "100%",
-                    padding: "0.45rem 0.6rem",
-                    borderRadius: "4px",
-                    border: "1px solid var(--border-default, #9c8558)",
-                    fontSize: "0.85rem",
-                  }}
+                  placeholder="e.g. Account checked; receipt filed in the accounting records."
                 />
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "0.5rem",
-                  marginTop: "0.5rem",
-                }}
-              >
+              <div className="dialog__actions">
                 <button
                   type="button"
                   onClick={handleCloseModal}
                   disabled={isSubmitting}
-                  className="button button--secondary"
-                  style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}
+                  className="button button--quiet"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="button button--primary"
-                  style={{ padding: "0.4rem 0.8rem", fontSize: "0.85rem" }}
-                >
-                  {isSubmitting ? "Recording..." : "Confirm Payout Completion"}
+                <button type="submit" disabled={isSubmitting} className="button button--primary">
+                  {isSubmitting ? "Recording…" : "Confirm payout completion"}
                 </button>
               </div>
             </form>

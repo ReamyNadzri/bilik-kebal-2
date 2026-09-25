@@ -4,20 +4,31 @@ VAULTIX is an academic resource bounty marketplace for legitimate, authorised le
 
 The first release is English-first and focused on UiTM. The architecture is designed to support additional Malaysian higher education institutions later.
 
-> **Project status:** Pre-implementation specification and context review. The application has not been scaffolded or deployed yet.
+> **Project status:** MVP in active development (Phases 1–5 implemented, Phase 6 hardening pending). Payment stays `disabled` and public uploads stay off until their launch gates pass. See [`CHANGELOG.md`](CHANGELOG.md) for what the `production` branch adds over `main`.
 
 ## How VAULTIX Works
 
 1. A user registers with any email address and verifies it.
 2. UiTM affiliation is verified through an approved institutional email domain or manual Sheriff review.
-3. A Commissioner creates a Wanted request, selects a 7-, 14-, or 30-day duration, and contributes RM1-RM50.
+3. A Commissioner creates a Wanted request (academic resource, missing item, or discussion), selects a duration of 3 to 30 days, and either contributes RM1-RM50 or posts it free (3 free requests per member for life, plus reward codes).
 4. Other verified Backers may add RM1-RM50 each to the bounty.
-5. A Hunter submits an eligible academic resource and declares the right to share it.
+5. A Hunter submits an eligible academic resource and declares the right to share it. Missing items and discussions take text replies instead; the poster names the member who helped and a Sheriff approves the release.
 6. The file remains private while automated checks produce evidence for a human Sheriff.
 7. The Sheriff selects the best valid claim. Submission time is used only as a tie-breaker.
 8. Successful contributors receive access, and the Owner processes the Hunter payout manually.
 9. Contributor-only access is the default. A resource may become free 48 hours after approval when the Hunter permits it and the Sheriff confirms the sharing rights.
 10. If a bounty expires without an approved claim, full-refund tasks are created for its successful contributions.
+
+## Current Features
+
+- **Board and Wanted posters** — browse, search and back open requests; a shared poster renders the card and the detail ledger.
+- **Post a Wanted** — academic, missing-item and discussion kinds; free or bounty; 3–30 day and RM1–RM50 sliders; versioned posting terms.
+- **Explore Map** — live campus regions with totals; region lock allows new requests only at UiTM Shah Alam, Puncak Alam, Kuala Terengganu, Dungun and Bukit Besi.
+- **Hunt and Claims** — open hunts, my claims, private quarantined upload with rights declaration, reports and 7-day appeals.
+- **Sheriff Console** — dashboard, claim moderation, appeals, entry requests (new taxonomy) and community releases, operations queues.
+- **Fulfilment** — evidence locker, contributor entitlements, Archive and *My library* with signed downloads, manual payout and refund queues.
+- **Profiles** — editable profile, drawn avatars or cropped photo upload, public member pages at `/u/[publicId]`, reward codes.
+- **Identity and notifications** — email and institution verification as separate trust states, OTP password recovery, in-app inbox with unread badge, and email for priority events.
 
 ## Core Principles
 
@@ -45,7 +56,7 @@ VAULTIX uses a Supabase-centric modular-monolith architecture:
 | Lightweight backend | Supabase Edge Functions |
 | Durable jobs | Supabase Queues |
 | Scheduled jobs | Supabase Cron |
-| Transactional email | Resend |
+| Transactional email | Brevo (current adapter; Resend in the original plan) |
 | Payment collection | ToyyibPay |
 | File screening | Separately deployable isolated worker |
 
@@ -90,12 +101,18 @@ Public uploads remain disabled until the isolated scanning worker and safe-previ
 |   `-- ui-context.md
 |-- docs/superpowers/        # MVP design, coordination and phase plans
 |-- src/
-|   |-- app/                 # routes, layouts, route handlers
+|   |-- app/                 # routes, layouts; app/api holds route handlers
 |   |-- components/          # product components
-|   |-- contracts/           # shared operation result contract
+|   |-- contracts/           # shared domain contracts and result shapes
 |   |-- features/            # presentation-only modules
-|   `-- lib/config/          # validated server and public environment
+|   |-- modules/             # domains: identity, wanted, claims, money, payouts, profiles, ...
+|   `-- lib/                 # config, Supabase clients and generated types
+|-- supabase/migrations/     # append-only SQL migrations
+|-- workers/scanner/         # isolated file-screening worker
+|-- tests/                   # e2e (Playwright) and SQL tests
 |-- BILIK KEBAL 2 by afes.pdf
+|-- CHANGELOG.md
+|-- CONTRIBUTING.md
 `-- README.md
 ```
 
@@ -126,6 +143,8 @@ pnpm build
 
 `pnpm test:watch` runs the unit suite in watch mode and `pnpm test:e2e` runs Playwright. CI runs the same lint, format, typecheck, test and build sequence on Node.js 24.
 
+Apply the database migrations in `supabase/migrations/` in order before running against a Supabase project; `pnpm db:types` regenerates the typed client and `pnpm test:db` runs the SQL tests.
+
 Providers default to disabled: the application builds and runs with no payment credentials, and public uploads stay off until their launch gate passes.
 
 Before changing behaviour, read [`project-overview.md`](context/project-overview.md), [`architecture.md`](context/architecture.md), the current state in [`progress-tracker.md`](context/progress-tracker.md), and the phase plan under [`docs/superpowers/plans/`](docs/superpowers/plans/).
@@ -155,7 +174,7 @@ Before public users or unrestricted live payments are enabled, the project must 
 - Add automated tests for every financial, access-control, lifecycle, and moderation invariant.
 - Never place secrets, private files, verification evidence, or bank information in the repository or logs.
 
-See [`ai-workflow-rules.md`](context/ai-workflow-rules.md) for the complete workflow.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for branches, commit style and merge-request checks, and [`ai-workflow-rules.md`](context/ai-workflow-rules.md) for the complete workflow. User-visible changes are recorded in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Licence
 

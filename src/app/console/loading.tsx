@@ -1,3 +1,4 @@
+import { ConsoleNav } from "@/components/console-nav";
 import { UiStatus } from "@/components/ui-status";
 
 /**
@@ -7,7 +8,7 @@ import { UiStatus } from "@/components/ui-status";
 export default function ConsoleLoading() {
   return (
     <>
-      <h1>Sheriff Console</h1>
+      <ConsoleNav current="overview" showTabs={false} />
 
       <UiStatus kind="loading" heading="Loading the review queue" />
     </>

@@ -1,6 +1,13 @@
 import { render, screen, within } from "@testing-library/react";
 import { AccountSummary } from "./account-summary";
+import { vi } from "vitest";
 import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
+
+// Sign-out runs through the auth provider and has its own tests; the summary
+// only has to place the control.
+vi.mock("./sign-out-button", () => ({
+  SignOutButton: () => <button type="button">Sign out</button>,
+}));
 
 test("names the signed-in account", () => {
   render(<AccountSummary account={anAccountViewModel({ displayName: "Aisyah Rahman" })} />);

@@ -1,8 +1,11 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import {
+  CURRENT_POLICY_VERSION,
   duplicateSuggestionInputSchema,
+  freePublicationInputSchema,
   publicationInputSchema,
   type PrepareWantedPublicationResult,
+  type PublishFreeWantedResult,
   type SuggestWantedDuplicatesResult,
 } from "@/contracts/marketplace";
 import { failure, success } from "@/contracts/operation-result";
@@ -10,7 +13,18 @@ import { rankDuplicateCandidates } from "../domain/duplicate-ranking";
 import { canManageWantedDraft, type WantedActor } from "../domain/wanted-policy";
 import type { StoredWantedDraft, WantedRepository } from "../repositories/wanted-repository";
 
+/** Opens a draft with no bounty. Implemented by the Supabase repository. */
+export interface FreeWantedPublisher {
+  publishFree(input: {
+    draftId: string;
+    tokenHash: string;
+    criteriaHash: string;
+    policyVersion: string;
+  }): Promise<{ outcome: "published" | "required" | "expired"; publicId: string | null }>;
+}
+
 interface PublicationOptions {
+  freePublisher?: FreeWantedPublisher;
   now?: () => Date;
   token?: () => string;
   paymentAvailability: "disabled" | "unavailable" | "ready";
@@ -29,6 +43,7 @@ export class WantedPublicationService {
   private readonly feeRateBasisPoints: number;
   private readonly policyVersion: string;
   private readonly tokenSecret: string;
+  private readonly freePublisher: FreeWantedPublisher | null;
 
   constructor(
     private readonly repository: WantedRepository,
@@ -38,8 +53,60 @@ export class WantedPublicationService {
     this.token = options.token ?? (() => randomBytes(32).toString("base64url"));
     this.paymentAvailability = options.paymentAvailability;
     this.feeRateBasisPoints = options.feeRateBasisPoints ?? 1000;
-    this.policyVersion = options.policyVersion ?? "2026-09-15.1";
+    this.policyVersion = options.policyVersion ?? CURRENT_POLICY_VERSION;
     this.tokenSecret = options.tokenSecret ?? "vaultix-local-marketplace-token-secret";
+    this.freePublisher = options.freePublisher ?? null;
+  }
+
+  /**
+   * Opens an academic draft as a free request: no bounty, no payment step and
+   * no fee. The duplicate check is still required and consumed once. Payment
+   * mode does not matter here, because nothing is charged.
+   */
+  async publishFree(actor: WantedActor | null, input: unknown): Promise<PublishFreeWantedResult> {
+    const eligibility = this.eligibility(actor);
+    if (eligibility) return eligibility;
+    const parsed = freePublicationInputSchema.safeParse(input);
+    if (!parsed.success) return failure("VALIDATION_ERROR", "A valid duplicate check is required.");
+    if (!this.hasValidSignature(parsed.data.duplicateCheckToken)) {
+      return failure("DUPLICATE_CHECK_REQUIRED", "Run a fresh duplicate check for this draft.");
+    }
+    if (this.freePublisher === null) {
+      return failure(
+        "MARKETPLACE_UNAVAILABLE",
+        "Publishing is temporarily unavailable. Try again.",
+      );
+    }
+    try {
+      const draft = await this.editableDraft(actor!, parsed.data.draftId);
+      if (!draft.ok) return draft.result;
+      const published = await this.freePublisher.publishFree({
+        criteriaHash: criteriaHash(draft.value),
+        draftId: draft.value.id,
+        policyVersion: this.policyVersion,
+        tokenHash: hash(parsed.data.duplicateCheckToken),
+      });
+      if (published.outcome === "expired") {
+        return failure("DUPLICATE_CHECK_EXPIRED", "Run the duplicate check again before posting.");
+      }
+      if (published.outcome === "required" || published.publicId === null) {
+        return failure("DUPLICATE_CHECK_REQUIRED", "Run a fresh duplicate check for this draft.");
+      }
+      return success({ state: "open", wantedId: published.publicId });
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        String((error as { message: unknown }).message).includes("wanted_free_limit_reached")
+      ) {
+        return failure("FREE_LIMIT_REACHED", "");
+      }
+      return failure(
+        "MARKETPLACE_UNAVAILABLE",
+        "Publishing is temporarily unavailable. Try again.",
+      );
+    }
   }
 
   async suggestDuplicates(

@@ -80,14 +80,14 @@ test("posts the registration in the shape the contract defines", async () => {
   });
 });
 
-test("sends the user to sign in after registration", async () => {
+test("sends the user to verify their email after registration", async () => {
   respondWith({ ok: true, data: { next: "verify_email" } });
 
   render(<SignUpForm />);
   completeForm();
   submit();
 
-  await waitFor(() => expect(push).toHaveBeenCalledWith("/sign-in"));
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/verify-email"));
 });
 
 test("shows the operation's refusal without creating an account", async () => {

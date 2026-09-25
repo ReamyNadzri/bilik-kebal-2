@@ -87,3 +87,13 @@ test("disables the submit button with a cooldown timer after submitting", async 
     expect(button).toHaveTextContent(/wait/i);
   });
 });
+
+test("an accepted request shows the spam-folder hint", async () => {
+  respondWith({ ok: true, data: { accepted: true } });
+
+  render(<RecoverForm />);
+  enterAddress();
+  submit();
+
+  expect(await screen.findByRole("note")).toHaveTextContent("Spam or Junk");
+});

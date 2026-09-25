@@ -34,6 +34,8 @@ export function ClaimSubmissionForm({
 }: ClaimSubmissionFormProps) {
   const [file, setFile] = useState<File | null>(null);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [rightsAttention, setRightsAttention] = useState(false);
+  const rightsRef = useRef<HTMLInputElement>(null);
   const [freeReleaseOptIn, setFreeReleaseOptIn] = useState(false);
   const [step, setStep] = useState<ClaimSubmissionStep | "idle" | "error">("idle");
   const [errorHeading, setErrorHeading] = useState<string>("");
@@ -41,7 +43,6 @@ export function ClaimSubmissionForm({
   const [isDragOver, setIsDragOver] = useState(false);
 
   const dialogRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -62,7 +63,7 @@ export function ClaimSubmissionForm({
     const validation = validateClaimFile(selectedFile);
     if (!validation.valid) {
       setStep("error");
-      setErrorHeading("Invalid file selected");
+      setErrorHeading("This file cannot be used");
       setErrorMessage(validation.error ?? "Please select a supported document or image.");
       setFile(null);
       return;
@@ -85,9 +86,10 @@ export function ClaimSubmissionForm({
     }
 
     if (!rightsConfirmed) {
-      setStep("error");
-      setErrorHeading("Rights confirmation required");
-      setErrorMessage("You must confirm you have the rights to submit this resource.");
+      // Point at the box itself rather than replacing the form with an error:
+      // the Hunter's chosen file and opt-in stay exactly as they were.
+      setRightsAttention(true);
+      rightsRef.current?.focus();
       return;
     }
 
@@ -109,7 +111,7 @@ export function ClaimSubmissionForm({
     if (result.code === "UPLOAD_UNAVAILABLE") {
       setErrorHeading("Uploads are switched off");
       setErrorMessage(
-        "Public claim uploads are currently disabled pending launch-gate clearance. No file was uploaded.",
+        "Claim uploads are not open yet while file screening is being set up. No file was uploaded.",
       );
     } else {
       setErrorHeading("Submission failed");
@@ -121,130 +123,88 @@ export function ClaimSubmissionForm({
 
   return (
     <div
-      className="evidence-viewer"
+      className="dialog-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="claim-form-title"
+      aria-busy={isWorking ? true : undefined}
       ref={dialogRef}
       tabIndex={-1}
-      style={{
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-      }}
     >
-      <div
-        className="panel"
-        style={{
-          maxWidth: "36rem",
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          <h2 id="claim-form-title" style={{ margin: 0, fontSize: "var(--text-lg)" }}>
-            Submit a Claim for Bounty
+      <div className="dialog dialog--wide">
+        <div className="dialog__head">
+          <h2 id="claim-form-title" className="dialog__title">
+            Submit a Claim
           </h2>
           {!isWorking ? (
             <button
               type="button"
-              className="button button--ghost"
+              className="button button--quiet dialog__close"
               onClick={onClose}
               aria-label="Close dialog"
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           ) : null}
         </div>
 
         {step === "complete" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-            <div
-              className="panel"
-              style={{
-                background: "var(--bg-canvas)",
-                border: "var(--border-width-1) solid var(--border-default)",
-                padding: "var(--space-4)",
-              }}
-            >
-              <h3 style={{ margin: "0 0 var(--space-2) 0", fontSize: "var(--text-lg)" }}>
-                Claim submitted for review
-              </h3>
-              <p style={{ margin: "0 0 var(--space-4) 0", color: "var(--text-muted)" }}>
-                Your claim has been uploaded to quarantine. A human Sheriff will review it before an
-                award or entitlement is decided.
-              </p>
-              <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          <UiStatus
+            kind="success"
+            heading="Claim submitted for review"
+            message="Your file is in private quarantine. A human Sheriff reviews it before any award or access is decided."
+            action={
+              <span className="dialog__actions">
                 <Link href="/claims" className="button button--primary">
                   View in Hunter&rsquo;s Office
                 </Link>
-                <button type="button" className="button button--ghost" onClick={onClose}>
+                <button type="button" className="button button--quiet" onClick={onClose}>
                   Close
                 </button>
-              </div>
-            </div>
-          </div>
+              </span>
+            }
+          />
         ) : step === "error" ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-            <UiStatus
-              kind="offline"
-              heading={errorHeading}
-              message={errorMessage}
-              action={
-                <button
-                  type="button"
-                  className="button button--primary"
-                  onClick={() => {
-                    setStep("idle");
-                    setErrorHeading("");
-                    setErrorMessage("");
-                  }}
-                >
-                  Try again
-                </button>
-              }
-            />
-          </div>
+          <UiStatus
+            kind="error"
+            heading={errorHeading}
+            message={errorMessage}
+            action={
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => {
+                  setStep("idle");
+                  setErrorHeading("");
+                  setErrorMessage("");
+                }}
+              >
+                Try again
+              </button>
+            }
+          />
         ) : isWorking ? (
-          <div
-            style={{
-              padding: "var(--space-6) var(--space-4)",
-              textAlign: "center",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "var(--space-3)",
-            }}
-          >
-            <div className="ui-status__label" style={{ fontWeight: "bold" }}>
-              {step === "hashing" && "Computing file checksum (SHA-256)…"}
-              {step === "authorizing" && "Authorizing private quarantine upload…"}
-              {step === "uploading" && "Uploading directly to quarantine storage…"}
-            </div>
-            <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              {step === "hashing" &&
-                "Hashing untrusted file in browser memory before authorization."}
-              {step === "authorizing" && "Requesting pre-signed session from upload gateway."}
-              {step === "uploading" &&
-                "Direct browser-to-bucket upload. Please keep this window open."}
+          <div className="progress-note" role="status" aria-live="polite">
+            <p className="ui-status__label">
+              {step === "hashing" && "Checking your file…"}
+              {step === "authorizing" && "Preparing a private upload…"}
+              {step === "uploading" && "Uploading to private review storage…"}
+            </p>
+            <p>
+              {step === "hashing" && "Your file stays on this device while it is checked."}
+              {step === "authorizing" && "Asking for a one-time upload slot."}
+              {step === "uploading" && "Keep this window open until the upload finishes."}
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <p className="policy-note" style={{ marginBottom: "var(--space-4)" }}>
-              Submitting for <strong>{wanted.title}</strong> ({wanted.courseCode}). Files are
-              quarantined immediately and reviewed by a Sheriff before release.
+          <form onSubmit={handleSubmit} noValidate>
+            <p className="policy-note dialog__lede">
+              Submitting for <strong>{wanted.title}</strong> ({wanted.courseCode}). Your file is
+              kept private and reviewed by a Sheriff before anyone else can see it.
             </p>
 
-            <div
+            <label
+              className={`dropzone${isDragOver ? " dropzone--active" : ""}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 setIsDragOver(true);
@@ -257,23 +217,11 @@ export function ClaimSubmissionForm({
                   handleFileSelection(e.dataTransfer.files[0] ?? null);
                 }
               }}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: isDragOver
-                  ? "2px dashed var(--accent-primary, #6366f1)"
-                  : "2px dashed var(--border-default)",
-                borderRadius: "var(--radius-card, 8px)",
-                padding: "var(--space-6) var(--space-4)",
-                textAlign: "center",
-                cursor: "pointer",
-                backgroundColor: isDragOver ? "var(--bg-surface-elevated)" : "var(--bg-canvas)",
-                marginBottom: "var(--space-4)",
-              }}
             >
               <input
-                ref={fileInputRef}
+                className="dropzone__input"
                 type="file"
-                style={{ display: "none" }}
+                aria-describedby="claim-file-hint"
                 accept=".pdf,.docx,.pptx,.xlsx,.jpg,.jpeg,.png,.webp"
                 onChange={(e) => {
                   if (e.target.files && e.target.files.length > 0) {
@@ -282,74 +230,70 @@ export function ClaimSubmissionForm({
                 }}
               />
               {file ? (
-                <div>
-                  <p style={{ fontWeight: "bold", margin: "0 0 var(--space-1) 0" }}>{file.name}</p>
-                  <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
-                    {(file.size / (1024 * 1024)).toFixed(2)} MB &bull; Click or drop another file to
-                    replace
-                  </p>
-                </div>
+                <>
+                  <span className="dropzone__title">{file.name}</span>
+                  <span className="dropzone__hint" id="claim-file-hint">
+                    {(file.size / (1024 * 1024)).toFixed(2)} MB. Choose or drop another file to
+                    replace it.
+                  </span>
+                </>
               ) : (
-                <div>
-                  <p style={{ margin: "0 0 var(--space-1) 0", fontWeight: "bold" }}>
-                    Drag and drop your claim file here, or click to browse
-                  </p>
-                  <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: 0 }}>
-                    Supported: PDF, DOCX, PPTX, XLSX, JPEG, PNG, WEBP (up to 50 MB)
-                  </p>
-                </div>
+                <>
+                  <span className="dropzone__title">
+                    Drag and drop your claim file here, or choose a file
+                  </span>
+                  <span className="dropzone__hint" id="claim-file-hint">
+                    PDF, DOCX, PPTX, XLSX, JPEG, PNG or WEBP, up to 50 MB.
+                  </span>
+                </>
               )}
-            </div>
+            </label>
 
-            <fieldset className="draft-form__fieldset" style={{ marginBottom: "var(--space-4)" }}>
-              <legend className="draft-form__legend">Rights and Release</legend>
+            <fieldset className="consent-list">
+              <legend className="draft-form__legend">Rights and release</legend>
 
-              <label
-                className="draft-form__choice"
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "var(--space-2)",
-                  marginBottom: "var(--space-2)",
-                }}
-              >
+              <label className={`consent${rightsAttention ? " consent--attention" : ""}`}>
                 <input
+                  ref={rightsRef}
                   type="checkbox"
                   checked={rightsConfirmed}
-                  onChange={(e) => setRightsConfirmed(e.target.checked)}
-                  required
+                  onChange={(e) => {
+                    setRightsConfirmed(e.target.checked);
+                    if (e.target.checked) setRightsAttention(false);
+                  }}
+                  aria-invalid={rightsAttention ? true : undefined}
+                  aria-describedby={rightsAttention ? "claim-rights-error" : undefined}
                 />
-                <span style={{ fontSize: "var(--text-sm)" }}>
-                  <strong>I confirm I hold the rights</strong> to submit this material and that it
-                  does not violate copyright, exam confidentiality, or institution rules.
+                <span>
+                  <strong>I confirm I hold the rights</strong> to share this material, and it does
+                  not break copyright, exam confidentiality or institution rules.
                 </span>
               </label>
+              {rightsAttention ? (
+                <p className="consent__error" id="claim-rights-error" role="alert">
+                  Tick this box to confirm you hold the rights before submitting.
+                </p>
+              ) : null}
 
-              <label
-                className="draft-form__choice"
-                style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-2)" }}
-              >
+              <label className="consent">
                 <input
                   type="checkbox"
                   checked={freeReleaseOptIn}
                   onChange={(e) => setFreeReleaseOptIn(e.target.checked)}
                 />
-                <span style={{ fontSize: "var(--text-sm)" }}>
-                  Opt into free public release 48 hours after Sheriff approval (allows classmates to
-                  access after the initial reward window).
+                <span>
+                  Offer this resource for free release. It becomes free 48 hours after approval, and
+                  only if a Sheriff also confirms the rights; otherwise only this Wanted&rsquo;s
+                  Backers get access.
                 </span>
               </label>
             </fieldset>
 
-            <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "flex-end" }}>
-              <button type="button" className="button button--ghost" onClick={onClose}>
+            <div className="dialog__actions">
+              <button type="button" className="button button--quiet" onClick={onClose}>
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="button button--primary"
-                disabled={!file || !rightsConfirmed}
-              >
+              <button type="submit" className="button button--primary" disabled={!file}>
                 Submit Claim
               </button>
             </div>

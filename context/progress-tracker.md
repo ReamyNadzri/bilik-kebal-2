@@ -218,15 +218,258 @@ Update this file after every meaningful implementation or specification change.
   - Enhanced `ResetPasswordForm` to accept email and 6-digit recovery code inputs, with automatic sessionStorage retrieval when transitioning from `/recover`.
   - Immunized password recovery against Microsoft 365 Defender Safe Links / Outlook email prefetching consuming single-use magic links for `@student.uitm.edu.my`.
 
+- 2026-09-24 frontend consistency and bug sweep (Claude Code, branch
+  `claude/compassionate-ramanujan-lpcrpr`):
+  - Claims and operations screens (payout/refund queues, operations console, evidence locker,
+    upload field, dispatch banner/toast, claim workspace, `/claims/new`) moved from ~250 inline
+    styles with rounded corners and off-palette reds/greens onto shared tokenised classes
+    (`.dialog`, `.ops-*`, `.locker-*`, `.upload-*`, `.dispatch-banner`, `.toast`, layout helpers).
+  - Payment placeholder: the Back-this-Wanted dialog maps every refusal to its own message and
+    treats the absent `POST /api/marketplace/wanted/[id]/contribution` route as "online payment is
+    not open yet"; every branch states that no charge was made. Added `/payment/return` for
+    `TOYYIBPAY_RETURN_URL`; it never treats the redirect as payment and never echoes provider
+    references.
+  - Fixed: Close/Cancel on paper dialogs used the timber-only ghost button (unreadable);
+    claim file input was unreachable by keyboard; upload rights confirmation was pre-ticked;
+    a malformed `wantedId` produced a simulated "uploaded" success in production; payout queue
+    hard-coded a 10% fee instead of the snapshotted rate; SignOutButton navigated away even when
+    sign-out was refused; operations tabs lacked tabpanel and arrow-key support; two
+    set-state-in-effect lint errors in the recovery forms.
+  - Removed invented policy copy (a 48-hour free-release delay, an "only refundable on expiry"
+    rule, encryption claims). Free release copy now states only the invariant: Hunter opt-in plus
+    Sheriff-confirmed rights, otherwise Backers only.
+  - Desktop rail fits one row from 1280 px: the search starts at 8rem and grows to 15rem, the
+    account control precedes Post a Wanted, and the account utilities are icon-only below 85rem.
+  - Verification: typecheck, lint, format, 949 unit tests and production build pass; no route
+    overflows at 360 px or 1440 px. Playwright against a production build without Supabase
+    credentials: 135 passed / 85 failed, versus 134 / 86 on the untouched base `e032efe` — no new
+    failures. The remaining failures need a reachable Supabase (sign-in refusal states, the
+    Wanted intake form) or are strict-mode selector clashes in the specs.
+  - Design system recorded as a Design System artifact built from `src/app/globals.css` and the
+    handoff images; `bounty sample.png` in the handoff is third-party artwork and is reference only.
+
 ## Next Up
 
+0. Codex lane: publish `POST /api/marketplace/wanted/[id]/contribution` (Backer contribution
+   intent) — the Back-this-Wanted dialog already calls it and handles every `MoneyOperationCode`.
 1. Connect durable claim job dispatch to the scanner worker host after its provider is selected.
 2. Add claim upload completion dispatch and entitlement creation after a recorded approval.
 3. Add Sheriff review persistence with reason codes, recorded actor, and one-winner constraints.
 4. Verify the existing Supabase Cloud connection and applied migration history, then validate pending migrations and RLS tests in a designated cloud test environment.
 5. Resolve the remaining launch-gate decisions before enabling public uploads or live payment.
 
+## 2026-09-24 frontend overhaul and full-stack additions (PR #1)
+
+User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
+
+- Migration `202609290001_profiles_free_requests_and_regions.sql` — applied to Supabase Cloud
+  (confirmed 2026-09-25, see below). It adds request kinds (`academic`, `missing_item`, `discussion`), free requests
+  (`is_free`, access basis `commissioner_free`), replies and reply notifications, profile
+  `public_id`/avatar/bio, the public `avatars` bucket, campus region lock and map positions, the
+  3–30 day duration, and adds `fulfilled`/`closed` to the lifecycle check (approval previously
+  violated it). Open campuses are matched by name (`ilike`), so verify the four open campuses after
+  applying.
+- Decisions (user): free requests for all kinds; missing items and discussions are free-only with
+  text replies; paid bounties stay academic-only; public profiles show name, avatar, joined date,
+  badge and public Wanteds only; duration and contribution use sliders (duration 3–30 days replaces
+  7/14/30).
+- Posting terms `TERMS_VERSION` / policy version `2026-09-24.1` were drafted from the context files
+  and are labelled **"Draft — pending legal review"**. They must be reviewed before public launch.
+- Payment stays `disabled`; the Back modal slider only prepares an amount. The backer contribution
+  endpoint still needs the ToyyibPay key and remains a launch gate.
+- Verified: 1000 unit tests, typecheck, lint and production build pass; no horizontal overflow on
+  17 routes at 360 px and 1440 px.
+
+## 2026-09-24 (later) paid community requests, free limit, reward codes, entry requests
+
+- Migration `202609300001_paid_community_codes_and_taxonomy_requests.sql` — applied to Supabase
+  Cloud (confirmed 2026-09-25, see below). Verified locally: the whole migration chain applies on Postgres 16 with
+  stubbed `auth`/`storage`, and the free limit, reward codes, taxonomy requests (RLS, notification,
+  email outbox), community payout (request, Sheriff approval, payout task, 10% fee, conflicted
+  reviewer refused) and campus seeding behave as specified.
+- Decisions (user): missing items and discussions may be paid or free; the poster names the finder
+  and a Sheriff approves before payout; 3 free requests per member for life; reward codes carry a
+  word, free requests per redemption and a maximum number of redemptions, once per member; custom
+  taxonomy goes to a Sheriff for approval with in-app and email notice; academic session optional;
+  UiTM Kuala Terengganu and Dungun open; locked UiTM campuses seeded so the map shows grey pins.
+- Paid missing-item and discussion posting returns `PAYMENT_DISABLED` while payment is disabled and
+  writes nothing. `create_community_draft` exists for the gateway work; wiring its payment step is
+  part of the pending contribution endpoint.
+- Members may choose one of twelve drawn avatars (`profiles.avatar_preset`) instead of a photo.
+- Posting terms bumped to `2026-09-24.2` (free limit, bounty release). Still a draft pending legal
+  review.
+- Account deletion is shown as not available: it needs a retention decision (ledger and audit
+  records must be kept).
+- Reward codes are created by the Owner via `create_reward_code` or the SQL editor; there is no
+  Owner UI for codes yet.
+
+## 2026-09-25 Supabase Cloud migration check (project `yuzgkjowtcfwqanituta`, "vaultix")
+
+- `supabase migration list --linked` shows every local migration through `202609300001` on the
+  remote, and `supabase db push --linked --dry-run` reports "Remote database is up to date". Both
+  `202609290001` and `202609300001` were already applied before this check, so nothing was pushed.
+- Read-only verification passed:
+  - both versions are in `supabase_migrations.schema_migrations`;
+  - exactly five campuses are `region_open = true` (UiTM Shah Alam, Puncak Alam, Kuala Terengganu,
+    Dungun and Bukit Besi), each with one row; the 11 other UiTM campuses are locked with map
+    positions;
+  - RLS is enabled on `wanted_replies`, `reward_codes`, `reward_code_redemptions`,
+    `taxonomy_requests` and `community_payout_requests`;
+  - `avatars` is the only public bucket (512 KB, `image/webp`); `approved`, `quarantine` and
+    `identity-evidence` stay private;
+  - `wanted_requests_lifecycle_check` allows `fulfilled` and `closed`;
+  - `payout_tasks_source_check` requires exactly one of `claim_id` or
+    `community_payout_request_id`.
+- `supabase gen types typescript --linked` differs from the committed
+  `src/lib/supabase/database.types.ts`. The cloud types add the `notifications` table, its RPCs and
+  the relationships of `community_payout_requests`, but they type nullable RPC arguments (for
+  example `academic_session_id`) as non-null. With them, `pnpm typecheck` fails with 12 errors in
+  the profile, taxonomy-request and wanted repositories. The committed, hand-adjusted file was
+  kept. Open item: regenerate and adapt the repositories, or keep the nullable overrides.
+- With the committed types: `pnpm typecheck` passes and `pnpm test` passes (1,029 tests).
+
+## 2026-09-25 branded auth and notification emails (branch `claude/branded-emails`)
+
+Spec `docs/superpowers/specs/2026-09-25-branded-auth-and-notification-emails-design.md`, plan
+`docs/superpowers/plans/2026-09-25-branded-auth-and-notification-emails.md`. The user approved
+Claude Code implementing both lanes for this feature.
+
+- Verification and recovery emails link to `/auth/confirm`; the token is spent only by the
+  button's POST to `/api/auth/confirm`. Recovery emails keep the 6-digit code as a fallback.
+  After sign-up the user now lands on `/verify-email`.
+- New notification kinds: `institution_verification_submitted` (Sheriff alert, fixed message with
+  display name and institution) and `welcome` (once, on first email confirmation).
+- `WELCOME` reward code: production already had an Owner-created code (2 free requests, 50
+  redemptions). The user chose to keep it. The migration seeds the same values only where the code
+  is missing, and the welcome email reads the live credit count, dropping the offer once the code
+  can no longer be redeemed.
+- Every email is branded HTML plus plain text using the provisional theme and
+  `public/brand/email/logo.png` (provisional, 160×155, displayed at 96 px). `@react-email/components`
+  was rejected because npm marks it unsupported, and `react-dom/server` fails the build inside App
+  Routes, so the layout is an escaped string template with hostile-input tests.
+- Spam-folder guidance appears after sign-up, on `/verify-email`, after a resend, after a recovery
+  request, and in every email footer.
+- Found and fixed in migration `202610010001`: `claim_notification_email_batch` returned
+  `auth.users.email` (`varchar`) for a `text` column, so the version on Supabase Cloud fails the
+  moment it leases a job. Queued notification emails have therefore never been sent from Cloud.
+- Database verification: migration plus pgTAP ran against Supabase Cloud inside one transaction
+  that always aborted (nothing committed). 9 of 13 assertions passed; the 4 failures were test
+  assumptions (pre-existing platform Sheriffs, the existing WELCOME values), since corrected. The
+  corrected 14-assertion run was blocked by the permission classifier and still needs to be run.
+- `supabase migration list --linked` later showed `202610010001` applied on Supabase Cloud (applied
+  outside this session, before the corrected test ran).
+- The corrected `tests/sql/welcome_and_sheriff_alert_emails.sql` then ran against Supabase Cloud
+  (test statements only, inside a transaction forced to abort, so nothing was kept): 14 of 14 pass.
+- Pending user actions: in Supabase enable
+  Confirm email, paste `supabase/templates/confirmation.html` (Confirm signup, subject "Confirm
+  your VAULTIX email") and `recovery.html` (Reset password, subject "Reset your VAULTIX
+  password"), and add `<origin>/auth/confirm` to the redirect URLs; confirm `NEXT_PUBLIC_APP_URL`
+  in Vercel Production is the public origin.
+
+## 2026-09-25 chat threads and 7-day retention
+
+User decisions (all four recommended options accepted):
+- After a missing item is marked found (or a discussion resolved), its chat and card stay on the
+  Board for 7 days, then the messages are deleted and the card vanishes; a small record remains.
+- Free missing items and discussions with no new message for 30 days close themselves; the poster
+  is notified in-app and may reopen within the 7 days. Paid ones never auto-close (they keep the
+  expiry and refund path, so no bounty is stranded).
+- Academic bounties get a text-only Q&A thread. Links, email addresses and chat handles are refused
+  in the database, so a resource cannot change hands outside a reviewed Claim. Questions are
+  deleted 7 days after the bounty closes and the claim-review appeal window ends; the academic card
+  stays in the Archive.
+- Open threads refresh every 15 seconds while the tab is visible (no Supabase Realtime).
+
+Implementation: migration `202610100001_chat_threads_and_retention.sql` (not yet applied to
+Supabase Cloud). Verified locally: the whole chain applies on Postgres 16 with stubbed `auth` and
+`storage`, and scripted assertions cover auto-close, idempotent re-runs, the 7-day purge, the
+paid-release and refund holds, reopen rules, and the academic link refusal. pg_cron is scheduled
+only where the extension exists.
+
+Also fixed: the reply reader accepted only `open`/`closed`, so a thread under release review or
+fulfilled looked empty. The migration grants `wanted_replies` to `service_role` explicitly, because
+`202609210001` granted only the tables existing then — the likely cause of "Replies could not be
+loaded" in the cloud (unconfirmed; check `has_table_privilege('service_role', 'public.wanted_replies', 'select')`).
+
+## 2026-09-25 Sheriff and Owner step-up prompt
+
+Reported: the Owner, while signed in, was told to "sign in again" when opening verification
+evidence. Cause: evidence reads, verification decisions and restrictions require a sign-in within
+the last 15 minutes (`private.current_user_recently_authenticated`, `last_sign_in_at`), and a
+refreshed session does not renew it; the console had no way to re-confirm. Added
+`POST /api/auth/reauthenticate` (password only; the email is always the signed-in account's own)
+and an inline "Confirm it is you" prompt in the review console that retries the action. The
+15-minute rule itself is unchanged.
+
+## 2026-09-25 chat answer, edit, delete and hide
+
+User decisions: quote-style answers; the author may edit for 15 minutes while the thread is open
+(marked "edited", no history kept); the author may delete at any time (text erased, "Message
+deleted" placeholder kept so answers still read); a Sheriff (platform, or institution Sheriff for
+the Wanted's institution) or the Owner may hide any message with a reason code and restore it.
+Hidden messages keep their text for moderation, are unreadable to members, survive the 7-day purge,
+and every hide/restore is written to `identity_audit_events` (`chat.reply_hidden`,
+`chat.reply_restored`). Migration `202610100002_chat_reply_edit_delete.sql` (not yet applied to
+Supabase Cloud); verified on local Postgres 16 with scripted assertions. Restoring hidden messages
+has no UI yet: it belongs to the Owner console slice.
+
+Also decided (next slices, not built yet): Owner console for people management and content
+moderation (no raw database editor; money stays read-only there); Owner-awarded badges shown beside
+names, separate from the institution-verified star; timed account timeouts (1 hour, 24 hours,
+7 days, auto-lifting, permanent restriction Owner-only) and idle sign-out.
+
+## 2026-09-25 timeouts, idle sign-out, member console and badges
+
+Built from the decisions recorded above (user chose: timeout = both a moderation timeout and idle
+sign-out; Owner console = manage people + moderate content; badges = Owner-awarded, separate from
+the verified star; no raw database editor).
+
+- Migration `202610100003_account_timeouts.sql`: `account_restrictions.expires_at`;
+  `timeout_account` (1 h, 24 h, 7 days) for the Owner, platform Sheriffs, and institution Sheriffs
+  over verified members of their institution; nobody times out the Owner and only the Owner times
+  out a platform Sheriff. **Behaviour change:** `restrict_account` (permanent) is now Owner-only;
+  platform Sheriffs could call it before. `lift_account_restriction`; a pg_cron job lifts expired
+  timeouts every minute. All need a sign-in in the last 15 minutes and are audited.
+- Migration `202610100004_member_console_and_badges.sql`: console functions (search, rename, reset
+  avatar, manual institution verification grant/revoke, appoint/remove Sheriffs, timeouts, hidden
+  message list) and badges (`badges`, `badge_awards`, public `badges` bucket writable only by the
+  Owner). Institution Sheriffs see only their institution's members and never email addresses. The
+  Owner role is not assignable anywhere in the app.
+- Console pages: `/console/people`, `/console/moderation`, `/console/badges`. Badges show beside
+  names in chat and on public profiles. A timed-out member sees when the timeout ends.
+- Idle sign-out: Sheriffs and the Owner after 30 minutes idle (browser, warned 2 minutes before),
+  members after 7 days (browser and a `vaultix_last_seen` cookie checked by the proxy).
+- `supabase/tests/local/` holds the scripted SQL assertions and a runner for a throwaway local
+  Postgres 16; never point it at Supabase Cloud.
+
+Open questions added: taking down a Wanted from the console (a paid one involves refunds, so it
+was not built); whether institution Sheriffs should rename members; retention of orphaned badge and
+avatar images after a reset or retirement.
+
+`202610100001` to `202610100004` were later renumbered to run after `202610010001` (welcome and
+Sheriff-alert emails); `supabase migration list --linked` shows all five applied on Supabase Cloud.
+
+## 2026-09-25 cloud apply of the 202610 migrations
+
+The user applied `202610010001_welcome_and_sheriff_alert_emails` (branded-emails work) and then
+`202610100001`-`202610100004` to Supabase Cloud (`supabase db push`). Read-only check afterwards:
+the chat-cleanup, edit/delete, timeout and badge schema exist, `service_role` can read
+`wanted_replies`, pg_cron is installed, and the Owner is `rahiminazri432@gmail.com`. The chat and
+console migrations were renumbered from `202610010001`-`202610020002` before any was applied,
+because the welcome migration already used `202610010001`; the chat migration now appends its
+notification kind to the current list instead of replacing it, and leaves the email-outbox
+function to the welcome migration. The `claude/branded-emails` branch carried unresolved merge
+markers in `src/contracts/notifications.ts`, `email-delivery-service.ts` and this file; resolved
+by keeping both sides (subjects now live in `notification-email-content.ts`).
+
 ## Open Questions
+
+- Account deletion and retention: what is deleted, anonymised or kept, and when.
+- Moderation of reward-code abuse beyond the 10 failed attempts per hour limit.
+
+- Legal review of the drafted posting terms (`src/features/legal/terms.ts`).
+- Moderation of free-text replies on missing-item and discussion requests (reporting exists for
+  claims only).
 
 ### Critical Before Public Launch
 
