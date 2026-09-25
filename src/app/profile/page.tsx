@@ -55,13 +55,19 @@ export default async function ProfilePage() {
 
   return (
     <div className="page-bare profile-container">
-      <ProfileSettings
-        account={account}
-        bio={profile?.bio ?? null}
-        allowance={allowance.ok ? allowance.data : null}
-        entryRequests={entryRequests.ok ? entryRequests.data : null}
-      />
+      <header className="panel page-heading">
+        <div>
+          <h1>Profile</h1>
+          <p className="page-heading__lede">
+            Your requests first, then your details, verification and free requests.
+          </p>
+        </div>
+        <Link className="button button--primary" href="/wanted/new">
+          Post a Wanted <span aria-hidden="true">→</span>
+        </Link>
+      </header>
 
+      {/* The member's own requests lead the page; settings follow. */}
       <ProfileWantedGrid
         heading="Your requests"
         wanted={profile?.wanted ?? []}
@@ -74,6 +80,13 @@ export default async function ProfilePage() {
             action={<Link href="/wanted/new">Post a Wanted</Link>}
           />
         }
+      />
+
+      <ProfileSettings
+        account={account}
+        bio={profile?.bio ?? null}
+        allowance={allowance.ok ? allowance.data : null}
+        entryRequests={entryRequests.ok ? entryRequests.data : null}
       />
     </div>
   );

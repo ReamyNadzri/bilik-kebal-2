@@ -179,7 +179,7 @@ export function ProfileSettings({ account, bio, allowance, entryRequests }: Prof
 
       <div className="profile-settings__main">
         <form className="panel profile-card" onSubmit={saveProfile} noValidate>
-          <h1 className="profile-card__title">Profile</h1>
+          <h2 className="profile-card__title">Your details</h2>
           <NoticeLine notice={profileNotice} />
           <div className="profile-form__grid">
             <div className="form-field">
