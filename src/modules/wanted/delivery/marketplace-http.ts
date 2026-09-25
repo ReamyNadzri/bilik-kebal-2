@@ -26,6 +26,8 @@ const statusByCode: Readonly<Record<string, number>> = {
   REGION_CLOSED: 422,
   FREE_LIMIT_REACHED: 409,
   VALIDATION_ERROR: 422,
+  PICTURE_NOT_UPLOADED: 409,
+  PICTURE_UNAVAILABLE: 503,
 };
 
 export function marketplaceResponse(result: MarketplaceHttpResult, successStatus = 200): Response {

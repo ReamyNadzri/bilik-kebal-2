@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { StatusStamp } from "./status-stamp";
 import { WantedCard } from "./wanted-card";
+import { WantedPictureControls } from "./wanted-picture-controls";
 import { WantedPoster } from "./wanted-poster";
 import { WantedReplies } from "./wanted-replies";
 import { Avatar } from "./avatar";
@@ -77,7 +78,18 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           would leave the tab order disagreeing with what is on screen. Grid
           placement puts this column on the right at desktop. */}
       <aside className="wanted-detail__ledger" aria-label="Bounty and actions">
-        <WantedPoster wanted={wanted} now={now} className="ledger-poster" />
+        <WantedPoster wanted={wanted} now={now} className="ledger-poster" withEmblem />
+
+        {isPoster || (account?.console?.hasAccess === true && wanted.picture) ? (
+          <WantedPictureControls
+            wantedId={wanted.id}
+            picture={wanted.picture ?? null}
+            kind={wanted.kind}
+            resourceType={wanted.resourceType}
+            isPoster={isPoster}
+            canModerate={account?.console?.hasAccess === true}
+          />
+        ) : null}
 
         <div className="ledger-panel">
           {!wanted.isFree ? (

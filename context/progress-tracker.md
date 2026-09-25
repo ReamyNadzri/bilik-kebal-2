@@ -526,6 +526,41 @@ component restates a colour. Colours the theme already had reuse its tokens (sam
 - The handoff bundle is left out of ESLint and Prettier (`design_handoff_*`); it is reference
   material, not shipped code.
 
+## 2026-09-26 Sheriff console fixes, People redesign, badge awards, Wanted pictures
+
+- **Entry requests (root cause).** The Add/Decline buttons were disabled on the viewer's own
+  request, and the only pending request (a campus) was the Owner's own. The database already let
+  the Owner decide it (verified as the Owner in a rolled-back transaction). Now the Owner may
+  decide their own entry request; a Sheriff still leaves theirs to someone else. A party still
+  never decides a bounty release (money), the Owner included.
+- **Campus duplicates.** Approving a campus request whose name is already listed (for example
+  "Machang" against the locked "UiTM Machang") now reuses and opens that campus instead of adding
+  a second pin (`decide_taxonomy_request`, migration `202610120001`).
+- **People** is a directory on the left and the chosen member's settings on the right, in three
+  tabs (Moderation, Profile, Roles & badge). Below 60rem the settings open above the list. A
+  Sheriff can see the Owner's row but not manage it.
+- **Badges** can be awarded from the Badges page: a member dropdown per badge (the first 50
+  members; others from People), the current wearers with Remove, and the password step-up shown
+  beside the action that needs it. Awarding replaces a member's current badge.
+- **Wanted pictures** (user decision 2026-09-26: a picture per Wanted, shown at once, removable
+  by a Sheriff). A poster picks the automatic drawing, one of 50 drawings
+  (`src/features/presentation/pixel-drawings.ts`, append-only: the index is stored), or uploads
+  their own. The browser crops, zooms, pixelates (16/24/32 grid, optional retro colours) and
+  saves a 192 px PNG, which drops camera metadata; the file goes straight to the public
+  `wanted-pictures` bucket (PNG, 64 KB) in the uploader's own folder. Pictures live in
+  `wanted_pictures`, apart from the Wanted row, so setting one never changes the draft's
+  `updated_at` or its duplicate-check token; the paid path saves it on the draft before payment.
+  A Sheriff who moderates the Wanted, or the Owner, removes a picture with a reason code
+  (audited in `identity_audit_events`; the upload is kept). A failed picture read shows the
+  automatic drawing instead of failing the Board.
+- **Not yet applied to Supabase Cloud:** migration `202610120001_wanted_pictures_and_entry_fixes`
+  was written but the push was not run from this session. Until it is applied, the picture
+  routes answer "unavailable" and the Board shows automatic drawings. After applying, regenerate
+  the database types and drop the untyped casts in `src/lib/wanted-pictures.ts` and
+  `supabase-wanted-picture-repository.ts`.
+- Open question: moderation of uploaded Wanted pictures beyond Sheriff removal (reporting, a
+  review queue) is not specified.
+
 ## Open Questions
 
 - Should the writer of a hidden chat message see the reason code (needs notification context or

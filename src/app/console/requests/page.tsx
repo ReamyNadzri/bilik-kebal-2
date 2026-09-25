@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ConsoleNav } from "@/components/console-nav";
 import { ConsoleRequests } from "@/components/console-requests";
 import { requireAccount } from "@/features/presentation/auth/require-account";
+import { readConsoleRole } from "@/modules/console/loaders/console-operations";
 import { listTaxonomyRequestQueue } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
 import { listPendingCommunityPayouts } from "@/modules/wanted/loaders/wanted-operations";
 
@@ -18,9 +19,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function ConsoleRequestsPage() {
   await requireAccount("/console/requests");
-  const [entries, releases] = await Promise.all([
+  const [entries, releases, role] = await Promise.all([
     listTaxonomyRequestQueue(),
     listPendingCommunityPayouts(),
+    readConsoleRole(),
   ]);
 
   return (
@@ -29,6 +31,7 @@ export default async function ConsoleRequestsPage() {
       <ConsoleRequests
         entries={entries.ok ? entries.data : null}
         releases={releases.ok ? releases.data : null}
+        viewerRole={role.ok ? role.data : null}
       />
     </>
   );

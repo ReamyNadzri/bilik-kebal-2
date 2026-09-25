@@ -1930,6 +1930,183 @@ textarea.form-field__input {
   fill: var(--accent-brass);
 }
 
+.resource-emblem__px--blue {
+  fill: var(--stamp-info-ink);
+}
+
+/* A poster's own picture: a small PNG of hard-edged pixels, kept hard-edged
+   at any size. */
+.resource-emblem--upload {
+  aspect-ratio: 1;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border: var(--border-width-2) solid var(--border-strong);
+  filter: none;
+}
+
+/* On the Wanted page the poster's frame is a small band as on the Board. */
+.ledger-poster .emblem-frame {
+  aspect-ratio: auto;
+  min-height: 5.5rem;
+  padding: var(--space-2);
+}
+
+.ledger-poster .resource-emblem {
+  width: 4.5rem;
+}
+
+/* Picture picker: the current picture beside its actions, then a grid of the
+   fifty drawings as one radio group. */
+.picture-picker {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.picture-picker__current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.picture-picker__preview {
+  width: 8rem;
+  flex: none;
+}
+
+.picture-picker__preview .emblem-frame {
+  aspect-ratio: 1;
+  padding: var(--space-2);
+}
+
+.picture-picker__preview .resource-emblem {
+  width: 5rem;
+}
+
+.picture-picker__summary {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.picture-picker__name {
+  margin: 0;
+  font-weight: 700;
+}
+
+.picture-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.picture-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border-width-1) solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.picture-choice {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+.picture-choice input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.picture-choice__face {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: var(--space-1);
+  background: var(--bg-emblem);
+  border: var(--border-width-2) solid var(--border-subtle);
+}
+
+.picture-choice__face .resource-emblem {
+  width: 100%;
+  max-width: none;
+  filter: none;
+}
+
+.picture-choice:hover .picture-choice__face {
+  border-color: var(--border-strong);
+}
+
+.picture-choice input:checked + .picture-choice__face {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.picture-choice input:focus-visible + .picture-choice__face {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Pixel picture editor: the crop and the pixel-art result side by side. */
+.pixel-editor__body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pixel-editor__panes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.pixel-editor__pane {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  justify-items: center;
+}
+
+.pixel-editor__stage,
+.pixel-editor__preview {
+  width: 100%;
+  max-width: 15rem;
+  height: auto;
+  aspect-ratio: 1;
+  border: var(--border-width-2) solid var(--border-strong);
+  background: var(--bg-surface);
+}
+
+.pixel-editor__stage {
+  cursor: grab;
+  touch-action: none;
+}
+
+.pixel-editor__stage:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.pixel-editor__preview {
+  image-rendering: pixelated;
+}
+
+.pixel-editor__caption {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.picture-controls {
+  display: grid;
+  gap: var(--space-3);
+}
+
 /* --------------------------------------------------------------------------
    Wanted posters (Wanted cards)
    -------------------------------------------------------------------------- */
@@ -6762,6 +6939,255 @@ textarea.form-field__input {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* People: a search bar, then the member directory on the left and the chosen
+   member's settings on the right. Below 60rem the two stack, and the settings
+   move above the directory once a member is chosen, so they open on top. */
+.people-search {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.people-search__form {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.people-search__form .form-field__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.people {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .people {
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  }
+
+  .people__detail {
+    position: sticky;
+    top: var(--space-4);
+  }
+}
+
+@media (max-width: 59.99rem) {
+  .people--open .people__detail {
+    order: -1;
+  }
+
+  .people:not(.people--open) .people__detail {
+    display: none;
+  }
+}
+
+.people__directory {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.people__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.people__count {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.people__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-width-1) solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.people__list > li + li {
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+.people-row {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 0;
+  border-inline-start: 4px solid transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.people-row:hover {
+  background: var(--bg-selected);
+}
+
+.people-row[aria-pressed="true"] {
+  background: var(--bg-selected);
+  border-inline-start-color: var(--accent-primary);
+}
+
+.people-row:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+.people-row__name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.people-row__star {
+  color: var(--accent-brass-shadow);
+}
+
+.people-row__meta {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.people-row__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.people-chip {
+  padding: 0 var(--space-2);
+  border: var(--border-width-1) solid currentcolor;
+  background: var(--stamp-neutral-bg);
+  color: var(--stamp-neutral-ink);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.people-chip--info {
+  background: var(--stamp-info-bg);
+  color: var(--stamp-info-ink);
+}
+
+.people-chip--warning {
+  background: var(--stamp-warning-bg);
+  color: var(--stamp-warning-ink);
+}
+
+.people-chip--danger {
+  background: var(--stamp-danger-bg);
+  color: var(--stamp-danger-ink);
+}
+
+.people__placeholder {
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+  border: var(--border-width-1) dashed var(--border-dashed);
+}
+
+.people-detail {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.people-detail__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-1) solid var(--border-subtle);
+}
+
+.people-detail__head h3:focus {
+  outline: none;
+}
+
+.people-detail__head h3:focus-visible {
+  outline: 3px solid var(--focus-ring);
+}
+
+.people-detail__panel {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.people-detail__panel > .ops-form + .ops-form {
+  padding-top: var(--space-4);
+  border-top: var(--border-width-1) dashed var(--border-dashed);
+}
+
+/* Badges: each badge with an award form and the members wearing it. */
+.badge-row {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+}
+
+.badge-row__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.badge-row__head p {
+  margin: 0;
+}
+
+.badge-row__image {
+  flex: none;
+  object-fit: contain;
+}
+
+.badge-row__award {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.badge-row__award .form-field__label {
+  grid-column: 1 / -1;
+}
+
+.badge-row__wearers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge-row__wearers li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-2);
+  border: var(--border-width-1) solid var(--border-subtle);
+  background: var(--bg-canvas);
+  font-size: var(--text-sm);
 }
 
 .member-badge {

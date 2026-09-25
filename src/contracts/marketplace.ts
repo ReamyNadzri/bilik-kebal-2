@@ -1,3 +1,4 @@
+import type { WantedPicture } from "./wanted-pictures";
 import { z } from "zod";
 import type { OperationResult } from "./operation-result";
 import type { MemberBadge } from "./console";
@@ -250,6 +251,8 @@ export interface WantedSummary {
   lastSeenLocation: string | null;
   /** The chat thread's retention state. Absent in fixtures predating it. */
   thread?: WantedThreadState;
+  /** The poster's chosen picture; absent or null shows the automatic drawing. */
+  picture?: WantedPicture | null;
 }
 
 /**

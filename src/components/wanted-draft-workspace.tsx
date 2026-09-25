@@ -7,6 +7,7 @@ import { ErrorSummary } from "./error-summary";
 import { TaxonomyRequestDialog } from "./taxonomy-request-dialog";
 import { UiStatus, type UiStatusKind } from "./ui-status";
 import { WantedCard } from "./wanted-card";
+import { WantedPicturePicker } from "./wanted-picture-picker";
 import type {
   CourseOption,
   MarketplaceOperationCode,
@@ -44,6 +45,11 @@ import { MAX_CONTRIBUTION_SEN, MIN_CONTRIBUTION_SEN } from "@/features/marketpla
 import { sen } from "@/features/marketplace/money";
 import type { FreeRequestAllowance, WantedKind } from "@/contracts/marketplace";
 import type { TaxonomyRequestCategory } from "@/contracts/taxonomy-requests";
+import {
+  AUTO_PICTURE,
+  saveWantedPicture,
+  type WantedPictureChoice,
+} from "@/features/presentation/wanted-picture-choice";
 
 /**
  * `live` persists through the published Phase 3A operations. `preview` is the
@@ -339,6 +345,8 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   const [draftId, setDraftId] = useState<string | null>(null);
   const [allowance, setAllowance] = useState<FreeRequestAllowance | null>(null);
   const [entryRequest, setEntryRequest] = useState<TaxonomyRequestCategory | null>(null);
+  const [picture, setPicture] = useState<WantedPictureChoice>(AUTO_PICTURE);
+  const [pictureNotice, setPictureNotice] = useState<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
 
@@ -395,6 +403,22 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
         ? [...values.tagIds, tagId]
         : values.tagIds.filter((current) => current !== tagId),
     });
+  }
+
+  /**
+   * Saves the chosen picture onto the Wanted (or, before payment, its draft).
+   * A picture is decoration: when it fails, the request still goes ahead and
+   * the poster is told they can add it from the request's page.
+   */
+  async function applyPicture(ref: string): Promise<void> {
+    setPictureNotice(null);
+    if (picture.kind === "auto" || mode === "preview") return;
+    const saved = await saveWantedPicture(ref, picture);
+    if (!saved.ok) {
+      setPictureNotice(
+        `The picture was not saved (${saved.message || "try again"}). You can add it from your request's page.`,
+      );
+    }
   }
 
   /** Returns to the form carrying a refusal the reader can act on. */
@@ -555,6 +579,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
         else refuse(posted.code, posted.message);
         return;
       }
+      await applyPicture(posted.data.wantedId);
       setOutcome({ kind: "published", wantedId: posted.data.wantedId, free: true });
     } finally {
       busyRef.current = false;
@@ -574,6 +599,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
       const result = await publishFreeWanted(draftId, review.token);
       setAnnouncement("");
       if (result.ok) {
+        await applyPicture(result.data.wantedId);
         setReview(null);
         setOutcome({ kind: "published", wantedId: result.data.wantedId, free: true });
         return;
@@ -628,6 +654,9 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
 
     try {
       setStep("publishing");
+      // The picture is kept beside the draft, not in it, so saving it here
+      // leaves the duplicate-check token valid.
+      await applyPicture(draftId);
       setAnnouncement("Asking to prepare payment.");
 
       const result = await createDraftContributionBill(draftId, review.token, contributionSen);
@@ -703,6 +732,11 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
     return (
       <div className="draft-form">
         {announcer}
+        {pictureNotice ? (
+          <p className="ops-alert ops-alert--warning" role="status">
+            {pictureNotice}
+          </p>
+        ) : null}
         <UiStatus
           kind="success"
           heading="Your request is on the Board"
@@ -1221,6 +1255,24 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             <p className="form-field__request">{askSheriff("tag", "a tag")}</p>
           </fieldset>
         ) : null}
+      </section>
+
+      <section className="draft-form__section">
+        <h2 className="draft-form__section-heading">Picture (optional)</h2>
+        <p className="form-field__hint">
+          A small picture on your poster. Leave the automatic drawing, pick one of fifty drawings,
+          or upload your own image, which is cropped and turned into pixel art. Everyone can see it,
+          and a Sheriff can remove it.
+        </p>
+        <WantedPicturePicker
+          value={picture}
+          onChange={setPicture}
+          kind={values.kind}
+          resourceType={
+            taxonomy.resourceTypes.find((item) => item.id === values.resourceTypeId)?.label ?? ""
+          }
+          disabled={busy}
+        />
       </section>
 
       <section className="draft-form__section">

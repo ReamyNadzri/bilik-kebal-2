@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Avatar } from "./avatar";
 import { UiStatus } from "./ui-status";
+import type { ConsoleRole } from "@/contracts/console";
 import type { CommunityPayoutRequestView } from "@/contracts/marketplace";
 import { TAXONOMY_CATEGORY_LABEL, type TaxonomyRequestView } from "@/contracts/taxonomy-requests";
 import { callOperation } from "@/features/presentation/call-operation";
@@ -18,14 +19,18 @@ const DATE = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "
  * posters asking to release a bounty on a missing item or discussion. Each
  * decision is re-authorised in the database, which also refuses a Sheriff who
  * is a party to a release. A viewer's own requests stay listed and labelled,
- * with their decisions switched off, so nothing seems to vanish.
+ * so nothing seems to vanish. A Sheriff leaves their own entry request to
+ * someone else; the Owner has nobody above them, so they may decide their own.
+ * Releases move money, so a party never decides one, the Owner included.
  */
 export function ConsoleRequests({
   entries,
   releases,
+  viewerRole = null,
 }: {
   readonly entries: readonly TaxonomyRequestView[] | null;
   readonly releases: readonly CommunityPayoutRequestView[] | null;
+  readonly viewerRole?: ConsoleRole | null;
 }) {
   const [doneEntries, setDoneEntries] = useState<ReadonlySet<string>>(new Set());
   const [doneReleases, setDoneReleases] = useState<ReadonlySet<string>>(new Set());
@@ -116,12 +121,15 @@ export function ConsoleRequests({
           <ul className="appeal-list">
             {openEntries.map((item) => {
               const d = draft(item.id);
+              const blocked = item.ownRequest === true && viewerRole !== "owner";
               return (
                 <li className="locker-card appeal-card" key={item.id}>
                   <p className="pixel-label">{TAXONOMY_CATEGORY_LABEL[item.category]}</p>
                   {item.ownRequest ? (
                     <p className="ops-alert ops-alert--info" id={`entry-own-${item.id}`}>
-                      You asked for this. Another Sheriff or the Owner decides it.
+                      {blocked
+                        ? "You asked for this. Another Sheriff or the Owner decides it."
+                        : "You asked for this. As the Owner, you can decide it yourself."}
                     </p>
                   ) : null}
                   <h3 className="ops-panel__title">
@@ -173,8 +181,8 @@ export function ConsoleRequests({
                     <button
                       type="button"
                       className="button button--primary button--compact"
-                      disabled={busy !== null || item.ownRequest === true}
-                      aria-describedby={item.ownRequest ? `entry-own-${item.id}` : undefined}
+                      disabled={busy !== null || blocked}
+                      aria-describedby={blocked ? `entry-own-${item.id}` : undefined}
                       onClick={() => void decideEntry(item, true)}
                     >
                       Add to the list
@@ -182,8 +190,8 @@ export function ConsoleRequests({
                     <button
                       type="button"
                       className="button button--danger-outline button--compact"
-                      disabled={busy !== null || item.ownRequest === true}
-                      aria-describedby={item.ownRequest ? `entry-own-${item.id}` : undefined}
+                      disabled={busy !== null || blocked}
+                      aria-describedby={blocked ? `entry-own-${item.id}` : undefined}
                       onClick={() => void decideEntry(item, false)}
                     >
                       Decline

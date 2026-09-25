@@ -10,8 +10,9 @@
  * is decorative; the resource type is always written beside it, so a wrong
  * guess costs nothing but the picture.
  */
-export type EmblemKind =
-  "notes" | "slides" | "exam" | "formula" | "lab" | "worked" | "lost" | "talk";
+import type { EmblemKind } from "./pixel-drawings";
+
+export type { EmblemKind };
 
 /*
  * Whole words only: "worked example" must not match "exam", and "lab" must

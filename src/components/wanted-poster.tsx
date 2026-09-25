@@ -92,7 +92,13 @@ export function WantedPoster({
         )}
       </p>
 
-      {withEmblem ? <ResourceEmblem resourceType={wanted.resourceType} kind={wanted.kind} /> : null}
+      {withEmblem ? (
+        <ResourceEmblem
+          resourceType={wanted.resourceType}
+          kind={wanted.kind}
+          picture={wanted.picture ?? null}
+        />
+      ) : null}
 
       <div className="wanted-poster__head">
         {academic ? (

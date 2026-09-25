@@ -12,6 +12,7 @@ import type {
   WantedSummary,
 } from "@/contracts/marketplace";
 import { resolveAvatarUrl } from "@/lib/avatars";
+import { readWantedPictures } from "@/lib/wanted-pictures";
 import { readMemberBadges } from "@/lib/badges";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
@@ -219,7 +220,7 @@ export class SupabaseWantedRepository implements WantedRepository {
 
   private async toSummaries(rows: WantedRow[]): Promise<WantedSummary[]> {
     if (!rows.length) return [];
-    const [courses, campuses, types, sessions, contributions] = await Promise.all([
+    const [courses, campuses, types, sessions, contributions, pictures] = await Promise.all([
       this.client
         .from("courses")
         .select("id, code, name")
@@ -243,6 +244,10 @@ export class SupabaseWantedRepository implements WantedRepository {
           "wanted_request_id",
           rows.map((x) => x.id),
         ),
+      readWantedPictures(
+        this.client,
+        rows.map((x) => x.id),
+      ),
     ]);
     if (courses.error || campuses.error || types.error || sessions.error || contributions.error)
       throw courses.error ?? campuses.error ?? types.error ?? sessions.error ?? contributions.error;
@@ -287,6 +292,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         closesAt: row.closes_at,
         lastSeenLocation: row.last_seen_location,
         thread: wantedThreadState(row, bounty),
+        picture: pictures.get(row.id) ?? null,
       };
       return [summary];
     });

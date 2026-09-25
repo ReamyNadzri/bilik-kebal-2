@@ -37,7 +37,7 @@ function renderConsole(role: "owner" | "platform_sheriff" | "institution_sheriff
       badges={[]}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manage Hafiz" }));
 }
 
 test("an institution Sheriff is offered a timeout but not renames, verification or roles", () => {
@@ -48,18 +48,52 @@ test("an institution Sheriff is offered a timeout but not renames, verification 
   expect(screen.queryByRole("form", { name: "Sheriff role" })).not.toBeInTheDocument();
 });
 
-test("the Owner is offered every action, including permanent restriction and badges", () => {
+test("the Owner is offered every action, grouped under three tabs", () => {
   renderConsole("owner");
-  for (const name of [
-    "Time out",
-    "Restrict permanently",
-    "Change display name",
-    "Institution verification",
-    "Sheriff role",
-    "Badge",
-  ]) {
-    expect(screen.getByRole("form", { name })).toBeInTheDocument();
+  const groups: Array<[string, string[]]> = [
+    ["Moderation", ["Time out", "Restrict permanently"]],
+    ["Profile", ["Change display name", "Reset profile picture"]],
+    ["Roles & badge", ["Institution verification", "Sheriff role", "Badge"]],
+  ];
+  for (const [tab, forms] of groups) {
+    fireEvent.click(screen.getByRole("tab", { name: tab }));
+    expect(screen.getByRole("tab", { name: tab })).toHaveAttribute("aria-selected", "true");
+    for (const name of forms) expect(screen.getByRole("form", { name })).toBeInTheDocument();
   }
+});
+
+test("lists members by name and opens one member's settings beside the list", () => {
+  render(
+    <MemberConsole
+      role="platform_sheriff"
+      members={[
+        member,
+        { ...member, publicId: "22222222-2222-4222-8222-222222222222", displayName: "Aina" },
+      ]}
+      query=""
+      institutions={[]}
+      badges={[]}
+    />,
+  );
+  expect(screen.getByText(/Choose a member/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Manage Aina" }));
+  expect(screen.getByRole("button", { name: "Manage Aina" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.getByRole("heading", { name: "Aina" })).toHaveFocus();
+  expect(screen.queryByRole("heading", { name: "Hafiz" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(screen.getByText(/Choose a member/)).toBeInTheDocument();
+});
+
+test("moves between settings tabs with the arrow keys", () => {
+  renderConsole("owner");
+  fireEvent.keyDown(screen.getByRole("tab", { name: "Moderation" }), { key: "ArrowRight" });
+  expect(screen.getByRole("tab", { name: "Profile" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("tab", { name: "Profile" })).toHaveFocus();
+  fireEvent.keyDown(screen.getByRole("tab", { name: "Profile" }), { key: "ArrowLeft" });
+  expect(screen.getByRole("tab", { name: "Moderation" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("times a member out with a duration and reason code", async () => {
@@ -123,7 +157,8 @@ test("appoints a Sheriff after the password step-up without submitting the role 
       badges={[]}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+  fireEvent.click(screen.getByRole("button", { name: "Manage Hafiz" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Roles & badge" }));
   const form = screen.getByRole("form", { name: "Sheriff role" });
   expect(within(form).queryByLabelText("Password")).toBeNull();
   fireEvent.change(within(form).getByLabelText("Where"), { target: { value: seeded } });
@@ -160,15 +195,8 @@ test("shows a running timeout and offers to end it", () => {
   expect(screen.getByRole("form", { name: "End the timeout now" })).toBeInTheDocument();
 });
 
-test("a Sheriff cannot manage the Owner", () => {
-  render(
-    <MemberConsole
-      role="platform_sheriff"
-      members={[{ ...member, roles: ["owner"] }]}
-      query=""
-      institutions={[]}
-      badges={[]}
-    />,
-  );
-  expect(screen.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
+test("a Sheriff can see the Owner but not manage them", () => {
+  renderConsole("platform_sheriff", { ...member, roles: ["owner"] });
+  expect(screen.getByText(/Only the Owner manages the Owner/)).toBeInTheDocument();
+  expect(screen.queryByRole("form")).not.toBeInTheDocument();
 });
