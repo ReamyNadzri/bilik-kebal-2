@@ -243,7 +243,8 @@ These override the sections above where they conflict.
    route calls `verifyOtp` directly, matching `/auth/callback`, rather than a new `AuthService`
    method. A shared `setRecoveryGrantCookie` helper serves both routes.
 3. **Renderer**: `@react-email/components` is marked unsupported on npm, so emails are rendered with
-   `react-dom/server` using an in-repo table layout. Plain text is built from the same content
+   an in-repo table layout built as a string template with one strict `escapeHtml` (Next.js
+   rejects `react-dom/server` in App Routes). Plain text is built from the same content
    model. No new dependency was added.
 4. **WELCOME**: production already had WELCOME at 2 free requests and 50 redemptions; the user
    chose to keep it. The seed uses those values and never overwrites. The welcome email reads the

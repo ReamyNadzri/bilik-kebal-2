@@ -77,7 +77,8 @@ environment before rollout. No cloud database changes have been performed by thi
   existing password-recovery grant cookie. A provider outage returns to the page with the token
   unspent. `/auth/callback` keeps handling PKCE codes and older links.
 - Notification mail keeps the outbox and Brevo API path, now sending HTML and plain text rendered
-  by `react-dom/server` from one content model (`src/modules/notifications/email/`). Colours are
+  by an escaped string template (`email-layout.ts`) from one content model; Next.js forbids
+  `react-dom/server` in App Routes. Colours are
   literals mirrored from the provisional tokens and checked against `globals.css` by a test.
 - `private.notification_email_context` supplies allow-listed per-kind values through
   `claim_notification_email_batch`: requester display name and institution name for

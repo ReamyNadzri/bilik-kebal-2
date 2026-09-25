@@ -345,7 +345,8 @@ Claude Code implementing both lanes for this feature.
   can no longer be redeemed.
 - Every email is branded HTML plus plain text using the provisional theme and
   `public/brand/email/logo.png` (provisional, 160×155, displayed at 96 px). `@react-email/components`
-  was rejected because npm marks it unsupported; rendering uses `react-dom/server`.
+  was rejected because npm marks it unsupported, and `react-dom/server` fails the build inside App
+  Routes, so the layout is an escaped string template with hostile-input tests.
 - Spam-folder guidance appears after sign-up, on `/verify-email`, after a resend, after a recovery
   request, and in every email footer.
 - Found and fixed in migration `202610010001`: `claim_notification_email_batch` returned
