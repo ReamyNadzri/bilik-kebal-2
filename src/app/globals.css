@@ -1467,6 +1467,32 @@ textarea.form-field__input {
   accent-color: var(--accent-secondary);
 }
 
+/* Institution verification: status, automatic check and evidence as cards,
+   each with even spacing between its parts. */
+.institution-verification {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.verification-block {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.verification-block > h2,
+.verification-block > p {
+  margin: 0;
+}
+
+.verification-block > .privacy-note,
+.verification-block > .auth-form,
+.verification-block > .ui-status,
+.verification-block > .institution-verification__pending {
+  justify-self: stretch;
+  margin: 0;
+}
+
 .privacy-note {
   margin-bottom: var(--space-5);
   padding: var(--space-4);
@@ -3530,9 +3556,11 @@ textarea.form-field__input {
   }
 }
 
+/* auto-fill, not auto-fit: a short row keeps the same card width instead of
+   stretching, so open and coming-soon cards match. */
 .campus-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14.5rem), 1fr));
   gap: var(--space-4);
   margin: 0;
   padding: 0;
@@ -3540,6 +3568,7 @@ textarea.form-field__input {
 }
 
 .campus-list li {
+  display: flex;
   max-width: none;
 }
 
@@ -3548,7 +3577,9 @@ textarea.form-field__input {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  min-height: 2.75rem;
+  height: 100%;
+  /* Room for a two-line name and its status, so every card is one size. */
+  min-height: 6rem;
   padding: 0.875rem;
   text-align: left;
   background: var(--bg-canvas);
@@ -3590,6 +3621,11 @@ textarea.form-field__input {
 }
 
 .campus-list__name {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-family: var(--font-display);
   font-size: var(--text-base);
 }

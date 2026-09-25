@@ -64,8 +64,16 @@ export default async function InstitutionVerificationPage() {
   }
 
   return (
-    <>
-      <h1>Institution verification</h1>
+    <div className="page-bare institution-verification-page">
+      <header className="panel page-heading">
+        <div>
+          <h1>Institution verification</h1>
+          <p className="page-heading__lede">
+            Institution verification lets you back requests, submit claims and download resources.
+            It is separate from confirming your email.
+          </p>
+        </div>
+      </header>
 
       {outcome.kind === "email-not-verified" ? (
         <UiStatus
@@ -92,6 +100,6 @@ export default async function InstitutionVerificationPage() {
           latestRequest={outcome.account.latestVerificationRequest}
         />
       ) : null}
-    </>
+    </div>
   );
 }
