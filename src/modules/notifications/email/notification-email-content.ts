@@ -34,6 +34,8 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   community_bounty_awarded: "You were awarded a bounty",
   institution_verification_submitted: "New institution verification request",
   welcome: "Welcome to VAULTIX",
+  // In-app only; the outbox never queues it (migration 202610100001).
+  wanted_thread_auto_closed: "Your request closed after 30 quiet days",
 };
 
 const cap = (value: string | undefined) => value?.slice(0, 80).trim() || undefined;

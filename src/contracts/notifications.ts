@@ -17,12 +17,9 @@ export const notificationKinds = [
   "community_payout_approved",
   "community_payout_rejected",
   "community_bounty_awarded",
-<<<<<<< HEAD
   "institution_verification_submitted",
   "welcome",
-=======
   "wanted_thread_auto_closed",
->>>>>>> bb558fa16c2b45841107b97674c5c7f4f244c254
 ] as const;
 export type NotificationKind = (typeof notificationKinds)[number];
 
@@ -51,14 +48,11 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
     "A Sheriff did not approve releasing your bounty. Open the request for the next step.",
   community_bounty_awarded:
     "A Sheriff approved a bounty for you. The Owner records the payout; sign in to view its status.",
-<<<<<<< HEAD
   institution_verification_submitted:
     "A new institution verification request is waiting for review.",
   welcome: "Welcome to VAULTIX. Your email is verified; check your email for a welcome reward.",
-=======
   wanted_thread_auto_closed:
     "Your request closed after 30 days without a new message. You can reopen it within 7 days; after that it leaves the Board.",
->>>>>>> bb558fa16c2b45841107b97674c5c7f4f244c254
 };
 
 /** Where a notification leads, when its subject is a public page. */
@@ -66,6 +60,8 @@ export function notificationHref(kind: NotificationKind, subjectId: string): str
   if (kind.startsWith("wanted_") || kind.startsWith("community_")) return `/wanted/${subjectId}`;
   if (kind.startsWith("taxonomy_request_")) return "/profile#entry-requests";
   if (kind.startsWith("claim_")) return "/claims";
+  // The Sheriff alert opens the review queue; the student's own outcomes open their profile.
+  if (kind === "institution_verification_submitted") return "/console";
   if (kind.startsWith("institution_verification_")) return "/profile";
   return null;
 }

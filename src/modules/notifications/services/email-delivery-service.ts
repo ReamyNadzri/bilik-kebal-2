@@ -36,31 +36,6 @@ export interface NotificationEmailOutboxRepository {
   ): Promise<void>;
 }
 
-<<<<<<< HEAD
-=======
-const subjects: Readonly<Record<NotificationKind, string>> = {
-  claim_approved: "Your claim was approved",
-  claim_rejected: "Your claim was not approved",
-  claim_information_requested: "More information is needed for your claim",
-  claim_not_selected: "Your claim was not selected",
-  institution_verification_approved: "Your institution verification was approved",
-  institution_verification_rejected: "Your institution verification was not approved",
-  payout_recorded: "A payout was recorded",
-  refund_recorded: "A refund was recorded",
-  account_restricted: "An account restriction was recorded",
-  appeal_updated: "Your appeal has an update",
-  // In-app only; the outbox never queues it (migration 202609290001).
-  wanted_reply: "Someone replied to your request",
-  taxonomy_request_approved: "The entry you asked for was added",
-  taxonomy_request_rejected: "The entry you asked for was not added",
-  community_payout_approved: "Your bounty release was approved",
-  community_payout_rejected: "Your bounty release was not approved",
-  community_bounty_awarded: "You were awarded a bounty",
-  // In-app only; the outbox never queues it (migration 202610100001).
-  wanted_thread_auto_closed: "Your request closed after 30 quiet days",
-};
-
->>>>>>> bb558fa16c2b45841107b97674c5c7f4f244c254
 export interface NotificationEmailDeliveryDependencies {
   repository: NotificationEmailOutboxRepository;
   provider: NotificationEmailProvider;
