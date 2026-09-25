@@ -32,6 +32,7 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
         now={now}
         className="wanted-card__frame"
         labelledBy={titleId}
+        withEmblem
         title={
           <h3 className="wanted-card__title" id={titleId}>
             <Link href={href}>{wanted.title}</Link>

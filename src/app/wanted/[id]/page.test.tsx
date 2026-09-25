@@ -124,7 +124,9 @@ describe("reading one request", () => {
     });
     await renderPage();
 
-    expect(screen.getByText(/7\.5% platform fee/)).toBeInTheDocument();
+    // The platform fee is for the poster; a visitor sees only the checkout charge.
+    expect(screen.getByText(/7\.5% platform fee/)).not.toBeVisible();
+    expect(screen.getByRole("heading", { name: "Checkout" })).toBeVisible();
     expect(screen.getByText(/2026-09-15\.1/)).toBeInTheDocument();
   });
 

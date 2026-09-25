@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Spinner } from "./spinner";
 
 export type UiStatusKind =
   "loading" | "empty" | "success" | "error" | "restricted" | "expired" | "offline";
@@ -54,7 +55,10 @@ export function UiStatus({ kind, heading, message, action }: UiStatusProps) {
       aria-live={isLoading ? "polite" : undefined}
       aria-busy={isLoading ? true : undefined}
     >
-      <p className="ui-status__label">{STATE_LABEL[kind]}</p>
+      <p className="ui-status__label">
+        {isLoading ? <Spinner className="ui-status__spinner" /> : null}
+        {STATE_LABEL[kind]}
+      </p>
       <h2 className="ui-status__heading">{heading}</h2>
       {message === undefined ? null : <p className="ui-status__message">{message}</p>}
       {action === undefined ? null : <div className="ui-status__action">{action}</div>}

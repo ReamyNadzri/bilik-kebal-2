@@ -48,6 +48,10 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
     wanted.status === "open" || wanted.status === "ending-soon" || wanted.status === "well-funded";
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const feePercent = wanted.feeRateBasisPoints / 100;
+  const isPoster =
+    account?.publicId !== null &&
+    account?.publicId !== undefined &&
+    account.publicId === wanted.commissioner.publicId;
 
   return (
     <div className="wanted-detail">
@@ -123,7 +127,20 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           </p>
         </div>
 
-        <div className="ledger-panel" hidden={wanted.isFree}>
+        {/*
+          The platform fee is shown to the poster, who pays it from their
+          bounty. Everyone else sees only the provider charge that applies to
+          a Backer's own checkout.
+        */}
+        <div className="ledger-panel" hidden={wanted.isFree || isPoster}>
+          <h2 className="ledger-panel__heading">Checkout</h2>
+          <p className="ledger-panel__body">
+            The payment provider adds its own charge to a Backer&rsquo;s checkout total. It is paid
+            on top of the contribution, so the bounty rises by the full amount contributed.
+          </p>
+        </div>
+
+        <div className="ledger-panel" hidden={wanted.isFree || !isPoster}>
           <h2 className="ledger-panel__heading">Fees</h2>
           <p className="ledger-panel__fee">
             <span>Platform fee, fixed at publication</span>
@@ -277,11 +294,7 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           kind={wanted.kind}
           open={isOpen}
           canReply={account?.capabilities?.transact === true}
-          isPoster={
-            account?.publicId !== null &&
-            account?.publicId !== undefined &&
-            account.publicId === wanted.commissioner.publicId
-          }
+          isPoster={isPoster}
           now={now}
           bountySen={wanted.isFree ? 0 : wanted.grossBountySen}
           releasePending={wanted.status === "reviewing"}
