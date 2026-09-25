@@ -1,9 +1,13 @@
-import { notificationMessages, type NotificationKind } from "@/contracts/notifications";
+import type { NotificationKind } from "@/contracts/notifications";
 import { beginOperation } from "@/lib/observability/operation-log";
 import {
   NotificationEmailDeliveryError,
   type NotificationEmailProvider,
 } from "../adapters/brevo-email-provider";
+import {
+  renderNotificationEmail,
+  type NotificationEmailContext,
+} from "../email/render-notification-email";
 
 export interface NotificationEmailJob {
   notificationId: string;
@@ -13,6 +17,7 @@ export interface NotificationEmailJob {
   attempt: number;
   idempotencyExpiresAt: string;
   correlationId: string;
+  context: NotificationEmailContext;
 }
 
 export interface NotificationEmailOutboxRepository {
@@ -31,31 +36,11 @@ export interface NotificationEmailOutboxRepository {
   ): Promise<void>;
 }
 
-const subjects: Readonly<Record<NotificationKind, string>> = {
-  claim_approved: "Your claim was approved",
-  claim_rejected: "Your claim was not approved",
-  claim_information_requested: "More information is needed for your claim",
-  claim_not_selected: "Your claim was not selected",
-  institution_verification_approved: "Your institution verification was approved",
-  institution_verification_rejected: "Your institution verification was not approved",
-  payout_recorded: "A payout was recorded",
-  refund_recorded: "A refund was recorded",
-  account_restricted: "An account restriction was recorded",
-  appeal_updated: "Your appeal has an update",
-  // In-app only; the outbox never queues it (migration 202609290001).
-  wanted_reply: "Someone replied to your request",
-  taxonomy_request_approved: "The entry you asked for was added",
-  taxonomy_request_rejected: "The entry you asked for was not added",
-  community_payout_approved: "Your bounty release was approved",
-  community_payout_rejected: "Your bounty release was not approved",
-  community_bounty_awarded: "You were awarded a bounty",
-  institution_verification_submitted: "New institution verification request",
-  welcome: "Welcome to VAULTIX",
-};
-
 export interface NotificationEmailDeliveryDependencies {
   repository: NotificationEmailOutboxRepository;
   provider: NotificationEmailProvider;
+  /** Public origin for links and the logo in emails. */
+  appUrl: string;
   now?: () => Date;
 }
 
@@ -113,11 +98,13 @@ export class NotificationEmailDeliveryService {
         if (!job.recipient) {
           throw new NotificationEmailDeliveryError("invalid_recipient", false);
         }
+        const email = renderNotificationEmail(job.kind, job.context, this.dependencies.appUrl);
         const delivered = await this.dependencies.provider.send({
           notificationId: job.notificationId,
           recipient: job.recipient,
-          subject: subjects[job.kind],
-          text: notificationMessages[job.kind],
+          subject: email.subject,
+          text: email.text,
+          html: email.html,
         });
         providerMessageId = delivered.providerMessageId;
       } catch (error) {

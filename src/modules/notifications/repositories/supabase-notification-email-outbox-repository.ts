@@ -5,6 +5,13 @@ import type {
   NotificationEmailOutboxRepository,
 } from "../services/email-delivery-service";
 
+// Unknown keys are stripped: only these values may ever reach an email.
+const contextSchema = z.object({
+  requesterDisplayName: z.string().max(80).optional(),
+  institutionName: z.string().max(80).optional(),
+  welcomeCodeCredits: z.number().int().min(1).max(20).optional(),
+});
+
 const claimedJobSchema = z.object({
   notification_id: z.uuid(),
   lease_token: z.uuid(),
@@ -13,6 +20,7 @@ const claimedJobSchema = z.object({
   attempt: z.number().int().positive(),
   idempotency_expires_at: z.iso.datetime({ offset: true }),
   correlation_id: z.uuid(),
+  notification_context: contextSchema.nullable().optional(),
 });
 
 export interface SupabaseNotificationEmailOutboxRepositoryOptions {
@@ -43,6 +51,7 @@ export class SupabaseNotificationEmailOutboxRepository implements NotificationEm
       attempt: row.attempt,
       idempotencyExpiresAt: row.idempotency_expires_at,
       correlationId: row.correlation_id,
+      context: row.notification_context ?? {},
     }));
   }
 

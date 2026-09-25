@@ -1,4 +1,4 @@
-import { resolveSupabasePublicConfig } from "@/lib/config/public-env";
+import { parsePublicEnv, resolveSupabasePublicConfig } from "@/lib/config/public-env";
 import { BrevoNotificationEmailProvider } from "../adapters/brevo-email-provider";
 import { SupabaseNotificationEmailOutboxRepository } from "../repositories/supabase-notification-email-outbox-repository";
 import { NotificationEmailDeliveryService } from "./email-delivery-service";
@@ -12,6 +12,7 @@ export function createEmailDeliveryService(): NotificationEmailDeliveryService {
   if (!apiKey || !serviceRoleKey) throw new Error("Email dispatch configuration is unavailable");
   const supabase = resolveSupabasePublicConfig(process.env);
   return new NotificationEmailDeliveryService({
+    appUrl: parsePublicEnv(process.env).NEXT_PUBLIC_APP_URL,
     repository: new SupabaseNotificationEmailOutboxRepository({
       baseUrl: supabase.url,
       serviceRoleKey,

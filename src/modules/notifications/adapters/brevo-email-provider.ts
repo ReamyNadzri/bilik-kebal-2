@@ -8,6 +8,7 @@ export interface NotificationEmailInput {
   recipient: string;
   subject: string;
   text: string;
+  html: string;
 }
 
 export interface NotificationEmailProvider {
@@ -52,6 +53,7 @@ export class BrevoNotificationEmailProvider implements NotificationEmailProvider
           sender: { email: this.options.fromEmail, name: this.options.fromName },
           to: [{ email: input.recipient }],
           subject: input.subject,
+          htmlContent: input.html,
           textContent: input.text,
           // Brevo expects idempotencyKey in the request body headers object (UUID v4).
           headers: { idempotencyKey: input.notificationId },

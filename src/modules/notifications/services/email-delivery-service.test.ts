@@ -10,11 +10,13 @@ const job = {
   attempt: 1,
   idempotencyExpiresAt: "2026-09-24T00:00:00.000Z",
   correlationId: "30000000-0000-4000-8000-000000000001",
+  context: {},
 };
 
 function dependencies(now = new Date("2026-09-23T00:00:00.000Z")) {
   const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
   return {
+    appUrl: "https://bilikkebal.afes.my",
     now: () => now,
     repository: {
       claimBatch: vi.fn().mockResolvedValue([job]),
@@ -33,7 +35,7 @@ function dependencies(now = new Date("2026-09-23T00:00:00.000Z")) {
 
 beforeEach(() => vi.restoreAllMocks());
 
-test("sends fixed notification copy and acknowledges with the matching lease", async () => {
+test("sends branded server-composed copy and acknowledges with the matching lease", async () => {
   const deps = dependencies();
   const service = new NotificationEmailDeliveryService(deps);
 
@@ -48,7 +50,10 @@ test("sends fixed notification copy and acknowledges with the matching lease", a
     notificationId: job.notificationId,
     recipient: job.recipient,
     subject: "Your claim was approved",
-    text: "A Sheriff approved your claim. Check your claims for the next step.",
+    text: expect.stringContaining(
+      "A Sheriff approved your claim. Check your claims for the next step.",
+    ),
+    html: expect.stringMatching(/^<!DOCTYPE html>/),
   });
   expect(deps.repository.markSent).toHaveBeenCalledWith(
     job.notificationId,
@@ -110,4 +115,23 @@ test("moves an uncertain delivery outside the provider idempotency window to ope
     job.leaseToken,
     "idempotency_window_elapsed",
   );
+});
+
+test("renders allow-listed context into the Sheriff alert", async () => {
+  const deps = dependencies();
+  deps.repository.claimBatch.mockResolvedValue([
+    {
+      ...job,
+      kind: "institution_verification_submitted",
+      context: { requesterDisplayName: "Aina", institutionName: "UiTM" },
+    },
+  ]);
+  const service = new NotificationEmailDeliveryService(deps);
+
+  await service.dispatchBatch();
+
+  const sent = deps.provider.send.mock.calls[0]?.[0];
+  expect(sent?.subject).toBe("New institution verification request");
+  expect(sent?.html).toContain("Aina");
+  expect(sent?.text).toContain("UiTM");
 });

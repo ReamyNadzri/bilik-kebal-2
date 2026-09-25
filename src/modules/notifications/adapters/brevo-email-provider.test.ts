@@ -7,6 +7,7 @@ describe("BrevoNotificationEmailProvider", () => {
     recipient: "hunter@example.test",
     subject: "Your claim was approved",
     text: "Your claim was approved.",
+    html: "<!DOCTYPE html><p>Your claim was approved.</p>",
   };
 
   test("sends a transactional email with stable body idempotency and private credentials", async () => {
@@ -39,6 +40,7 @@ describe("BrevoNotificationEmailProvider", () => {
           sender: { email: "notifications@bilikkebal.afes.my", name: "VAULTIX" },
           to: [{ email: input.recipient }],
           subject: input.subject,
+          htmlContent: input.html,
           textContent: input.text,
           headers: { idempotencyKey: input.notificationId },
         }),

@@ -2,9 +2,9 @@ import { notificationMessages, type NotificationKind } from "@/contracts/notific
 
 /** Allow-listed per-kind values from private.notification_email_context. */
 export interface NotificationEmailContext {
-  requesterDisplayName?: string;
-  institutionName?: string;
-  welcomeCodeCredits?: number;
+  requesterDisplayName?: string | undefined;
+  institutionName?: string | undefined;
+  welcomeCodeCredits?: number | undefined;
 }
 
 export interface NotificationEmailCopy {
