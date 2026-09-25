@@ -2,7 +2,12 @@ import type { ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { StatusStamp } from "./status-stamp";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
-import { formatAgeOld, formatClosing, formatPostedAge } from "@/features/marketplace/time";
+import {
+  formatAgeOld,
+  formatClosing,
+  formatPostedAge,
+  formatVanishesIn,
+} from "@/features/marketplace/time";
 import type { WantedSummary } from "@/features/marketplace/types";
 
 export interface WantedPosterProps {
@@ -65,7 +70,11 @@ export function WantedPoster({
         <span className="poster-masthead__word" aria-hidden="true">
           Wanted
         </span>
-        {isClosed ? (
+        {isClosed && !academic && wanted.thread?.vanishesAt ? (
+          <time className="poster-masthead__timing" dateTime={wanted.thread.vanishesAt}>
+            Leaves the Board {formatVanishesIn(wanted.thread.vanishesAt, now)}
+          </time>
+        ) : isClosed ? (
           <time className="poster-masthead__timing" dateTime={wanted.postedAt}>
             {formatPostedAge(wanted.postedAt, now)}
           </time>

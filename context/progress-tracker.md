@@ -328,6 +328,31 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
   kept. Open item: regenerate and adapt the repositories, or keep the nullable overrides.
 - With the committed types: `pnpm typecheck` passes and `pnpm test` passes (1,029 tests).
 
+## 2026-09-25 chat threads and 7-day retention
+
+User decisions (all four recommended options accepted):
+- After a missing item is marked found (or a discussion resolved), its chat and card stay on the
+  Board for 7 days, then the messages are deleted and the card vanishes; a small record remains.
+- Free missing items and discussions with no new message for 30 days close themselves; the poster
+  is notified in-app and may reopen within the 7 days. Paid ones never auto-close (they keep the
+  expiry and refund path, so no bounty is stranded).
+- Academic bounties get a text-only Q&A thread. Links, email addresses and chat handles are refused
+  in the database, so a resource cannot change hands outside a reviewed Claim. Questions are
+  deleted 7 days after the bounty closes and the claim-review appeal window ends; the academic card
+  stays in the Archive.
+- Open threads refresh every 15 seconds while the tab is visible (no Supabase Realtime).
+
+Implementation: migration `202610010001_chat_threads_and_retention.sql` (not yet applied to
+Supabase Cloud). Verified locally: the whole chain applies on Postgres 16 with stubbed `auth` and
+`storage`, and scripted assertions cover auto-close, idempotent re-runs, the 7-day purge, the
+paid-release and refund holds, reopen rules, and the academic link refusal. pg_cron is scheduled
+only where the extension exists.
+
+Also fixed: the reply reader accepted only `open`/`closed`, so a thread under release review or
+fulfilled looked empty. The migration grants `wanted_replies` to `service_role` explicitly, because
+`202609210001` granted only the tables existing then — the likely cause of "Replies could not be
+loaded" in the cloud (unconfirmed; check `has_table_privilege('service_role', 'public.wanted_replies', 'select')`).
+
 ## Open Questions
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.

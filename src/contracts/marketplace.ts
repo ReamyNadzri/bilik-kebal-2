@@ -220,6 +220,30 @@ export interface WantedSummary {
   closesAt: string;
   /** Missing items only: where it was last seen. */
   lastSeenLocation: string | null;
+  /** The chat thread's retention state. Absent in fixtures predating it. */
+  thread?: WantedThreadState;
+}
+
+/**
+ * Retention of a Wanted's chat thread (migration 202610010001). A thread
+ * closes when its Wanted leaves open/reviewing; seven days later its messages
+ * are deleted, and a missing-item or discussion card leaves the Board too.
+ */
+export interface WantedThreadState {
+  replyCount: number;
+  /** When the thread stopped taking messages; null while open. */
+  closedAt: string | null;
+  /** Closed by itself after 30 days without a new message. */
+  autoClosed: boolean;
+  /**
+   * The earliest the messages (and a community card) are removed. Null while
+   * open, and while a bounty release or refund is still unsettled.
+   */
+  vanishesAt: string | null;
+  /** Until when the poster may reopen it; null when it cannot be reopened. */
+  reopenUntil: string | null;
+  /** When the messages were deleted; null until then. */
+  clearedAt: string | null;
 }
 
 export interface WantedDetail extends WantedSummary {
@@ -296,6 +320,7 @@ export type PublishCommunityWantedResult = OperationResult<
 export type ListWantedRepliesResult = OperationResult<WantedReply[], MarketplaceOperationCode>;
 export type PostWantedReplyResult = OperationResult<{ replyId: string }, MarketplaceOperationCode>;
 export type ResolveWantedResult = OperationResult<{ state: "closed" }, MarketplaceOperationCode>;
+export type ReopenWantedResult = OperationResult<{ state: "open" }, MarketplaceOperationCode>;
 /** Free requests: 3 for every member, plus any added by reward codes. */
 export interface FreeRequestAllowance {
   base: number;

@@ -11,6 +11,10 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
 
 ### Before deploying
 
+- Apply `supabase/migrations/202610010001_chat_threads_and_retention.sql` (chat threads, 7-day
+  retention, daily `wanted-thread-retention` pg_cron job). Enable pg_cron first if the project does
+  not have it; without it the migration applies but nothing is scheduled.
+
 - Both new migrations are already applied to Supabase Cloud (project `yuzgkjowtcfwqanituta`,
   confirmed 2026-09-25):
   1. `supabase/migrations/202609290001_profiles_free_requests_and_regions.sql`
@@ -27,6 +31,14 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
   public launch.
 
 ### Added
+
+- Chat threads keep a 7-day retention: a found or resolved missing item or discussion stays on the
+  Board for 7 days with a "Leaves the Board in N days" countdown, then its messages are deleted and
+  the card vanishes. Free threads with no message for 30 days close themselves; the poster can
+  reopen within the 7 days.
+- Academic bounties have a text-only Questions thread that refuses links, email addresses and chat
+  handles.
+- Open threads refresh every 15 seconds; a failed load offers "Try again".
 
 **Request kinds and free requests**
 

@@ -17,6 +17,7 @@ export const notificationKinds = [
   "community_payout_approved",
   "community_payout_rejected",
   "community_bounty_awarded",
+  "wanted_thread_auto_closed",
 ] as const;
 export type NotificationKind = (typeof notificationKinds)[number];
 
@@ -45,11 +46,13 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
     "A Sheriff did not approve releasing your bounty. Open the request for the next step.",
   community_bounty_awarded:
     "A Sheriff approved a bounty for you. The Owner records the payout; sign in to view its status.",
+  wanted_thread_auto_closed:
+    "Your request closed after 30 days without a new message. You can reopen it within 7 days; after that it leaves the Board.",
 };
 
 /** Where a notification leads, when its subject is a public page. */
 export function notificationHref(kind: NotificationKind, subjectId: string): string | null {
-  if (kind === "wanted_reply" || kind.startsWith("community_")) return `/wanted/${subjectId}`;
+  if (kind.startsWith("wanted_") || kind.startsWith("community_")) return `/wanted/${subjectId}`;
   if (kind.startsWith("taxonomy_request_")) return "/profile#entry-requests";
   if (kind.startsWith("claim_")) return "/claims";
   if (kind.startsWith("institution_verification_")) return "/profile";

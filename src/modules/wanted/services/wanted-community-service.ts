@@ -13,6 +13,7 @@ import {
   type ListWantedRepliesResult,
   type PostWantedReplyResult,
   type PublishCommunityWantedResult,
+  type ReopenWantedResult,
   type ResolveWantedResult,
   type WantedReply,
 } from "@/contracts/marketplace";
@@ -32,6 +33,7 @@ export interface CommunityWantedRepository {
   listReplies(publicId: string): Promise<WantedReply[]>;
   postReply(publicId: string, body: string): Promise<string>;
   resolveCommunityWanted(publicId: string): Promise<void>;
+  reopenCommunityWanted(publicId: string): Promise<void>;
   readFreeAllowance(): Promise<FreeRequestAllowance>;
   requestCommunityPayout(input: {
     publicId: string;
@@ -149,6 +151,12 @@ export class WantedCommunityService {
     } catch (error) {
       if (databaseMessage(error).includes("wanted_not_found"))
         return failure("WANTED_NOT_FOUND", "");
+      if (databaseMessage(error).includes("wanted_reply_link_not_allowed")) {
+        return failure(
+          "VALIDATION_ERROR",
+          "Links, email addresses and chat handles are not allowed in bounty questions. Send files through a Claim so a Sheriff can review them.",
+        );
+      }
       return failure("MARKETPLACE_UNAVAILABLE", "Your reply could not be posted. Try again.");
     }
   }
@@ -167,6 +175,24 @@ export class WantedCommunityService {
         );
       }
       return failure("MARKETPLACE_UNAVAILABLE", "This could not be marked resolved. Try again.");
+    }
+  }
+
+  /** The poster takes back "found" or "resolved" within the 7 days. */
+  async reopen(actor: WantedActor | null, publicId: string): Promise<ReopenWantedResult> {
+    if (actor === null) return failure("AUTH_REQUIRED", "");
+    if (!UUID.test(publicId)) return failure("WANTED_NOT_FOUND", "");
+    try {
+      await this.repository.reopenCommunityWanted(publicId);
+      return success({ state: "open" });
+    } catch (error) {
+      if (databaseMessage(error).includes("wanted_not_reopenable")) {
+        return failure(
+          "NOT_AUTHORIZED",
+          "Only the poster can reopen this, within 7 days of closing it and before it ends.",
+        );
+      }
+      return failure("MARKETPLACE_UNAVAILABLE", "This could not be reopened. Try again.");
     }
   }
 

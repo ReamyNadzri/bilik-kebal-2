@@ -15,6 +15,7 @@ import { resolveAvatarUrl } from "@/lib/avatars";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
 import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-query";
+import { THREAD_RETENTION_DAYS, wantedThreadState } from "../domain/wanted-thread";
 import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./wanted-repository";
 
 type Client = SupabaseClient<Database>;
@@ -65,14 +66,24 @@ export class SupabaseWantedRepository implements WantedRepository {
     return resolveAvatarUrl(this.client, objectKey, preset);
   }
 
+  /**
+   * Open and reviewing Wanteds, plus missing items and discussions that closed
+   * in the last 7 days: they stay pinned, marked found or resolved, so people
+   * can read how it ended before the card vanishes.
+   */
   async listPublicWanted(query: ListWantedQuery): Promise<WantedSummary[]> {
+    const closedSince = new Date(Date.now() - THREAD_RETENTION_DAYS * 86_400_000).toISOString();
     let request = this.client
       .from("wanted_requests")
       .select("*")
-      .in("status", ["open", "reviewing"])
+      .is("vanished_at", null)
       .order("published_at", { ascending: false })
       .limit(100);
-    if (query.status) request = request.eq("status", query.status);
+    request = query.status
+      ? request.eq("status", query.status)
+      : request.or(
+          `status.in.(open,reviewing),and(kind.in.(missing_item,discussion),status.in.(closed,fulfilled,expired),thread_closed_at.gte.${closedSince})`,
+        );
     if (query.kind) request = request.eq("kind", query.kind);
     if (query.campusId) request = request.eq("campus_id", query.campusId);
     if (query.courseId) request = request.eq("course_id", query.courseId);
@@ -82,7 +93,12 @@ export class SupabaseWantedRepository implements WantedRepository {
     if (query.query) request = request.ilike("title", `%${query.query.replace(/[%_]/g, "\\$&")}%`);
     const { data, error } = await request;
     if (error) throw error;
-    return sortWantedSummaries(await this.toSummaries(data ?? []), query.sort);
+    const sorted = sortWantedSummaries(await this.toSummaries(data ?? []), query.sort);
+    // Closed cards follow the live ones, whatever the sort.
+    return [
+      ...sorted.filter((wanted) => wanted.status !== "closed"),
+      ...sorted.filter((wanted) => wanted.status === "closed"),
+    ];
   }
 
   /** Published Wanteds by internal id, newest first (profiles, archive). */
@@ -93,6 +109,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       .select("*")
       .in("id", [...ids])
       .in("status", [...PUBLIC_STATUSES])
+      .is("vanished_at", null)
       .order("published_at", { ascending: false });
     if (error) throw error;
     return this.toSummaries(data ?? []);
@@ -104,6 +121,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       .from("wanted_requests")
       .select("*")
       .in("status", ["fulfilled", "closed"])
+      .is("vanished_at", null)
       .order("updated_at", { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -116,6 +134,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       .select("*")
       .eq("public_id", publicId)
       .in("status", [...PUBLIC_STATUSES])
+      .is("vanished_at", null)
       .maybeSingle();
     if (error) throw error;
     if (!row) return null;
@@ -266,6 +285,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         postedAt: row.published_at,
         closesAt: row.closes_at,
         lastSeenLocation: row.last_seen_location,
+        thread: wantedThreadState(row, bounty),
       };
       return [summary];
     });
@@ -321,8 +341,8 @@ export class SupabaseWantedRepository implements WantedRepository {
       .from("wanted_requests")
       .select("id")
       .eq("public_id", publicId)
-      .in("kind", ["missing_item", "discussion"])
-      .in("status", ["open", "closed"])
+      .in("status", [...PUBLIC_STATUSES])
+      .is("vanished_at", null)
       .maybeSingle();
     if (error) throw error;
     if (!wanted) return [];
@@ -368,6 +388,13 @@ export class SupabaseWantedRepository implements WantedRepository {
     });
     if (error) throw error;
     return data;
+  }
+
+  async reopenCommunityWanted(publicId: string): Promise<void> {
+    const { error } = await this.client.rpc("reopen_own_community_wanted", {
+      target_public_id: publicId,
+    });
+    if (error) throw error;
   }
 
   async resolveCommunityWanted(publicId: string): Promise<void> {

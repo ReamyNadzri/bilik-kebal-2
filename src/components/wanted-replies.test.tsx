@@ -129,3 +129,109 @@ test("offers no bounty release on a free request or to anyone but the poster", a
   await screen.findByText(reply.body);
   expect(screen.queryByText("Release the bounty")).toBeNull();
 });
+
+describe("retention and live updates", () => {
+  const closedThread = {
+    replyCount: 1,
+    closedAt: "2026-09-22T12:00:00.000Z",
+    autoClosed: false,
+    vanishesAt: "2026-09-29T12:00:00.000Z",
+    reopenUntil: "2026-09-29T12:00:00.000Z",
+    clearedAt: null,
+  };
+
+  test("tells readers of an open thread that it is deleted 7 days after it is found", async () => {
+    respond({ ok: true, data: [] });
+    renderThread();
+    expect(
+      await screen.findByText(/stays on the Board for 7 days and is then deleted/),
+    ).toBeInTheDocument();
+  });
+
+  test("says when a found item leaves the Board and lets the poster reopen it", async () => {
+    const fetchMock = respond(
+      { ok: true, data: [reply] },
+      { ok: true, data: { state: "open" } },
+      { ok: true, data: [reply] },
+    );
+    renderThread({ open: false, isPoster: true, thread: closedThread });
+
+    expect(
+      await screen.findByText("This chat and the request leave the Board in 5 days."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Not found after all? Reopen" }));
+
+    expect(await screen.findByRole("button", { name: "Mark as found" })).toBeInTheDocument();
+    expect(String(fetchMock.mock.calls[1]![0])).toMatch(/\/reopen$/);
+  });
+
+  test("offers no reopen once the 7 days are over", async () => {
+    respond({ ok: true, data: [reply] });
+    renderThread({
+      open: false,
+      isPoster: true,
+      thread: { ...closedThread, reopenUntil: "2026-09-23T12:00:00.000Z" },
+    });
+    await screen.findByText(reply.body);
+    expect(screen.queryByRole("button", { name: /Reopen/ })).not.toBeInTheDocument();
+  });
+
+  test("says the messages were deleted once the thread is cleared", () => {
+    respond({ ok: true, data: [] });
+    renderThread({
+      open: false,
+      thread: { ...closedThread, vanishesAt: null, clearedAt: "2026-09-29T12:00:00.000Z" },
+    });
+    expect(screen.getByText(/deleted 7 days after it closed/)).toBeInTheDocument();
+  });
+
+  test("offers a retry when the thread cannot be loaded", async () => {
+    respond(
+      {
+        ok: false,
+        code: "MARKETPLACE_UNAVAILABLE",
+        message: "Replies are temporarily unavailable.",
+      },
+      { ok: true, data: [reply] },
+    );
+    renderThread();
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(reply.body)).toBeInTheDocument();
+  });
+
+  test("checks for new messages every 15 seconds while open, keeping the list on a failed check", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      respond(
+        { ok: true, data: [] },
+        { ok: true, data: [reply] },
+        { ok: false, code: "MARKETPLACE_UNAVAILABLE", message: "" },
+      );
+      renderThread();
+      await screen.findByText("No sightings yet.");
+
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(await screen.findByText(reply.body)).toBeInTheDocument();
+
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(await screen.findByText(/New messages could not be checked/)).toBeInTheDocument();
+      expect(screen.getByText(reply.body)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("an academic bounty takes questions, warns against links, and has no found button", async () => {
+    respond({ ok: true, data: [] });
+    renderThread({ kind: "academic", isPoster: true, bountySen: 1000 });
+
+    expect(await screen.findByText("No questions yet.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Questions" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Links, email addresses and chat handles are not allowed/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mark as/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Release the bounty")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Post question" })).toBeInTheDocument();
+  });
+});

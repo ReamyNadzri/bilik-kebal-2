@@ -1941,6 +1941,12 @@ export type Database = {
           requested_duration_days: number;
           resource_type_id: string | null;
           status: Database["public"]["Enums"]["wanted_status"];
+          thread_auto_closed: boolean;
+          thread_closed_at: string | null;
+          thread_last_activity_at: string | null;
+          thread_purged_at: string | null;
+          thread_reply_count: number;
+          vanished_at: string | null;
           title: string;
           total_paused_duration: string;
           updated_at: string;
@@ -1973,6 +1979,12 @@ export type Database = {
           requested_duration_days: number;
           resource_type_id: string | null;
           status?: Database["public"]["Enums"]["wanted_status"];
+          thread_auto_closed?: boolean;
+          thread_closed_at?: string | null;
+          thread_last_activity_at?: string | null;
+          thread_purged_at?: string | null;
+          thread_reply_count?: number;
+          vanished_at?: string | null;
           title: string;
           total_paused_duration?: string;
           updated_at?: string;
@@ -2005,6 +2017,12 @@ export type Database = {
           requested_duration_days?: number;
           resource_type_id?: string | null;
           status?: Database["public"]["Enums"]["wanted_status"];
+          thread_auto_closed?: boolean;
+          thread_closed_at?: string | null;
+          thread_last_activity_at?: string | null;
+          thread_purged_at?: string | null;
+          thread_reply_count?: number;
+          vanished_at?: string | null;
           title?: string;
           total_paused_duration?: string;
           updated_at?: string;
@@ -2163,6 +2181,10 @@ export type Database = {
           target_token_hash_hex: string;
         };
         Returns: string;
+      };
+      reopen_own_community_wanted: {
+        Args: { target_public_id: string };
+        Returns: undefined;
       };
       resolve_own_community_wanted: {
         Args: { target_public_id: string };

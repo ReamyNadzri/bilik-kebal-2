@@ -11,6 +11,7 @@ import type {
   PrepareWantedPublicationResult,
   PublishCommunityWantedResult,
   PublishFreeWantedResult,
+  ReopenWantedResult,
   ResolveWantedResult,
   Sen,
   SuggestWantedDuplicatesResult,
@@ -198,6 +199,15 @@ export async function postWantedReply(
   try {
     const loaded = await context();
     return loaded.communityService.reply(loaded.actor, publicId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function reopenCommunityWanted(publicId: string): Promise<ReopenWantedResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.reopen(loaded.actor, publicId);
   } catch {
     return unavailable();
   }
