@@ -356,11 +356,14 @@ Claude Code implementing both lanes for this feature.
   that always aborted (nothing committed). 9 of 13 assertions passed; the 4 failures were test
   assumptions (pre-existing platform Sheriffs, the existing WELCOME values), since corrected. The
   corrected 14-assertion run was blocked by the permission classifier and still needs to be run.
-- Pending user actions: run the corrected database test; apply `202610010001`; in Supabase enable
+- `supabase migration list --linked` later showed `202610010001` applied on Supabase Cloud (applied
+  outside this session, before the corrected test ran). The corrected test remains worth running.
+- Pending user actions: run the corrected database test; in Supabase enable
   Confirm email, paste `supabase/templates/confirmation.html` (Confirm signup, subject "Confirm
   your VAULTIX email") and `recovery.html` (Reset password, subject "Reset your VAULTIX
   password"), and add `<origin>/auth/confirm` to the redirect URLs; confirm `NEXT_PUBLIC_APP_URL`
   in Vercel Production is the public origin.
+
 ## 2026-09-25 chat threads and 7-day retention
 
 User decisions (all four recommended options accepted):
@@ -441,8 +444,8 @@ Open questions added: taking down a Wanted from the console (a paid one involves
 was not built); whether institution Sheriffs should rename members; retention of orphaned badge and
 avatar images after a reset or retirement.
 
-None of `202610100001`, `202610100002`, `202610100003`, `202610100004` is applied to Supabase Cloud
-yet: this session has no Supabase credentials.
+`202610100001` to `202610100004` were later renumbered to run after `202610010001` (welcome and
+Sheriff-alert emails); `supabase migration list --linked` shows all five applied on Supabase Cloud.
 
 ## 2026-09-25 cloud apply of the 202610 migrations
 

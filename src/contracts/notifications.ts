@@ -60,6 +60,8 @@ export function notificationHref(kind: NotificationKind, subjectId: string): str
   if (kind.startsWith("wanted_") || kind.startsWith("community_")) return `/wanted/${subjectId}`;
   if (kind.startsWith("taxonomy_request_")) return "/profile#entry-requests";
   if (kind.startsWith("claim_")) return "/claims";
+  // The Sheriff alert opens the review queue; the student's own outcomes open their profile.
+  if (kind === "institution_verification_submitted") return "/console";
   if (kind.startsWith("institution_verification_")) return "/profile";
   return null;
 }
