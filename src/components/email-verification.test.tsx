@@ -227,3 +227,8 @@ test("never queues more than one interrupting announcement", async () => {
 
   expect(screen.getAllByRole("alert")).toHaveLength(1);
 });
+
+test("the waiting state shows the spam-folder hint", () => {
+  render(<EmailVerification status="pending" address={ADDRESS} />);
+  expect(screen.getByRole("note")).toHaveTextContent("Spam or Junk");
+});

@@ -9,6 +9,7 @@ import type { IdentityOperationCode, PasswordRecoveryResult } from "@/contracts"
 import { callOperation } from "@/features/presentation/call-operation";
 import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 import { useHydrated } from "@/features/presentation/use-hydrated";
+import { EmailDeliveryHint } from "./email-delivery-hint";
 
 const COOLDOWN_SECONDS = 120;
 const STORAGE_KEY = "vaultix_recovery_cooldown";
@@ -140,9 +141,10 @@ export function RecoverForm() {
         <div className="stack">
           <UiStatus
             kind="empty"
-            heading="If an account exists for that address, a recovery code is on its way"
-            message="Check your email for the 6-digit verification code. Once received, enter it to set a new password."
+            heading="If an account exists for that address, a reset email is on its way"
+            message="Open the reset link in the email, or enter the 6-digit code from the same email."
           />
+          <EmailDeliveryHint />
           <p className="auth-form__links text-center">
             <Link href="/reset-password" className="link-strong">
               Enter 6-digit recovery code &rarr;
