@@ -20,6 +20,7 @@ export const notificationKinds = [
   "institution_verification_submitted",
   "welcome",
   "wanted_thread_auto_closed",
+  "wanted_reply_hidden",
 ] as const;
 export type NotificationKind = (typeof notificationKinds)[number];
 
@@ -53,6 +54,8 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
   welcome: "Welcome to VAULTIX. Your email is verified; check your email for a welcome reward.",
   wanted_thread_auto_closed:
     "Your request closed after 30 days without a new message. You can reopen it within 7 days; after that it leaves the Board.",
+  wanted_reply_hidden:
+    "A Sheriff hid one of your chat messages. Other members can no longer see it. Keep messages within the posting terms.",
 };
 
 /** Where a notification leads, when its subject is a public page. */

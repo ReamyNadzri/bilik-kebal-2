@@ -44,8 +44,19 @@ begin
   perform public.set_wanted_reply_hidden(r2, true, 'personal_info');
   assert (select hidden_reason = 'personal_info' from public.wanted_replies where id = r2), 'hidden';
   assert (select count(*) = 1 from public.identity_audit_events where event_type = 'chat.reply_hidden'), 'audited';
+  -- The writer (the poster, a) is told, with the request as the subject and nothing else.
+  assert (select count(*) = 1 from public.notifications
+          where kind = 'wanted_reply_hidden' and recipient_user_id = '00000000-0000-0000-0000-00000000000a'
+            and subject_id = w), 'writer notified';
+  perform public.set_wanted_reply_hidden(r2, true, 'personal_info');
+  assert (select count(*) = 1 from public.notifications where kind = 'wanted_reply_hidden'), 'hiding twice notifies once';
   perform public.set_wanted_reply_hidden(r2, false);
   assert (select hidden_at is null from public.wanted_replies where id = r2), 'restored';
+  assert (select count(*) = 1 from public.notifications where kind = 'wanted_reply_hidden'), 'restoring does not notify';
+  -- A Sheriff hiding their own message is not notified.
+  r1 := public.post_wanted_reply(w, 'Sheriff note');
+  perform public.set_wanted_reply_hidden(r1, true, 'off_topic');
+  assert (select count(*) = 1 from public.notifications where kind = 'wanted_reply_hidden'), 'no self notice';
   raise notice 'ALL CHAT EDIT ASSERTIONS PASSED';
 end $$;
 rollback;
