@@ -14,7 +14,7 @@ export function renderNotificationEmail(
   const rendered = renderEmail(
     {
       subject: copy.subject,
-      preview: copy.paragraphs[0],
+      preview: copy.paragraphs[0] ?? copy.heading,
       heading: copy.heading,
       paragraphs: copy.paragraphs,
       action: { label: copy.action.label, href: `${origin}${copy.action.path}` },

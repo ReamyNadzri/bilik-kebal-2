@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-head-element, @next/next/no-img-element -- email HTML, never rendered by Next. */
 import type { CSSProperties } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { emailTheme } from "./email-theme";

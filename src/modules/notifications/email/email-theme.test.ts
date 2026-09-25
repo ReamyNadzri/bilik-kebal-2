@@ -11,7 +11,7 @@ const css = readFileSync(
 
 function firstTokenValue(name: string): string | undefined {
   const match = new RegExp(`${name}:\s*([^;]+);`).exec(css);
-  return match?.[1].trim().toLowerCase();
+  return match?.[1]?.trim().toLowerCase();
 }
 
 test.each(Object.entries(EMAIL_TOKEN_SOURCES))("%s mirrors %s", (key, token) => {
