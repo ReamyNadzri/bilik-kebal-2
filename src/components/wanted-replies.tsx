@@ -347,7 +347,7 @@ export function WantedReplies({
             <p className="form-field__hint">
               {kind === "missing_item"
                 ? "Found it? Name the member who helped."
-                : "Name the member whose answer helped."}{" "}
+                : "Name the member whose reply helped."}{" "}
               A Sheriff checks it before anyone is paid, and the Owner records the payout.
             </p>
             {releaseError ? (
@@ -411,7 +411,7 @@ export function WantedReplies({
                 ? "Seen it? Tell the owner"
                 : academic
                   ? isPoster
-                    ? "Answer a question"
+                    ? "Reply to a question"
                     : "Ask the poster a question"
                   : "Your reply"}
             </label>
@@ -428,11 +428,11 @@ export function WantedReplies({
             {replyingTo ? (
               <p className="replies__replying-to">
                 <span>
-                  Answering {replyingTo.author.displayName}: “{replyingTo.body.slice(0, 80)}
+                  Replying to {replyingTo.author.displayName}: “{replyingTo.body.slice(0, 80)}
                   {replyingTo.body.length > 80 ? "…" : ""}”
                 </span>
                 <button type="button" className="reply__action" onClick={() => setReplyingTo(null)}>
-                  Cancel answer
+                  Cancel reply
                 </button>
               </p>
             ) : null}
@@ -521,7 +521,7 @@ interface ReplyItemProps {
 type ItemMode = "view" | "editing" | "confirm-delete" | "hiding";
 
 /**
- * One chat message with its actions: answer (quote), and for its author edit
+ * One chat message with its actions: reply (quote), and for its author edit
  * (15 minutes, open thread) and delete; for a Sheriff or the Owner, hide with
  * a reason code. Every action is re-checked by the database.
  */
@@ -582,8 +582,8 @@ function ReplyItem({
         {reply.parent ? (
           <blockquote className="reply__quote">
             {reply.parent.deleted
-              ? `Answering ${reply.parent.authorName}: message deleted`
-              : `Answering ${reply.parent.authorName}: “${reply.parent.excerpt}”`}
+              ? `Replying to ${reply.parent.authorName}: message deleted`
+              : `Replying to ${reply.parent.authorName}: “${reply.parent.excerpt}”`}
           </blockquote>
         ) : null}
 
@@ -712,7 +712,7 @@ function ReplyItem({
           <div className="reply__actions">
             {open && canReply ? (
               <button type="button" className="reply__action" onClick={() => onReplyTo(reply)}>
-                Answer
+                Reply
               </button>
             ) : null}
             {editable ? (
