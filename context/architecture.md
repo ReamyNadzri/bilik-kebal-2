@@ -148,7 +148,7 @@ Payment mode is one of `disabled`, `sandbox`, or `live_limited`. Sandbox and liv
 ## Member console
 
 - Owner and Sheriff people management runs only through audited security-definer functions
-  (migration `202610020002`); there is no raw table editor, and money is not editable from it.
+  (migration `202610100004`); there is no raw table editor, and money is not editable from it.
 - Timeouts are account restrictions with an `expires_at`, lifted every minute by pg_cron.
   Permanent restrictions and their lifting are Owner-only.
 - Owner-awarded badges are a separate signal from the institution-verified star and never grant

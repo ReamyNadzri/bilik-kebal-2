@@ -47,6 +47,11 @@ begin
   assert (select status = 'open' from public.wanted_requests where id = fresh), 'fresh stays open';
   assert (select status = 'open' from public.wanted_requests where id = paid), 'paid never auto-closes';
   assert (select count(*) = 1 from public.notifications where kind = 'wanted_thread_auto_closed'), 'one notification';
+  assert not exists (
+    select 1 from private.notification_email_outbox o
+    join public.notifications n on n.id = o.notification_id
+    where n.kind = 'wanted_thread_auto_closed'
+  ), 'auto-close is in-app only';
   assert (r->>'purged')::int = 0, 'nothing purged before 7 days';
 
   -- second run is a no-op

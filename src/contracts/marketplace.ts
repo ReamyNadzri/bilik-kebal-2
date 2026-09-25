@@ -253,7 +253,7 @@ export interface WantedSummary {
 }
 
 /**
- * Retention of a Wanted's chat thread (migration 202610010001). A thread
+ * Retention of a Wanted's chat thread (migration 202610100001). A thread
  * closes when its Wanted leaves open/reviewing; seven days later its messages
  * are deleted, and a missing-item or discussion card leaves the Board too.
  */

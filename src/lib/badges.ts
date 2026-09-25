@@ -4,7 +4,7 @@ import type { Database } from "@/lib/supabase/database.types";
 
 /**
  * The Owner-awarded badge each member wears, if any, keyed by user id. Badges
- * and awards are public reads (migration 202610020002), like avatars.
+ * and awards are public reads (migration 202610100004), like avatars.
  */
 export async function readMemberBadges(
   client: SupabaseClient<Database>,

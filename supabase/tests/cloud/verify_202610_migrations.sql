@@ -3,7 +3,7 @@ with checks(check_name, ok, detail) as (
     count(*) = 4,
     string_agg(version, ', ' order by version)
   from supabase_migrations.schema_migrations
-  where version in ('202610010001', '202610010002', '202610020001', '202610020002')
+  where version in ('202610100001', '202610100002', '202610100003', '202610100004')
 
   union all
   select 'pg_cron installed',
@@ -127,6 +127,6 @@ select case when ok then 'PASS' else 'FAIL' end as result, check_name, detail
 from checks
 order by ok, check_name;
 
--- Read-only check for migrations 202610010001, 202610010002, 202610020001 and
--- 202610020002. Paste the whole file into the Supabase SQL editor, click in
+-- Read-only check for migrations 202610100001, 202610100002, 202610100003 and
+-- 202610100004. Paste the whole file into the Supabase SQL editor, click in
 -- the editor without selecting any text, and press Run. It changes nothing.

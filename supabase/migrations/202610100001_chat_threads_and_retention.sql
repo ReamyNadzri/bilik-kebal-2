@@ -217,28 +217,29 @@ grant execute on function public.reopen_own_community_wanted(uuid) to authentica
 -- 4. Auto-close notification (in-app only, like replies)
 -- ---------------------------------------------------------------------------
 
-alter table public.notifications drop constraint notifications_kind_check;
-alter table public.notifications add constraint notifications_kind_check check (kind in (
-  'claim_approved', 'claim_rejected', 'claim_information_requested', 'claim_not_selected',
-  'institution_verification_approved', 'institution_verification_rejected',
-  'payout_recorded', 'refund_recorded', 'account_restricted', 'appeal_updated',
-  'wanted_reply',
-  'taxonomy_request_approved', 'taxonomy_request_rejected',
-  'community_payout_approved', 'community_payout_rejected', 'community_bounty_awarded',
-  'wanted_thread_auto_closed'
-));
-
-create or replace function private.enqueue_notification_email()
-returns trigger
-language plpgsql security definer set search_path = '' as $$
+-- Adds one kind to whatever list is current, so kinds added by other
+-- migrations (for example welcome or Sheriff-alert emails) are kept. The
+-- email outbox function is not redefined here; the retention job removes the
+-- outbox row for this in-app-only kind itself.
+do $$
+declare
+  current_def text;
 begin
-  if new.kind in ('wanted_reply', 'wanted_thread_auto_closed') then
-    return new;
+  select pg_get_constraintdef(oid) into current_def
+  from pg_constraint
+  where conname = 'notifications_kind_check' and conrelid = 'public.notifications'::regclass;
+  if current_def is null then
+    raise exception 'notifications_kind_check not found';
   end if;
-  insert into private.notification_email_outbox(notification_id)
-  values (new.id)
-  on conflict (notification_id) do nothing;
-  return new;
+  if position('wanted_thread_auto_closed' in current_def) = 0 then
+    if position('''wanted_reply''::text' in current_def) = 0 then
+      raise exception 'unexpected notifications_kind_check: %', current_def;
+    end if;
+    alter table public.notifications drop constraint notifications_kind_check;
+    execute 'alter table public.notifications add constraint notifications_kind_check '
+      || replace(current_def, '''wanted_reply''::text',
+                 '''wanted_reply''::text, ''wanted_thread_auto_closed''::text');
+  end if;
 end;
 $$;
 
@@ -259,6 +260,7 @@ declare
   closed_count integer := 0;
   row_ record;
   event_id uuid;
+  queued_id uuid;
 begin
   for row_ in
     select id, public_id, commissioner_user_id from public.wanted_requests
@@ -277,9 +279,12 @@ begin
     insert into public.wanted_public_events (wanted_request_id, event_type, summary)
     values (row_.id, 'wanted_auto_closed', 'Closed after 30 days without a new message')
     returning id into event_id;
-    perform public.enqueue_notification(
+    queued_id := public.enqueue_notification(
       event_id, row_.commissioner_user_id, 'wanted_thread_auto_closed', row_.public_id
     );
+    -- In-app only: drop the email the outbox trigger just queued, in the same
+    -- transaction, so it is never leased or sent.
+    delete from private.notification_email_outbox o where o.notification_id = queued_id;
     closed_count := closed_count + 1;
   end loop;
   return closed_count;
