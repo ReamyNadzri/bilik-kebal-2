@@ -353,6 +353,16 @@ fulfilled looked empty. The migration grants `wanted_replies` to `service_role` 
 `202609210001` granted only the tables existing then — the likely cause of "Replies could not be
 loaded" in the cloud (unconfirmed; check `has_table_privilege('service_role', 'public.wanted_replies', 'select')`).
 
+## 2026-09-25 Sheriff and Owner step-up prompt
+
+Reported: the Owner, while signed in, was told to "sign in again" when opening verification
+evidence. Cause: evidence reads, verification decisions and restrictions require a sign-in within
+the last 15 minutes (`private.current_user_recently_authenticated`, `last_sign_in_at`), and a
+refreshed session does not renew it; the console had no way to re-confirm. Added
+`POST /api/auth/reauthenticate` (password only; the email is always the signed-in account's own)
+and an inline "Confirm it is you" prompt in the review console that retries the action. The
+15-minute rule itself is unchanged.
+
 ## Open Questions
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.

@@ -165,6 +165,26 @@ export class AuthService {
     return result.ok ? success({ next: "profile" as const }) : providerFailure(result.reason);
   }
 
+  /**
+   * Step-up for Sheriff and Owner actions that need a sign-in within the last
+   * 15 minutes. The email is the signed-in account's own, never the caller's
+   * input, so this can only re-confirm the person already signed in. A
+   * successful sign-in refreshes `last_sign_in_at`, which the database checks.
+   */
+  async reauthenticate(accountEmail: string, input: unknown): Promise<SignInResult> {
+    const parsed = z.object({ password: z.string().min(1).max(72) }).safeParse(input);
+
+    if (!parsed.success) {
+      return validationFailure(parsed.error);
+    }
+
+    const result = await this.gateway.signIn({
+      email: accountEmail,
+      password: parsed.data.password,
+    });
+    return result.ok ? success({ next: "profile" as const }) : providerFailure(result.reason);
+  }
+
   async recoverPassword(input: unknown): Promise<PasswordRecoveryResult> {
     const parsed = recoverySchema.safeParse(input);
 

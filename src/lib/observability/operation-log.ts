@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 export type OperationName =
   | "identity.sign_in"
+  | "identity.reauthenticate"
   | "identity.sign_up"
   | "identity.resend_verification"
   | "identity.recover_password"
