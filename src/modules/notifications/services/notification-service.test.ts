@@ -15,6 +15,7 @@ const row: NotificationRow = {
 const repository = () => ({
   list: vi.fn<NotificationRepository["list"]>().mockResolvedValue([row]),
   markRead: vi.fn<NotificationRepository["markRead"]>().mockResolvedValue(true),
+  markAllRead: vi.fn<NotificationRepository["markAllRead"]>().mockResolvedValue(3),
 });
 
 test("preserves database timestamp precision through cursor pagination", async () => {
@@ -75,4 +76,14 @@ test("mark-read rejects injected ownership and hides missing versus inaccessible
   expect(await service.markRead({ id })).toMatchObject({ code: "REQUEST_NOT_FOUND" });
   repo.markRead.mockResolvedValue(true);
   expect(await service.markRead({ id })).toEqual({ ok: true, data: { read: true } });
+});
+
+test("mark-all-read marks only through the session-scoped repository and refuses mixed input", async () => {
+  const repo = repository();
+  const service = new NotificationService(repo);
+  expect(await service.markRead({ all: true })).toEqual({ ok: true, data: { read: true } });
+  expect(repo.markAllRead).toHaveBeenCalledOnce();
+  expect(await service.markRead({ all: true, id })).toMatchObject({ code: "VALIDATION_ERROR" });
+  expect(await service.markRead({ all: false })).toMatchObject({ code: "VALIDATION_ERROR" });
+  expect(repo.markRead).not.toHaveBeenCalled();
 });

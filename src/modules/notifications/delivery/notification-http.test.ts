@@ -22,7 +22,11 @@ test("anonymous access is refused with no-store and a correlation ID", async () 
 
 test("authenticated list returns only the service result", async () => {
   vi.mocked(createNotificationService).mockResolvedValue(
-    new NotificationService({ list: async () => [], markRead: async () => false }),
+    new NotificationService({
+      list: async () => [],
+      markRead: async () => false,
+      markAllRead: async () => 0,
+    }),
   );
   const response = await notificationHttp(
     new Request("https://vaultix.test/api/notifications?limit=10"),
@@ -34,7 +38,11 @@ test("authenticated list returns only the service result", async () => {
 
 test("malformed mark-read body is a safe 400", async () => {
   vi.mocked(createNotificationService).mockResolvedValue(
-    new NotificationService({ list: async () => [], markRead: async () => false }),
+    new NotificationService({
+      list: async () => [],
+      markRead: async () => false,
+      markAllRead: async () => 0,
+    }),
   );
   const response = await notificationHttp(
     new Request("https://vaultix.test/api/notifications", { method: "PATCH", body: "bad json" }),

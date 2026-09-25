@@ -6139,6 +6139,174 @@ textarea.form-field__input {
   gap: var(--space-2);
 }
 
+.notification-inbox__toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The bell's dropdown. Fixed and placed from the bell by the component, so it
+   stays inside the screen wherever the rail wraps the bell (360 px upward). */
+.notification-menu {
+  position: relative;
+}
+
+.notification-menu__trigger {
+  background: var(--bg-rail-raised);
+  border: var(--border-width-1) solid var(--border-rail);
+  color: var(--text-on-dark);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-menu__trigger:hover,
+.notification-menu--open .notification-menu__trigger {
+  border-color: var(--accent-brass);
+}
+
+.notification-menu__panel {
+  position: fixed;
+  top: var(--notification-menu-top, 4rem);
+  left: var(--notification-menu-left, var(--space-3));
+  z-index: 60;
+  display: grid;
+  gap: var(--space-2);
+  width: min(24rem, calc(100vw - 2 * var(--space-3)));
+  max-height: min(32rem, 75vh);
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--bg-canvas);
+  border: var(--border-width-2) solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+  white-space: normal;
+}
+
+.notification-menu__panel[hidden] {
+  display: none;
+}
+
+.notification-menu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.notification-menu__title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.notification-menu__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-menu__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: var(--space-2);
+  background: var(--bg-canvas);
+  border-left: var(--border-width-3) solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.notification-menu__list li[data-read="false"] .notification-menu__item {
+  background: var(--bg-surface);
+  border-left-color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.notification-menu__item:hover {
+  background: var(--bg-selected);
+}
+
+.notification-menu__dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.4rem;
+  background: var(--accent-primary);
+  border-radius: var(--radius-pill);
+}
+
+.notification-menu__text {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.notification-menu__text time {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+.notification-menu__state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.notification-menu__state p {
+  margin: 0;
+}
+
+.notification-menu__notice {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-surface);
+  border-left: var(--border-width-3) solid var(--state-error);
+  color: var(--state-error);
+  font-size: var(--text-sm);
+}
+
+.notification-menu__all {
+  display: block;
+  padding: var(--space-2);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+  color: var(--accent-primary);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* A small spinner for work in progress. Global reduced-motion rules stop it. */
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.spinner__mark {
+  width: 1em;
+  height: 1em;
+  border: 0.15em solid var(--border-subtle);
+  border-top-color: var(--accent-primary);
+  border-radius: var(--radius-pill);
+  animation: spinner-turn 0.8s linear infinite;
+}
+
+@keyframes spinner-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .appeal-list {
   display: grid;
   gap: var(--space-4);

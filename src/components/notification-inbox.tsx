@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   notificationHref,
   type NotificationCode,
   type NotificationItem,
 } from "@/contracts/notifications";
-import { callOperation, readOperation } from "@/features/presentation/call-operation";
+import { readOperation } from "@/features/presentation/call-operation";
+import { markNotificationsRead } from "./notification-menu";
 import { UiStatus } from "./ui-status";
 
 type LoadState = "loading" | "ready" | "failed";
@@ -23,6 +25,7 @@ function readInbox(cursor?: string) {
 }
 
 export function NotificationInbox() {
+  const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>("loading");
@@ -61,24 +64,29 @@ export function NotificationInbox() {
     };
   }, []);
 
-  async function markRead(item: NotificationItem) {
-    if (busyId) return;
-    setBusyId(item.id);
-    setUpdateFailed(false);
-    const result = await callOperation<{ read: true }, NotificationCode>(
-      "/api/notifications",
-      { id: item.id },
-      "NOTIFICATIONS_UNAVAILABLE",
-      "PATCH",
+  function markLocally(id: string | "all") {
+    const now = new Date().toISOString();
+    setItems((current) =>
+      current.map((entry) =>
+        id === "all" || entry.id === id ? { ...entry, readAt: entry.readAt ?? now } : entry,
+      ),
     );
+  }
+
+  /**
+   * Saves the read state, then refreshes the layout so the bell's count in
+   * the rail drops too. Without the refresh the item said "Read" while the
+   * badge kept its old number until the next page load.
+   */
+  async function markRead(target: NotificationItem | "all") {
+    if (busyId) return;
+    const id = target === "all" ? "all" : target.id;
+    setBusyId(id);
+    setUpdateFailed(false);
+    const result = await markNotificationsRead(id);
     if (result.ok) {
-      setItems((current) =>
-        current.map((entry) =>
-          entry.id === item.id
-            ? { ...entry, readAt: entry.readAt ?? new Date().toISOString() }
-            : entry,
-        ),
-      );
+      markLocally(id);
+      router.refresh();
     } else {
       setUpdateFailed(true);
     }
@@ -134,6 +142,19 @@ export function NotificationInbox() {
           message="The notification is still in your inbox. Check your connection and try again."
         />
       ) : null}
+      {items.some((item) => item.readAt === null) ? (
+        <div className="notification-inbox__toolbar">
+          <button
+            type="button"
+            className="button button--secondary button--compact"
+            onClick={() => void markRead("all")}
+            disabled={busyId !== null}
+            aria-busy={busyId === "all"}
+          >
+            {busyId === "all" ? "Saving…" : "Mark all read"}
+          </button>
+        </div>
+      ) : null}
       <ul className="notification-inbox__list">
         {items.map((item) => (
           <li
@@ -160,6 +181,11 @@ export function NotificationInbox() {
                 <Link
                   className="button button--secondary button--compact"
                   href={notificationHref(item.kind, item.subjectId) ?? "/"}
+                  onClick={() => {
+                    // Opening a notification reads it; the save finishes in
+                    // the background while the next page loads.
+                    if (item.readAt === null) void markRead(item);
+                  }}
                 >
                   Open
                 </Link>

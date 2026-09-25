@@ -16,6 +16,7 @@ export type NotificationDatabase = Database & {
         Returns: Json;
       };
       mark_notification_read: { Args: { target_notification_id: string }; Returns: boolean };
+      mark_all_notifications_read: { Args: Record<string, never>; Returns: number };
     };
   };
 };
@@ -40,5 +41,11 @@ export class SupabaseNotificationRepository implements NotificationRepository {
     });
     if (error) throw new Error("Notification update unavailable");
     return z.boolean().parse(data);
+  }
+
+  async markAllRead() {
+    const { data, error } = await this.client.rpc("mark_all_notifications_read");
+    if (error) throw new Error("Notification update unavailable");
+    return z.number().int().parse(data);
   }
 }
