@@ -348,7 +348,7 @@ export class SupabaseWantedRepository implements WantedRepository {
     if (!wanted) return [];
     const replies = await this.client
       .from("wanted_replies")
-      .select("id, body, created_at, author_user_id")
+      .select("id, body, created_at, author_user_id, edited_at, deleted_at, parent_reply_id")
       .eq("wanted_request_id", wanted.id)
       .is("hidden_at", null)
       .order("created_at", { ascending: true })
@@ -363,12 +363,25 @@ export class SupabaseWantedRepository implements WantedRepository {
       : { data: [], error: null };
     if (authors.error) throw authors.error;
     const authorById = new Map((authors.data ?? []).map((row) => [row.user_id, row]));
+    const replyById = new Map((replies.data ?? []).map((row) => [row.id, row]));
     return (replies.data ?? []).map((row) => {
       const author = authorById.get(row.author_user_id);
+      // A quoted message that is hidden is not in the list, so it is not quoted.
+      const quoted = row.parent_reply_id ? replyById.get(row.parent_reply_id) : undefined;
       return {
         id: row.id,
-        body: row.body,
+        body: row.deleted_at ? "" : row.body,
         createdAt: row.created_at,
+        editedAt: row.deleted_at ? null : row.edited_at,
+        deleted: row.deleted_at !== null,
+        parent: quoted
+          ? {
+              id: quoted.id,
+              authorName: authorById.get(quoted.author_user_id)?.display_name ?? "VAULTIX member",
+              excerpt: quoted.deleted_at ? "" : quoted.body.slice(0, 140),
+              deleted: quoted.deleted_at !== null,
+            }
+          : null,
         author: {
           publicId: author?.public_id ?? "",
           displayName: author?.display_name ?? "VAULTIX member",
@@ -381,13 +394,38 @@ export class SupabaseWantedRepository implements WantedRepository {
     });
   }
 
-  async postReply(publicId: string, body: string): Promise<string> {
+  async postReply(publicId: string, body: string, parentId: string | null = null): Promise<string> {
     const { data, error } = await this.client.rpc("post_wanted_reply", {
+      parent_reply: parentId,
       reply_body: body,
       target_public_id: publicId,
     });
     if (error) throw error;
     return data;
+  }
+
+  async editReply(replyId: string, body: string): Promise<void> {
+    const { error } = await this.client.rpc("edit_own_wanted_reply", {
+      new_body: body,
+      target_reply_id: replyId,
+    });
+    if (error) throw error;
+  }
+
+  async deleteReply(replyId: string): Promise<void> {
+    const { error } = await this.client.rpc("delete_own_wanted_reply", {
+      target_reply_id: replyId,
+    });
+    if (error) throw error;
+  }
+
+  async setReplyHidden(replyId: string, hide: boolean, reasonCode: string | null): Promise<void> {
+    const { error } = await this.client.rpc("set_wanted_reply_hidden", {
+      hide,
+      reason_code: reasonCode,
+      target_reply_id: replyId,
+    });
+    if (error) throw error;
   }
 
   async reopenCommunityWanted(publicId: string): Promise<void> {

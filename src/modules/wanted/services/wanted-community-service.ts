@@ -9,7 +9,10 @@ import {
   type ListCommunityPayoutRequestsResult,
   type ReadFreeAllowanceResult,
   type RequestCommunityPayoutResult,
+  wantedReplyEditSchema,
+  wantedReplyHideSchema,
   wantedReplyInputSchema,
+  type ChangeWantedReplyResult,
   type ListWantedRepliesResult,
   type PostWantedReplyResult,
   type PublishCommunityWantedResult,
@@ -31,7 +34,10 @@ export interface CommunityWantedRepository {
     policyVersion: string;
   }): Promise<string>;
   listReplies(publicId: string): Promise<WantedReply[]>;
-  postReply(publicId: string, body: string): Promise<string>;
+  postReply(publicId: string, body: string, parentId?: string | null): Promise<string>;
+  editReply(replyId: string, body: string): Promise<void>;
+  deleteReply(replyId: string): Promise<void>;
+  setReplyHidden(replyId: string, hide: boolean, reasonCode: string | null): Promise<void>;
   resolveCommunityWanted(publicId: string): Promise<void>;
   reopenCommunityWanted(publicId: string): Promise<void>;
   readFreeAllowance(): Promise<FreeRequestAllowance>;
@@ -60,6 +66,16 @@ function databaseMessage(error: unknown): string {
   return typeof error === "object" && error !== null && "message" in error
     ? String((error as { message: unknown }).message)
     : "";
+}
+
+function replyFailure(error: unknown) {
+  if (databaseMessage(error).includes("wanted_reply_link_not_allowed")) {
+    return failure(
+      "VALIDATION_ERROR" as const,
+      "Links, email addresses and chat handles are not allowed in bounty questions. Send files through a Claim so a Sheriff can review them.",
+    );
+  }
+  return null;
 }
 
 /**
@@ -147,15 +163,20 @@ export class WantedCommunityService {
     if (!parsed.success)
       return failure("VALIDATION_ERROR", "Write a reply of 2 to 1000 characters.");
     try {
-      return success({ replyId: await this.repository.postReply(publicId, parsed.data.body) });
+      return success({
+        replyId: await this.repository.postReply(
+          publicId,
+          parsed.data.body,
+          parsed.data.parentId ?? null,
+        ),
+      });
     } catch (error) {
       if (databaseMessage(error).includes("wanted_not_found"))
         return failure("WANTED_NOT_FOUND", "");
-      if (databaseMessage(error).includes("wanted_reply_link_not_allowed")) {
-        return failure(
-          "VALIDATION_ERROR",
-          "Links, email addresses and chat handles are not allowed in bounty questions. Send files through a Claim so a Sheriff can review them.",
-        );
+      const linkRefusal = replyFailure(error);
+      if (linkRefusal) return linkRefusal;
+      if (databaseMessage(error).includes("wanted_reply_parent_invalid")) {
+        return failure("VALIDATION_ERROR", "The message you answered was deleted or hidden.");
       }
       return failure("MARKETPLACE_UNAVAILABLE", "Your reply could not be posted. Try again.");
     }
@@ -175,6 +196,80 @@ export class WantedCommunityService {
         );
       }
       return failure("MARKETPLACE_UNAVAILABLE", "This could not be marked resolved. Try again.");
+    }
+  }
+
+  /** The author edits their own message within 15 minutes of posting it. */
+  async editReply(
+    actor: WantedActor | null,
+    replyId: string,
+    input: unknown,
+  ): Promise<ChangeWantedReplyResult> {
+    if (actor === null) return failure("AUTH_REQUIRED", "");
+    if (!UUID.test(replyId)) return failure("WANTED_NOT_FOUND", "");
+    const parsed = wantedReplyEditSchema.safeParse(input);
+    if (!parsed.success) return failure("VALIDATION_ERROR", "Write 2 to 1000 characters.");
+    try {
+      await this.repository.editReply(replyId, parsed.data.body);
+      return success({ state: "edited" });
+    } catch (error) {
+      const refusal = replyFailure(error);
+      if (refusal) return refusal;
+      if (databaseMessage(error).includes("wanted_reply_edit_window_closed")) {
+        return failure(
+          "NOT_AUTHORIZED",
+          "Messages can be edited for 15 minutes after posting, while the thread is open.",
+        );
+      }
+      if (databaseMessage(error).includes("wanted_reply_not_editable")) {
+        return failure("NOT_AUTHORIZED", "You can edit only your own messages.");
+      }
+      return failure("MARKETPLACE_UNAVAILABLE", "Your edit could not be saved. Try again.");
+    }
+  }
+
+  /** The author deletes their own message; its text is erased at once. */
+  async deleteReply(actor: WantedActor | null, replyId: string): Promise<ChangeWantedReplyResult> {
+    if (actor === null) return failure("AUTH_REQUIRED", "");
+    if (!UUID.test(replyId)) return failure("WANTED_NOT_FOUND", "");
+    try {
+      await this.repository.deleteReply(replyId);
+      return success({ state: "deleted" });
+    } catch (error) {
+      if (databaseMessage(error).includes("wanted_reply_not_deletable")) {
+        return failure("NOT_AUTHORIZED", "You can delete only your own messages.");
+      }
+      return failure("MARKETPLACE_UNAVAILABLE", "The message could not be deleted. Try again.");
+    }
+  }
+
+  /** A Sheriff or the Owner hides a message with a reason, or restores it. */
+  async setReplyHidden(
+    actor: WantedActor | null,
+    replyId: string,
+    input: unknown,
+  ): Promise<ChangeWantedReplyResult> {
+    if (actor === null) return failure("AUTH_REQUIRED", "");
+    if (!UUID.test(replyId)) return failure("WANTED_NOT_FOUND", "");
+    const parsed = wantedReplyHideSchema.safeParse(input);
+    if (!parsed.success) {
+      return failure(
+        "VALIDATION_ERROR",
+        "Enter a reason code: lower-case letters, numbers and underscores.",
+      );
+    }
+    try {
+      await this.repository.setReplyHidden(
+        replyId,
+        parsed.data.hide,
+        parsed.data.hide ? parsed.data.reasonCode : null,
+      );
+      return success({ state: parsed.data.hide ? "hidden" : "restored" });
+    } catch (error) {
+      if (databaseMessage(error).includes("wanted_reply_moderator_required")) {
+        return failure("NOT_AUTHORIZED", "Only a Sheriff or the Owner can hide messages.");
+      }
+      return failure("MARKETPLACE_UNAVAILABLE", "The message could not be changed. Try again.");
     }
   }
 

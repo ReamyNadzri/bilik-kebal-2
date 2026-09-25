@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "./avatar";
 import { UiStatus } from "./ui-status";
-import type {
-  MarketplaceOperationCode,
-  WantedReply,
-  WantedThreadState,
+import {
+  REPLY_EDIT_WINDOW_MINUTES,
+  type MarketplaceOperationCode,
+  type WantedReply,
+  type WantedThreadState,
 } from "@/contracts/marketplace";
 import { messageFor } from "@/features/marketplace/marketplace-messages";
 import { formatPostedAge, formatVanishesIn } from "@/features/marketplace/time";
@@ -28,6 +29,13 @@ export interface WantedRepliesProps {
   readonly releasePending?: boolean;
   /** Retention of this thread; absent in fixtures. */
   readonly thread?: WantedThreadState;
+  /** The viewer's public id, to offer edit and delete on their own messages. */
+  readonly viewerPublicId?: string | null;
+  /**
+   * Whether to offer "Hide" (Sheriffs and the Owner). A courtesy only: the
+   * database decides who may hide a message.
+   */
+  readonly canModerate?: boolean;
 }
 
 /** How often an open thread checks for new messages while the tab is visible. */
@@ -59,6 +67,8 @@ export function WantedReplies({
   bountySen = 0,
   releasePending = false,
   thread,
+  viewerPublicId = null,
+  canModerate = false,
 }: WantedRepliesProps) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [body, setBody] = useState("");
@@ -69,6 +79,8 @@ export function WantedReplies({
   const [tick, setTick] = useState(0);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [resolvedHere, setResolvedHere] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<WantedReply | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [finder, setFinder] = useState("");
   const [releaseNote, setReleaseNote] = useState("");
   const [releaseState, setReleaseState] = useState<"idle" | "sent">(
@@ -118,7 +130,7 @@ export function WantedReplies({
     setError(null);
     const result = await callOperation<{ replyId: string }, MarketplaceOperationCode>(
       `${path}/replies`,
-      { body: text },
+      { body: text, ...(replyingTo ? { parentId: replyingTo.id } : {}) },
       "MARKETPLACE_UNAVAILABLE",
     );
     setBusy(false);
@@ -127,7 +139,13 @@ export function WantedReplies({
       return;
     }
     setBody("");
+    setReplyingTo(null);
     setVersion((value) => value + 1);
+  }
+
+  function startReplyTo(reply: WantedReply) {
+    setReplyingTo(reply);
+    bodyRef.current?.focus();
   }
 
   async function onResolve() {
@@ -296,20 +314,17 @@ export function WantedReplies({
       ) : (
         <ol className="replies__list">
           {load.replies.map((reply) => (
-            <li key={reply.id} className="reply">
-              <Avatar src={reply.author.avatarUrl} size={36} />
-              <div className="reply__body">
-                <p className="reply__meta">
-                  {reply.author.publicId ? (
-                    <Link href={`/u/${reply.author.publicId}`}>{reply.author.displayName}</Link>
-                  ) : (
-                    reply.author.displayName
-                  )}{" "}
-                  · <time dateTime={reply.createdAt}>{formatPostedAge(reply.createdAt, now)}</time>
-                </p>
-                <p className="reply__text">{reply.body}</p>
-              </div>
-            </li>
+            <ReplyItem
+              key={reply.id}
+              reply={reply}
+              now={now}
+              open={!resolved}
+              canReply={canReply}
+              own={viewerPublicId !== null && reply.author.publicId === viewerPublicId}
+              canModerate={canModerate}
+              onReplyTo={startReplyTo}
+              onChanged={() => setVersion((value) => value + 1)}
+            />
           ))}
         </ol>
       )}
@@ -409,7 +424,19 @@ export function WantedReplies({
                 {error}
               </p>
             ) : null}
+            {replyingTo ? (
+              <p className="replies__replying-to">
+                <span>
+                  Answering {replyingTo.author.displayName}: “{replyingTo.body.slice(0, 80)}
+                  {replyingTo.body.length > 80 ? "…" : ""}”
+                </span>
+                <button type="button" className="reply__action" onClick={() => setReplyingTo(null)}>
+                  Cancel answer
+                </button>
+              </p>
+            ) : null}
             <textarea
+              ref={bodyRef}
               className="form-field__input"
               id="reply-body"
               rows={3}
@@ -477,4 +504,237 @@ function retentionNotice({
   return paid
     ? "This chat is kept until the bounty is released or refunded, then deleted 7 days later."
     : null;
+}
+
+interface ReplyItemProps {
+  readonly reply: WantedReply;
+  readonly now: string;
+  readonly open: boolean;
+  readonly canReply: boolean;
+  readonly own: boolean;
+  readonly canModerate: boolean;
+  readonly onReplyTo: (reply: WantedReply) => void;
+  readonly onChanged: () => void;
+}
+
+type ItemMode = "view" | "editing" | "confirm-delete" | "hiding";
+
+/**
+ * One chat message with its actions: answer (quote), and for its author edit
+ * (15 minutes, open thread) and delete; for a Sheriff or the Owner, hide with
+ * a reason code. Every action is re-checked by the database.
+ */
+function ReplyItem({
+  reply,
+  now,
+  open,
+  canReply,
+  own,
+  canModerate,
+  onReplyTo,
+  onChanged,
+}: ReplyItemProps) {
+  const [mode, setMode] = useState<ItemMode>("view");
+  const [draft, setDraft] = useState(reply.body);
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const base = `/api/marketplace/replies/${encodeURIComponent(reply.id)}`;
+  const editable =
+    own &&
+    open &&
+    !reply.deleted &&
+    Date.parse(now) - Date.parse(reply.createdAt) < REPLY_EDIT_WINDOW_MINUTES * 60_000;
+
+  async function run(path: string, payload: unknown, method: "POST" | "PATCH" = "POST") {
+    setBusy(true);
+    setError(null);
+    const result = await callOperation<{ state: string }, MarketplaceOperationCode>(
+      path,
+      payload,
+      "MARKETPLACE_UNAVAILABLE",
+      method,
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(messageFor(result.code, result.message));
+      return;
+    }
+    setMode("view");
+    onChanged();
+  }
+
+  return (
+    <li className="reply">
+      <Avatar src={reply.author.avatarUrl} size={36} />
+      <div className="reply__body">
+        <p className="reply__meta">
+          {reply.author.publicId ? (
+            <Link href={`/u/${reply.author.publicId}`}>{reply.author.displayName}</Link>
+          ) : (
+            reply.author.displayName
+          )}{" "}
+          · <time dateTime={reply.createdAt}>{formatPostedAge(reply.createdAt, now)}</time>
+          {reply.editedAt ? " · edited" : null}
+        </p>
+        {reply.parent ? (
+          <blockquote className="reply__quote">
+            {reply.parent.deleted
+              ? `Answering ${reply.parent.authorName}: message deleted`
+              : `Answering ${reply.parent.authorName}: “${reply.parent.excerpt}”`}
+          </blockquote>
+        ) : null}
+
+        {reply.deleted ? (
+          <p className="reply__text reply__text--deleted">Message deleted</p>
+        ) : mode === "editing" ? (
+          <form
+            className="reply__inline-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const text = draft.trim();
+              if (text.length < 2) {
+                setError("Write at least 2 characters.");
+                return;
+              }
+              void run(base, { body: text }, "PATCH");
+            }}
+          >
+            <label className="form-field__label" htmlFor={`edit-${reply.id}`}>
+              Edit your message
+            </label>
+            <textarea
+              className="form-field__input"
+              id={`edit-${reply.id}`}
+              rows={3}
+              maxLength={1000}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <div className="reply__actions">
+              <button
+                type="submit"
+                className="button button--primary button--compact"
+                disabled={busy}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="button button--compact"
+                onClick={() => {
+                  setDraft(reply.body);
+                  setMode("view");
+                  setError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="reply__text">{reply.body}</p>
+        )}
+
+        {error ? (
+          <p className="form-field__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {mode === "confirm-delete" ? (
+          <div className="reply__inline-form" role="group" aria-label="Confirm delete">
+            <p className="form-field__hint">
+              Delete this message? Its text is erased for everyone.
+            </p>
+            <div className="reply__actions">
+              <button
+                type="button"
+                className="button button--compact"
+                disabled={busy}
+                onClick={() => void run(`${base}/delete`, {})}
+              >
+                Delete message
+              </button>
+              <button
+                type="button"
+                className="button button--compact"
+                onClick={() => setMode("view")}
+              >
+                Keep it
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {mode === "hiding" ? (
+          <form
+            className="reply__inline-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(reason.trim())) {
+                setError("Enter a reason code: lower-case letters, numbers and underscores.");
+                return;
+              }
+              void run(`${base}/hide`, { hide: true, reasonCode: reason.trim() });
+            }}
+          >
+            <label className="form-field__label" htmlFor={`hide-${reply.id}`}>
+              Reason code, for example personal_info
+            </label>
+            <input
+              className="form-field__input"
+              id={`hide-${reply.id}`}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+            <p className="form-field__hint">
+              Hidden messages are kept for moderation and can be restored from the console.
+            </p>
+            <div className="reply__actions">
+              <button type="submit" className="button button--compact" disabled={busy}>
+                Hide message
+              </button>
+              <button
+                type="button"
+                className="button button--compact"
+                onClick={() => setMode("view")}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {mode === "view" && !reply.deleted ? (
+          <div className="reply__actions">
+            {open && canReply ? (
+              <button type="button" className="reply__action" onClick={() => onReplyTo(reply)}>
+                Answer
+              </button>
+            ) : null}
+            {editable ? (
+              <button type="button" className="reply__action" onClick={() => setMode("editing")}>
+                Edit
+              </button>
+            ) : null}
+            {own ? (
+              <button
+                type="button"
+                className="reply__action"
+                onClick={() => setMode("confirm-delete")}
+              >
+                Delete
+              </button>
+            ) : null}
+            {canModerate && !own ? (
+              <button type="button" className="reply__action" onClick={() => setMode("hiding")}>
+                Hide
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </li>
+  );
 }

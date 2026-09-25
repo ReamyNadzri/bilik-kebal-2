@@ -286,6 +286,8 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
           bountySen={wanted.isFree ? 0 : wanted.grossBountySen}
           releasePending={wanted.status === "reviewing"}
           {...(wanted.thread ? { thread: wanted.thread } : {})}
+          viewerPublicId={account?.publicId ?? null}
+          canModerate={account?.console?.hasAccess === true}
         />
       </div>
 

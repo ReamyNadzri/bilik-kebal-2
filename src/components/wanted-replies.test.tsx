@@ -235,3 +235,134 @@ describe("retention and live updates", () => {
     expect(screen.getByRole("button", { name: "Post question" })).toBeInTheDocument();
   });
 });
+
+describe("answer, edit, delete and hide", () => {
+  const mine = {
+    ...reply,
+    id: "33333333-3333-4333-8333-333333333333",
+    body: "I think it was on level 2.",
+    createdAt: "2026-09-24T11:55:00.000Z",
+    author: { publicId: "me-public", displayName: "Me", avatarUrl: null },
+    editedAt: null,
+    deleted: false,
+    parent: null,
+  };
+
+  test("answers a message by quoting it", async () => {
+    const fetchMock = respond(
+      { ok: true, data: [reply] },
+      { ok: true, data: { replyId: "r3" } },
+      { ok: true, data: [reply] },
+    );
+    renderThread();
+    fireEvent.click(await screen.findByRole("button", { name: "Answer" }));
+    expect(screen.getByText(/Answering Hafiz/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Seen it\? Tell the owner/), {
+      target: { value: "Which counter?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Post reply" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).toEqual({
+      body: "Which counter?",
+      parentId: "r1",
+    });
+  });
+
+  test("shows the quoted message and marks edited and deleted messages", async () => {
+    respond({
+      ok: true,
+      data: [
+        { ...mine, editedAt: "2026-09-24T11:58:00.000Z" },
+        {
+          ...reply,
+          id: "r4",
+          body: "",
+          deleted: true,
+          editedAt: null,
+          parent: { id: mine.id, authorName: "Me", excerpt: "I think", deleted: false },
+        },
+      ],
+    });
+    renderThread({ viewerPublicId: "me-public" });
+
+    expect(await screen.findByText(/· edited/)).toBeInTheDocument();
+    expect(screen.getByText("Message deleted")).toBeInTheDocument();
+    expect(screen.getByText("Answering Me: “I think”")).toBeInTheDocument();
+  });
+
+  test("edits your own message within 15 minutes", async () => {
+    const fetchMock = respond(
+      { ok: true, data: [mine] },
+      { ok: true, data: { state: "edited" } },
+      { ok: true, data: [{ ...mine, body: "Level 3, actually." }] },
+    );
+    renderThread({ viewerPublicId: "me-public" });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Edit your message"), {
+      target: { value: "Level 3, actually." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(await screen.findByText("Level 3, actually.")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/marketplace/replies/${mine.id}`);
+    expect(fetchMock.mock.calls[1]![1]?.method).toBe("PATCH");
+  });
+
+  test("offers no edit after 15 minutes, but still delete", async () => {
+    respond({ ok: true, data: [{ ...mine, createdAt: "2026-09-24T11:40:00.000Z" }] });
+    renderThread({ viewerPublicId: "me-public" });
+
+    expect(await screen.findByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  test("asks before deleting your own message", async () => {
+    const fetchMock = respond(
+      { ok: true, data: [mine] },
+      { ok: true, data: { state: "deleted" } },
+      { ok: true, data: [{ ...mine, body: "", deleted: true }] },
+    );
+    renderThread({ viewerPublicId: "me-public" });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete message" }));
+
+    expect(await screen.findByText("Message deleted")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[1]![0]).toBe(`/api/marketplace/replies/${mine.id}/delete`);
+  });
+
+  test("never offers edit or delete on someone else's message", async () => {
+    respond({ ok: true, data: [reply] });
+    renderThread({ viewerPublicId: "me-public" });
+    await screen.findByText(reply.body);
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hide" })).not.toBeInTheDocument();
+  });
+
+  test("lets a moderator hide a message with a reason code", async () => {
+    const fetchMock = respond(
+      { ok: true, data: [reply] },
+      { ok: true, data: { state: "hidden" } },
+      { ok: true, data: [] },
+    );
+    renderThread({ canModerate: true });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Hide" }));
+    fireEvent.change(screen.getByLabelText(/Reason code/), { target: { value: "Personal info" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hide message" }));
+    expect(await screen.findByText(/Enter a reason code/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Reason code/), { target: { value: "personal_info" } });
+    fireEvent.click(screen.getByRole("button", { name: "Hide message" }));
+    expect(await screen.findByText("No sightings yet.")).toBeInTheDocument();
+    expect(JSON.parse(String(fetchMock.mock.calls[1]![1]?.body))).toEqual({
+      hide: true,
+      reasonCode: "personal_info",
+    });
+  });
+});

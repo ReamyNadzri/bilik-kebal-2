@@ -11,6 +11,7 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
 
 ### Before deploying
 
+- Apply `supabase/migrations/202610010002_chat_reply_edit_delete.sql` after `202610010001`.
 - Apply `supabase/migrations/202610010001_chat_threads_and_retention.sql` (chat threads, 7-day
   retention, daily `wanted-thread-retention` pg_cron job). Enable pg_cron first if the project does
   not have it; without it the migration applies but nothing is scheduled.
@@ -31,6 +32,12 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
   public launch.
 
 ### Added
+
+- Chat messages can answer (quote) another message. Authors can edit for 15 minutes ("edited") and
+  delete at any time ("Message deleted"). Sheriffs and the Owner can hide a message with a reason
+  code; hides are audited.
+- Sheriffs and the Owner confirm their password in place when a protected action needs a recent
+  sign-in, instead of being told to sign in again.
 
 - Chat threads keep a 7-day retention: a found or resolved missing item or discussion stays on the
   Board for 7 days with a "Leaves the Board in N days" countdown, then its messages are deleted and

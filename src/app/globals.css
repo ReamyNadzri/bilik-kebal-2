@@ -5845,6 +5845,64 @@ textarea.form-field__input {
   overflow-wrap: anywhere;
 }
 
+.reply__body {
+  flex: 1;
+}
+
+.reply__text--deleted {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* The message being answered, quoted above the answer. */
+.reply__quote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-inline-start: var(--border-width-2) solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.reply__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.reply__action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reply__action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.reply__inline-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.replies__replying-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* Avatar editor: a square stage with a circular window. */
 .avatar-editor {
   display: grid;

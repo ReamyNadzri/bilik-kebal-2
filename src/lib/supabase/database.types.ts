@@ -1892,6 +1892,11 @@ export type Database = {
           created_at: string;
           hidden_at: string | null;
           id: string;
+          deleted_at: string | null;
+          edited_at: string | null;
+          hidden_by: string | null;
+          hidden_reason: string | null;
+          parent_reply_id: string | null;
           wanted_request_id: string;
         };
         Insert: {
@@ -1900,6 +1905,11 @@ export type Database = {
           created_at?: string;
           hidden_at?: string | null;
           id?: string;
+          deleted_at?: string | null;
+          edited_at?: string | null;
+          hidden_by?: string | null;
+          hidden_reason?: string | null;
+          parent_reply_id?: string | null;
           wanted_request_id: string;
         };
         Update: {
@@ -1908,6 +1918,11 @@ export type Database = {
           created_at?: string;
           hidden_at?: string | null;
           id?: string;
+          deleted_at?: string | null;
+          edited_at?: string | null;
+          hidden_by?: string | null;
+          hidden_reason?: string | null;
+          parent_reply_id?: string | null;
           wanted_request_id?: string;
         };
         Relationships: [];
@@ -2158,8 +2173,20 @@ export type Database = {
         Returns: string;
       };
       post_wanted_reply: {
-        Args: { reply_body: string; target_public_id: string };
+        Args: { parent_reply?: string | null; reply_body: string; target_public_id: string };
         Returns: string;
+      };
+      edit_own_wanted_reply: {
+        Args: { new_body: string; target_reply_id: string };
+        Returns: undefined;
+      };
+      delete_own_wanted_reply: {
+        Args: { target_reply_id: string };
+        Returns: undefined;
+      };
+      set_wanted_reply_hidden: {
+        Args: { hide: boolean; reason_code?: string | null; target_reply_id: string };
+        Returns: undefined;
       };
       publish_community_wanted: {
         Args: {

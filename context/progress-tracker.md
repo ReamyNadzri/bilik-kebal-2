@@ -363,6 +363,23 @@ refreshed session does not renew it; the console had no way to re-confirm. Added
 and an inline "Confirm it is you" prompt in the review console that retries the action. The
 15-minute rule itself is unchanged.
 
+## 2026-09-25 chat answer, edit, delete and hide
+
+User decisions: quote-style answers; the author may edit for 15 minutes while the thread is open
+(marked "edited", no history kept); the author may delete at any time (text erased, "Message
+deleted" placeholder kept so answers still read); a Sheriff (platform, or institution Sheriff for
+the Wanted's institution) or the Owner may hide any message with a reason code and restore it.
+Hidden messages keep their text for moderation, are unreadable to members, survive the 7-day purge,
+and every hide/restore is written to `identity_audit_events` (`chat.reply_hidden`,
+`chat.reply_restored`). Migration `202610010002_chat_reply_edit_delete.sql` (not yet applied to
+Supabase Cloud); verified on local Postgres 16 with scripted assertions. Restoring hidden messages
+has no UI yet: it belongs to the Owner console slice.
+
+Also decided (next slices, not built yet): Owner console for people management and content
+moderation (no raw database editor; money stays read-only there); Owner-awarded badges shown beside
+names, separate from the institution-verified star; timed account timeouts (1 hour, 24 hours,
+7 days, auto-lifting, permanent restriction Owner-only) and idle sign-out.
+
 ## Open Questions
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.

@@ -129,13 +129,38 @@ export type CommunityWantedInput = z.input<typeof communityWantedInputSchema>;
 
 export const wantedReplyInputSchema = z.object({
   body: authoredText(2, 1000),
+  /** The message this one answers, quoted above it. */
+  parentId: z.string().uuid().optional(),
 });
+
+export const wantedReplyEditSchema = z.object({
+  body: authoredText(2, 1000),
+});
+
+export const wantedReplyHideSchema = z.union([
+  z.object({ hide: z.literal(true), reasonCode: z.string().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/) }),
+  z.object({ hide: z.literal(false) }),
+]);
+
+/** Minutes after posting during which the author may edit a message. */
+export const REPLY_EDIT_WINDOW_MINUTES = 15;
 
 export interface WantedReply {
   id: string;
+  /** Empty when deleted: the text is erased, not hidden. */
   body: string;
   createdAt: string;
   author: PublicMemberCard;
+  editedAt: string | null;
+  deleted: boolean;
+  /** The quoted message this one answers, if any. */
+  parent: {
+    id: string;
+    authorName: string;
+    /** The first 140 characters; empty when the quoted message was deleted. */
+    excerpt: string;
+    deleted: boolean;
+  } | null;
 }
 
 /** The public face of a member: never an email, evidence, claim or contribution. */
@@ -319,6 +344,10 @@ export type PublishCommunityWantedResult = OperationResult<
 >;
 export type ListWantedRepliesResult = OperationResult<WantedReply[], MarketplaceOperationCode>;
 export type PostWantedReplyResult = OperationResult<{ replyId: string }, MarketplaceOperationCode>;
+export type ChangeWantedReplyResult = OperationResult<
+  { state: "edited" | "deleted" | "hidden" | "restored" },
+  MarketplaceOperationCode
+>;
 export type ResolveWantedResult = OperationResult<{ state: "closed" }, MarketplaceOperationCode>;
 export type ReopenWantedResult = OperationResult<{ state: "open" }, MarketplaceOperationCode>;
 /** Free requests: 3 for every member, plus any added by reward codes. */

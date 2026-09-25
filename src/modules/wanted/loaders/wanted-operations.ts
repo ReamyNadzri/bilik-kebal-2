@@ -8,6 +8,7 @@ import type {
   ListCampusRegionsResult,
   ListWantedRepliesResult,
   PostWantedReplyResult,
+  ChangeWantedReplyResult,
   PrepareWantedPublicationResult,
   PublishCommunityWantedResult,
   PublishFreeWantedResult,
@@ -208,6 +209,39 @@ export async function reopenCommunityWanted(publicId: string): Promise<ReopenWan
   try {
     const loaded = await context();
     return loaded.communityService.reopen(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function editWantedReply(
+  replyId: string,
+  input: unknown,
+): Promise<ChangeWantedReplyResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.editReply(loaded.actor, replyId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function deleteWantedReply(replyId: string): Promise<ChangeWantedReplyResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.deleteReply(loaded.actor, replyId);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function setWantedReplyHidden(
+  replyId: string,
+  input: unknown,
+): Promise<ChangeWantedReplyResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.setReplyHidden(loaded.actor, replyId, input);
   } catch {
     return unavailable();
   }
