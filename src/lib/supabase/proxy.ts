@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveSupabasePublicConfig } from "@/lib/config/public-env";
 
 import type { Database } from "./database.types";
+import { LAST_SEEN_COOKIE, MEMBER_IDLE_MS } from "@/lib/idle-policy";
 
 /**
  * Refreshes the Supabase session cookie for every matched request.
@@ -54,7 +55,25 @@ async function refreshOrThrow(request: NextRequest): Promise<NextResponse> {
     },
   });
 
-  await client.auth.getClaims();
+  const { data } = await client.auth.getClaims();
+  if (data?.claims) {
+    // Idle backstop: a session unused for 7 days ends here even if no tab
+    // was open to notice. The 30-minute Sheriff limit runs in the browser.
+    const lastSeen = Number(request.cookies.get(LAST_SEEN_COOKIE)?.value);
+    const now = Date.now();
+    if (Number.isFinite(lastSeen) && lastSeen > 0 && now - lastSeen > MEMBER_IDLE_MS) {
+      await client.auth.signOut({ scope: "local" });
+      response.cookies.delete(LAST_SEEN_COOKIE);
+    } else {
+      response.cookies.set(LAST_SEEN_COOKIE, String(now), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: request.nextUrl.protocol === "https:",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+  }
   response.headers.set("Cache-Control", "private, no-store");
   return response;
 }

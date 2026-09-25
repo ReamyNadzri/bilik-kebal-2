@@ -164,7 +164,17 @@ Payment mode is one of `disabled`, `sandbox`, or `live_limited`. Sandbox and liv
 - Quarantined files: 90 days or until the investigation is formally closed, whichever is later.
 - Institution-verification evidence: 30 days after the final decision/appeal period.
 - Approved resources: retained while an entitlement or valid release obligation exists; not deleted merely to remain within a free tier.
+- Wanted chat threads (sightings, replies, academic questions): deleted 7 days after the thread closes (found, resolved, auto-closed after 30 quiet days, fulfilled or expired) by the daily `wanted-thread-retention` pg_cron job. A missing-item or discussion card leaves the Board then; a small record (title, dates, reply count) remains. Never deleted while a bounty release is pending, while a paid community bounty is neither released nor fully refunded, within 7 days of an academic claim review, or while an appeal is pending. Hidden (moderated) replies are kept.
 - Ledger, payout/refund, moderation, and audit metadata: retained according to the approved legal retention schedule and never deleted by file cleanup jobs.
+
+## Member console
+
+- Owner and Sheriff people management runs only through audited security-definer functions
+  (migration `202610020002`); there is no raw table editor, and money is not editable from it.
+- Timeouts are account restrictions with an `expires_at`, lifted every minute by pg_cron.
+  Permanent restrictions and their lifting are Owner-only.
+- Owner-awarded badges are a separate signal from the institution-verified star and never grant
+  a capability.
 
 ## Invariants
 

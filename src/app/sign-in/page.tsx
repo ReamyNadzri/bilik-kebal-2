@@ -41,6 +41,14 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         />
       )}
 
+      {params["idle"] === undefined ? null : (
+        <UiStatus
+          kind="expired"
+          heading="Signed out after inactivity"
+          message="You were signed out because this account was idle: 30 minutes for Sheriffs and the Owner, 7 days for members. Sign in again to continue."
+        />
+      )}
+
       <SignInForm next={next} />
     </>
   );

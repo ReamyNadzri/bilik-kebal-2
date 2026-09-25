@@ -5845,6 +5845,64 @@ textarea.form-field__input {
   overflow-wrap: anywhere;
 }
 
+.reply__body {
+  flex: 1;
+}
+
+.reply__text--deleted {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* The message being answered, quoted above the answer. */
+.reply__quote {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-inline-start: var(--border-width-2) solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.reply__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.reply__action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.reply__action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.reply__inline-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.replies__replying-to {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* Avatar editor: a square stage with a circular window. */
 .avatar-editor {
   display: grid;
@@ -6402,4 +6460,47 @@ textarea.form-field__input {
 .reward-code .form-field {
   flex: 1 1 12rem;
   margin: 0;
+}
+
+/* Member console: a vertical stack of panels, and a plain list of member cards. */
+.ops-stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ops-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-inline-start: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.member-badge__image {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+/* Idle sign-out warning: pinned so it is seen from anywhere on the page. */
+.idle-warning {
+  position: fixed;
+  inset-block-end: var(--space-4);
+  inset-inline: var(--space-4);
+  z-index: 50;
+  max-width: 28rem;
+  margin-inline: auto;
+  display: grid;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-md);
 }

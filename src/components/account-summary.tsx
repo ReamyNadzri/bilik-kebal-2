@@ -75,6 +75,7 @@ export function AccountSummary({ account }: AccountSummaryProps) {
         email={trust.email}
         institution={trust.institution}
         restricted={trust.restricted}
+        restrictedUntil={account.restrictedUntil}
         capabilities={account.capabilities}
       />
 

@@ -271,24 +271,25 @@ export function WantedDetail({ wanted, similar, now, account }: WantedDetailProp
         </section>
       </article>
 
-      {academic ? null : (
-        <div className="wanted-detail__replies">
-          <WantedReplies
-            wantedId={wanted.id}
-            kind={wanted.kind === "missing_item" ? "missing_item" : "discussion"}
-            open={isOpen}
-            canReply={account?.capabilities?.transact === true}
-            isPoster={
-              account?.publicId !== null &&
-              account?.publicId !== undefined &&
-              account.publicId === wanted.commissioner.publicId
-            }
-            now={now}
-            bountySen={wanted.isFree ? 0 : wanted.grossBountySen}
-            releasePending={wanted.status === "reviewing"}
-          />
-        </div>
-      )}
+      <div className="wanted-detail__replies">
+        <WantedReplies
+          wantedId={wanted.id}
+          kind={wanted.kind}
+          open={isOpen}
+          canReply={account?.capabilities?.transact === true}
+          isPoster={
+            account?.publicId !== null &&
+            account?.publicId !== undefined &&
+            account.publicId === wanted.commissioner.publicId
+          }
+          now={now}
+          bountySen={wanted.isFree ? 0 : wanted.grossBountySen}
+          releasePending={wanted.status === "reviewing"}
+          {...(wanted.thread ? { thread: wanted.thread } : {})}
+          viewerPublicId={account?.publicId ?? null}
+          canModerate={account?.console?.hasAccess === true}
+        />
+      </div>
 
       {/* Deliberately outside the case file: these are other people's requests,
           and nesting them in this request's article would make every poster's

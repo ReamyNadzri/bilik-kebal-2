@@ -11,6 +11,14 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
 
 ### Before deploying
 
+- Apply the new migrations in order: `202610010001`, `202610010002`, `202610020001`,
+  `202610020002` (`supabase db push`). Enable pg_cron first; it runs the daily chat cleanup and the
+  every-minute timeout lift.
+- `restrict_account` (permanent restriction) is now Owner-only.
+- Apply `supabase/migrations/202610010001_chat_threads_and_retention.sql` (chat threads, 7-day
+  retention, daily `wanted-thread-retention` pg_cron job). Enable pg_cron first if the project does
+  not have it; without it the migration applies but nothing is scheduled.
+
 - Both new migrations are already applied to Supabase Cloud (project `yuzgkjowtcfwqanituta`,
   confirmed 2026-09-25):
   1. `supabase/migrations/202609290001_profiles_free_requests_and_regions.sql`
@@ -27,6 +35,28 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
   public launch.
 
 ### Added
+
+- Sheriff Console → People: search members, time out (1 h / 24 h / 7 days), restrict permanently
+  (Owner), rename, reset picture, grant or revoke institution verification (Owner), appoint or
+  remove Sheriffs (Owner), pin a badge (Owner). Every change asks for a reason code and is audited.
+- Sheriff Console → Hidden messages: restore hidden chat messages.
+- Sheriff Console → Badges (Owner): design badges with an optional emblem image; badges show
+  beside names in chat and on profiles.
+- Idle sign-out: 30 minutes for Sheriffs and the Owner (with a warning), 7 days for members.
+
+- Chat messages can answer (quote) another message. Authors can edit for 15 minutes ("edited") and
+  delete at any time ("Message deleted"). Sheriffs and the Owner can hide a message with a reason
+  code; hides are audited.
+- Sheriffs and the Owner confirm their password in place when a protected action needs a recent
+  sign-in, instead of being told to sign in again.
+
+- Chat threads keep a 7-day retention: a found or resolved missing item or discussion stays on the
+  Board for 7 days with a "Leaves the Board in N days" countdown, then its messages are deleted and
+  the card vanishes. Free threads with no message for 30 days close themselves; the poster can
+  reopen within the 7 days.
+- Academic bounties have a text-only Questions thread that refuses links, email addresses and chat
+  handles.
+- Open threads refresh every 15 seconds; a failed load offers "Try again".
 
 **Request kinds and free requests**
 

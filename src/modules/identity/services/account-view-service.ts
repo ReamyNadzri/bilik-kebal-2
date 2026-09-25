@@ -19,6 +19,8 @@ export interface AccountRecord {
   institutionVerificationState: IdentityTrust["institution"];
   latestVerificationRequest: AccountViewModel["latestVerificationRequest"];
   hasActiveRestriction: boolean;
+  /** When a timeout ends; null for a permanent restriction or none. */
+  restrictionExpiresAt?: string | null;
   hasConsoleAccess: boolean;
 }
 
@@ -46,5 +48,8 @@ export function toAccountViewModel(record: AccountRecord): AccountViewModel {
     institution: record.institution,
     latestVerificationRequest: record.latestVerificationRequest,
     trust,
+    ...(record.hasActiveRestriction && record.restrictionExpiresAt
+      ? { restrictedUntil: record.restrictionExpiresAt }
+      : {}),
   };
 }

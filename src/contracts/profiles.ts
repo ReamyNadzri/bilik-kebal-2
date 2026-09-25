@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { WantedSummary } from "./marketplace";
 import type { OperationResult } from "./operation-result";
+import type { MemberBadge } from "./console";
 
 export type ProfileOperationCode =
   | "AUTH_REQUIRED"
@@ -45,6 +46,8 @@ export interface PublicProfile {
   joinedAt: string;
   institutionName: string | null;
   institutionVerified: boolean;
+  /** The Owner-awarded badge, if any. */
+  badge?: MemberBadge | null;
   wanted: WantedSummary[];
 }
 

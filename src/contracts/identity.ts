@@ -80,6 +80,8 @@ export interface AccountViewModel {
     evidenceDeleteAfter: string;
   } | null;
   console: { hasAccess: boolean };
+  /** Present while a timeout runs: when it lifts by itself. */
+  restrictedUntil?: string;
 }
 
 export type AccountViewResult = OperationResult<

@@ -328,6 +328,7 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
   kept. Open item: regenerate and adapt the repositories, or keep the nullable overrides.
 - With the committed types: `pnpm typecheck` passes and `pnpm test` passes (1,029 tests).
 
+<<<<<<< HEAD
 ## 2026-09-25 branded auth and notification emails (branch `claude/branded-emails`)
 
 Spec `docs/superpowers/specs/2026-09-25-branded-auth-and-notification-emails-design.md`, plan
@@ -361,6 +362,90 @@ Claude Code implementing both lanes for this feature.
   your VAULTIX email") and `recovery.html` (Reset password, subject "Reset your VAULTIX
   password"), and add `<origin>/auth/confirm` to the redirect URLs; confirm `NEXT_PUBLIC_APP_URL`
   in Vercel Production is the public origin.
+=======
+## 2026-09-25 chat threads and 7-day retention
+
+User decisions (all four recommended options accepted):
+- After a missing item is marked found (or a discussion resolved), its chat and card stay on the
+  Board for 7 days, then the messages are deleted and the card vanishes; a small record remains.
+- Free missing items and discussions with no new message for 30 days close themselves; the poster
+  is notified in-app and may reopen within the 7 days. Paid ones never auto-close (they keep the
+  expiry and refund path, so no bounty is stranded).
+- Academic bounties get a text-only Q&A thread. Links, email addresses and chat handles are refused
+  in the database, so a resource cannot change hands outside a reviewed Claim. Questions are
+  deleted 7 days after the bounty closes and the claim-review appeal window ends; the academic card
+  stays in the Archive.
+- Open threads refresh every 15 seconds while the tab is visible (no Supabase Realtime).
+
+Implementation: migration `202610010001_chat_threads_and_retention.sql` (not yet applied to
+Supabase Cloud). Verified locally: the whole chain applies on Postgres 16 with stubbed `auth` and
+`storage`, and scripted assertions cover auto-close, idempotent re-runs, the 7-day purge, the
+paid-release and refund holds, reopen rules, and the academic link refusal. pg_cron is scheduled
+only where the extension exists.
+
+Also fixed: the reply reader accepted only `open`/`closed`, so a thread under release review or
+fulfilled looked empty. The migration grants `wanted_replies` to `service_role` explicitly, because
+`202609210001` granted only the tables existing then — the likely cause of "Replies could not be
+loaded" in the cloud (unconfirmed; check `has_table_privilege('service_role', 'public.wanted_replies', 'select')`).
+
+## 2026-09-25 Sheriff and Owner step-up prompt
+
+Reported: the Owner, while signed in, was told to "sign in again" when opening verification
+evidence. Cause: evidence reads, verification decisions and restrictions require a sign-in within
+the last 15 minutes (`private.current_user_recently_authenticated`, `last_sign_in_at`), and a
+refreshed session does not renew it; the console had no way to re-confirm. Added
+`POST /api/auth/reauthenticate` (password only; the email is always the signed-in account's own)
+and an inline "Confirm it is you" prompt in the review console that retries the action. The
+15-minute rule itself is unchanged.
+
+## 2026-09-25 chat answer, edit, delete and hide
+
+User decisions: quote-style answers; the author may edit for 15 minutes while the thread is open
+(marked "edited", no history kept); the author may delete at any time (text erased, "Message
+deleted" placeholder kept so answers still read); a Sheriff (platform, or institution Sheriff for
+the Wanted's institution) or the Owner may hide any message with a reason code and restore it.
+Hidden messages keep their text for moderation, are unreadable to members, survive the 7-day purge,
+and every hide/restore is written to `identity_audit_events` (`chat.reply_hidden`,
+`chat.reply_restored`). Migration `202610010002_chat_reply_edit_delete.sql` (not yet applied to
+Supabase Cloud); verified on local Postgres 16 with scripted assertions. Restoring hidden messages
+has no UI yet: it belongs to the Owner console slice.
+
+Also decided (next slices, not built yet): Owner console for people management and content
+moderation (no raw database editor; money stays read-only there); Owner-awarded badges shown beside
+names, separate from the institution-verified star; timed account timeouts (1 hour, 24 hours,
+7 days, auto-lifting, permanent restriction Owner-only) and idle sign-out.
+
+## 2026-09-25 timeouts, idle sign-out, member console and badges
+
+Built from the decisions recorded above (user chose: timeout = both a moderation timeout and idle
+sign-out; Owner console = manage people + moderate content; badges = Owner-awarded, separate from
+the verified star; no raw database editor).
+
+- Migration `202610020001_account_timeouts.sql`: `account_restrictions.expires_at`;
+  `timeout_account` (1 h, 24 h, 7 days) for the Owner, platform Sheriffs, and institution Sheriffs
+  over verified members of their institution; nobody times out the Owner and only the Owner times
+  out a platform Sheriff. **Behaviour change:** `restrict_account` (permanent) is now Owner-only;
+  platform Sheriffs could call it before. `lift_account_restriction`; a pg_cron job lifts expired
+  timeouts every minute. All need a sign-in in the last 15 minutes and are audited.
+- Migration `202610020002_member_console_and_badges.sql`: console functions (search, rename, reset
+  avatar, manual institution verification grant/revoke, appoint/remove Sheriffs, timeouts, hidden
+  message list) and badges (`badges`, `badge_awards`, public `badges` bucket writable only by the
+  Owner). Institution Sheriffs see only their institution's members and never email addresses. The
+  Owner role is not assignable anywhere in the app.
+- Console pages: `/console/people`, `/console/moderation`, `/console/badges`. Badges show beside
+  names in chat and on public profiles. A timed-out member sees when the timeout ends.
+- Idle sign-out: Sheriffs and the Owner after 30 minutes idle (browser, warned 2 minutes before),
+  members after 7 days (browser and a `vaultix_last_seen` cookie checked by the proxy).
+- `supabase/tests/local/` holds the scripted SQL assertions and a runner for a throwaway local
+  Postgres 16; never point it at Supabase Cloud.
+
+Open questions added: taking down a Wanted from the console (a paid one involves refunds, so it
+was not built); whether institution Sheriffs should rename members; retention of orphaned badge and
+avatar images after a reset or retirement.
+
+None of `202610010001`, `202610010002`, `202610020001`, `202610020002` is applied to Supabase Cloud
+yet: this session has no Supabase credentials.
+>>>>>>> bb558fa16c2b45841107b97674c5c7f4f244c254
 
 ## Open Questions
 

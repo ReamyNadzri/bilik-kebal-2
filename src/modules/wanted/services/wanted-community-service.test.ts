@@ -18,6 +18,10 @@ function repository(overrides: Partial<CommunityWantedRepository> = {}): Communi
     listReplies: vi.fn().mockResolvedValue([]),
     postReply: vi.fn().mockResolvedValue("reply-1"),
     resolveCommunityWanted: vi.fn().mockResolvedValue(undefined),
+    reopenCommunityWanted: vi.fn().mockResolvedValue(undefined),
+    editReply: vi.fn().mockResolvedValue(undefined),
+    deleteReply: vi.fn().mockResolvedValue(undefined),
+    setReplyHidden: vi.fn().mockResolvedValue(undefined),
     readFreeAllowance: vi.fn().mockResolvedValue({ base: 3, bonus: 0, used: 0, remaining: 3 }),
     requestCommunityPayout: vi.fn().mockResolvedValue("request-1"),
     listPendingCommunityPayouts: vi.fn().mockResolvedValue([]),
@@ -124,6 +128,94 @@ describe("WantedCommunityService", () => {
     const result = await new WantedCommunityService(repo).resolve(actor, publicId);
 
     expect(result).toMatchObject({ ok: false, code: "NOT_AUTHORIZED" });
+  });
+
+  it("reopens for the poster, and explains the 7-day limit otherwise", async () => {
+    const service = new WantedCommunityService(repository());
+    expect(await service.reopen(actor, publicId)).toEqual({ ok: true, data: { state: "open" } });
+
+    const late = new WantedCommunityService(
+      repository({
+        reopenCommunityWanted: vi.fn().mockRejectedValue({ message: "wanted_not_reopenable" }),
+      }),
+    );
+    expect(await late.reopen(actor, publicId)).toMatchObject({
+      ok: false,
+      code: "NOT_AUTHORIZED",
+      message: expect.stringContaining("within 7 days"),
+    });
+    expect(await late.reopen(null, publicId)).toMatchObject({ ok: false, code: "AUTH_REQUIRED" });
+  });
+
+  it("passes a quoted message through when replying", async () => {
+    const repo = repository();
+    const parentId = "22222222-2222-4222-8222-222222222222";
+    await new WantedCommunityService(repo).reply(actor, publicId, {
+      body: "Which floor?",
+      parentId,
+    });
+    expect(repo.postReply).toHaveBeenCalledWith(publicId, "Which floor?", parentId);
+  });
+
+  it("explains the 15-minute edit window", async () => {
+    const repo = repository({
+      editReply: vi.fn().mockRejectedValue({ message: "wanted_reply_edit_window_closed" }),
+    });
+    const result = await new WantedCommunityService(repo).editReply(actor, publicId, {
+      body: "Too late",
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      code: "NOT_AUTHORIZED",
+      message: expect.stringContaining("15 minutes"),
+    });
+  });
+
+  it("deletes only your own message", async () => {
+    const repo = repository({
+      deleteReply: vi.fn().mockRejectedValue({ message: "wanted_reply_not_deletable" }),
+    });
+    expect(await new WantedCommunityService(repo).deleteReply(actor, publicId)).toMatchObject({
+      ok: false,
+      code: "NOT_AUTHORIZED",
+    });
+  });
+
+  it("requires a reason code to hide, and a moderator", async () => {
+    const service = new WantedCommunityService(repository());
+    expect(await service.setReplyHidden(actor, publicId, { hide: true })).toMatchObject({
+      ok: false,
+      code: "VALIDATION_ERROR",
+    });
+    expect(
+      await service.setReplyHidden(actor, publicId, { hide: true, reasonCode: "spam" }),
+    ).toEqual({ ok: true, data: { state: "hidden" } });
+
+    const member = new WantedCommunityService(
+      repository({
+        setReplyHidden: vi.fn().mockRejectedValue({ message: "wanted_reply_moderator_required" }),
+      }),
+    );
+    expect(await member.setReplyHidden(actor, publicId, { hide: false })).toMatchObject({
+      ok: false,
+      code: "NOT_AUTHORIZED",
+    });
+  });
+
+  it("explains why a link was refused in an academic question", async () => {
+    const repo = repository({
+      postReply: vi.fn().mockRejectedValue({ message: "wanted_reply_link_not_allowed" }),
+    });
+
+    const result = await new WantedCommunityService(repo).reply(actor, publicId, {
+      body: "Try drive.google.com/abc",
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "VALIDATION_ERROR",
+      message: expect.stringContaining("Links, email addresses and chat handles"),
+    });
   });
 
   it("refuses a paid request while payment is disabled, without writing anything", async () => {

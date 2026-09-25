@@ -8,9 +8,11 @@ import type {
   ListCampusRegionsResult,
   ListWantedRepliesResult,
   PostWantedReplyResult,
+  ChangeWantedReplyResult,
   PrepareWantedPublicationResult,
   PublishCommunityWantedResult,
   PublishFreeWantedResult,
+  ReopenWantedResult,
   ResolveWantedResult,
   Sen,
   SuggestWantedDuplicatesResult,
@@ -198,6 +200,48 @@ export async function postWantedReply(
   try {
     const loaded = await context();
     return loaded.communityService.reply(loaded.actor, publicId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function reopenCommunityWanted(publicId: string): Promise<ReopenWantedResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.reopen(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function editWantedReply(
+  replyId: string,
+  input: unknown,
+): Promise<ChangeWantedReplyResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.editReply(loaded.actor, replyId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function deleteWantedReply(replyId: string): Promise<ChangeWantedReplyResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.deleteReply(loaded.actor, replyId);
+  } catch {
+    return unavailable();
+  }
+}
+
+export async function setWantedReplyHidden(
+  replyId: string,
+  input: unknown,
+): Promise<ChangeWantedReplyResult> {
+  try {
+    const loaded = await context();
+    return loaded.communityService.setReplyHidden(loaded.actor, replyId, input);
   } catch {
     return unavailable();
   }

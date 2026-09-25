@@ -1,4 +1,5 @@
 import { resolveAvatarUrl } from "@/lib/avatars";
+import { readMemberBadges } from "@/lib/badges";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicProfile } from "@/contracts/profiles";
 import type { Database } from "@/lib/supabase/database.types";
@@ -109,6 +110,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
           .maybeSingle()
       : { data: null, error: null };
     if (institution.error) throw institution.error;
+    const badges = await readMemberBadges(this.readClient, [profile.data.user_id]);
     const summaries = await new SupabaseWantedRepository(this.readClient).listWantedByIds(
       (wanted.data ?? []).map((row) => row.id),
     );
@@ -120,6 +122,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       joinedAt: profile.data.created_at,
       institutionName: institution.data?.name ?? null,
       institutionVerified: membership !== undefined,
+      badge: badges.get(profile.data.user_id) ?? null,
       wanted: summaries,
     };
   }

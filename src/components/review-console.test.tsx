@@ -182,7 +182,8 @@ test("asks for re-authentication before showing someone else's document", async 
   select();
   fireEvent.click(screen.getByRole("button", { name: /view the evidence/i }));
 
-  expect(await screen.findByText(/sign in again/i)).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Confirm it is you" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
 test("refuses evidence outside the reviewer's institution", async () => {
@@ -411,7 +412,7 @@ test("keeps the decision and reason across a re-authentication refusal", async (
   decide("Approve", "evidence_clear");
   fireEvent.click(screen.getByRole("button", { name: /confirm approval/i }));
 
-  expect(await screen.findByText(/sign in again/i)).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Confirm it is you" })).toBeInTheDocument();
   expect(screen.getByLabelText(/Reason code/)).toHaveValue("evidence_clear");
   expect(screen.getByRole("button", { name: /confirm approval/i })).toBeInTheDocument();
 });
@@ -477,4 +478,45 @@ test("announces a failed decision as an interruption, since the reviewer must ac
   await screen.findByText(/unavailable right now/i);
 
   expect(screen.getAllByRole("alert")).toHaveLength(1);
+});
+
+test("asks for the password in place when the 15-minute step-up lapses, then opens the evidence", async () => {
+  const fetchMock = queueFetch(
+    {
+      ok: false,
+      code: "RECENT_AUTH_REQUIRED",
+      message: "Sign in again before viewing this evidence.",
+    },
+    { ok: true, data: { next: "profile" } },
+    { ok: true, data: { signedUrl: EVIDENCE_URL, expiresAt: "2026-09-14T10:05:00.000Z" } },
+  );
+
+  render(<ReviewConsole items={[aQueueItem()]} />);
+  select();
+  fireEvent.click(screen.getByRole("button", { name: /view the evidence/i }));
+
+  expect(await screen.findByText(/You are still signed in/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Password"), { target: { value: "hunter2-secret" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm and continue" }));
+
+  await screen.findByRole("dialog");
+  expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/auth/reauthenticate");
+  expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
+    password: "hunter2-secret",
+  });
+});
+
+test("says the password is wrong without leaving the page", async () => {
+  queueFetch(
+    { ok: false, code: "RECENT_AUTH_REQUIRED", message: "" },
+    { ok: false, code: "INVALID_CREDENTIALS", message: "" },
+  );
+
+  render(<ReviewConsole items={[aQueueItem()]} />);
+  select();
+  fireEvent.click(screen.getByRole("button", { name: /view the evidence/i }));
+  fireEvent.change(await screen.findByLabelText("Password"), { target: { value: "wrong" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm and continue" }));
+
+  expect(await screen.findByText("That password is not correct.")).toBeInTheDocument();
 });

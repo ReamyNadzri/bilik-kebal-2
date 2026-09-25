@@ -140,3 +140,14 @@ const JOINED = new Intl.DateTimeFormat("en-MY", {
 export function formatJoined(instant: string): string {
   return JOINED.format(new Date(instant));
 }
+
+/**
+ * "in 3 days", "tomorrow", "today" — when a closed thread leaves the Board.
+ * Rounded up, so "in 1 day" never reads as already gone.
+ */
+export function formatVanishesIn(vanishesAt: string, now: string): string {
+  const days = Math.ceil(elapsed(now, vanishesAt) / DAY);
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${plural(days, "day")}`;
+}

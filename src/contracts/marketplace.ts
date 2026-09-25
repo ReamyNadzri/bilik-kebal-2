@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { OperationResult } from "./operation-result";
+import type { MemberBadge } from "./console";
 
 export type Sen = number & { readonly __brand: "Sen" };
 /** How long a request stays open: any whole number of days from 3 to 30. */
@@ -129,13 +130,38 @@ export type CommunityWantedInput = z.input<typeof communityWantedInputSchema>;
 
 export const wantedReplyInputSchema = z.object({
   body: authoredText(2, 1000),
+  /** The message this one answers, quoted above it. */
+  parentId: z.string().uuid().optional(),
 });
+
+export const wantedReplyEditSchema = z.object({
+  body: authoredText(2, 1000),
+});
+
+export const wantedReplyHideSchema = z.union([
+  z.object({ hide: z.literal(true), reasonCode: z.string().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/) }),
+  z.object({ hide: z.literal(false) }),
+]);
+
+/** Minutes after posting during which the author may edit a message. */
+export const REPLY_EDIT_WINDOW_MINUTES = 15;
 
 export interface WantedReply {
   id: string;
+  /** Empty when deleted: the text is erased, not hidden. */
   body: string;
   createdAt: string;
   author: PublicMemberCard;
+  editedAt: string | null;
+  deleted: boolean;
+  /** The quoted message this one answers, if any. */
+  parent: {
+    id: string;
+    authorName: string;
+    /** The first 140 characters; empty when the quoted message was deleted. */
+    excerpt: string;
+    deleted: boolean;
+  } | null;
 }
 
 /** The public face of a member: never an email, evidence, claim or contribution. */
@@ -143,6 +169,8 @@ export interface PublicMemberCard {
   publicId: string;
   displayName: string;
   avatarUrl: string | null;
+  /** The Owner-awarded badge, if the member wears one. */
+  badge?: MemberBadge | null;
 }
 
 /** A campus as the map shows it. Closed regions carry no counts. */
@@ -220,6 +248,30 @@ export interface WantedSummary {
   closesAt: string;
   /** Missing items only: where it was last seen. */
   lastSeenLocation: string | null;
+  /** The chat thread's retention state. Absent in fixtures predating it. */
+  thread?: WantedThreadState;
+}
+
+/**
+ * Retention of a Wanted's chat thread (migration 202610010001). A thread
+ * closes when its Wanted leaves open/reviewing; seven days later its messages
+ * are deleted, and a missing-item or discussion card leaves the Board too.
+ */
+export interface WantedThreadState {
+  replyCount: number;
+  /** When the thread stopped taking messages; null while open. */
+  closedAt: string | null;
+  /** Closed by itself after 30 days without a new message. */
+  autoClosed: boolean;
+  /**
+   * The earliest the messages (and a community card) are removed. Null while
+   * open, and while a bounty release or refund is still unsettled.
+   */
+  vanishesAt: string | null;
+  /** Until when the poster may reopen it; null when it cannot be reopened. */
+  reopenUntil: string | null;
+  /** When the messages were deleted; null until then. */
+  clearedAt: string | null;
 }
 
 export interface WantedDetail extends WantedSummary {
@@ -295,7 +347,12 @@ export type PublishCommunityWantedResult = OperationResult<
 >;
 export type ListWantedRepliesResult = OperationResult<WantedReply[], MarketplaceOperationCode>;
 export type PostWantedReplyResult = OperationResult<{ replyId: string }, MarketplaceOperationCode>;
+export type ChangeWantedReplyResult = OperationResult<
+  { state: "edited" | "deleted" | "hidden" | "restored" },
+  MarketplaceOperationCode
+>;
 export type ResolveWantedResult = OperationResult<{ state: "closed" }, MarketplaceOperationCode>;
+export type ReopenWantedResult = OperationResult<{ state: "open" }, MarketplaceOperationCode>;
 /** Free requests: 3 for every member, plus any added by reward codes. */
 export interface FreeRequestAllowance {
   base: number;
