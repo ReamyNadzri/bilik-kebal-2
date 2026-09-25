@@ -92,9 +92,12 @@ export class ConsoleService {
     if (!UUID.test(publicId)) return failure("MEMBER_NOT_FOUND", "That member no longer exists.");
     const parsed = consoleMemberActionSchema.safeParse(input);
     if (!parsed.success) {
+      const badReason = parsed.error.issues.some((issue) => issue.path.includes("reasonCode"));
       return failure(
         "VALIDATION_ERROR",
-        "Check the action. Reason codes use lower-case letters, numbers and underscores.",
+        badReason
+          ? "Enter a reason code: lower-case letters, numbers and underscores."
+          : "This change could not be read. Reload the page and try again.",
       );
     }
     try {

@@ -17,7 +17,8 @@ const DATE = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "
  * Two Sheriff queues on one tab: members asking for a new list entry, and
  * posters asking to release a bounty on a missing item or discussion. Each
  * decision is re-authorised in the database, which also refuses a Sheriff who
- * is a party to the request; the queue only hides it from them.
+ * is a party to a release. A viewer's own requests stay listed and labelled,
+ * with their decisions switched off, so nothing seems to vanish.
  */
 export function ConsoleRequests({
   entries,
@@ -118,6 +119,11 @@ export function ConsoleRequests({
               return (
                 <li className="locker-card appeal-card" key={item.id}>
                   <p className="pixel-label">{TAXONOMY_CATEGORY_LABEL[item.category]}</p>
+                  {item.ownRequest ? (
+                    <p className="ops-alert ops-alert--info" id={`entry-own-${item.id}`}>
+                      You asked for this. Another Sheriff or the Owner decides it.
+                    </p>
+                  ) : null}
                   <h3 className="ops-panel__title">
                     {item.courseCode ? `${item.courseCode} ` : ""}
                     {item.label}
@@ -167,7 +173,8 @@ export function ConsoleRequests({
                     <button
                       type="button"
                       className="button button--primary button--compact"
-                      disabled={busy !== null}
+                      disabled={busy !== null || item.ownRequest === true}
+                      aria-describedby={item.ownRequest ? `entry-own-${item.id}` : undefined}
                       onClick={() => void decideEntry(item, true)}
                     >
                       Add to the list
@@ -175,7 +182,8 @@ export function ConsoleRequests({
                     <button
                       type="button"
                       className="button button--danger-outline button--compact"
-                      disabled={busy !== null}
+                      disabled={busy !== null || item.ownRequest === true}
+                      aria-describedby={item.ownRequest ? `entry-own-${item.id}` : undefined}
                       onClick={() => void decideEntry(item, false)}
                     >
                       Decline
@@ -205,6 +213,12 @@ export function ConsoleRequests({
                 <p className="pixel-label">
                   {item.wanted.kind === "missing_item" ? "Missing item" : "Discussion"}
                 </p>
+                {item.viewerIsParty ? (
+                  <p className="ops-alert ops-alert--info" id={`release-party-${item.id}`}>
+                    You are the poster or the named helper, so another Sheriff or the Owner decides
+                    this release.
+                  </p>
+                ) : null}
                 <h3 className="ops-panel__title">
                   <Link href={`/wanted/${item.wanted.id}`}>{item.wanted.title}</Link>
                 </h3>
@@ -245,7 +259,8 @@ export function ConsoleRequests({
                   <button
                     type="button"
                     className="button button--primary button--compact"
-                    disabled={busy !== null}
+                    disabled={busy !== null || item.viewerIsParty}
+                    aria-describedby={item.viewerIsParty ? `release-party-${item.id}` : undefined}
                     onClick={() => void decideRelease(item, true)}
                   >
                     Approve release
@@ -253,7 +268,8 @@ export function ConsoleRequests({
                   <button
                     type="button"
                     className="button button--danger-outline button--compact"
-                    disabled={busy !== null}
+                    disabled={busy !== null || item.viewerIsParty}
+                    aria-describedby={item.viewerIsParty ? `release-party-${item.id}` : undefined}
                     onClick={() => void decideRelease(item, false)}
                   >
                     Decline

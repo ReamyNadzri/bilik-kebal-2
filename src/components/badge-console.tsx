@@ -159,9 +159,7 @@ export function BadgeConsole({ badges }: { readonly badges: readonly ConsoleBadg
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
           </div>
-          {pending ? (
-            <ConfirmIdentity purpose="save this badge" onConfirmed={() => void pending()} />
-          ) : (
+          {pending ? null : (
             <div>
               <button type="submit" className="button button--primary" disabled={busy}>
                 {busy ? "Saving…" : "Create badge"}
@@ -169,6 +167,10 @@ export function BadgeConsole({ badges }: { readonly badges: readonly ConsoleBadg
             </div>
           )}
         </form>
+        {/* Outside the form: a form inside a form re-submits the outer one. */}
+        {pending ? (
+          <ConfirmIdentity purpose="save this badge" onConfirmed={() => void pending()} />
+        ) : null}
       </section>
 
       <section className="panel ops-panel" aria-labelledby="badge-list">

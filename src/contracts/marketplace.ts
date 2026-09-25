@@ -384,6 +384,11 @@ export interface CommunityPayoutRequestView {
   finder: PublicMemberCard;
   note: string | null;
   createdAt: string;
+  /**
+   * The viewer is the poster or the named helper. Listed so it does not seem
+   * to vanish; the database refuses a party's decision.
+   */
+  viewerIsParty: boolean;
 }
 export type ListCommunityPayoutRequestsResult = OperationResult<
   CommunityPayoutRequestView[],

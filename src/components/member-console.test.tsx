@@ -100,10 +100,51 @@ test("asks for the password in place when the step-up lapsed, then retries", asy
   fireEvent.change(within(form).getByLabelText("Reason code"), { target: { value: "spam" } });
   fireEvent.click(within(form).getByRole("button", { name: "Time out" }));
 
-  fireEvent.change(await within(form).findByLabelText("Password"), { target: { value: "pw" } });
-  fireEvent.click(within(form).getByRole("button", { name: "Confirm and continue" }));
+  const action = form.parentElement!;
+  fireEvent.change(await within(action).findByLabelText("Password"), { target: { value: "pw" } });
+  fireEvent.click(within(action).getByRole("button", { name: "Confirm and continue" }));
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   expect(fetchMock.mock.calls[2]![0]).toBe(`/api/console/members/${member.publicId}`);
+});
+
+test("appoints a Sheriff after the password step-up without submitting the role twice", async () => {
+  const seeded = "10000000-0000-0000-0000-000000000001";
+  const fetchMock = queue(
+    { ok: false, code: "RECENT_AUTH_REQUIRED", message: "" },
+    { ok: true, data: { next: "profile" } },
+    { ok: true, data: { done: true } },
+  );
+  render(
+    <MemberConsole
+      role="owner"
+      members={[member]}
+      query=""
+      institutions={[{ id: seeded, name: "UiTM" }]}
+      badges={[]}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+  const form = screen.getByRole("form", { name: "Sheriff role" });
+  expect(within(form).queryByLabelText("Password")).toBeNull();
+  fireEvent.change(within(form).getByLabelText("Where"), { target: { value: seeded } });
+  fireEvent.click(within(form).getByRole("button", { name: "Save role" }));
+
+  const action = form.parentElement!;
+  fireEvent.change(await within(action).findByLabelText("Password"), { target: { value: "pw" } });
+  fireEvent.click(within(action).getByRole("button", { name: "Confirm and continue" }));
+
+  await waitFor(() => expect(within(form).getByRole("status")).toHaveTextContent("Saved."));
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+    `/api/console/members/${member.publicId}`,
+    "/api/auth/reauthenticate",
+    `/api/console/members/${member.publicId}`,
+  ]);
+  expect(JSON.parse(String(fetchMock.mock.calls[2]![1]?.body))).toEqual({
+    action: "set_sheriff",
+    institutionId: seeded,
+    appoint: true,
+  });
 });
 
 test("shows a running timeout and offers to end it", () => {
