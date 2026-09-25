@@ -85,13 +85,22 @@ export function SignUpForm() {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const result = (await callOperation<{ next: "verify_email" }, IdentityOperationCode>(
+    const result = (await callOperation<
+      { next: "verify_email" | "profile" },
+      IdentityOperationCode
+    >(
       "/api/auth/sign-up",
       { displayName, email, password },
       "AUTH_UNAVAILABLE",
     )) as RegistrationResult;
 
     if (result.ok) {
+      if (result.data.next === "profile") {
+        // No confirmation email was sent; the account is already signed in.
+        router.replace("/profile");
+        router.refresh();
+        return;
+      }
       router.push("/verify-email");
       return;
     }

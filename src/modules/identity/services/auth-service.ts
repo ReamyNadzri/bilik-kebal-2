@@ -56,6 +56,8 @@ export type AuthGatewayFailureReason =
   | "unexpected";
 
 export type AuthGatewayResult = { ok: true } | { ok: false; reason: AuthGatewayFailureReason };
+export type RegisterGatewayResult =
+  { ok: true; signedIn: boolean } | { ok: false; reason: AuthGatewayFailureReason };
 
 export interface AuthGateway {
   register(input: {
@@ -63,7 +65,7 @@ export interface AuthGateway {
     email: string;
     emailRedirectTo: string;
     password: string;
-  }): Promise<AuthGatewayResult>;
+  }): Promise<RegisterGatewayResult>;
   signIn(input: { email: string; password: string }): Promise<AuthGatewayResult>;
   sendPasswordRecovery(input: { email: string; redirectTo: string }): Promise<AuthGatewayResult>;
   verifyRecoveryOtp(input: { email: string; token: string }): Promise<AuthGatewayResult>;
@@ -151,7 +153,7 @@ export class AuthService {
         : mapped;
     }
 
-    return success({ next: "verify_email" as const });
+    return success({ next: result.signedIn ? ("profile" as const) : ("verify_email" as const) });
   }
 
   async signIn(input: unknown): Promise<SignInResult> {

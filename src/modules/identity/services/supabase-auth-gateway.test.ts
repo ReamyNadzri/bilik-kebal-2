@@ -26,7 +26,7 @@ describe("SupabaseAuthGateway", () => {
         emailRedirectTo: "https://vaultix.example/auth/callback",
         password: "SecurePass123",
       }),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toEqual({ ok: true, signedIn: false });
 
     expect(client.signUp).toHaveBeenCalledWith({
       email: "aina@example.com",
@@ -36,6 +36,21 @@ describe("SupabaseAuthGateway", () => {
       },
       password: "SecurePass123",
     });
+  });
+
+  test("reports a signed-in account when Supabase skips email confirmation", async () => {
+    const client = createClient();
+    vi.mocked(client.signUp).mockResolvedValue({ data: { session: {} }, error: null });
+    const gateway = new SupabaseAuthGateway(client);
+
+    await expect(
+      gateway.register({
+        displayName: "Aina",
+        email: "aina@example.com",
+        emailRedirectTo: "https://vaultix.example/auth/callback",
+        password: "SecurePass123",
+      }),
+    ).resolves.toEqual({ ok: true, signedIn: true });
   });
 
   test("maps provider codes without returning raw provider messages", async () => {

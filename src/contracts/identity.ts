@@ -21,7 +21,14 @@ export type VerificationOperationCode =
   | "UNSUPPORTED_EVIDENCE_TYPE"
   | "VERIFICATION_CONFLICT";
 
-export type RegistrationResult = OperationResult<{ next: "verify_email" }, IdentityOperationCode>;
+/**
+ * `profile` when Supabase signed the new account in straight away because
+ * email confirmation is off; no confirmation email was sent in that case.
+ */
+export type RegistrationResult = OperationResult<
+  { next: "verify_email" | "profile" },
+  IdentityOperationCode
+>;
 
 export type SignInResult = OperationResult<{ next: "profile" }, IdentityOperationCode>;
 
