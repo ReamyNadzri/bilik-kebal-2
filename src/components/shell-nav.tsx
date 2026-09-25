@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ShotLink } from "./motion/gunshot-transition";
 import { NotificationMenu } from "./notification-menu";
 import { PixelIcon, type PixelIconName } from "./pixel-icon";
 import {
@@ -36,16 +37,20 @@ function NavLink({
   item,
   current,
   badge = null,
+  shot = false,
 }: {
   readonly item: NavItem;
   readonly current: boolean;
   readonly badge?: number | null;
+  /** Primary destinations travel with the gunshot transition; account utilities do not. */
+  readonly shot?: boolean;
 }) {
   const icon = ACCOUNT_ICONS[item.id];
+  const Anchor = shot ? ShotLink : Link;
 
   return (
     <li>
-      <Link
+      <Anchor
         href={item.href}
         className="shell-nav__link"
         aria-current={current ? "page" : undefined}
@@ -60,7 +65,7 @@ function NavLink({
             <span className="visually-hidden">{`, ${badge} unread`}</span>
           </span>
         ) : null}
-      </Link>
+      </Anchor>
     </li>
   );
 }
@@ -94,7 +99,7 @@ export function ShellNav({ currentNavId, roleNav = [], unreadCount = null }: She
       <nav aria-label="Primary" className="shell-nav__primary">
         <ul className="shell-nav__list">
           {[...MARKETPLACE_NAV, ...roleNav].map((item) => (
-            <NavLink key={item.id} item={item} current={current === item.id} />
+            <NavLink key={item.id} item={item} current={current === item.id} shot />
           ))}
         </ul>
       </nav>
@@ -136,13 +141,13 @@ export function ShellNav({ currentNavId, roleNav = [], unreadCount = null }: She
         </ul>
       </nav>
 
-      <Link
+      <ShotLink
         href={POST_WANTED_NAV.href}
         className="button button--primary shell-nav__post"
         aria-current={current === POST_WANTED_NAV.id ? "page" : undefined}
       >
         {POST_WANTED_NAV.label}
-      </Link>
+      </ShotLink>
     </div>
   );
 }

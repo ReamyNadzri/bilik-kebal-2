@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { CampusRegion } from "@/contracts/marketplace";
 import { formatRinggit } from "@/features/marketplace/money";
+import { MapLife } from "./motion/map-life";
 
 export interface CampusMapProps {
   readonly campuses: readonly CampusRegion[];
@@ -113,6 +114,7 @@ export function CampusMap({ campuses, showCounts }: CampusMapProps) {
             sizes="(min-width: 56rem) 60rem, 100vw"
             priority
           />
+          <MapLife />
           {pinned.map((campus) => (
             <button
               key={campus.id}

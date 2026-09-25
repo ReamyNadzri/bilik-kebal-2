@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ShotLink } from "./motion/gunshot-transition";
 import { WantedPoster } from "./wanted-poster";
 import type { WantedSummary } from "@/features/marketplace/types";
 
@@ -35,17 +35,17 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
         withEmblem
         title={
           <h3 className="wanted-card__title" id={titleId}>
-            <Link href={href}>{wanted.title}</Link>
+            <ShotLink href={href}>{wanted.title}</ShotLink>
           </h3>
         }
         footer={
-          <Link
+          <ShotLink
             className="button button--ink wanted-card__action"
             href={href}
             aria-label={`View this Wanted: ${wanted.title}`}
           >
             View Wanted
-          </Link>
+          </ShotLink>
         }
       />
     </li>

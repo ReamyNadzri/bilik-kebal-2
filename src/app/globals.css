@@ -6792,3 +6792,700 @@ textarea.form-field__input {
   gap: var(--space-3);
   box-shadow: var(--shadow-md);
 }
+
+/* ==========================================================================
+   MOTION — gunshot transition, capture poster, living map
+
+   Ported from design_handoff_vaultix_motion (reference/motion.css and the
+   reference components). Every number, colour, duration, easing and delay is
+   the prototype's; only the notation moved, from inline styles into the
+   tokens and classes below, so the components restate no visual value.
+   Colours that already exist in the theme reuse its tokens, which hold the
+   same values. The components set per-element geometry (click point, sprite
+   rects, --a, --d, --dx, --dy, --x0 … --y1, --vx-dur, --vx-delay) inline.
+   ========================================================================== */
+
+:root {
+  /* Gunshot transition */
+  --motion-shot-bloom: radial-gradient(
+    circle,
+    #fffbe8 0%,
+    #ffe39a 8%,
+    #f2a73b 20%,
+    #c4461f 38%,
+    #6e1d12 58%,
+    #1b1109 78%
+  );
+  --motion-shot-smoke: radial-gradient(circle, rgba(70, 52, 40, 0.8), rgba(70, 52, 40, 0) 70%);
+  --motion-shot-ray: linear-gradient(
+    to bottom,
+    #ffffff,
+    rgba(255, 227, 154, 0.9) 25%,
+    rgba(255, 227, 154, 0)
+  );
+  --motion-shot-ring: #fff3c4;
+  --motion-shot-spark: #f2a73b;
+  --motion-shot-spark-alt: #ffe39a;
+  --motion-shot-spark-glow: 0 0 6px #ffd27a;
+  --motion-shot-flash: radial-gradient(circle, #ffffff 30%, rgba(255, 243, 196, 0) 70%);
+  --motion-toggle-shadow: 0 3px 0 rgb(0 0 0 / 0.5);
+
+  /* Capture poster */
+  --motion-poster-backdrop:
+    radial-gradient(55% 50% at 50% 42%, rgba(200, 155, 60, 0.28), rgba(200, 155, 60, 0) 70%),
+    rgba(16, 9, 4, 0.86);
+  --motion-poster-shadow: 0 26px 50px rgba(0, 0, 0, 0.65), inset 0 0 60px rgba(90, 60, 25, 0.35);
+  --motion-poster-pin-shadow: 0 3px 4px rgba(0, 0, 0, 0.5);
+  --motion-poster-portrait-shadow:
+    inset 0 0 0 2px var(--border-default), inset 0 0 40px rgba(0, 0, 0, 0.6);
+  --motion-stamp-bg: rgba(243, 230, 200, 0.18);
+  --motion-stamp-shadow:
+    inset 0 0 0 4px rgba(243, 230, 200, 0.6), inset 0 0 0 8px var(--accent-primary);
+  --motion-dust: radial-gradient(closest-side, rgba(243, 230, 200, 0.7), rgba(243, 230, 200, 0));
+
+  /* Living map */
+  --texture-map: url("/brand/map-malaysia.webp");
+  --motion-glint: #ffffff;
+  --motion-glint-glow: 0 0 6px rgba(255, 255, 255, 0.8);
+  --motion-wake: rgba(255, 255, 255, 0.75);
+  --motion-sprite-mask: radial-gradient(closest-side, #000 72%, transparent 100%);
+}
+
+@keyframes vx-bloom {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  56% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+}
+@keyframes vx-flash {
+  from {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes vx-ray {
+  0% {
+    transform: translateX(-50%) rotate(var(--a)) scaleY(0);
+    opacity: 1;
+  }
+  35% {
+    transform: translateX(-50%) rotate(var(--a)) scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) rotate(var(--a)) scaleY(1.4);
+    opacity: 0;
+  }
+}
+@keyframes vx-ring {
+  from {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(16);
+    opacity: 0;
+  }
+}
+@keyframes vx-spark {
+  from {
+    transform: rotate(var(--a)) translateY(0) scaleY(1);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--a)) translateY(var(--d)) scaleY(0.4);
+    opacity: 0;
+  }
+}
+@keyframes vx-smoke {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes vx-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes vx-drop {
+  0% {
+    transform: translateY(-110vh) rotate(-18deg) scale(1.1);
+  }
+  68% {
+    transform: translateY(14px) rotate(2deg) scale(1);
+  }
+  84% {
+    transform: translateY(-5px) rotate(-2.6deg) scale(1);
+  }
+  100% {
+    transform: translateY(0) rotate(-1.5deg) scale(1);
+  }
+}
+@keyframes vx-thud {
+  0% {
+    transform: rotate(-1.5deg) scale(1);
+  }
+  30% {
+    transform: translateY(4px) rotate(-2.6deg) scale(0.97);
+  }
+  65% {
+    transform: translateY(-1px) rotate(-0.8deg) scale(1.01);
+  }
+  100% {
+    transform: rotate(-1.5deg) scale(1);
+  }
+}
+@keyframes vx-stamp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-14deg) scale(3.4);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-14deg) scale(0.9);
+  }
+  100% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) rotate(-14deg) scale(1);
+  }
+}
+@keyframes vx-splat {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+}
+@keyframes vx-dust {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  25% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx)), -60%) scale(2);
+  }
+}
+@keyframes vx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vx-glint {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scaleX(0.3);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scaleX(1);
+  }
+}
+@keyframes vx-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2.2deg);
+  }
+  50% {
+    transform: translateY(1.5px) rotate(2.2deg);
+  }
+}
+@keyframes vx-wake {
+  from {
+    opacity: 0.8;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+@keyframes vx-sail {
+  0% {
+    transform: translate(var(--x0), var(--y0));
+  }
+  50% {
+    transform: translate(var(--x1), var(--y1));
+  }
+  100% {
+    transform: translate(var(--x0), var(--y0));
+  }
+}
+@keyframes vx-flip {
+  0%,
+  49.9% {
+    transform: scaleX(1);
+  }
+  50%,
+  100% {
+    transform: scaleX(-1);
+  }
+}
+@keyframes vx-fly {
+  from {
+    transform: translate(var(--x0), var(--y0));
+  }
+  to {
+    transform: translate(var(--x1), var(--y1));
+  }
+}
+@keyframes vx-wingL {
+  from {
+    transform: rotate(30deg);
+  }
+  to {
+    transform: rotate(-16deg);
+  }
+}
+@keyframes vx-wingR {
+  from {
+    transform: rotate(-30deg);
+  }
+  to {
+    transform: rotate(16deg);
+  }
+}
+
+/* Gunshot on/off toggle, fixed bottom-left on every screen */
+.gunshot-toggle {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  background: var(--bg-rail);
+  border: 2px solid var(--accent-brass);
+  box-shadow: var(--motion-toggle-shadow);
+  color: var(--text-on-dark);
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.gunshot-toggle:hover {
+  background: var(--bg-rail-raised);
+}
+.gunshot-toggle__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--border-rail);
+  border: 2px solid var(--text-on-dark);
+}
+.gunshot-toggle[aria-pressed="true"] .gunshot-toggle__dot {
+  background: var(--accent-brass);
+}
+
+/* On a narrow screen the idle sign-out warning spans the bottom edge, where
+   the toggle would sit on top of it. The warning outranks a preference. */
+body:has(.idle-warning) .gunshot-toggle {
+  visibility: hidden;
+}
+
+/* Gunshot overlay. Layers bottom to top; each is placed at the click point. */
+.gunshot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.gunshot-overlay > * {
+  position: absolute;
+}
+.gunshot-overlay__bloom {
+  border-radius: 50%;
+  background: var(--motion-shot-bloom);
+  animation: vx-bloom 1000ms cubic-bezier(0.12, 0.9, 0.25, 1) both;
+}
+.gunshot-overlay__smoke {
+  border-radius: 50%;
+  background: var(--motion-shot-smoke);
+  animation: vx-smoke 900ms var(--vx-delay) ease-out both;
+}
+.gunshot-overlay__ray {
+  width: 5px;
+  height: 260px;
+  transform-origin: 50% 0;
+  background: var(--motion-shot-ray);
+  animation: vx-ray 320ms ease-out both;
+}
+.gunshot-overlay__ray--long {
+  height: 380px;
+}
+.gunshot-overlay__ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 5px solid var(--motion-shot-ring);
+  animation: vx-ring 620ms cubic-bezier(0.1, 0.8, 0.3, 1) both;
+}
+.gunshot-overlay__spark {
+  width: 3px;
+  height: 14px;
+  margin-left: -1.5px;
+  background: var(--motion-shot-spark);
+  box-shadow: var(--motion-shot-spark-glow);
+  animation: vx-spark 560ms ease-out both;
+}
+.gunshot-overlay__spark--alt {
+  background: var(--motion-shot-spark-alt);
+}
+.gunshot-overlay__flash {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--motion-shot-flash);
+  animation: vx-flash 200ms ease-out both;
+}
+
+/* Capture poster: dropped over everything after a claim upload succeeds. */
+.capture-poster {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: grid;
+  justify-items: center;
+  align-content: safe center;
+  gap: 22px;
+  padding: 28px 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--motion-poster-backdrop);
+  animation: vx-fade 260ms ease-out both;
+}
+.capture-poster__sheet {
+  position: relative;
+  width: min(92vw, 540px);
+  padding: clamp(20px, 3.6vh, 34px) clamp(18px, 3vw, 32px) clamp(16px, 2.6vh, 24px);
+  text-align: center;
+  background:
+    linear-gradient(var(--paper-wash), var(--paper-wash)),
+    var(--texture-paper) center / cover no-repeat,
+    var(--bg-poster);
+  border: 1px solid var(--border-poster);
+  box-shadow: var(--motion-poster-shadow);
+  color: var(--text-poster);
+  transform: rotate(-1.5deg);
+  animation:
+    vx-drop 760ms cubic-bezier(0.3, 0.7, 0.3, 1) both,
+    vx-thud 300ms 1140ms ease-out;
+}
+.capture-poster__pin {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  border-radius: 999px;
+  background: var(--pin);
+  border: 2px solid var(--pin-edge);
+  box-shadow: var(--motion-poster-pin-shadow);
+}
+.capture-poster__heading {
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 4px double var(--border-strong);
+  font-family: var(--font-display);
+  font-size: clamp(48px, 10.5vh, 92px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.capture-poster__portrait {
+  margin: clamp(10px, 2vh, 18px) 0 0;
+  padding: clamp(12px, 3.6vh, 34px) 14px;
+  background: var(--accent-ink);
+  border: 3px solid var(--border-strong);
+  box-shadow: var(--motion-poster-portrait-shadow);
+  color: var(--accent-ink-text);
+}
+.capture-poster__code {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(38px, 8.5vh, 76px);
+  line-height: 1;
+}
+.capture-poster__course {
+  display: block;
+  margin-top: 10px;
+  font-size: 17px;
+}
+.capture-poster__title {
+  margin: clamp(10px, 2vh, 18px) 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(18px, 3vh, 26px);
+  line-height: 1.25;
+  color: var(--text-poster-heading);
+  text-wrap: pretty;
+}
+.capture-poster__reward {
+  margin-top: clamp(10px, 2vh, 16px);
+  padding: 12px 0 10px;
+  border-block: 2px solid var(--border-poster-rule);
+}
+.capture-poster__reward-label {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+}
+.capture-poster__amount {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(36px, 7vh, 58px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--money-ink);
+  font-variant-numeric: tabular-nums;
+}
+.capture-poster__hunter {
+  margin: 12px 0 0;
+  font-size: 15px;
+}
+/* Sits at 70% so it lands on paper, never on the dark portrait box. */
+.capture-poster__stamp {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  padding: 6px 22px;
+  border: 7px solid var(--accent-primary);
+  box-shadow: var(--motion-stamp-shadow);
+  color: var(--accent-primary);
+  background: var(--motion-stamp-bg);
+  font-family: var(--font-display);
+  font-size: clamp(50px, 10vh, 80px);
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  mix-blend-mode: multiply;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  opacity: 0.92;
+  animation: vx-stamp 420ms 880ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.capture-poster__stamp--long {
+  font-size: clamp(40px, 7.5vh, 60px);
+}
+.capture-poster__splat {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  opacity: 0.85;
+  mix-blend-mode: multiply;
+  animation: vx-splat 260ms 1160ms ease-out both;
+}
+.capture-poster__dust {
+  position: absolute;
+  bottom: -10px;
+  width: 90px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--motion-dust);
+  opacity: 0;
+  animation: vx-dust 700ms 470ms ease-out both;
+}
+.capture-poster__dust--left {
+  left: 8%;
+  --dx: -50px;
+}
+.capture-poster__dust--right {
+  left: 92%;
+  --dx: 50px;
+}
+.capture-poster__caption {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 540px;
+  text-align: center;
+  animation: vx-rise 420ms 1450ms ease-out both;
+}
+.capture-poster__eyebrow {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-brass);
+}
+.capture-poster__message {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-on-dark);
+}
+.capture-poster__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.capture-poster__hunt {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  background: var(--accent-brass);
+  border: 2px solid var(--text-on-dark);
+  box-shadow: 0 3px 0 var(--accent-brass-shadow);
+  color: var(--bg-rail);
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+.capture-poster__close {
+  min-height: 44px;
+  padding: 0 18px;
+  background: transparent;
+  border: 2px solid var(--accent-brass);
+  color: var(--text-on-dark);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Reduced motion: the finished poster appears at once. The dust has no
+   resting state, so it stays invisible, exactly as in the prototype. */
+.capture-poster--still,
+.capture-poster--still * {
+  animation: none;
+}
+
+/* Living map. Sized to the map image, not the figure, which also holds the
+   caption. Decorative only: hidden from assistive technology and pointers. */
+.map-life {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1672 / 941;
+  overflow: hidden;
+  pointer-events: none;
+}
+.map-life__glint {
+  position: absolute;
+  width: 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--motion-glint);
+  box-shadow: var(--motion-glint-glow);
+  opacity: 0;
+  animation: vx-glint var(--vx-dur) var(--vx-delay) ease-in-out infinite;
+}
+.map-life__ship {
+  position: absolute;
+}
+.map-life__wake {
+  position: absolute;
+  left: 15%;
+  bottom: 4%;
+  width: 70%;
+  height: 14%;
+  border-radius: 50%;
+  border: 1.5px solid var(--motion-wake);
+  animation: vx-wake 2.8s var(--vx-delay) ease-out infinite;
+}
+.map-life__sprite {
+  width: 100%;
+  transform-origin: 50% 85%;
+  background-image: var(--texture-map);
+  image-rendering: pixelated;
+  -webkit-mask-image: var(--motion-sprite-mask);
+  mask-image: var(--motion-sprite-mask);
+  animation: vx-bob var(--vx-dur) var(--vx-delay) ease-in-out infinite;
+}
+.map-life__lane {
+  position: absolute;
+  inset: 0;
+  --x0: 48%;
+  --y0: 9%;
+  --x1: 70%;
+  --y1: 12%;
+  animation: vx-sail 60s linear infinite;
+}
+.map-life__turn {
+  animation: vx-flip 60s linear infinite;
+}
+.map-life__flock {
+  position: absolute;
+  inset: 0;
+  animation: vx-fly var(--vx-dur) var(--vx-delay) linear infinite;
+}
+.map-life__bird {
+  position: absolute;
+  width: 18px;
+  height: 8px;
+  opacity: 0.85;
+}
+.map-life__wing {
+  position: absolute;
+  top: 3px;
+  width: 9px;
+  height: 2px;
+  background: var(--bg-rail);
+}
+.map-life__wing--left {
+  left: 0;
+  transform-origin: 100% 50%;
+  animation: vx-wingL 0.45s var(--vx-delay) ease-in-out infinite alternate;
+}
+.map-life__wing--right {
+  left: 9px;
+  transform-origin: 0% 50%;
+  animation: vx-wingR 0.45s var(--vx-delay) ease-in-out infinite alternate;
+}
+
+/* The components already skip motion when this matches; this is a safety net. */
+@media (prefers-reduced-motion: reduce) {
+  .vx-motion,
+  .vx-motion * {
+    animation: none !important;
+  }
+}

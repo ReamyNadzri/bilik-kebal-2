@@ -1,6 +1,6 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { ShotLink } from "./motion/gunshot-transition";
 import { ShellNav } from "./shell-nav";
 import type { NavItem, NavItemId } from "@/features/presentation/navigation";
 
@@ -58,7 +58,7 @@ export function AppShell({
 
       <header className="app-shell__header">
         <div className="app-shell__bar">
-          <Link className="app-shell__wordmark" href="/">
+          <ShotLink className="app-shell__wordmark" href="/">
             <Image
               className="app-shell__logo"
               src="/brand/logo-tile.webp"
@@ -69,7 +69,7 @@ export function AppShell({
               unoptimized
             />
             VAULTIX
-          </Link>
+          </ShotLink>
 
           <ShellNav currentNavId={currentNavId} roleNav={roleNav} unreadCount={unreadCount} />
 

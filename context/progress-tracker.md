@@ -505,6 +505,27 @@ Fixes:
   institution verification is grouped into spaced cards; loading states carry a spinner; the
   Board loads with poster skeletons; the masthead reads WANTED.
 
+## 2026-09-26 motion handoff (gunshot transition, capture poster, living map)
+
+Ported `design_handoff_vaultix_motion/` into `src/components/motion/` with the prototype's values
+unchanged. Inline styles became classes and tokens at the end of `src/app/globals.css`, so no
+component restates a colour. Colours the theme already had reuse its tokens (same values).
+
+- Gunshot transition: `GunshotProvider` in the root layout; `ShotLink` on the primary nav,
+  "Post a Wanted", the wordmark and the two Wanted card links, and nowhere else. The route
+  changes at 390 ms and the overlay clears at 1050 ms. Modified clicks, reduced motion and the
+  toggle set to Off all navigate normally. Outside a provider `ShotLink` is a plain link.
+- Toggle: fixed bottom-left, saved as `localStorage["vaultix.gunshot"]`, default on. It hides
+  while the idle sign-out warning is up, because on narrow screens the warning spans the bottom
+  edge and the warning matters more.
+- Capture poster: shown only when `submitClaimFile` succeeds. The word is picked once and never
+  repeats the previous one. Esc closes only the poster. The Hunt link gets focus through a ref,
+  because React applies `autoFocus` only to form controls. The Hunter name is
+  `useAuth().state.account.displayName`, falling back to "you".
+- Living map: `MapLife` over the map image. It does not render when reduced motion is on.
+- The handoff bundle is left out of ESLint and Prettier (`design_handoff_*`); it is reference
+  material, not shipped code.
+
 ## Open Questions
 
 - Should the writer of a hidden chat message see the reason code (needs notification context or

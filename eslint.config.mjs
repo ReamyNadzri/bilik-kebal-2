@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
     ".worktrees/**",
     "supabase/.branches/**",
     "supabase/.temp/**",
+    // Designer handoff bundles: a prototype and reference sources, ported into src/.
+    "design_handoff_*/**",
   ]),
   {
     // Untrusted input is narrowed through validation, never through `any`.
