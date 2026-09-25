@@ -328,7 +328,6 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
   kept. Open item: regenerate and adapt the repositories, or keep the nullable overrides.
 - With the committed types: `pnpm typecheck` passes and `pnpm test` passes (1,029 tests).
 
-<<<<<<< HEAD
 ## 2026-09-25 branded auth and notification emails (branch `claude/branded-emails`)
 
 Spec `docs/superpowers/specs/2026-09-25-branded-auth-and-notification-emails-design.md`, plan
@@ -362,7 +361,6 @@ Claude Code implementing both lanes for this feature.
   your VAULTIX email") and `recovery.html` (Reset password, subject "Reset your VAULTIX
   password"), and add `<origin>/auth/confirm` to the redirect URLs; confirm `NEXT_PUBLIC_APP_URL`
   in Vercel Production is the public origin.
-=======
 ## 2026-09-25 chat threads and 7-day retention
 
 User decisions (all four recommended options accepted):
@@ -445,7 +443,19 @@ avatar images after a reset or retirement.
 
 None of `202610100001`, `202610100002`, `202610100003`, `202610100004` is applied to Supabase Cloud
 yet: this session has no Supabase credentials.
->>>>>>> bb558fa16c2b45841107b97674c5c7f4f244c254
+
+## 2026-09-25 cloud apply of the 202610 migrations
+
+The user applied `202610010001_welcome_and_sheriff_alert_emails` (branded-emails work) and then
+`202610100001`-`202610100004` to Supabase Cloud (`supabase db push`). Read-only check afterwards:
+the chat-cleanup, edit/delete, timeout and badge schema exist, `service_role` can read
+`wanted_replies`, pg_cron is installed, and the Owner is `rahiminazri432@gmail.com`. The chat and
+console migrations were renumbered from `202610010001`-`202610020002` before any was applied,
+because the welcome migration already used `202610010001`; the chat migration now appends its
+notification kind to the current list instead of replacing it, and leaves the email-outbox
+function to the welcome migration. The `claude/branded-emails` branch carried unresolved merge
+markers in `src/contracts/notifications.ts`, `email-delivery-service.ts` and this file; resolved
+by keeping both sides (subjects now live in `notification-email-content.ts`).
 
 ## Open Questions
 
