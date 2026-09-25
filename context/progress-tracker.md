@@ -357,8 +357,10 @@ Claude Code implementing both lanes for this feature.
   assumptions (pre-existing platform Sheriffs, the existing WELCOME values), since corrected. The
   corrected 14-assertion run was blocked by the permission classifier and still needs to be run.
 - `supabase migration list --linked` later showed `202610010001` applied on Supabase Cloud (applied
-  outside this session, before the corrected test ran). The corrected test remains worth running.
-- Pending user actions: run the corrected database test; in Supabase enable
+  outside this session, before the corrected test ran).
+- The corrected `tests/sql/welcome_and_sheriff_alert_emails.sql` then ran against Supabase Cloud
+  (test statements only, inside a transaction forced to abort, so nothing was kept): 14 of 14 pass.
+- Pending user actions: in Supabase enable
   Confirm email, paste `supabase/templates/confirmation.html` (Confirm signup, subject "Confirm
   your VAULTIX email") and `recovery.html` (Reset password, subject "Reset your VAULTIX
   password"), and add `<origin>/auth/confirm` to the redirect URLs; confirm `NEXT_PUBLIC_APP_URL`
