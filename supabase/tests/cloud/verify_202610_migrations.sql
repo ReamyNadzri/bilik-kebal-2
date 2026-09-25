@@ -1,8 +1,3 @@
--- Read-only check that migrations 202610010001, 202610010002, 202610020001
--- and 202610020002 are applied and wired up. Paste into the Supabase SQL
--- editor and run. It changes nothing. Every row should say PASS; the owner
--- row also names the Owner account.
-
 with checks(check_name, ok, detail) as (
   select 'migrations recorded',
     count(*) = 4,
@@ -131,3 +126,7 @@ with checks(check_name, ok, detail) as (
 select case when ok then 'PASS' else 'FAIL' end as result, check_name, detail
 from checks
 order by ok, check_name;
+
+-- Read-only check for migrations 202610010001, 202610010002, 202610020001 and
+-- 202610020002. Paste the whole file into the Supabase SQL editor, click in
+-- the editor without selecting any text, and press Run. It changes nothing.
