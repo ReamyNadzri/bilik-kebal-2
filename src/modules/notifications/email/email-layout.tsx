@@ -67,7 +67,7 @@ function EmailDocument({ content, appUrl }: { content: EmailContent; appUrl: str
                           src={`${appUrl}/brand/email/logo.png`}
                           alt="VAULTIX"
                           width={96}
-                          height={96}
+                          height={93}
                           style={{ display: "block", border: 0 }}
                         />
                       </td>
