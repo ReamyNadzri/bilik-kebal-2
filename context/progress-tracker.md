@@ -328,6 +328,39 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
   kept. Open item: regenerate and adapt the repositories, or keep the nullable overrides.
 - With the committed types: `pnpm typecheck` passes and `pnpm test` passes (1,029 tests).
 
+## 2026-09-25 branded auth and notification emails (branch `claude/branded-emails`)
+
+Spec `docs/superpowers/specs/2026-09-25-branded-auth-and-notification-emails-design.md`, plan
+`docs/superpowers/plans/2026-09-25-branded-auth-and-notification-emails.md`. The user approved
+Claude Code implementing both lanes for this feature.
+
+- Verification and recovery emails link to `/auth/confirm`; the token is spent only by the
+  button's POST to `/api/auth/confirm`. Recovery emails keep the 6-digit code as a fallback.
+  After sign-up the user now lands on `/verify-email`.
+- New notification kinds: `institution_verification_submitted` (Sheriff alert, fixed message with
+  display name and institution) and `welcome` (once, on first email confirmation).
+- `WELCOME` reward code: production already had an Owner-created code (2 free requests, 50
+  redemptions). The user chose to keep it. The migration seeds the same values only where the code
+  is missing, and the welcome email reads the live credit count, dropping the offer once the code
+  can no longer be redeemed.
+- Every email is branded HTML plus plain text using the provisional theme and
+  `public/brand/email/logo.png` (provisional, 160×155, displayed at 96 px). `@react-email/components`
+  was rejected because npm marks it unsupported; rendering uses `react-dom/server`.
+- Spam-folder guidance appears after sign-up, on `/verify-email`, after a resend, after a recovery
+  request, and in every email footer.
+- Found and fixed in migration `202610010001`: `claim_notification_email_batch` returned
+  `auth.users.email` (`varchar`) for a `text` column, so the version on Supabase Cloud fails the
+  moment it leases a job. Queued notification emails have therefore never been sent from Cloud.
+- Database verification: migration plus pgTAP ran against Supabase Cloud inside one transaction
+  that always aborted (nothing committed). 9 of 13 assertions passed; the 4 failures were test
+  assumptions (pre-existing platform Sheriffs, the existing WELCOME values), since corrected. The
+  corrected 14-assertion run was blocked by the permission classifier and still needs to be run.
+- Pending user actions: run the corrected database test; apply `202610010001`; in Supabase enable
+  Confirm email, paste `supabase/templates/confirmation.html` (Confirm signup, subject "Confirm
+  your VAULTIX email") and `recovery.html` (Reset password, subject "Reset your VAULTIX
+  password"), and add `<origin>/auth/confirm` to the redirect URLs; confirm `NEXT_PUBLIC_APP_URL`
+  in Vercel Production is the public origin.
+
 ## Open Questions
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.

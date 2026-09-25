@@ -1,6 +1,6 @@
 # Branded auth and notification emails — design
 
-Date: 2026-09-25 · Status: approved in conversation, awaiting written-spec review · Branch: `production`
+Date: 2026-09-25 · Status: approved and implemented on `claude/branded-emails` · Amended during implementation (see "Implementation amendments")
 
 Supplements the six context files. Where this spec conflicts with them, the stricter security,
 privacy, or launch-gate requirement wins.
@@ -232,3 +232,25 @@ This spec names the lanes; the implementation plan assigns each task an `Owner:`
 - Trigger on `auth.users` runs inside Supabase Auth's transaction; it must never raise. It uses
   `enqueue_notification`'s `on conflict do nothing` and guards the profile lookup.
 - Image blocking hides the logo; the layout stays readable with alt text and live-text headings.
+
+## Implementation amendments (2026-09-25)
+
+These override the sections above where they conflict.
+
+1. **Confirmation link type** is `type=email` (Supabase's current name, already handled by
+   `resolveAuthCallbackPath`), not `signup`.
+2. **Confirm logic** lives in `src/modules/identity/delivery/email-link-confirmation.ts` and the
+   route calls `verifyOtp` directly, matching `/auth/callback`, rather than a new `AuthService`
+   method. A shared `setRecoveryGrantCookie` helper serves both routes.
+3. **Renderer**: `@react-email/components` is marked unsupported on npm, so emails are rendered with
+   `react-dom/server` using an in-repo table layout. Plain text is built from the same content
+   model. No new dependency was added.
+4. **WELCOME**: production already had WELCOME at 2 free requests and 50 redemptions; the user
+   chose to keep it. The seed uses those values and never overwrites. The welcome email reads the
+   live `credits_per_redemption` through `notification_email_context` and omits the offer when the
+   code is inactive, expired or used up. The in-app welcome message names no number.
+5. **Logo**: one 160×155 PNG displayed at 96 px (no upscaled @2x).
+6. **Sign-up** now goes to `/verify-email`; an extra manual step is to enable **Confirm email** in
+   Supabase Auth.
+7. **Bug fix**: `claim_notification_email_batch` now casts `auth.users.email` to `text`; the earlier
+   definition failed at runtime.

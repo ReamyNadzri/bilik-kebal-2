@@ -66,6 +66,27 @@ Supabase Cloud is the active environment;
 validate the migration and access-control tests in a designated cloud test
 environment before rollout. No cloud database changes have been performed by this slice.
 
+### Branded auth and notification emails (2026-09-25)
+
+- Auth mail stays with Supabase Auth over Brevo SMTP. Its confirmation and recovery templates are
+  generated from `src/modules/notifications/email/auth-email-templates.ts` into
+  `supabase/templates/*.html` (a test fails if they drift) and pasted into the hosted project.
+- Emailed links open `/auth/confirm`, which only renders a button. The one-time token is spent by
+  `POST /api/auth/confirm` (`verifyOtp` with `token_hash`), so link scanners such as Microsoft
+  Defender Safe Links cannot use it up. Accepted types are `email` and `recovery`; recovery sets the
+  existing password-recovery grant cookie. A provider outage returns to the page with the token
+  unspent. `/auth/callback` keeps handling PKCE codes and older links.
+- Notification mail keeps the outbox and Brevo API path, now sending HTML and plain text rendered
+  by `react-dom/server` from one content model (`src/modules/notifications/email/`). Colours are
+  literals mirrored from the provisional tokens and checked against `globals.css` by a test.
+- `private.notification_email_context` supplies allow-listed per-kind values through
+  `claim_notification_email_batch`: requester display name and institution name for
+  `institution_verification_submitted`, and the live `WELCOME` credit count for `welcome` (omitted
+  once the code is inactive, expired or used up). The repository strips any other key.
+- `institution_verification_submitted` goes to every platform Sheriff and the institution's
+  Sheriffs, never the requester. `welcome` is enqueued once per user when the email is first
+  confirmed; the trigger on `auth.users` swallows its own errors so it can never block sign-up.
+
 Modules may share identifiers and published domain events, but they must not reach into one another's internal tables or bypass the owning service's invariants.
 
 ## Expected Project Boundaries
