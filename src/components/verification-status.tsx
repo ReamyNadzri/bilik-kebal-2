@@ -15,6 +15,8 @@ export interface VerificationStatusProps {
    * be unable to act. It must never be folded into the institution state.
    */
   restricted: boolean;
+  /** When a timeout lifts by itself. */
+  restrictedUntil?: string | undefined;
   capabilities: AccountCapabilities;
 }
 
@@ -67,11 +69,24 @@ interface Notice {
  * A restriction outranks a missing institution verification: verifying would
  * not restore the blocked actions, so offering it as the remedy would mislead.
  */
+const UNTIL = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Asia/Kuala_Lumpur",
+});
+
 function noticeFor(
   restricted: boolean,
   institution: InstitutionBadgeState,
   blockedCount: number,
+  restrictedUntil?: string,
 ): Notice | null {
+  if (restricted && restrictedUntil) {
+    return {
+      heading: "This account is timed out",
+      message: `A Sheriff paused this account until ${UNTIL.format(new Date(restrictedUntil))} (Malaysia time). You can browse, but posting, replying, claiming and funding are paused until then. It lifts by itself.`,
+    };
+  }
   if (restricted) {
     return { heading: "This account is restricted", message: RESTRICTED_MESSAGE };
   }
@@ -94,10 +109,11 @@ export function VerificationStatus({
   email,
   institution,
   restricted,
+  restrictedUntil,
   capabilities,
 }: VerificationStatusProps) {
   const blocked = CAPABILITY_LABEL.filter(({ key }) => !capabilities[key]);
-  const notice = noticeFor(restricted, institution, blocked.length);
+  const notice = noticeFor(restricted, institution, blocked.length, restrictedUntil);
 
   return (
     <section className="verification-status">

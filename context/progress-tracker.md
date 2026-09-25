@@ -380,6 +380,37 @@ moderation (no raw database editor; money stays read-only there); Owner-awarded 
 names, separate from the institution-verified star; timed account timeouts (1 hour, 24 hours,
 7 days, auto-lifting, permanent restriction Owner-only) and idle sign-out.
 
+## 2026-09-25 timeouts, idle sign-out, member console and badges
+
+Built from the decisions recorded above (user chose: timeout = both a moderation timeout and idle
+sign-out; Owner console = manage people + moderate content; badges = Owner-awarded, separate from
+the verified star; no raw database editor).
+
+- Migration `202610020001_account_timeouts.sql`: `account_restrictions.expires_at`;
+  `timeout_account` (1 h, 24 h, 7 days) for the Owner, platform Sheriffs, and institution Sheriffs
+  over verified members of their institution; nobody times out the Owner and only the Owner times
+  out a platform Sheriff. **Behaviour change:** `restrict_account` (permanent) is now Owner-only;
+  platform Sheriffs could call it before. `lift_account_restriction`; a pg_cron job lifts expired
+  timeouts every minute. All need a sign-in in the last 15 minutes and are audited.
+- Migration `202610020002_member_console_and_badges.sql`: console functions (search, rename, reset
+  avatar, manual institution verification grant/revoke, appoint/remove Sheriffs, timeouts, hidden
+  message list) and badges (`badges`, `badge_awards`, public `badges` bucket writable only by the
+  Owner). Institution Sheriffs see only their institution's members and never email addresses. The
+  Owner role is not assignable anywhere in the app.
+- Console pages: `/console/people`, `/console/moderation`, `/console/badges`. Badges show beside
+  names in chat and on public profiles. A timed-out member sees when the timeout ends.
+- Idle sign-out: Sheriffs and the Owner after 30 minutes idle (browser, warned 2 minutes before),
+  members after 7 days (browser and a `vaultix_last_seen` cookie checked by the proxy).
+- `supabase/tests/local/` holds the scripted SQL assertions and a runner for a throwaway local
+  Postgres 16; never point it at Supabase Cloud.
+
+Open questions added: taking down a Wanted from the console (a paid one involves refunds, so it
+was not built); whether institution Sheriffs should rename members; retention of orphaned badge and
+avatar images after a reset or retirement.
+
+None of `202610010001`, `202610010002`, `202610020001`, `202610020002` is applied to Supabase Cloud
+yet: this session has no Supabase credentials.
+
 ## Open Questions
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.

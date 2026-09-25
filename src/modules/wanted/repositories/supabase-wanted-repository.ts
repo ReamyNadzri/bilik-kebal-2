@@ -12,6 +12,7 @@ import type {
   WantedSummary,
 } from "@/contracts/marketplace";
 import { resolveAvatarUrl } from "@/lib/avatars";
+import { readMemberBadges } from "@/lib/badges";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
 import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-query";
@@ -363,6 +364,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       : { data: [], error: null };
     if (authors.error) throw authors.error;
     const authorById = new Map((authors.data ?? []).map((row) => [row.user_id, row]));
+    const badgeByUser = await readMemberBadges(this.client, authorIds);
     const replyById = new Map((replies.data ?? []).map((row) => [row.id, row]));
     return (replies.data ?? []).map((row) => {
       const author = authorById.get(row.author_user_id);
@@ -389,6 +391,7 @@ export class SupabaseWantedRepository implements WantedRepository {
             author?.avatar_object_key ?? null,
             author?.avatar_preset ?? null,
           ),
+          badge: badgeByUser.get(row.author_user_id) ?? null,
         },
       };
     });

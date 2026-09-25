@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Avatar } from "./avatar";
+import { MemberBadgeMark } from "./member-badge-mark";
 import { UiStatus } from "./ui-status";
 import {
   REPLY_EDIT_WINDOW_MINUTES,
@@ -573,8 +574,9 @@ function ReplyItem({
             <Link href={`/u/${reply.author.publicId}`}>{reply.author.displayName}</Link>
           ) : (
             reply.author.displayName
-          )}{" "}
-          · <time dateTime={reply.createdAt}>{formatPostedAge(reply.createdAt, now)}</time>
+          )}
+          <MemberBadgeMark badge={reply.author.badge} /> ·{" "}
+          <time dateTime={reply.createdAt}>{formatPostedAge(reply.createdAt, now)}</time>
           {reply.editedAt ? " · edited" : null}
         </p>
         {reply.parent ? (

@@ -74,6 +74,7 @@ export default async function MemberPage({ params }: MemberPageProps) {
         joinedAt={profile.joinedAt}
         institutionName={profile.institutionName}
         institutionVerified={profile.institutionVerified}
+        badge={profile.badge ?? null}
         stats={[
           { label: "Requests", value: String(profile.wanted.length) },
           { label: "Open", value: String(open) },

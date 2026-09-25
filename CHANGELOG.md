@@ -11,7 +11,10 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
 
 ### Before deploying
 
-- Apply `supabase/migrations/202610010002_chat_reply_edit_delete.sql` after `202610010001`.
+- Apply the new migrations in order: `202610010001`, `202610010002`, `202610020001`,
+  `202610020002` (`supabase db push`). Enable pg_cron first; it runs the daily chat cleanup and the
+  every-minute timeout lift.
+- `restrict_account` (permanent restriction) is now Owner-only.
 - Apply `supabase/migrations/202610010001_chat_threads_and_retention.sql` (chat threads, 7-day
   retention, daily `wanted-thread-retention` pg_cron job). Enable pg_cron first if the project does
   not have it; without it the migration applies but nothing is scheduled.
@@ -32,6 +35,14 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
   public launch.
 
 ### Added
+
+- Sheriff Console → People: search members, time out (1 h / 24 h / 7 days), restrict permanently
+  (Owner), rename, reset picture, grant or revoke institution verification (Owner), appoint or
+  remove Sheriffs (Owner), pin a badge (Owner). Every change asks for a reason code and is audited.
+- Sheriff Console → Hidden messages: restore hidden chat messages.
+- Sheriff Console → Badges (Owner): design badges with an optional emblem image; badges show
+  beside names in chat and on profiles.
+- Idle sign-out: 30 minutes for Sheriffs and the Owner (with a warning), 7 days for members.
 
 - Chat messages can answer (quote) another message. Authors can edit for 15 minutes ("edited") and
   delete at any time ("Message deleted"). Sheriffs and the Owner can hide a message with a reason

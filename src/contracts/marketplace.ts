@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { OperationResult } from "./operation-result";
+import type { MemberBadge } from "./console";
 
 export type Sen = number & { readonly __brand: "Sen" };
 /** How long a request stays open: any whole number of days from 3 to 30. */
@@ -168,6 +169,8 @@ export interface PublicMemberCard {
   publicId: string;
   displayName: string;
   avatarUrl: string | null;
+  /** The Owner-awarded badge, if the member wears one. */
+  badge?: MemberBadge | null;
 }
 
 /** A campus as the map shows it. Closed regions carry no counts. */

@@ -40,7 +40,7 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
           .maybeSingle(),
         this.client
           .from("account_restrictions")
-          .select("id")
+          .select("id, expires_at")
           .eq("user_id", user.id)
           .is("lifted_at", null)
           .limit(1)
@@ -119,6 +119,7 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       joinedAt: profile.data.created_at,
       emailConfirmedAt: user.email_confirmed_at ?? null,
       hasActiveRestriction: Boolean(restriction.data),
+      restrictionExpiresAt: restriction.data?.expires_at ?? null,
       hasConsoleAccess: platformRoles.data.length > 0 || institutionRoles.data.length > 0,
       institution,
       institutionVerificationState,

@@ -76,6 +76,7 @@ export type Database = {
       };
       account_restrictions: {
         Row: {
+          expires_at: string | null;
           id: string;
           lifted_at: string | null;
           lifted_by: string | null;
@@ -85,6 +86,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          expires_at?: string | null;
           id?: string;
           lifted_at?: string | null;
           lifted_by?: string | null;
@@ -94,6 +96,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          expires_at?: string | null;
           id?: string;
           lifted_at?: string | null;
           lifted_by?: string | null;
@@ -1885,6 +1888,66 @@ export type Database = {
           },
         ];
       };
+      badges: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          id: string;
+          image_object_key: string | null;
+          name: string;
+          retired_at: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          description?: string | null;
+          id?: string;
+          image_object_key?: string | null;
+          name: string;
+          retired_at?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          id?: string;
+          image_object_key?: string | null;
+          name?: string;
+          retired_at?: string | null;
+        };
+        Relationships: [];
+      };
+      badge_awards: {
+        Row: {
+          awarded_at: string;
+          awarded_by: string;
+          badge_id: string;
+          id: string;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          awarded_at?: string;
+          awarded_by: string;
+          badge_id: string;
+          id?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          user_id: string;
+        };
+        Update: {
+          awarded_at?: string;
+          awarded_by?: string;
+          badge_id?: string;
+          id?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       wanted_replies: {
         Row: {
           author_user_id: string;
@@ -2188,6 +2251,56 @@ export type Database = {
         Args: { hide: boolean; reason_code?: string | null; target_reply_id: string };
         Returns: undefined;
       };
+      console_my_role: { Args: Record<PropertyKey, never>; Returns: string | null };
+      console_search_members: {
+        Args: { max_rows?: number; search?: string | null };
+        Returns: Json;
+      };
+      console_rename_member: {
+        Args: { new_name: string; reason_code: string; target_public_id: string };
+        Returns: undefined;
+      };
+      console_reset_member_avatar: {
+        Args: { reason_code: string; target_public_id: string };
+        Returns: undefined;
+      };
+      console_timeout_member: {
+        Args: { duration_hours: number; reason_code: string; target_public_id: string };
+        Returns: string;
+      };
+      console_restrict_member: {
+        Args: { reason_code: string; target_public_id: string };
+        Returns: string;
+      };
+      console_lift_member_restriction: { Args: { target_public_id: string }; Returns: undefined };
+      console_set_institution_verification: {
+        Args: {
+          reason_code: string;
+          target_institution_id: string;
+          target_public_id: string;
+          verified: boolean;
+        };
+        Returns: undefined;
+      };
+      console_set_sheriff: {
+        Args: { appoint: boolean; target_institution_id: string | null; target_public_id: string };
+        Returns: undefined;
+      };
+      console_list_hidden_replies: { Args: { max_rows?: number }; Returns: Json };
+      create_badge: {
+        Args: { badge_description?: string | null; badge_name: string; image_key?: string | null };
+        Returns: string;
+      };
+      retire_badge: { Args: { target_badge_id: string }; Returns: undefined };
+      set_member_badge: {
+        Args: { target_badge_id: string | null; target_public_id: string };
+        Returns: undefined;
+      };
+      timeout_account: {
+        Args: { duration_hours: number; reason_code: string; target_user_id: string };
+        Returns: string;
+      };
+      lift_account_restriction: { Args: { target_user_id: string }; Returns: undefined };
       publish_community_wanted: {
         Args: {
           target_campus_id: string;

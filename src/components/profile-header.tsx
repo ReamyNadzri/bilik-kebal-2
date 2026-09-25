@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { Avatar } from "./avatar";
+import { MemberBadgeMark } from "./member-badge-mark";
+import type { MemberBadge } from "@/contracts/console";
 import { formatJoined } from "@/features/marketplace/time";
 
 export interface ProfileHeaderProps {
@@ -9,6 +11,8 @@ export interface ProfileHeaderProps {
   readonly joinedAt: string | null;
   readonly institutionName: string | null;
   readonly institutionVerified: boolean;
+  /** The Owner-awarded badge, shown apart from the verified star. */
+  readonly badge?: MemberBadge | null;
   readonly stats: readonly { readonly label: string; readonly value: string }[];
   /** Edit controls on the member's own profile; nothing on someone else's. */
   readonly actions?: ReactNode;
@@ -28,6 +32,7 @@ export function ProfileHeader({
   joinedAt,
   institutionName,
   institutionVerified,
+  badge = null,
   stats,
   actions,
   avatarSlot,
@@ -52,6 +57,7 @@ export function ProfileHeader({
               <span aria-hidden="true">★ </span>Institution verified
             </span>
           ) : null}
+          <MemberBadgeMark badge={badge} />
           {actions}
         </div>
         <dl className="profile-header__stats">
