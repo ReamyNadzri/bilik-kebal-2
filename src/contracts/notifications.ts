@@ -49,7 +49,7 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
     "A Sheriff approved a bounty for you. The Owner records the payout; sign in to view its status.",
   institution_verification_submitted:
     "A new institution verification request is waiting for review.",
-  welcome: "Welcome to VAULTIX. Redeem code WELCOME on your profile for 3 free requests.",
+  welcome: "Welcome to VAULTIX. Your email is verified; check your email for a welcome reward.",
 };
 
 /** Where a notification leads, when its subject is a public page. */
