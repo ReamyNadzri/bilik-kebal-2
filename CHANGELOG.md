@@ -11,12 +11,15 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
 
 ### Before deploying
 
-- Apply two new migrations to Supabase Cloud, in order. Neither has been applied yet:
+- Both new migrations are already applied to Supabase Cloud (project `yuzgkjowtcfwqanituta`,
+  confirmed 2026-09-25):
   1. `supabase/migrations/202609290001_profiles_free_requests_and_regions.sql`
   2. `supabase/migrations/202609300001_paid_community_codes_and_taxonomy_requests.sql`
-- After applying, confirm the open campuses. Open campuses are matched by name (`ilike`).
-- Regenerate Supabase types (`pnpm db:types`) if the database schema differs from
-  `src/lib/supabase/database.types.ts`.
+- The cloud has exactly five open campuses, RLS on every new table, `avatars` as the only public
+  bucket, and the lifecycle and payout-source checks in place.
+- Types regenerated from the cloud (`supabase gen types typescript --linked`) add the `notifications` table but
+  type nullable RPC arguments as non-null, which breaks typecheck. Keep the committed
+  `src/lib/supabase/database.types.ts` until the repositories are adapted.
 - Payment stays `disabled`. The Backer contribution endpoint
   (`POST /api/marketplace/wanted/[id]/contribution`) has not been built, and paid missing items and
   discussions return `PAYMENT_DISABLED`.
@@ -165,3 +168,4 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
   succeeds.
 - No horizontal overflow on 17 routes at 360 px and 1440 px.
 - The full migration chain applies to Postgres 16 with stubbed `auth` and `storage`.
+- On 2026-09-25, typecheck and 1,029 unit tests passed against the committed types, and read-only checks of Supabase Cloud passed.

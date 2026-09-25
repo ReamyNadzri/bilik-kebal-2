@@ -262,8 +262,8 @@ Update this file after every meaningful implementation or specification change.
 
 User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
 
-- Migration `202609290001_profiles_free_requests_and_regions.sql` — **not yet applied to Supabase
-  Cloud**. It adds request kinds (`academic`, `missing_item`, `discussion`), free requests
+- Migration `202609290001_profiles_free_requests_and_regions.sql` — applied to Supabase Cloud
+  (confirmed 2026-09-25, see below). It adds request kinds (`academic`, `missing_item`, `discussion`), free requests
   (`is_free`, access basis `commissioner_free`), replies and reply notifications, profile
   `public_id`/avatar/bio, the public `avatars` bucket, campus region lock and map positions, the
   3–30 day duration, and adds `fulfilled`/`closed` to the lifecycle check (approval previously
@@ -282,8 +282,8 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
 
 ## 2026-09-24 (later) paid community requests, free limit, reward codes, entry requests
 
-- Migration `202609300001_paid_community_codes_and_taxonomy_requests.sql` — **not yet applied to
-  Supabase Cloud**. Verified locally: the whole migration chain applies on Postgres 16 with
+- Migration `202609300001_paid_community_codes_and_taxonomy_requests.sql` — applied to Supabase
+  Cloud (confirmed 2026-09-25, see below). Verified locally: the whole migration chain applies on Postgres 16 with
   stubbed `auth`/`storage`, and the free limit, reward codes, taxonomy requests (RLS, notification,
   email outbox), community payout (request, Sheriff approval, payout task, 10% fee, conflicted
   reviewer refused) and campus seeding behave as specified.
@@ -302,6 +302,31 @@ User-authorised full-stack slice on `claude/compassionate-ramanujan-lpcrpr`:
   records must be kept).
 - Reward codes are created by the Owner via `create_reward_code` or the SQL editor; there is no
   Owner UI for codes yet.
+
+## 2026-09-25 Supabase Cloud migration check (project `yuzgkjowtcfwqanituta`, "vaultix")
+
+- `supabase migration list --linked` shows every local migration through `202609300001` on the
+  remote, and `supabase db push --linked --dry-run` reports "Remote database is up to date". Both
+  `202609290001` and `202609300001` were already applied before this check, so nothing was pushed.
+- Read-only verification passed:
+  - both versions are in `supabase_migrations.schema_migrations`;
+  - exactly five campuses are `region_open = true` (UiTM Shah Alam, Puncak Alam, Kuala Terengganu,
+    Dungun and Bukit Besi), each with one row; the 11 other UiTM campuses are locked with map
+    positions;
+  - RLS is enabled on `wanted_replies`, `reward_codes`, `reward_code_redemptions`,
+    `taxonomy_requests` and `community_payout_requests`;
+  - `avatars` is the only public bucket (512 KB, `image/webp`); `approved`, `quarantine` and
+    `identity-evidence` stay private;
+  - `wanted_requests_lifecycle_check` allows `fulfilled` and `closed`;
+  - `payout_tasks_source_check` requires exactly one of `claim_id` or
+    `community_payout_request_id`.
+- `supabase gen types typescript --linked` differs from the committed
+  `src/lib/supabase/database.types.ts`. The cloud types add the `notifications` table, its RPCs and
+  the relationships of `community_payout_requests`, but they type nullable RPC arguments (for
+  example `academic_session_id`) as non-null. With them, `pnpm typecheck` fails with 12 errors in
+  the profile, taxonomy-request and wanted repositories. The committed, hand-adjusted file was
+  kept. Open item: regenerate and adapt the repositories, or keep the nullable overrides.
+- With the committed types: `pnpm typecheck` passes and `pnpm test` passes (1,029 tests).
 
 ## Open Questions
 
