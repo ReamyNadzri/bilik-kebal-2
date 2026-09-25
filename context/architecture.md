@@ -59,9 +59,10 @@ review after the provider's 15-minute deduplication window. Supabase Auth messag
 Auth settings; this requires a separate Brevo SMTP key, not the API key used by
 the app dispatcher. Outbox email,
 recipient addresses, provider messages and service credentials are never exposed
-through the inbox API or logs. The dispatcher endpoint exists but has not been
-scheduled or deployed. A frontend inbox exists in an isolated worktree but has
-not yet been integrated; lifecycle schedules remain unconnected.
+through the inbox API or logs. Supabase Cron calls the dispatcher every minute
+when a job is due (`202610110001`), authenticating with a dedicated
+`NOTIFICATION_DISPATCH_SECRET` read from Supabase Vault, never the service-role
+key. The in-app inbox is integrated as a rail dropdown plus `/notifications`.
 Supabase Cloud is the active environment;
 validate the migration and access-control tests in a designated cloud test
 environment before rollout. No cloud database changes have been performed by this slice.
