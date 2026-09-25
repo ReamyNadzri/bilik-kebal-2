@@ -83,6 +83,11 @@ export interface TaxonomyRequestView {
   decidedAt: string | null;
   /** Sheriff queue only: who asked. */
   requesterName?: string;
+  /**
+   * Sheriff queue only: the viewer asked for this entry. It is listed so it
+   * does not seem to vanish, but another Sheriff or the Owner decides it.
+   */
+  ownRequest?: boolean;
 }
 
 export type SubmitTaxonomyRequestResult = OperationResult<

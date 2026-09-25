@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { NotificationInbox } from "./notification-inbox";
 
+const refresh = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+
 afterEach(() => vi.unstubAllGlobals());
 
 test("loads notifications and marks one read", async () => {
@@ -41,7 +44,9 @@ test("loads notifications and marks one read", async () => {
       body: JSON.stringify({ id: "60000000-0000-4000-8000-000000000001" }),
     }),
   );
-  expect(notice.closest("li")).toHaveAttribute("data-read", "true");
+  await waitFor(() => expect(notice.closest("li")).toHaveAttribute("data-read", "true"));
+  // The rail's badge is server-rendered; refreshing is what makes it drop.
+  expect(refresh).toHaveBeenCalled();
 });
 
 test("shows an empty inbox", async () => {

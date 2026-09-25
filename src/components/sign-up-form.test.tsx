@@ -3,9 +3,11 @@ import { waitFor } from "@testing-library/react";
 import { SignUpForm } from "./sign-up-form";
 
 const push = vi.fn();
+const replace = vi.fn();
+const refresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace, refresh }),
 }));
 
 function fill(label: RegExp, value: string) {
@@ -29,6 +31,8 @@ function respondWith(body: unknown) {
 
 beforeEach(() => {
   push.mockReset();
+  replace.mockReset();
+  refresh.mockReset();
   vi.unstubAllGlobals();
 });
 
@@ -88,6 +92,17 @@ test("sends the user to verify their email after registration", async () => {
   submit();
 
   await waitFor(() => expect(push).toHaveBeenCalledWith("/verify-email"));
+});
+
+test("goes straight to the profile when no confirmation email was sent", async () => {
+  respondWith({ ok: true, data: { next: "profile" } });
+
+  render(<SignUpForm />);
+  completeForm();
+  submit();
+
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+  expect(push).not.toHaveBeenCalledWith("/verify-email");
 });
 
 test("shows the operation's refusal without creating an account", async () => {

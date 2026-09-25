@@ -68,6 +68,14 @@ export interface MemberBadge {
 }
 
 const reasonCode = z.string().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/);
+/**
+ * Any UUID-shaped id from the database. Not `z.uuid()`, which also demands an
+ * RFC version and variant and so refused hand-seeded rows such as
+ * 10000000-0000-0000-0000-000000000001 before the database ever saw them.
+ */
+const databaseId = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
 
 export const TIMEOUT_HOURS = [1, 24, 168] as const;
 
@@ -87,17 +95,17 @@ export const consoleMemberActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("lift") }),
   z.object({
     action: z.literal("set_verification"),
-    institutionId: z.string().uuid(),
+    institutionId: databaseId,
     verified: z.boolean(),
     reasonCode,
   }),
   z.object({
     action: z.literal("set_sheriff"),
     /** Null: platform Sheriff. Otherwise institution Sheriff there. */
-    institutionId: z.string().uuid().nullable(),
+    institutionId: databaseId.nullable(),
     appoint: z.boolean(),
   }),
-  z.object({ action: z.literal("set_badge"), badgeId: z.string().uuid().nullable() }),
+  z.object({ action: z.literal("set_badge"), badgeId: databaseId.nullable() }),
 ]);
 export type ConsoleMemberAction = z.infer<typeof consoleMemberActionSchema>;
 

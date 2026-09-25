@@ -25,6 +25,8 @@ export function ConfirmIdentity({ purpose, onConfirmed }: ConfirmIdentityProps) 
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Never let this submit reach a surrounding form's handler.
+    event.stopPropagation();
     if (password === "") {
       setError("Enter your password.");
       return;

@@ -36,6 +36,7 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   welcome: "Welcome to VAULTIX",
   // In-app only; the retention job removes it from the outbox (migration 202610100001).
   wanted_thread_auto_closed: "Your request closed after 30 quiet days",
+  wanted_reply_hidden: "A Sheriff hid one of your chat messages",
 };
 
 const cap = (value: string | undefined) => value?.slice(0, 80).trim() || undefined;

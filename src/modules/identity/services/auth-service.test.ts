@@ -4,7 +4,7 @@ import { AuthService, type AuthGateway } from "./auth-service";
 
 function createGateway(): AuthGateway {
   return {
-    register: vi.fn().mockResolvedValue({ ok: true }),
+    register: vi.fn().mockResolvedValue({ ok: true, signedIn: false }),
     signIn: vi.fn().mockResolvedValue({ ok: true }),
     sendPasswordRecovery: vi.fn().mockResolvedValue({ ok: true }),
     verifyRecoveryOtp: vi.fn().mockResolvedValue({ ok: true }),
@@ -54,6 +54,20 @@ describe("AuthService", () => {
 
     expect(result).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
     expect(gateway.register).not.toHaveBeenCalled();
+  });
+
+  test("sends a new account straight to its profile when no confirmation email was sent", async () => {
+    const gateway = createGateway();
+    vi.mocked(gateway.register).mockResolvedValue({ ok: true, signedIn: true });
+    const service = new AuthService(gateway, "https://vaultix.example");
+
+    const result = await service.register({
+      displayName: "Nur Aina",
+      email: "aina@example.com",
+      password: "SecurePass123",
+    });
+
+    expect(result).toEqual({ ok: true, data: { next: "profile" } });
   });
 
   test("registers with normalized identity data and requires email verification", async () => {

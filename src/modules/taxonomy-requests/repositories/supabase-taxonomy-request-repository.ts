@@ -54,11 +54,16 @@ export class SupabaseTaxonomyRequestRepository implements TaxonomyRequestReposit
       .from("taxonomy_requests")
       .select(COLUMNS)
       .eq("status", "pending")
-      .neq("requester_user_id", viewerUserId)
       .order("created_at", { ascending: true })
       .limit(100);
     if (error) throw error;
-    return this.present(data as Row[], true);
+    // The viewer's own requests stay listed, flagged, so a Sheriff who asked
+    // for an entry sees it waiting instead of thinking it was lost.
+    const views = await this.present(data as Row[], true);
+    const own = new Set(
+      (data as Row[]).filter((row) => row.requester_user_id === viewerUserId).map((row) => row.id),
+    );
+    return views.map((view) => (own.has(view.id) ? { ...view, ownRequest: true } : view));
   }
 
   async decide(input: {

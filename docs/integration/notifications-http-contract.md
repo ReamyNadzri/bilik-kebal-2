@@ -1,9 +1,9 @@
 # Notification inbox API
 
-Owner: Codex backend. Inbox, recorded-event publishers and email-outbox delivery
-are implemented in this branch but migrations remain unapplied and the dispatcher
-is not scheduled/deployed. Verify in an approved isolated test environment before
-integration; do not use the shared Supabase Cloud for persistent test writes.
+Inbox, recorded-event publishers and email-outbox delivery are applied on
+Supabase Cloud. The dispatcher is scheduled by Supabase Cron once
+`202610110001` is applied and its Vault secrets and Vercel variable are set.
+Do not use the shared Supabase Cloud for persistent test writes.
 
 - `GET /api/notifications?limit=20&cursor=<opaque>` lists the signed-in recipient's
   inbox. Limit is 1–50. Omit cursor for the first page; use `data.nextCursor` for
@@ -12,10 +12,14 @@ integration; do not use the shared Supabase Cloud for persistent test writes.
   notification read. Repeating this preserves the initial read timestamp.
 - No browser operation creates notifications, chooses recipients, or sends email.
 - `POST /api/internal/notifications/email` drains up to 20 due outbox jobs and
-  returns safe counts only. It requires the service-role key as a Bearer token,
-  has no request body, and is for a trusted scheduler/operations caller only.
-  Never call this endpoint from browser code or expose the service-role key. It
-  has not been scheduled or deployed. The response never includes recipients or
+  returns safe counts only. It requires `NOTIFICATION_DISPATCH_SECRET` (at least
+  32 characters, not the service-role key) as a Bearer token, has no request
+  body, and is for the scheduler only. Never call it from browser code. Supabase
+  Cron calls it every minute when a job is due
+  (`202610110001_schedule_notification_email_dispatch.sql`); the endpoint URL and
+  the secret are read from Supabase Vault (`notification_dispatch_url`,
+  `notification_dispatch_secret`). Without both Vault secrets and the Vercel
+  variable, nothing is sent. The response never includes recipients or
   provider error details. Counts are `claimed`, `sent`, `retried`, `manualReview`
   and `failed`.
 

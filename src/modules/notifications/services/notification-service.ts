@@ -23,6 +23,7 @@ export interface InboxQuery {
 export interface NotificationRepository {
   list(query: InboxQuery): Promise<NotificationRow[]>;
   markRead(id: string): Promise<boolean>;
+  markAllRead(): Promise<number>;
 }
 
 /** Authenticated composition supplies a session-scoped repository, never an admin client. */
@@ -78,11 +79,18 @@ export class NotificationService {
     }
   }
 
+  /** `{ id }` marks one notification read; `{ all: true }` marks every unread one. */
   async markRead(input: unknown): Promise<NotificationReadResult> {
-    const parsed = z.object({ id: z.uuid() }).strict().safeParse(input);
+    const parsed = z
+      .union([z.object({ id: z.uuid() }).strict(), z.object({ all: z.literal(true) }).strict()])
+      .safeParse(input);
     if (!parsed.success)
       return { ok: false, code: "VALIDATION_ERROR", message: "Invalid notification identifier." };
     try {
+      if ("all" in parsed.data) {
+        await this.repository.markAllRead();
+        return { ok: true, data: { read: true } };
+      }
       if (!(await this.repository.markRead(parsed.data.id))) {
         return { ok: false, code: "REQUEST_NOT_FOUND", message: "Notification not found." };
       }

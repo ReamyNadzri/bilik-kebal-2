@@ -21,8 +21,9 @@ type Outcome =
 /**
  * Registration, wired to POST /api/auth/sign-up.
  *
- * On success the operation answers `next: "verify_email"`, so the screen sends
- * the user there rather than implying an account is ready to use. Creating an
+ * On success the operation answers `next: "verify_email"` when a confirmation
+ * email was sent, and `next: "profile"` when Supabase skipped confirmation and
+ * signed the account in, so nobody waits for an email that never comes. Creating an
  * account grants neither the star emblem nor the right to transact —
  * institution verification is a separate trust state.
  */
@@ -85,13 +86,22 @@ export function SignUpForm() {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const result = (await callOperation<{ next: "verify_email" }, IdentityOperationCode>(
+    const result = (await callOperation<
+      { next: "verify_email" | "profile" },
+      IdentityOperationCode
+    >(
       "/api/auth/sign-up",
       { displayName, email, password },
       "AUTH_UNAVAILABLE",
     )) as RegistrationResult;
 
     if (result.ok) {
+      if (result.data.next === "profile") {
+        // No confirmation email was sent; the account is already signed in.
+        router.replace("/profile");
+        router.refresh();
+        return;
+      }
       router.push("/verify-email");
       return;
     }

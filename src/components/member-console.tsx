@@ -439,30 +439,38 @@ function ActionForm({
   }
 
   return (
-    <form className="ops-form" onSubmit={onSubmit} noValidate aria-label={title}>
-      <h4 className="ops-panel__title">{title}</h4>
-      {hint ? <p className="form-field__hint">{hint}</p> : null}
-      {error ? (
-        <p className="form-field__error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {done ? (
-        <p className="ops-alert ops-alert--success" role="status">
-          Saved.
-        </p>
-      ) : null}
-      {children}
+    <div className="ops-form">
+      <form className="ops-form" onSubmit={onSubmit} noValidate aria-label={title}>
+        <h4 className="ops-panel__title">{title}</h4>
+        {hint ? <p className="form-field__hint">{hint}</p> : null}
+        {error ? (
+          <p className="form-field__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {done ? (
+          <p className="ops-alert ops-alert--success" role="status">
+            Saved.
+          </p>
+        ) : null}
+        {children}
+        {stepUp ? null : (
+          <div>
+            <button type="submit" className="button button--primary" disabled={busy}>
+              {busy ? "Saving…" : submitLabel}
+            </button>
+          </div>
+        )}
+      </form>
+      {/*
+      Outside the action's form. Nested, confirming the password also
+      submitted the action again, which raced the re-sign-in and came back
+      asking for the password again, so the change never saved.
+    */}
       {stepUp ? (
         <ConfirmIdentity purpose="make this change" onConfirmed={() => void send(stepUp)} />
-      ) : (
-        <div>
-          <button type="submit" className="button button--primary" disabled={busy}>
-            {busy ? "Saving…" : submitLabel}
-          </button>
-        </div>
-      )}
-    </form>
+      ) : null}
+    </div>
   );
 }
 

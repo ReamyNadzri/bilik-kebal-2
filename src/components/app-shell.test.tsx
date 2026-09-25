@@ -6,6 +6,7 @@ const pathname = vi.hoisted(() => ({ current: "/" }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 beforeEach(() => {
@@ -67,13 +68,16 @@ describe("marketplace navigation", () => {
   test("badges unread notifications and says the count in words", () => {
     renderShell({ unreadCount: 2 });
 
-    expect(screen.getByRole("link", { name: "Notifications, 2 unread" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Notifications, 2 unread" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 
   test("shows no badge when nothing is unread", () => {
     renderShell({ unreadCount: 0 });
 
-    expect(screen.getByRole("link", { name: "Notifications" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
   });
 
   test("keeps account utilities out of the marketplace landmark", () => {

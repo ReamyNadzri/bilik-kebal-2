@@ -16,3 +16,10 @@ test("the Sheriff alert opens the review queue, the student outcome their profil
   expect(notificationHref("institution_verification_submitted", "x")).toBe("/console");
   expect(notificationHref("institution_verification_approved", "x")).toBe("/profile");
 });
+
+test("a hidden-message notice opens the request it is about", () => {
+  expect(notificationKinds).toContain("wanted_reply_hidden");
+  expect(notificationHref("wanted_reply_hidden", "abc")).toBe("/wanted/abc");
+  // Never the message text or who hid it.
+  expect(notificationMessages.wanted_reply_hidden).not.toMatch(/reason|by /i);
+});

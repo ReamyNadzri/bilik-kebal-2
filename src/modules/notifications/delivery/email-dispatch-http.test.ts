@@ -1,13 +1,14 @@
 import { expect, test, vi } from "vitest";
 import { notificationEmailDispatchHttp } from "./email-dispatch-http";
 
+const SECRET = "a-dispatch-secret-of-at-least-32-characters";
 const counts = { claimed: 2, sent: 1, retried: 1, manualReview: 0, failed: 0 };
 
 test("rejects unauthenticated dispatch without claiming outbox jobs", async () => {
   const dispatch = vi.fn().mockResolvedValue(counts);
   const response = await notificationEmailDispatchHttp(
     new Request("https://vaultix.example/api/internal/notifications/email", { method: "POST" }),
-    { serviceRoleKey: "a-long-service-role-secret", dispatch },
+    { dispatchSecret: SECRET, dispatch },
   );
 
   expect(response.status).toBe(401);
@@ -20,9 +21,9 @@ test("returns safe counts and no-store headers to an authorised dispatcher", asy
   const response = await notificationEmailDispatchHttp(
     new Request("https://vaultix.example/api/internal/notifications/email", {
       method: "POST",
-      headers: { authorization: "Bearer a-long-service-role-secret" },
+      headers: { authorization: `Bearer ${SECRET}` },
     }),
-    { serviceRoleKey: "a-long-service-role-secret", dispatch },
+    { dispatchSecret: SECRET, dispatch },
   );
 
   expect(response.status).toBe(200);
@@ -36,11 +37,26 @@ test("does not disclose dispatcher failure details", async () => {
   const response = await notificationEmailDispatchHttp(
     new Request("https://vaultix.example/api/internal/notifications/email", {
       method: "POST",
-      headers: { authorization: "Bearer a-long-service-role-secret" },
+      headers: { authorization: `Bearer ${SECRET}` },
     }),
-    { serviceRoleKey: "a-long-service-role-secret", dispatch },
+    { dispatchSecret: SECRET, dispatch },
   );
 
   expect(response.status).toBe(503);
   await expect(response.text()).resolves.not.toContain("private provider error");
+});
+
+test("refuses to run when the dispatch secret is missing or too short", async () => {
+  const dispatch = vi.fn().mockResolvedValue(counts);
+  for (const dispatchSecret of [undefined, "short"]) {
+    const response = await notificationEmailDispatchHttp(
+      new Request("https://vaultix.example/api/internal/notifications/email", {
+        method: "POST",
+        headers: { authorization: "Bearer short" },
+      }),
+      { dispatchSecret, dispatch },
+    );
+    expect(response.status).toBe(503);
+  }
+  expect(dispatch).not.toHaveBeenCalled();
 });

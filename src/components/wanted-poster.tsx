@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
+import { ResourceEmblem } from "./resource-emblem";
 import { StatusStamp } from "./status-stamp";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
 import {
@@ -23,6 +24,8 @@ export interface WantedPosterProps {
   readonly footer?: ReactNode;
   readonly className?: string;
   readonly labelledBy?: string;
+  /** Show the framed drawing of what is wanted. The Board cards do. */
+  readonly withEmblem?: boolean;
 }
 
 const KIND_HEADING: Record<WantedSummary["kind"], string> = {
@@ -56,6 +59,7 @@ export function WantedPoster({
   footer,
   className = "",
   labelledBy,
+  withEmblem = false,
 }: WantedPosterProps) {
   const closing = formatClosing(wanted.closesAt, now, { phrasing: "left" });
   const academic = wanted.kind === "academic";
@@ -87,6 +91,8 @@ export function WantedPoster({
           </time>
         )}
       </p>
+
+      {withEmblem ? <ResourceEmblem resourceType={wanted.resourceType} kind={wanted.kind} /> : null}
 
       <div className="wanted-poster__head">
         {academic ? (

@@ -41,7 +41,7 @@ afterEach(() => vi.unstubAllGlobals());
 test("shows the name and a read-only email, never an editable address", () => {
   renderSettings();
 
-  expect(screen.getByRole("heading", { level: 1, name: "Profile" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 2, name: "Your details" })).toBeInTheDocument();
   expect(screen.getByLabelText("Display name")).toHaveValue("Aina");
   const email = screen.getByLabelText("Email address");
   expect(email).toHaveValue("2023456789@student.uitm.edu.my");

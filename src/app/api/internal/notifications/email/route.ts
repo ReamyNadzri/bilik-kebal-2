@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
   return notificationEmailDispatchHttp(request, {
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    dispatchSecret: process.env.NOTIFICATION_DISPATCH_SECRET,
     dispatch: async () => createEmailDeliveryService().dispatchBatch(),
   });
 }

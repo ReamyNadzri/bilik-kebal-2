@@ -120,7 +120,7 @@ const KIND_CHOICES: readonly {
     kind: "discussion",
     label: "Discussion",
     description:
-      "A question for your campus. Classmates reply in writing. Free, or with a bounty for the best answer.",
+      "A question for your campus. Classmates reply in writing. Free, or with a bounty for the best reply.",
   },
 ];
 
@@ -153,7 +153,7 @@ const NEED_COPY: Record<
     titleHint: "Ask the question the way you would say it to a classmate.",
     descriptionLabel: "Your question or topic",
     descriptionHint:
-      "Give enough context for a useful answer. Classmates reply in writing on the request.",
+      "Give enough context for a useful reply. Classmates reply in writing on the request.",
   },
 };
 

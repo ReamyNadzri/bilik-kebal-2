@@ -497,17 +497,16 @@ export class SupabaseWantedRepository implements WantedRepository {
 
   /**
    * Pending bounty releases the caller may review. RLS on the caller's client
-   * decides which rows are visible (reviewers, plus the two parties, who are
-   * filtered out so nobody reviews their own release); names come from the
-   * read client.
+   * decides which rows are visible (reviewers, plus the two parties). A
+   * party's own release is flagged rather than dropped, so it does not seem
+   * to vanish; the database refuses their decision. Names come from the read
+   * client.
    */
   async listPendingCommunityPayouts(viewerUserId: string): Promise<CommunityPayoutRequestView[]> {
     const requests = await this.client
       .from("community_payout_requests")
       .select("id, wanted_request_id, requester_user_id, finder_user_id, note, created_at")
       .eq("status", "pending")
-      .neq("requester_user_id", viewerUserId)
-      .neq("finder_user_id", viewerUserId)
       .order("created_at", { ascending: true })
       .limit(100);
     if (requests.error) throw requests.error;
@@ -556,6 +555,8 @@ export class SupabaseWantedRepository implements WantedRepository {
           finder: card(row.finder_user_id),
           note: row.note,
           createdAt: row.created_at,
+          viewerIsParty:
+            row.requester_user_id === viewerUserId || row.finder_user_id === viewerUserId,
         },
       ];
     });

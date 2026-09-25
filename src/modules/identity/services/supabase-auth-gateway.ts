@@ -1,4 +1,9 @@
-import type { AuthGateway, AuthGatewayFailureReason, AuthGatewayResult } from "./auth-service";
+import type {
+  AuthGateway,
+  AuthGatewayFailureReason,
+  AuthGatewayResult,
+  RegisterGatewayResult,
+} from "./auth-service";
 
 interface SupabaseAuthErrorLike {
   code: string | undefined;
@@ -10,12 +15,16 @@ interface SupabaseAuthResponse {
   error: SupabaseAuthErrorLike | null;
 }
 
+interface SupabaseSignUpResponse extends SupabaseAuthResponse {
+  data?: { session: unknown } | null;
+}
+
 export interface SupabaseAuthClient {
   signUp(input: {
     email: string;
     options: { data: { display_name: string }; emailRedirectTo: string };
     password: string;
-  }): Promise<SupabaseAuthResponse>;
+  }): Promise<SupabaseSignUpResponse>;
   signInWithPassword(input: { email: string; password: string }): Promise<SupabaseAuthResponse>;
   resetPasswordForEmail(
     email: string,
@@ -73,17 +82,19 @@ export class SupabaseAuthGateway implements AuthGateway {
     email: string;
     emailRedirectTo: string;
     password: string;
-  }): Promise<AuthGatewayResult> {
-    return toResult(
-      await this.auth.signUp({
-        email: input.email,
-        options: {
-          data: { display_name: input.displayName },
-          emailRedirectTo: input.emailRedirectTo,
-        },
-        password: input.password,
-      }),
-    );
+  }): Promise<RegisterGatewayResult> {
+    const response = await this.auth.signUp({
+      email: input.email,
+      options: {
+        data: { display_name: input.displayName },
+        emailRedirectTo: input.emailRedirectTo,
+      },
+      password: input.password,
+    });
+    if (response.error) return { ok: false, reason: mapError(response.error) };
+    // Supabase returns a session only when "Confirm email" is off. Then no
+    // confirmation email is sent and the new account is already signed in.
+    return { ok: true, signedIn: Boolean(response.data?.session) };
   }
 
   async signIn(input: { email: string; password: string }): Promise<AuthGatewayResult> {

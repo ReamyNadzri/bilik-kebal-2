@@ -1,5 +1,5 @@
 import { PixelArt } from "./pixel-art";
-import { emblemFor, type EmblemKind } from "@/features/presentation/resource-emblem";
+import { emblemForWanted, type EmblemKind } from "@/features/presentation/resource-emblem";
 
 /*
  * k ink · p paper · r red · g green · b brass. Colours resolve through the
@@ -122,25 +122,60 @@ const DRAWINGS: Record<EmblemKind, readonly string[]> = {
     "                ",
     "                ",
   ],
+  lost: [
+    "                ",
+    "    kkkkkk      ",
+    "   kppppppk     ",
+    "  kpbbpppppk    ",
+    "  kpbppppppk    ",
+    "  kppppppppk    ",
+    "  kppppppppk    ",
+    "  kppppppppk    ",
+    "   kppppppk     ",
+    "    kkkkkkrk    ",
+    "          krrk  ",
+    "           krrk ",
+    "            krrk",
+    "             kk ",
+    "                ",
+    "                ",
+  ],
+  talk: [
+    "                ",
+    "  kkkkkkkkkkkk  ",
+    " kppppppppppppk ",
+    " kpkkkkkkkkkppk ",
+    " kppppppppppppk ",
+    " kpkkkkkkkppppk ",
+    " kppppppppppppk ",
+    " kpggggpppppppk ",
+    " kppppppppppppk ",
+    "  kkkkpkkkkkkk  ",
+    "     kpk        ",
+    "    kpk         ",
+    "    kk          ",
+    "                ",
+    "                ",
+    "                ",
+  ],
 };
 
 export interface ResourceEmblemProps {
   /** The resource type label as the taxonomy words it. */
   readonly resourceType: string;
+  /** The request kind; missing items and discussions have their own drawing. */
+  readonly kind?: "academic" | "missing_item" | "discussion";
 }
 
 /**
  * The portrait frame of a Wanted poster, holding a drawing of the kind of
  * resource wanted. Decorative: the resource type is written on the poster.
  */
-export function ResourceEmblem({ resourceType }: ResourceEmblemProps) {
+export function ResourceEmblem({ resourceType, kind = "academic" }: ResourceEmblemProps) {
+  const emblem = emblemForWanted(kind, resourceType);
   return (
-    <div className="emblem-frame" data-emblem={emblemFor(resourceType)}>
-      <PixelArt
-        rows={DRAWINGS[emblemFor(resourceType)]}
-        palette={PALETTE}
-        className="resource-emblem"
-      />
+    <div className="emblem-frame" data-emblem={emblem}>
+      <PixelArt rows={DRAWINGS[emblem]} palette={PALETTE} className="resource-emblem" />
     </div>
   );
 }

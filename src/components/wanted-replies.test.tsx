@@ -236,7 +236,7 @@ describe("retention and live updates", () => {
   });
 });
 
-describe("answer, edit, delete and hide", () => {
+describe("reply, edit, delete and hide", () => {
   const mine = {
     ...reply,
     id: "33333333-3333-4333-8333-333333333333",
@@ -248,15 +248,15 @@ describe("answer, edit, delete and hide", () => {
     parent: null,
   };
 
-  test("answers a message by quoting it", async () => {
+  test("replies to a message by quoting it", async () => {
     const fetchMock = respond(
       { ok: true, data: [reply] },
       { ok: true, data: { replyId: "r3" } },
       { ok: true, data: [reply] },
     );
     renderThread();
-    fireEvent.click(await screen.findByRole("button", { name: "Answer" }));
-    expect(screen.getByText(/Answering Hafiz/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Reply" }));
+    expect(screen.getByText(/Replying to Hafiz/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/Seen it\? Tell the owner/), {
       target: { value: "Which counter?" },
@@ -289,7 +289,7 @@ describe("answer, edit, delete and hide", () => {
 
     expect(await screen.findByText(/· edited/)).toBeInTheDocument();
     expect(screen.getByText("Message deleted")).toBeInTheDocument();
-    expect(screen.getByText("Answering Me: “I think”")).toBeInTheDocument();
+    expect(screen.getByText("Replying to Me: “I think”")).toBeInTheDocument();
   });
 
   test("edits your own message within 15 minutes", async () => {

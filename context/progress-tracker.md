@@ -462,7 +462,55 @@ function to the welcome migration. The `claude/branded-emails` branch carried un
 markers in `src/contracts/notifications.ts`, `email-delivery-service.ts` and this file; resolved
 by keeping both sides (subjects now live in `notification-email-content.ts`).
 
+## 2026-09-25 QA fixes and email delivery (branch `claude/festive-lamport-trp95d`, on `production`)
+
+User QA reported that no email arrived and listed UI and console defects. The user approved the
+recommended options for all four open decisions.
+
+Email:
+- Notification emails were queued but never sent: nothing called the dispatcher. Migration
+  `202610110001` schedules it with Supabase Cron + pg_net every minute, only when a job is due.
+  The endpoint now takes `NOTIFICATION_DISPATCH_SECRET` (32+ characters) instead of the
+  service-role key. Jobs older than 14 minutes go to manual review rather than being sent late.
+- Sign-up no longer sends people to "check your email" when Supabase returns a session
+  (Confirm email off, so no email was sent); it goes straight to the profile.
+- Pending user actions: apply `202610110001`-`202610110003`; set `NOTIFICATION_DISPATCH_SECRET`
+  in Vercel and add Vault secrets `notification_dispatch_url`
+  (`https://bilikkebal.afes.my/api/internal/notifications/email`) and
+  `notification_dispatch_secret`; confirm pg_net is enabled; check Supabase Auth custom SMTP
+  (Brevo host, SMTP login and SMTP key), turn Confirm email on, and read Brevo's transactional
+  logs for the recovery test email.
+
+Decisions (user approved the recommendations):
+- The platform fee panel is shown only to the poster. Other viewers see the provider checkout
+  charge that applies to a Backer; the fee rate stays snapshotted and unchanged.
+- The bell opens a dropdown of the latest 8 notifications with Mark all read
+  (`202610110002`, `mark_all_notifications_read`); `/notifications` stays as the full inbox.
+  Opening a notification marks it read and refreshes the unread count.
+- A Sheriff hiding a chat message notifies the writer (`wanted_reply_hidden`, `202610110003`)
+  in-app and by email, naming neither the message nor the Sheriff. Restoring does not notify.
+- Board cards show a pixel drawing of what is wanted (resource type, magnifier for missing
+  items, speech bubble for discussions). No uploaded images.
+
+Fixes:
+- Assign Sheriff: the password step-up form was nested inside the action form, so confirming
+  re-submitted the action and the change never saved. Same for badges. Console ids now accept
+  hand-seeded UUIDs.
+- Entries & releases hid the viewer's own requests. They are now listed, labelled, with
+  decisions disabled.
+- Claim submission: the upload route looked the Wanted up by its internal id while screens send
+  the public id, so every submission failed. The route now resolves the public id.
+- Mark as read saved but the server-rendered badge never refreshed.
+- Chat "Answer" is now "Reply"; profile opens with Your requests; campus cards are one size;
+  institution verification is grouped into spaced cards; loading states carry a spinner; the
+  Board loads with poster skeletons; the masthead reads WANTED.
+
 ## Open Questions
+
+- Should the writer of a hidden chat message see the reason code (needs notification context or
+  author read access to their own hidden message)?
+- With the platform fee shown only to the poster, should Hunters see the net payout before
+  claiming?
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.
 - Moderation of reward-code abuse beyond the 10 failed attempts per hour limit.

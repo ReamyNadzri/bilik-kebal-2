@@ -10,7 +10,8 @@
  * is decorative; the resource type is always written beside it, so a wrong
  * guess costs nothing but the picture.
  */
-export type EmblemKind = "notes" | "slides" | "exam" | "formula" | "lab" | "worked";
+export type EmblemKind =
+  "notes" | "slides" | "exam" | "formula" | "lab" | "worked" | "lost" | "talk";
 
 /*
  * Whole words only: "worked example" must not match "exam", and "lab" must
@@ -32,4 +33,18 @@ export function emblemFor(resourceType: string): EmblemKind {
   }
 
   return "notes";
+}
+
+/**
+ * The drawing for a Wanted as a whole. A missing item shows a magnifying
+ * glass and a discussion a speech bubble; an academic request shows the kind
+ * of resource wanted.
+ */
+export function emblemForWanted(
+  kind: "academic" | "missing_item" | "discussion",
+  resourceType: string,
+): EmblemKind {
+  if (kind === "missing_item") return "lost";
+  if (kind === "discussion") return "talk";
+  return emblemFor(resourceType);
 }

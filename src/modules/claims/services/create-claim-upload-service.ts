@@ -18,9 +18,13 @@ export type ClaimUploadContext = {
       restricted: boolean;
     } | null;
     wantedStatus: "open" | "reviewing" | "expired" | "missing";
+    /** The request's internal id, which the claim operations take. */
+    internalWantedId: string | null;
   }>;
   service: ClaimUploadService;
 };
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function createClaimUploadContext(): Promise<ClaimUploadContext | null> {
   const client = await createSupabaseServerClient();
@@ -37,8 +41,19 @@ export async function createClaimUploadContext(): Promise<ClaimUploadContext | n
       uploadsEnabled: parseServerEnv(process.env).PUBLIC_UPLOADS_ENABLED,
     }),
     async getActor(wantedId) {
+      // Screens address a Wanted by its public id (the one in /wanted/<id>);
+      // the claim operation takes the internal id. Looking it up by the
+      // internal id alone never found the request, so every claim failed.
+      const shaped = UUID_SHAPE.test(wantedId);
       const [wanted, membership, restriction] = await Promise.all([
-        client.from("wanted_requests").select("status").eq("id", wantedId).maybeSingle(),
+        shaped
+          ? client
+              .from("wanted_requests")
+              .select("id, status")
+              .or(`public_id.eq.${wantedId},id.eq.${wantedId}`)
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
         client
           .from("institution_memberships")
           .select("institution_id, verification_state")
@@ -67,7 +82,7 @@ export async function createClaimUploadContext(): Promise<ClaimUploadContext | n
             restricted: Boolean(restriction.data),
           }
         : null;
-      return { actor, wantedStatus };
+      return { actor, wantedStatus, internalWantedId: wanted.data?.id ?? null };
     },
   };
 }

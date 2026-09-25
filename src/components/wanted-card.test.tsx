@@ -121,3 +121,14 @@ test("previews no resource, file, path or claim content", () => {
 
   expect(html).not.toMatch(/download|preview|\.pdf|\.docx|object_key|objectKey|bucket/i);
 });
+
+test("frames a drawing of what is wanted, by kind", () => {
+  const { container, unmount } = renderCard({ kind: "missing_item" });
+  expect(container.querySelector(".emblem-frame")).toHaveAttribute("data-emblem", "lost");
+  unmount();
+  const discussion = renderCard({ kind: "discussion" });
+  expect(discussion.container.querySelector(".emblem-frame")).toHaveAttribute(
+    "data-emblem",
+    "talk",
+  );
+});

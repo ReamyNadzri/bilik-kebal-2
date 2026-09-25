@@ -193,7 +193,10 @@ function CampusList({
               {campus.regionOpen ? (showCounts ? campus.openWantedCount : "✓") : "—"}
             </span>
             <span className="campus-list__text">
-              <span className="campus-list__name">{campus.name}</span>
+              {/* Long names are cut to two lines; the title keeps the full name. */}
+              <span className="campus-list__name" title={campus.name}>
+                {campus.name}
+              </span>
               <span className="campus-list__meta">
                 {!campus.regionOpen
                   ? "Coming soon"

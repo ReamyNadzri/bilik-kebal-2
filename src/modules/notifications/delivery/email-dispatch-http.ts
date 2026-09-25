@@ -14,7 +14,12 @@ function matchesSecret(candidate: string | null, expected: string): boolean {
 export async function notificationEmailDispatchHttp(
   request: Request,
   dependencies: {
-    serviceRoleKey: string | undefined;
+    /**
+     * `NOTIFICATION_DISPATCH_SECRET`, shared only with the Supabase Cron job.
+     * Its own secret rather than the service-role key, so the caller never
+     * stores or sends a key that bypasses RLS.
+     */
+    dispatchSecret: string | undefined;
     dispatch: () => Promise<NotificationEmailDeliveryCount>;
   },
 ): Promise<Response> {
@@ -26,7 +31,7 @@ export async function notificationEmailDispatchHttp(
       { status: 405, headers: { Allow: "POST", "X-Correlation-ID": trace.correlationId } },
     );
   }
-  if (!dependencies.serviceRoleKey) {
+  if (!dependencies.dispatchSecret || dependencies.dispatchSecret.length < 32) {
     trace.finish(503);
     return Response.json(
       { ok: false, code: "DISPATCH_UNAVAILABLE", message: "Email dispatch is unavailable." },
@@ -36,7 +41,7 @@ export async function notificationEmailDispatchHttp(
   if (
     !matchesSecret(
       request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null,
-      dependencies.serviceRoleKey,
+      dependencies.dispatchSecret,
     )
   ) {
     trace.finish(401);

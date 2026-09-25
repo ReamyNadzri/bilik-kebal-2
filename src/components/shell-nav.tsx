@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NotificationMenu } from "./notification-menu";
 import { PixelIcon, type PixelIconName } from "./pixel-icon";
 import {
   ACCOUNT_NAV,
@@ -114,14 +115,24 @@ export function ShellNav({ currentNavId, roleNav = [], unreadCount = null }: She
 
       <nav aria-label="Account" className="shell-nav__account">
         <ul className="shell-nav__list">
-          {ACCOUNT_NAV.map((item) => (
-            <NavLink
-              key={item.id}
-              item={item}
-              current={current === item.id}
-              badge={item.id === "notifications" ? unreadCount : null}
-            />
-          ))}
+          {ACCOUNT_NAV.map((item) =>
+            // Signed in, the bell opens the latest notifications in place.
+            // Signed out (no count), it stays a link that leads to sign-in.
+            item.id === "notifications" && unreadCount !== null ? (
+              <NotificationMenu
+                key={item.id}
+                unreadCount={unreadCount}
+                current={current === item.id}
+              />
+            ) : (
+              <NavLink
+                key={item.id}
+                item={item}
+                current={current === item.id}
+                badge={item.id === "notifications" ? unreadCount : null}
+              />
+            ),
+          )}
         </ul>
       </nav>
 
