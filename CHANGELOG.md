@@ -11,11 +11,11 @@ Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 co
 
 ### Before deploying
 
-- Apply the new migrations in order: `202610010001`, `202610010002`, `202610020001`,
-  `202610020002` (`supabase db push`). Enable pg_cron first; it runs the daily chat cleanup and the
+- Apply the new migrations in order: `202610100001`, `202610100002`, `202610100003`,
+  `202610100004` (`supabase db push`). Enable pg_cron first; it runs the daily chat cleanup and the
   every-minute timeout lift.
 - `restrict_account` (permanent restriction) is now Owner-only.
-- Apply `supabase/migrations/202610010001_chat_threads_and_retention.sql` (chat threads, 7-day
+- Apply `supabase/migrations/202610100001_chat_threads_and_retention.sql` (chat threads, 7-day
   retention, daily `wanted-thread-retention` pg_cron job). Enable pg_cron first if the project does
   not have it; without it the migration applies but nothing is scheduled.
 

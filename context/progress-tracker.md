@@ -377,7 +377,7 @@ User decisions (all four recommended options accepted):
   stays in the Archive.
 - Open threads refresh every 15 seconds while the tab is visible (no Supabase Realtime).
 
-Implementation: migration `202610010001_chat_threads_and_retention.sql` (not yet applied to
+Implementation: migration `202610100001_chat_threads_and_retention.sql` (not yet applied to
 Supabase Cloud). Verified locally: the whole chain applies on Postgres 16 with stubbed `auth` and
 `storage`, and scripted assertions cover auto-close, idempotent re-runs, the 7-day purge, the
 paid-release and refund holds, reopen rules, and the academic link refusal. pg_cron is scheduled
@@ -406,7 +406,7 @@ deleted" placeholder kept so answers still read); a Sheriff (platform, or instit
 the Wanted's institution) or the Owner may hide any message with a reason code and restore it.
 Hidden messages keep their text for moderation, are unreadable to members, survive the 7-day purge,
 and every hide/restore is written to `identity_audit_events` (`chat.reply_hidden`,
-`chat.reply_restored`). Migration `202610010002_chat_reply_edit_delete.sql` (not yet applied to
+`chat.reply_restored`). Migration `202610100002_chat_reply_edit_delete.sql` (not yet applied to
 Supabase Cloud); verified on local Postgres 16 with scripted assertions. Restoring hidden messages
 has no UI yet: it belongs to the Owner console slice.
 
@@ -421,13 +421,13 @@ Built from the decisions recorded above (user chose: timeout = both a moderation
 sign-out; Owner console = manage people + moderate content; badges = Owner-awarded, separate from
 the verified star; no raw database editor).
 
-- Migration `202610020001_account_timeouts.sql`: `account_restrictions.expires_at`;
+- Migration `202610100003_account_timeouts.sql`: `account_restrictions.expires_at`;
   `timeout_account` (1 h, 24 h, 7 days) for the Owner, platform Sheriffs, and institution Sheriffs
   over verified members of their institution; nobody times out the Owner and only the Owner times
   out a platform Sheriff. **Behaviour change:** `restrict_account` (permanent) is now Owner-only;
   platform Sheriffs could call it before. `lift_account_restriction`; a pg_cron job lifts expired
   timeouts every minute. All need a sign-in in the last 15 minutes and are audited.
-- Migration `202610020002_member_console_and_badges.sql`: console functions (search, rename, reset
+- Migration `202610100004_member_console_and_badges.sql`: console functions (search, rename, reset
   avatar, manual institution verification grant/revoke, appoint/remove Sheriffs, timeouts, hidden
   message list) and badges (`badges`, `badge_awards`, public `badges` bucket writable only by the
   Owner). Institution Sheriffs see only their institution's members and never email addresses. The
@@ -443,7 +443,7 @@ Open questions added: taking down a Wanted from the console (a paid one involves
 was not built); whether institution Sheriffs should rename members; retention of orphaned badge and
 avatar images after a reset or retirement.
 
-None of `202610010001`, `202610010002`, `202610020001`, `202610020002` is applied to Supabase Cloud
+None of `202610100001`, `202610100002`, `202610100003`, `202610100004` is applied to Supabase Cloud
 yet: this session has no Supabase credentials.
 >>>>>>> bb558fa16c2b45841107b97674c5c7f4f244c254
 

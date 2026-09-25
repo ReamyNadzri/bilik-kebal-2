@@ -3,7 +3,7 @@ import type { OperationResult } from "./operation-result";
 
 /**
  * The member console: people management and moderation for the Owner and
- * Sheriffs (migrations 202610020001 and 202610020002). Every action is a
+ * Sheriffs (migrations 202610100003 and 202610100004). Every action is a
  * database function that checks the caller's role, needs a sign-in in the last
  * 15 minutes, and is audited. There is no raw database editing and no money.
  */

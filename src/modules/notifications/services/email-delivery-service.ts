@@ -56,7 +56,7 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   community_payout_approved: "Your bounty release was approved",
   community_payout_rejected: "Your bounty release was not approved",
   community_bounty_awarded: "You were awarded a bounty",
-  // In-app only; the outbox never queues it (migration 202610010001).
+  // In-app only; the outbox never queues it (migration 202610100001).
   wanted_thread_auto_closed: "Your request closed after 30 quiet days",
 };
 
