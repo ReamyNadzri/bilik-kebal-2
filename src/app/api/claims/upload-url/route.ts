@@ -22,7 +22,12 @@ export async function POST(request: Request): Promise<Response> {
             ? input.wantedId
             : "";
         const trust = await context.getActor(wantedId);
-        return context.service.create(trust.actor, trust.wantedStatus, input);
+        // The operation takes the internal id; the screen sent the public one.
+        const resolved =
+          trust.internalWantedId !== null && typeof input === "object" && input !== null
+            ? { ...input, wantedId: trust.internalWantedId }
+            : input;
+        return context.service.create(trust.actor, trust.wantedStatus, resolved);
       },
       201,
     );
