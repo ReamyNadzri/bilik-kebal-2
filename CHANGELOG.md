@@ -4,6 +4,26 @@ All notable changes to VAULTIX are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Money is always shown in RM and stored
 as integer sen.
 
+## [Unreleased]
+
+### Before deploying
+
+- Recommended, not part of the code: move Vercel functions to `sin1` (Singapore). Production runs
+  in `iad1` while Supabase is in `ap-southeast-1`, so every Supabase call crosses the Pacific. See
+  `docs/superpowers/plans/2026-09-26-performance-optimization-plan.md`.
+
+### Changed
+
+- Pages no longer wait on reads that do not depend on each other: the shell's account and unread
+  count, the Hunt page, a Wanted, the library and every Sheriff Console page read in parallel, and
+  one session check and one account read are shared across a render.
+- The console overview counts its queues on the server; it no longer sends four requests after
+  loading.
+- Lists, console tabs and notification links are no longer prefetched on sight; the shell rail
+  prefetches a destination on hover or focus instead.
+- The Explore Map's ship sprites load a 43.8 KB strip instead of the 397 KB map a second time;
+  uploaded Wanted pictures, drawn-avatar choices and badge images load lazily.
+
 ## [Production candidate] — 2026-09-25
 
 Changes on the `production` branch that are not yet on `main` (`e032efe`). 21 commits, 157 files,

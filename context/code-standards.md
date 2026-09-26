@@ -28,6 +28,8 @@
 - Never call a privileged Supabase client from browser code.
 - Do not process or proxy large file bodies through Next.js; use signed direct uploads.
 - Explicitly choose caching behaviour for every data read. User-specific and financial data must not enter shared caches.
+- Server Component loaders read the signed-in user through `getRequestUser()` and the client through `getRequestSupabaseClient()` (`src/lib/supabase/server.ts`), so a render checks the session once; both are scoped to one request with `React.cache`, never shared. Reads that do not depend on each other start together (`Promise.all`), guards included — a guard is a courtesy, not access control.
+- Links rendered once per list item or per tab use `prefetch={false}`: screens are rendered per request, so a prefetch buys only a route shape at the cost of a server request each.
 - Error boundaries must not expose provider responses, stack traces, secrets, or private metadata.
 
 ## Supabase and PostgreSQL

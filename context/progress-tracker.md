@@ -561,6 +561,32 @@ component restates a colour. Colours the theme already had reuse its tokens (sam
 - Open question: moderation of uploaded Wanted pictures beyond Sheriff removal (reporting, a
   review queue) is not specified.
 
+## 2026-09-26 performance remediation (branch `claude/vibrant-heisenberg-3g7ujl`)
+
+User-directed full-stack slice executing a Gemini diagnostic report after verifying it against the
+code and the installed Next.js 16.3.5 sources. Record:
+`docs/superpowers/plans/2026-09-26-performance-optimization-plan.md`.
+
+- **Root cause found (not in the report):** production functions run in `iad1` while Supabase is in
+  `ap-southeast-1`; every Supabase call crosses the Pacific. Not changed in code (production
+  provider setting). Owner action: set the Vercel function region to `sin1`.
+- **Corrections to the report:** Next already memoises identical GET fetches within a render, so
+  pages made 1 Supabase Auth call, not 7; prefetches never rendered layouts or pages; the hero and
+  map are already about WebP q80 and served resized by `next/image`.
+- **Changed:** `prefetch={false}` on per-item and per-tab links, with intent prefetch on the shell
+  rail; request-scoped `getRequestSupabaseClient()`, `getRequestUser()`, `loadAccountContext()` and
+  `readAccount()` (`React.cache`, one request only); independent reads run together (layout,
+  `/claims`, `/wanted/[id]`, library, console guards); console overview counts read on the server
+  (`loadConsoleQueueCounts`) instead of four browser calls; `/map` ship sprites read a 43.8 KB strip
+  (`public/brand/map-ships.webp`) instead of the 397 KB map; plain `<img>` elements load lazily.
+- **Verified:** lint, format, typecheck, 1,291 unit tests and production build pass. Production
+  builds against a stand-in Supabase with 100 ms per call: `/claims` 644 → 333 ms,
+  `/console/people` 532 → 325 ms, most pages ≈430 → ≈325 ms; prefetch requests per page view
+  13–27 → 0–4. Supabase itself was not reachable from this environment (egress policy), so no
+  request reached production.
+- **Deliberately not done:** a shared cross-user cache for taxonomy, institutions and campus
+  regions (needs the service-role client, an RLS bypass; campus regions carry bounty totals).
+
 ## Open Questions
 
 - Should the writer of a hidden chat message see the reason code (needs notification context or
@@ -569,6 +595,11 @@ component restates a colour. Colours the theme already had reuse its tokens (sam
   claiming?
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.
+- Performance (Owner): move Vercel functions to `sin1` beside the Supabase project (check regional
+  pricing on a paid plan); confirm Supabase uses an asymmetric JWT signing key so the session proxy
+  verifies locally; decide whether loaders may use `auth.getClaims()` (faster, but does not notice
+  revoked sessions and lacks `email_confirmed_at` and `last_sign_in_at`); validate embedding the
+  institution in the account read on a preview deployment before adopting it.
 - Moderation of reward-code abuse beyond the 10 failed attempts per hour limit.
 
 - Legal review of the drafted posting terms (`src/features/legal/terms.ts`).
