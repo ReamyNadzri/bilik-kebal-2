@@ -4,7 +4,7 @@ import { HuntWorkspace } from "@/components/hunt-workspace";
 import { HunterOffice } from "@/components/hunter-office";
 import { UiStatus } from "@/components/ui-status";
 import { readAccount } from "@/features/presentation/auth/require-account";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { fixtureNow, readPreviewState } from "@/features/marketplace/fixture-preview";
 import { listClaims, listHunts } from "@/features/marketplace/hunt-source";
 import { listWanted } from "@/features/marketplace/wanted-source";
@@ -20,6 +20,23 @@ export const dynamic = "force-dynamic";
 
 interface ClaimsPageProps {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/**
+ * The signed-in Hunter's own claims, or none. A failed read shows an empty
+ * history rather than failing the page: the open hunts are still worth seeing.
+ */
+async function readOwnClaims(): Promise<ClaimSummary[]> {
+  try {
+    const {
+      data: { user },
+    } = await getRequestUser();
+    if (!user) return [];
+    const readService = new HunterClaimsReadService(await getRequestSupabaseClient());
+    return await readService.listHunterClaims(user.id);
+  } catch {
+    return [];
+  }
 }
 
 export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
@@ -50,13 +67,16 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
     );
   }
 
-  // Real authenticated session:
-  const outcome = await readAccount();
-  const account = outcome.kind === "account" ? outcome.account : null;
-
+  // Real authenticated session. The three reads are independent and share the
+  // request's one Auth check, so they run together rather than in turn.
   // Open hunts are the Board's academic requests, read through the same
   // published operation (bounty totals from the ledger, never defaults).
-  const board = await listWanted({ kind: "academic", sort: "newest" });
+  const [outcome, board, ownClaims] = await Promise.all([
+    readAccount(),
+    listWanted({ kind: "academic", sort: "newest" }),
+    readOwnClaims(),
+  ]);
+  const account = outcome.kind === "account" ? outcome.account : null;
   const hunts: HuntOpportunity[] =
     board.status === "ready"
       ? board.data.map((wanted) => ({
@@ -66,20 +86,8 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
         }))
       : [];
 
-  // Load live claims for this user if authenticated
-  let claims: ClaimSummary[] = [];
-  if (account) {
-    try {
-      const supabase = await createSupabaseServerClient();
-      const { data: auth } = await supabase.auth.getUser();
-      if (auth.user) {
-        const readService = new HunterClaimsReadService(supabase);
-        claims = await readService.listHunterClaims(auth.user.id);
-      }
-    } catch {
-      claims = [];
-    }
-  }
+  // Live claims are shown only beside a loaded account, as before.
+  const claims: ClaimSummary[] = account ? ownClaims : [];
 
   return (
     <div className="page-bare">

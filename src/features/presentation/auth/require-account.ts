@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { AccountViewModel } from "@/contracts";
 import { loadAccountViewModel } from "@/modules/identity";
 import type { AccountCapability } from "./auth-state";
@@ -29,8 +30,11 @@ export type AccountOutcome =
  * user and throws when identity itself is unreachable. Those are different
  * situations for the reader — one is "sign in", the other is "this is our
  * fault" — so they are never collapsed into one failure.
+ *
+ * Read once per request: the root layout and the page's guard render in the
+ * same request and share the outcome. `cache` never shares it across requests.
  */
-export async function readAccount(): Promise<AccountOutcome> {
+export const readAccount = cache(async function readAccount(): Promise<AccountOutcome> {
   try {
     const account = await loadAccountViewModel();
 
@@ -41,7 +45,7 @@ export async function readAccount(): Promise<AccountOutcome> {
     // (context/code-standards.md, error boundaries).
     return { kind: "unavailable" };
   }
-}
+});
 
 /**
  * Sends an unauthenticated viewer to sign in, remembering where they were.

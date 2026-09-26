@@ -140,9 +140,6 @@ export class SupabaseWantedRepository implements WantedRepository {
       .maybeSingle();
     if (error) throw error;
     if (!row) return null;
-    const summaries = await this.toSummaries([row]);
-    const summary = summaries[0];
-    if (!summary) return null;
     const optionalName = async (
       table: "faculties" | "programmes" | "languages",
       id: string | null,
@@ -150,29 +147,35 @@ export class SupabaseWantedRepository implements WantedRepository {
       if (!id) return { data: null, error: null };
       return this.client.from(table).select("name").eq("id", id).maybeSingle();
     };
-    const [faculty, programme, language, tags, events, profile, membership] = await Promise.all([
-      optionalName("faculties", row.faculty_id),
-      optionalName("programmes", row.programme_id),
-      optionalName("languages", row.language_id),
-      this.client.from("wanted_request_tags").select("tag_id").eq("wanted_request_id", row.id),
-      this.client
-        .from("wanted_public_events")
-        .select("id, occurred_at, summary")
-        .eq("wanted_request_id", row.id)
-        .order("occurred_at", { ascending: false })
-        .limit(20),
-      this.client
-        .from("profiles")
-        .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
-        .eq("user_id", row.commissioner_user_id)
-        .maybeSingle(),
-      this.client
-        .from("institution_memberships")
-        .select("verification_state")
-        .eq("user_id", row.commissioner_user_id)
-        .eq("institution_id", row.institution_id)
-        .maybeSingle(),
-    ]);
+    // The summary and the detail's own reads each depend only on the row, so
+    // they run together: one round trip to the database instead of two.
+    const [summaries, faculty, programme, language, tags, events, profile, membership] =
+      await Promise.all([
+        this.toSummaries([row]),
+        optionalName("faculties", row.faculty_id),
+        optionalName("programmes", row.programme_id),
+        optionalName("languages", row.language_id),
+        this.client.from("wanted_request_tags").select("tag_id").eq("wanted_request_id", row.id),
+        this.client
+          .from("wanted_public_events")
+          .select("id, occurred_at, summary")
+          .eq("wanted_request_id", row.id)
+          .order("occurred_at", { ascending: false })
+          .limit(20),
+        this.client
+          .from("profiles")
+          .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
+          .eq("user_id", row.commissioner_user_id)
+          .maybeSingle(),
+        this.client
+          .from("institution_memberships")
+          .select("verification_state")
+          .eq("user_id", row.commissioner_user_id)
+          .eq("institution_id", row.institution_id)
+          .maybeSingle(),
+      ]);
+    const summary = summaries[0];
+    if (!summary) return null;
     const failed =
       faculty.error ??
       programme.error ??

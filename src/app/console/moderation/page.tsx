@@ -12,8 +12,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ConsoleModerationPage() {
-  await requireAccount("/console/moderation");
-  const replies = await listConsoleHiddenReplies();
+  // The guard is a courtesy, not access control: every read here is authorised
+  // by its own operation and RLS, so they start with it rather than after it.
+  const [, replies] = await Promise.all([
+    requireAccount("/console/moderation"),
+    listConsoleHiddenReplies(),
+  ]);
 
   return (
     <>

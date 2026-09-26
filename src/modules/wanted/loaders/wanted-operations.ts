@@ -22,9 +22,9 @@ import type {
 import type { ListWantedQuery, ListWantedResult, ReadWantedResult } from "@/contracts/marketplace";
 import { failure, success } from "@/contracts/operation-result";
 import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { SupabaseIdentityReadRepository } from "@/modules/identity/repositories/supabase-identity-read-repository";
+import { loadAccountContext } from "@/modules/identity";
 import type { WantedActor } from "../domain/wanted-policy";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
 import { WantedCommunityService } from "../services/wanted-community-service";
@@ -32,17 +32,17 @@ import { WantedDraftService } from "../services/wanted-draft-service";
 import { WantedPublicationService } from "../services/wanted-publication-service";
 import { WantedReadService } from "../services/wanted-read-service";
 
+/**
+ * The actor comes from the identity module's account read, which a page render
+ * shares with its layout and guard instead of repeating.
+ */
 async function context(): Promise<{
   actor: WantedActor | null;
   draftService: WantedDraftService;
   publicationService: WantedPublicationService;
   communityService: WantedCommunityService;
 }> {
-  const client = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser();
+  const client = await getRequestSupabaseClient();
   const repository = new SupabaseWantedRepository(client);
   const draftService = new WantedDraftService(repository);
   const env = parseServerEnv(process.env);
@@ -54,8 +54,9 @@ async function context(): Promise<{
   const communityService = new WantedCommunityService(repository, {
     paymentAvailability: env.PAYMENT_MODE === "disabled" ? "disabled" : "unavailable",
   });
-  if (error || !user) return { actor: null, draftService, publicationService, communityService };
-  const account = await new SupabaseIdentityReadRepository(client).readAccount(user);
+  const signedIn = await loadAccountContext();
+  if (!signedIn) return { actor: null, draftService, publicationService, communityService };
+  const { record: account, user } = signedIn;
   return {
     actor: account
       ? {
@@ -133,10 +134,10 @@ export async function prepareWantedPublication(
 }
 
 async function readContext() {
-  const client = await createSupabaseServerClient();
+  const client = await getRequestSupabaseClient();
   const {
     data: { user },
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   const actor = user ? { emailVerified: Boolean(user.email_confirmed_at) } : null;
   const readClient = actor ? createSupabaseAdminClient() : client;
   return { actor, service: new WantedReadService(new SupabaseWantedRepository(readClient)) };
@@ -259,10 +260,10 @@ export async function resolveCommunityWanted(publicId: string): Promise<ResolveW
 /** Replies are read with the server client after the viewer's email check. */
 export async function listWantedReplies(publicId: string): Promise<ListWantedRepliesResult> {
   try {
-    const client = await createSupabaseServerClient();
+    const client = await getRequestSupabaseClient();
     const {
       data: { user },
-    } = await client.auth.getUser();
+    } = await getRequestUser();
     const actor = user
       ? {
           emailVerified: Boolean(user.email_confirmed_at),
@@ -338,10 +339,10 @@ export async function listOwnLibrary(): Promise<
   | { ok: false; code: "AUTH_REQUIRED" | "MARKETPLACE_UNAVAILABLE" }
 > {
   try {
-    const client = await createSupabaseServerClient();
+    const client = await getRequestSupabaseClient();
     const {
       data: { user },
-    } = await client.auth.getUser();
+    } = await getRequestUser();
     if (!user) return { ok: false, code: "AUTH_REQUIRED" };
     const entitlements = await client
       .from("entitlements")
@@ -350,18 +351,14 @@ export async function listOwnLibrary(): Promise<
       .order("granted_at", { ascending: false });
     if (entitlements.error) throw entitlements.error;
     const rows = entitlements.data ?? [];
-    const summaries = await new SupabaseWantedRepository(
-      createSupabaseAdminClient(),
-    ).listWantedByIds(rows.map((row) => row.wanted_request_id));
-    // Summaries carry public ids; map internal ids through the rows' order.
+    const wantedIds = rows.map((row) => row.wanted_request_id);
     const admin = createSupabaseAdminClient();
-    const ids = await admin
-      .from("wanted_requests")
-      .select("id, public_id")
-      .in(
-        "id",
-        rows.map((row) => row.wanted_request_id),
-      );
+    // Both depend only on the entitlement rows, so they are read together.
+    const [summaries, ids] = await Promise.all([
+      new SupabaseWantedRepository(admin).listWantedByIds(wantedIds),
+      // Summaries carry public ids; map internal ids through the rows' order.
+      admin.from("wanted_requests").select("id, public_id").in("id", wantedIds),
+    ]);
     if (ids.error) throw ids.error;
     const publicIdOf = new Map((ids.data ?? []).map((row) => [row.id, row.public_id]));
     const summaryOf = new Map(summaries.map((summary) => [summary.id, summary]));
@@ -414,10 +411,10 @@ export async function requestCommunityPayout(
  */
 export async function listPendingCommunityPayouts(): Promise<ListCommunityPayoutRequestsResult> {
   try {
-    const client = await createSupabaseServerClient();
+    const client = await getRequestSupabaseClient();
     const {
       data: { user },
-    } = await client.auth.getUser();
+    } = await getRequestUser();
     if (!user) return failure("AUTH_REQUIRED", "");
     const service = new WantedCommunityService(
       new SupabaseWantedRepository(client, createSupabaseAdminClient()),

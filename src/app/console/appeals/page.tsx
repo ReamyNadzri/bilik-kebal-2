@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ConsoleNav } from "@/components/console-nav";
 import { SheriffAppealConsole } from "@/components/claims/sheriff-appeal-console";
 import { requireAccount } from "@/features/presentation/auth/require-account";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Appeals | VAULTIX",
@@ -17,10 +17,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function AppealsPage() {
   await requireAccount("/console/appeals");
-  const client = await createSupabaseServerClient();
+  // The same Auth check the guard just made, not a second one.
   const {
     data: { user },
-  } = await client.auth.getUser();
+  } = await getRequestUser();
 
   return (
     <>

@@ -16,8 +16,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ConsoleBadgesPage() {
-  await requireAccount("/console/badges");
-  const role = await readConsoleRole();
+  // The guard is a courtesy, not access control: every read here is authorised
+  // by its own operation and RLS, so they start with it rather than after it.
+  const [, role, badges, members] = await Promise.all([
+    requireAccount("/console/badges"),
+    readConsoleRole(),
+    listConsoleBadges(),
+    searchConsoleMembers(null),
+  ]);
   if (!role.ok || role.data !== "owner") {
     return (
       <>
@@ -30,7 +36,6 @@ export default async function ConsoleBadgesPage() {
       </>
     );
   }
-  const [badges, members] = await Promise.all([listConsoleBadges(), searchConsoleMembers(null)]);
   return (
     <>
       <ConsoleNav current="badges" />

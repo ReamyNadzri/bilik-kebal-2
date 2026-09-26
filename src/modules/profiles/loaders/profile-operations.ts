@@ -6,15 +6,15 @@ import type {
   UpdateProfileResult,
 } from "@/contracts/profiles";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { SupabaseProfileRepository } from "../repositories/supabase-profile-repository";
 import { ProfileService, type ProfileActor } from "../services/profile-service";
 
 async function context(): Promise<{ actor: ProfileActor | null; service: ProfileService }> {
-  const client = await createSupabaseServerClient();
+  const client = await getRequestSupabaseClient();
   const {
     data: { user },
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   const actor = user ? { emailVerified: Boolean(user.email_confirmed_at), userId: user.id } : null;
   // Public profile reads use the admin client only after the viewer's email is
   // verified, the same bar as browsing the Board.

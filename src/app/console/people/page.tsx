@@ -26,9 +26,16 @@ export default async function ConsolePeoplePage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requireAccount("/console/people");
   const { q = "" } = await searchParams;
-  const role = await readConsoleRole();
+  // The guard is a courtesy, not access control: every read here is authorised
+  // by its own operation and RLS, so they start with it rather than after it.
+  const [, role, members, institutions, badges] = await Promise.all([
+    requireAccount("/console/people"),
+    readConsoleRole(),
+    searchConsoleMembers(q || null),
+    loadSelectableInstitutions().catch(() => null),
+    listConsoleBadges(),
+  ]);
 
   if (!role.ok || role.data === null) {
     return (
@@ -43,12 +50,6 @@ export default async function ConsolePeoplePage({
     );
   }
 
-  const [members, institutions, badges] = await Promise.all([
-    searchConsoleMembers(q || null),
-    loadSelectableInstitutions().catch(() => null),
-    role.data === "owner" ? listConsoleBadges() : Promise.resolve(null),
-  ]);
-
   return (
     <>
       <ConsoleNav current="people" />
@@ -57,7 +58,7 @@ export default async function ConsolePeoplePage({
         query={q}
         members={members.ok ? members.data : null}
         institutions={institutions?.status === "ready" ? institutions.institutions : []}
-        badges={badges?.ok ? badges.data : []}
+        badges={role.data === "owner" && badges.ok ? badges.data : []}
       />
     </>
   );

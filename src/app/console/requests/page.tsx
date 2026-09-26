@@ -18,8 +18,10 @@ export const dynamic = "force-dynamic";
  * again in the database.
  */
 export default async function ConsoleRequestsPage() {
-  await requireAccount("/console/requests");
-  const [entries, releases, role] = await Promise.all([
+  // The guard is a courtesy, not access control: every read here is authorised
+  // by its own operation and RLS, so they start with it rather than after it.
+  const [, entries, releases, role] = await Promise.all([
+    requireAccount("/console/requests"),
     listTaxonomyRequestQueue(),
     listPendingCommunityPayouts(),
     readConsoleRole(),

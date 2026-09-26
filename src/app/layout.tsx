@@ -50,7 +50,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const outcome = await readAccount();
+  // Read together: both share the request's one Auth check, and the count
+  // needs only the user, not the account record.
+  const [outcome, unread] = await Promise.all([readAccount(), countUnreadNotifications()]);
   const account = outcome.kind === "account" ? outcome.account : null;
 
   /**
@@ -60,7 +62,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
    * (context/architecture.md).
    */
   const roleNav = account?.console.hasAccess === true ? [SHERIFF_CONSOLE_NAV] : [];
-  const unreadCount = account ? await countUnreadNotifications() : null;
+  const unreadCount = account ? unread : null;
 
   return (
     <html lang="en" className={`${karla.variable} ${rye.variable} ${silkscreen.variable}`}>

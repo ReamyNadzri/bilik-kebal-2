@@ -42,14 +42,14 @@ interface WantedDetailPageProps {
  */
 export default async function WantedDetailPage({ params }: WantedDetailPageProps) {
   const { id } = await params;
-  const result = await readWanted(id);
+  // Independent reads sharing the request's one Auth check: run together.
+  const [result, accountOutcome] = await Promise.all([readWanted(id), readAccount()]);
 
   if (result.status === "not-found") {
     notFound();
   }
 
   const similar = result.status === "ready" ? await readSimilarWanted(result.data) : [];
-  const accountOutcome = await readAccount();
   const account = accountOutcome.kind === "account" ? accountOutcome.account : null;
 
   return (

@@ -5,15 +5,15 @@ import type {
   SubmitTaxonomyRequestResult,
 } from "@/contracts/taxonomy-requests";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { SupabaseTaxonomyRequestRepository } from "../repositories/supabase-taxonomy-request-repository";
 import { TaxonomyRequestService } from "../services/taxonomy-request-service";
 
 async function context() {
-  const client = await createSupabaseServerClient();
+  const client = await getRequestSupabaseClient();
   const {
     data: { user },
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   const actor = user ? { userId: user.id } : null;
   // Names are filled in with the admin client only for rows RLS already
   // returned to this caller.

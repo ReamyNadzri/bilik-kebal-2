@@ -8,15 +8,16 @@ import type {
   ListHiddenRepliesResult,
   SearchMembersResult,
 } from "@/contracts/console";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { SupabaseConsoleRepository } from "../repositories/supabase-console-repository";
 import { ConsoleService } from "../services/console-service";
 
+/** The actor comes from the request's shared Auth check, not a check of its own. */
 async function context() {
-  const client = await createSupabaseServerClient();
+  const client = await getRequestSupabaseClient();
   const {
     data: { user },
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   return {
     actor: user ? { userId: user.id } : null,
     service: new ConsoleService(new SupabaseConsoleRepository(client)),

@@ -1,29 +1,55 @@
+import type { User } from "@supabase/supabase-js";
+import { cache } from "react";
+
 import type {
   AccountViewModel,
   InstitutionOption,
   VerificationQueueItem,
 } from "@/contracts/identity";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 
 import { SupabaseEvidenceReadSigner } from "../gateways/supabase-evidence-read-signer";
 import { SupabaseIdentityReadRepository } from "../repositories/supabase-identity-read-repository";
-import { toAccountViewModel } from "../services/account-view-service";
+import { toAccountViewModel, type AccountRecord } from "../services/account-view-service";
 import { EvidenceReadService, canLoadReviewQueue } from "../services/review-read-service";
 import type { PlatformRole, VerificationActor } from "../services/verification-service";
 
-export async function loadAccountViewModel(): Promise<AccountViewModel | null> {
-  const client = await createSupabaseServerClient();
+/** The signed-in user and their account record; the record is null without a profile. */
+export interface AccountContext {
+  readonly user: User;
+  readonly record: AccountRecord | null;
+}
+
+/**
+ * The signed-in user and their account record, read once per server render.
+ *
+ * The root layout, the page's guard and every loader that needs the actor used
+ * to repeat this read, relying on Next to collapse the identical requests.
+ * Sharing it makes one Auth check and one set of identity queries per render
+ * explicit. `cache` scopes the answer to one request, so no viewer ever sees
+ * another's; route handlers, where `cache` does not memoise, read it fresh.
+ *
+ * Null when nobody is signed in. Throws when identity is unreachable, and every
+ * caller in the same render sees the same failure.
+ */
+export const loadAccountContext = cache(async (): Promise<AccountContext | null> => {
   const {
     data: { user },
     error,
-  } = await client.auth.getUser();
+  } = await getRequestUser();
 
   if (error || !user) {
     return null;
   }
 
+  const client = await getRequestSupabaseClient();
   const record = await new SupabaseIdentityReadRepository(client).readAccount(user);
-  return record ? toAccountViewModel(record) : null;
+  return { record, user };
+});
+
+export async function loadAccountViewModel(): Promise<AccountViewModel | null> {
+  const context = await loadAccountContext();
+  return context?.record ? toAccountViewModel(context.record) : null;
 }
 
 export type SelectableInstitutionsLoadResult =
@@ -32,11 +58,11 @@ export type SelectableInstitutionsLoadResult =
   | { status: "ready"; institutions: InstitutionOption[] };
 
 export async function loadSelectableInstitutions(): Promise<SelectableInstitutionsLoadResult> {
-  const client = await createSupabaseServerClient();
+  const client = await getRequestSupabaseClient();
   const {
     data: { user },
     error,
-  } = await client.auth.getUser();
+  } = await getRequestUser();
 
   if (error || !user) {
     return { status: "auth_required" };
@@ -57,11 +83,11 @@ export type ReviewQueueLoadResult =
   | { status: "ready"; items: VerificationQueueItem[] };
 
 async function loadReviewContext() {
-  const client = await createSupabaseServerClient();
+  const client = await getRequestSupabaseClient();
   const {
     data: { user },
     error,
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   if (error || !user) return null;
 
   const [platformRoles, institutionRoles] = await Promise.all([

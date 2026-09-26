@@ -11,10 +11,12 @@ export type {
 } from "./domain/trust-state";
 export { ProfileRepository } from "./repositories/profile-repository";
 export {
+  loadAccountContext,
   loadAccountViewModel,
   loadSelectableInstitutions,
   loadVerificationReviewQueue,
 } from "./loaders/identity-read";
+export type { AccountContext } from "./loaders/identity-read";
 export type {
   ProfileReader,
   ProfileRecord,
