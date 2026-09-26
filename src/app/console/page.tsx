@@ -8,6 +8,7 @@ import { ReviewConsole } from "@/components/review-console";
 import { UiStatus } from "@/components/ui-status";
 import type { VerificationQueueItem } from "@/contracts";
 import { signInPathFor } from "@/features/presentation/auth/redirect-target";
+import { loadConsoleQueueCounts } from "@/modules/console/loaders/console-queue-counts";
 import { loadVerificationReviewQueue } from "@/modules/identity";
 
 export const metadata: Metadata = {
@@ -54,7 +55,10 @@ async function readQueue(): Promise<Outcome> {
 }
 
 export default async function ConsolePage() {
-  const outcome = await readQueue();
+  // The overview's queue counts are read beside the verification queue, in
+  // the same request and on the same Auth check, rather than by the browser
+  // after the page arrives.
+  const [outcome, counts] = await Promise.all([readQueue(), loadConsoleQueueCounts()]);
 
   /**
    * Protected: sign-in is the one refusal a viewer can act on immediately, so
@@ -70,7 +74,7 @@ export default async function ConsolePage() {
     <>
       <ConsoleNav current="overview" showTabs={outcome.kind !== "refused"} />
       {outcome.kind === "ready" ? (
-        <ConsoleDashboard verificationCount={outcome.items.length} />
+        <ConsoleDashboard verificationCount={outcome.items.length} counts={counts} />
       ) : null}
 
       {outcome.kind === "refused" ? <ConsoleLanding /> : null}

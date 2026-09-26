@@ -1,53 +1,30 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
+
+/** Items waiting in a queue; `null` when the count is not available to this viewer. */
+type Count = number | null;
 
 export interface ConsoleDashboardProps {
   /** Pending institution verification requests, counted on the server. */
   readonly verificationCount: number;
+  /** The other queues, counted on the server in the same request. */
+  readonly counts: {
+    readonly claims: Count;
+    readonly appeals: Count;
+    readonly payouts: Count;
+    readonly refunds: Count;
+  };
 }
-
-type Count = number | "unavailable" | "loading";
-
-async function count(path: string, pick: (data: unknown) => number): Promise<Count> {
-  try {
-    const response = await fetch(path, { cache: "no-store" });
-    const body = (await response.json()) as { ok: boolean; data?: unknown };
-    return response.ok && body.ok ? pick(body.data) : "unavailable";
-  } catch {
-    return "unavailable";
-  }
-}
-
-const pending = (data: unknown) =>
-  Array.isArray(data)
-    ? data.filter((row) => (row as { status?: string }).status === "pending").length
-    : 0;
 
 /**
  * The console at a glance: one tile per queue with the number waiting and a
  * link to work it. Each count comes from the same operation the queue itself
  * uses, so a tile never shows work the reviewer cannot see.
+ *
+ * The counts arrive with the page. They used to be four browser requests sent
+ * after it loaded, each one another round trip that checked the session
+ * again, so the tiles sat on "…" well after everything else had rendered.
  */
-export function ConsoleDashboard({ verificationCount }: ConsoleDashboardProps) {
-  const [claims, setClaims] = useState<Count>("loading");
-  const [appeals, setAppeals] = useState<Count>("loading");
-  const [payouts, setPayouts] = useState<Count>("loading");
-  const [refunds, setRefunds] = useState<Count>("loading");
-
-  useEffect(() => {
-    void count("/api/claims/reviews", (data) => (Array.isArray(data) ? data.length : 0)).then(
-      setClaims,
-    );
-    void count("/api/sheriff/moderation", (data) => {
-      const appealsList = (data as { appeals?: unknown[] } | undefined)?.appeals;
-      return Array.isArray(appealsList) ? appealsList.length : 0;
-    }).then(setAppeals);
-    void count("/api/sheriff/payouts", pending).then(setPayouts);
-    void count("/api/sheriff/refunds", pending).then(setRefunds);
-  }, []);
-
+export function ConsoleDashboard({ verificationCount, counts }: ConsoleDashboardProps) {
   const tiles: readonly { label: string; value: Count; href: string; hint: string }[] = [
     {
       label: "Institution verifications",
@@ -57,25 +34,25 @@ export function ConsoleDashboard({ verificationCount }: ConsoleDashboardProps) {
     },
     {
       label: "Claims to review",
-      value: claims,
+      value: counts.claims,
       href: "/console/claims",
       hint: "Quarantined claims waiting for a Sheriff",
     },
     {
       label: "Appeals",
-      value: appeals,
+      value: counts.appeals,
       href: "/console/appeals",
       hint: "Rejected claims appealed within 7 days",
     },
     {
       label: "Payouts to record",
-      value: payouts,
+      value: counts.payouts,
       href: "/console/operations",
       hint: "Approved winners waiting for payment",
     },
     {
       label: "Refunds to record",
-      value: refunds,
+      value: counts.refunds,
       href: "/console/operations",
       hint: "Contributions to expired bounties",
     },
@@ -89,13 +66,14 @@ export function ConsoleDashboard({ verificationCount }: ConsoleDashboardProps) {
       <ul className="console-tiles">
         {tiles.map((tile) => (
           <li key={tile.label}>
-            <Link className="console-tile" href={tile.href}>
-              <span className="console-tile__value numeric" aria-live="polite">
-                {tile.value === "loading" ? "…" : tile.value === "unavailable" ? "—" : tile.value}
+            {/* Not prefetched: each queue is rendered per request on arrival. */}
+            <Link className="console-tile" href={tile.href} prefetch={false}>
+              <span className="console-tile__value numeric">
+                {tile.value === null ? "—" : tile.value}
               </span>
               <span className="console-tile__label">{tile.label}</span>
               <span className="console-tile__hint">
-                {tile.value === "unavailable" ? "Not available to your role" : tile.hint}
+                {tile.value === null ? "Not available to your role" : tile.hint}
               </span>
             </Link>
           </li>
