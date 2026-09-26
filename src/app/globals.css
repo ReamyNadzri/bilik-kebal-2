@@ -7269,8 +7269,9 @@ textarea.form-field__input {
     inset 0 0 0 4px rgba(243, 230, 200, 0.6), inset 0 0 0 8px var(--accent-primary);
   --motion-dust: radial-gradient(closest-side, rgba(243, 230, 200, 0.7), rgba(243, 230, 200, 0));
 
-  /* Living map */
-  --texture-map: url("/brand/map-malaysia.webp");
+  /* Living map. The ships are pre-cut from the map art (map-life.tsx), so the
+     sprites do not download the whole map a second time. */
+  --texture-map-ships: url("/brand/map-ships.webp");
   --motion-glint: #ffffff;
   --motion-glint-glow: 0 0 6px rgba(255, 255, 255, 0.8);
   --motion-wake: rgba(255, 255, 255, 0.75);
@@ -7861,7 +7862,7 @@ body:has(.idle-warning) .gunshot-toggle {
 .map-life__sprite {
   width: 100%;
   transform-origin: 50% 85%;
-  background-image: var(--texture-map);
+  background-image: var(--texture-map-ships);
   image-rendering: pixelated;
   -webkit-mask-image: var(--motion-sprite-mask);
   mask-image: var(--motion-sprite-mask);

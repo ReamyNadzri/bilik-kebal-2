@@ -272,6 +272,8 @@ export function BadgeConsole({
                         alt=""
                         width={36}
                         height={36}
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : null}
                     <div>

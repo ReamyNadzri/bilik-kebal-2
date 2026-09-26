@@ -157,7 +157,14 @@ export function ProfileSettings({ account, bio, allowance, entryRequests }: Prof
                 onClick={() => void choosePreset(index)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- fixed 56 px pixel art */}
-                <img src={presetAvatarPath(index)} alt="" width={56} height={56} />
+                <img
+                  src={presetAvatarPath(index)}
+                  alt=""
+                  width={56}
+                  height={56}
+                  loading="lazy"
+                  decoding="async"
+                />
               </button>
             </li>
           ))}

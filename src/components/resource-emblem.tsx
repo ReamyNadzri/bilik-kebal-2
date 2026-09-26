@@ -31,7 +31,14 @@ export function ResourceEmblem({
     return (
       <div className="emblem-frame" data-emblem="upload">
         {/* eslint-disable-next-line @next/next/no-img-element -- A small public pixelated PNG, already sized in the browser before upload. */}
-        <img className="resource-emblem resource-emblem--upload" src={picture.url} alt="" />
+        <img
+          className="resource-emblem resource-emblem--upload"
+          src={picture.url}
+          alt=""
+          // A Board carries dozens of posters: only those near the screen load.
+          loading="lazy"
+          decoding="async"
+        />
       </div>
     );
   }

@@ -11,7 +11,8 @@ import { usePrefersReducedMotion } from "./gunshot-transition";
  * because the figure also holds the figcaption.
  *
  * Coordinates are pixels on the 1672 x 941 art in public/brand/map-malaysia.webp.
- * The ship rects are cut from that art; if it is ever redrawn, re-measure them.
+ * The ship rects are cut from that art; if it is ever redrawn, re-measure them
+ * and re-cut public/brand/map-ships.webp (see SHIP_SPRITES below).
  */
 
 const W = 1672;
@@ -54,15 +55,31 @@ const BIRD_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [12, 22],
 ];
 
-/** Places a cut-out of the map art: the geometry of one source rect. */
-function sprite(sx: number, sy: number, sw: number, sh: number, extra: Vars): Vars {
-  return {
-    aspectRatio: `${sw} / ${sh}`,
-    backgroundSize: `${(W / sw) * 100}% auto`,
-    backgroundPosition: `${(sx / (W - sw)) * 100}% ${(sy / (H - sh)) * 100}%`,
-    ...extra,
-  };
-}
+/**
+ * The ships, pre-cut from the map art into public/brand/map-ships.webp: each
+ * source rect plus SHIP_MARGIN px of surrounding sea, left to right in SHIPS
+ * order and top-aligned. Cutting them out of the whole map instead made this
+ * page download the 400 KB map art a second time for four small sprites. The
+ * margin keeps the pixels beside each edge the ones the map has there.
+ */
+const SHIP_MARGIN = 4;
+
+/** The background geometry that shows each ship, in SHIPS order. */
+const SHIP_SPRITES: readonly Vars[] = (() => {
+  const tile = (size: number) => size + 2 * SHIP_MARGIN;
+  const width = SHIPS.reduce((total, [, , sw]) => total + tile(sw), 0);
+  const height = Math.max(...SHIPS.map(([, , , sh]) => tile(sh)));
+  let stripLeft = 0;
+  return SHIPS.map(([, , sw, sh]) => {
+    const left = stripLeft + SHIP_MARGIN;
+    stripLeft += tile(sw);
+    return {
+      aspectRatio: `${sw} / ${sh}`,
+      backgroundSize: `${(width / sw) * 100}% ${(height / sh) * 100}%`,
+      backgroundPosition: `${(left / (width - sw)) * 100}% ${(SHIP_MARGIN / (height - sh)) * 100}%`,
+    };
+  });
+})();
 
 export interface MapLifeProps {
   readonly sea?: boolean;
@@ -109,10 +126,13 @@ export function MapLife({ sea = true, ships = true, birds = true }: MapLifeProps
               <span className="map-life__wake" style={{ "--vx-delay": `${i * 0.6}s` } as Vars} />
               <div
                 className="map-life__sprite"
-                style={sprite(sx, sy, sw, sh, {
-                  "--vx-dur": `${3 + i * 0.4}s`,
-                  "--vx-delay": `${i * -0.9}s`,
-                })}
+                style={
+                  {
+                    ...SHIP_SPRITES[i],
+                    "--vx-dur": `${3 + i * 0.4}s`,
+                    "--vx-delay": `${i * -0.9}s`,
+                  } as Vars
+                }
               />
             </div>
           ))}
@@ -121,7 +141,7 @@ export function MapLife({ sea = true, ships = true, birds = true }: MapLifeProps
             <div className="map-life__turn" style={{ width: `${(72 / W) * 100}%` }}>
               <div
                 className="map-life__sprite"
-                style={sprite(938, 294, 72, 66, { "--vx-dur": "3.2s", "--vx-delay": "0s" })}
+                style={{ ...SHIP_SPRITES[0], "--vx-dur": "3.2s", "--vx-delay": "0s" } as Vars}
               />
             </div>
           </div>

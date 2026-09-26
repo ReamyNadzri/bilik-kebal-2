@@ -11,7 +11,15 @@ export function MemberBadgeMark({ badge }: { readonly badge: MemberBadge | null 
     <span className="member-badge" title={`Badge awarded by the Owner: ${badge.name}`}>
       {badge.imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- Owner-uploaded public image.
-        <img className="member-badge__image" src={badge.imageUrl} alt="" width={18} height={18} />
+        <img
+          className="member-badge__image"
+          src={badge.imageUrl}
+          alt=""
+          width={18}
+          height={18}
+          loading="lazy"
+          decoding="async"
+        />
       ) : null}
       <span>{badge.name}</span>
     </span>
