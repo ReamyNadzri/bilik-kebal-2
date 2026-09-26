@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { ShotLink } from "./motion/gunshot-transition";
 import { NotificationMenu } from "./notification-menu";
 import { PixelIcon, type PixelIconName } from "./pixel-icon";
@@ -33,6 +34,28 @@ const ACCOUNT_ICONS: Partial<Record<NavItemId, PixelIconName>> = {
   profile: "person",
 };
 
+/**
+ * Prefetches a rail destination when the reader shows intent — a pointer on
+ * it, a touch, or keyboard focus — instead of whenever it is on screen.
+ *
+ * Every screen is rendered per request, so a prefetch buys a destination's
+ * route and loading state, never its data. On sight, that was a server request
+ * for every rail link on every page load; on intent, it is one for the link the
+ * reader is about to use, which keeps its loading state instant.
+ */
+function useIntentPrefetch(href: string) {
+  const router = useRouter();
+  const prefetch = useCallback(() => router.prefetch(href), [router, href]);
+
+  // Spread onto the link: Next's own prefetch-on-sight is switched off.
+  return {
+    prefetch: false,
+    onFocus: prefetch,
+    onMouseEnter: prefetch,
+    onTouchStart: prefetch,
+  } as const;
+}
+
 function NavLink({
   item,
   current,
@@ -47,11 +70,13 @@ function NavLink({
 }) {
   const icon = ACCOUNT_ICONS[item.id];
   const Anchor = shot ? ShotLink : Link;
+  const intentPrefetch = useIntentPrefetch(item.href);
 
   return (
     <li>
       <Anchor
         href={item.href}
+        {...intentPrefetch}
         className="shell-nav__link"
         aria-current={current ? "page" : undefined}
       >
@@ -93,6 +118,7 @@ function NavLink({
 export function ShellNav({ currentNavId, roleNav = [], unreadCount = null }: ShellNavProps) {
   const pathname = usePathname();
   const current = currentNavId === undefined ? activeNavId(pathname ?? "") : currentNavId;
+  const postIntentPrefetch = useIntentPrefetch(POST_WANTED_NAV.href);
 
   return (
     <div className="shell-nav">
@@ -143,6 +169,7 @@ export function ShellNav({ currentNavId, roleNav = [], unreadCount = null }: She
 
       <ShotLink
         href={POST_WANTED_NAV.href}
+        {...postIntentPrefetch}
         className="button button--primary shell-nav__post"
         aria-current={current === POST_WANTED_NAV.id ? "page" : undefined}
       >

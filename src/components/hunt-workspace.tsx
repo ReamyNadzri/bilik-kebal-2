@@ -36,6 +36,11 @@ function competition(count: number): string {
   return `${count} active ${count === 1 ? "claim" : "claims"} competing`;
 }
 
+/**
+ * The per-card links are not prefetched. Each claim link carries its own
+ * `wantedId`, so every card on sight was a distinct server request for a route
+ * with no loading state to show — dozens at once on a full Hunt.
+ */
 function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now: string }) {
   const closing = formatClosing(hunt.closesAt, now);
 
@@ -66,6 +71,7 @@ function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now:
           <Link
             className="button button--primary button--block"
             href={`/claims/new?wantedId=${encodeURIComponent(hunt.id)}&from=hunt`}
+            prefetch={false}
             aria-label={`Fulfill bounty: ${hunt.title}`}
           >
             Fulfill Bounty <span aria-hidden="true">→</span>
@@ -73,6 +79,7 @@ function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now:
           <Link
             className="button button--secondary button--block"
             href={`/wanted/${encodeURIComponent(hunt.id)}`}
+            prefetch={false}
             aria-label={`View hunt details: ${hunt.title}`}
           >
             View Wanted Details
@@ -133,6 +140,7 @@ function ClaimCard({ claim, now }: { readonly claim: ClaimSummary; readonly now:
           <Link
             className="button button--green"
             href={`/wanted/${claim.wantedId}`}
+            prefetch={false}
             aria-label={`View Wanted: ${claim.wantedTitle}`}
           >
             View Wanted

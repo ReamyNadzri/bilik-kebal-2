@@ -27,6 +27,10 @@ const SECTIONS: readonly { id: ConsoleSection; label: string; href: string }[] =
  * the section tabs. Pages add no heading of their own above it, so switching
  * tabs never changes the title. Links only — each section authorises its own
  * operations on the server and through RLS.
+ *
+ * The tabs are not prefetched. Every section is rendered per request and
+ * shares the console's loading state, so a prefetch buys nothing a click does
+ * not — while eight of them on every console page cost eight server requests.
  */
 export function ConsoleNav({
   current,
@@ -51,6 +55,7 @@ export function ConsoleNav({
                   <Link
                     className="ops-tab console-nav__link"
                     href={item.href}
+                    prefetch={false}
                     aria-current={item.id === current ? "page" : undefined}
                   >
                     {item.label}

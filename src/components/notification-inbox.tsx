@@ -181,6 +181,9 @@ export function NotificationInbox() {
                 <Link
                   className="button button--secondary button--compact"
                   href={notificationHref(item.kind, item.subjectId) ?? "/"}
+                  // One per notification: prefetching them all on sight
+                  // would cost a server request each for pages not opened.
+                  prefetch={false}
                   onClick={() => {
                     // Opening a notification reads it; the save finishes in
                     // the background while the next page loads.

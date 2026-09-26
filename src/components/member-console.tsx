@@ -270,7 +270,9 @@ function MemberDetail({
     <article className="people-detail" aria-labelledby={headingId}>
       <div className="people-detail__head">
         <h3 className="ops-panel__title" id={headingId} tabIndex={-1} ref={headingRef}>
-          <Link href={`/u/${member.publicId}`}>{member.displayName}</Link>
+          <Link href={`/u/${member.publicId}`} prefetch={false}>
+            {member.displayName}
+          </Link>
         </h3>
         <button type="button" className="button button--quiet button--compact" onClick={onClose}>
           Close

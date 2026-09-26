@@ -87,6 +87,7 @@ export function CampusMap({ campuses, showCounts }: CampusMapProps) {
                 <Link
                   className="button button--green button--block"
                   href={`/board?campus=${encodeURIComponent(selected.id)}`}
+                  prefetch={false}
                 >
                   View requests here <span aria-hidden="true">→</span>
                 </Link>

@@ -62,8 +62,13 @@ export function HiddenRepliesConsole({ replies }: { readonly replies: readonly H
             <li key={reply.id} className="reply">
               <div className="reply__body">
                 <p className="reply__meta">
-                  <Link href={`/u/${reply.author.publicId}`}>{reply.author.displayName}</Link> on{" "}
-                  <Link href={`/wanted/${reply.wanted.id}`}>{reply.wanted.title}</Link>
+                  <Link href={`/u/${reply.author.publicId}`} prefetch={false}>
+                    {reply.author.displayName}
+                  </Link>{" "}
+                  on{" "}
+                  <Link href={`/wanted/${reply.wanted.id}`} prefetch={false}>
+                    {reply.wanted.title}
+                  </Link>
                 </p>
                 <p className="reply__text">{reply.body}</p>
                 <p className="reply__meta">

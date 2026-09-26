@@ -228,7 +228,9 @@ export function ConsoleRequests({
                   </p>
                 ) : null}
                 <h3 className="ops-panel__title">
-                  <Link href={`/wanted/${item.wanted.id}`}>{item.wanted.title}</Link>
+                  <Link href={`/wanted/${item.wanted.id}`} prefetch={false}>
+                    {item.wanted.title}
+                  </Link>
                 </h3>
                 <dl className="index-grid">
                   <dt>Bounty</dt>
@@ -236,12 +238,16 @@ export function ConsoleRequests({
                   <dt>Poster</dt>
                   <dd className="cluster">
                     <Avatar src={item.requester.avatarUrl} size={24} />
-                    <Link href={`/u/${item.requester.publicId}`}>{item.requester.displayName}</Link>
+                    <Link href={`/u/${item.requester.publicId}`} prefetch={false}>
+                      {item.requester.displayName}
+                    </Link>
                   </dd>
                   <dt>Named as helper</dt>
                   <dd className="cluster">
                     <Avatar src={item.finder.avatarUrl} size={24} />
-                    <Link href={`/u/${item.finder.publicId}`}>{item.finder.displayName}</Link>
+                    <Link href={`/u/${item.finder.publicId}`} prefetch={false}>
+                      {item.finder.displayName}
+                    </Link>
                   </dd>
                   {item.note ? (
                     <>

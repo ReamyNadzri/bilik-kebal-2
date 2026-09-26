@@ -1,16 +1,18 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { AppShell } from "./app-shell";
 import { SHERIFF_CONSOLE_NAV } from "@/features/presentation/navigation";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
+const router = vi.hoisted(() => ({ prefetch: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => router,
 }));
 
 beforeEach(() => {
   pathname.current = "/";
+  router.prefetch.mockClear();
 });
 
 function renderShell(props: Partial<React.ComponentProps<typeof AppShell>> = {}) {
@@ -148,6 +150,35 @@ describe("current destination", () => {
 
     expect(screen.getByRole("link", { name: "Archive" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Wanted Board" })).not.toHaveAttribute("aria-current");
+  });
+});
+
+describe("prefetching", () => {
+  /**
+   * Every screen is rendered per request, so a prefetch buys a destination's
+   * route and loading state only. The rail asks for one when the reader shows
+   * intent, never merely because a link is on screen.
+   */
+  test("prefetches nothing merely by rendering", () => {
+    renderShell();
+
+    expect(router.prefetch).not.toHaveBeenCalled();
+  });
+
+  test("prefetches a destination when the pointer rests on it", () => {
+    renderShell();
+
+    fireEvent.mouseEnter(screen.getByRole("link", { name: "Wanted Board" }));
+
+    expect(router.prefetch).toHaveBeenCalledWith("/board");
+  });
+
+  test("prefetches a destination when it takes keyboard focus", () => {
+    renderShell();
+
+    act(() => screen.getByRole("link", { name: "Post a Wanted" }).focus());
+
+    expect(router.prefetch).toHaveBeenCalledWith("/wanted/new");
   });
 });
 

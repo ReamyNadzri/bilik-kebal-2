@@ -271,6 +271,8 @@ export function NotificationMenu({
                   <Link
                     className="notification-menu__item"
                     href={href}
+                    // Opening the menu must not prefetch every notification's page.
+                    prefetch={false}
                     onClick={() => {
                       void openItem(item);
                       setOpen(false);

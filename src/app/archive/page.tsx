@@ -94,7 +94,9 @@ export default async function ArchivePage() {
             className="wanted-card__frame"
             title={
               <h3 className="wanted-card__title">
-                <Link href={`/wanted/${item.wanted.id}`}>{item.wanted.title}</Link>
+                <Link href={`/wanted/${item.wanted.id}`} prefetch={false}>
+                  {item.wanted.title}
+                </Link>
               </h3>
             }
             footer={

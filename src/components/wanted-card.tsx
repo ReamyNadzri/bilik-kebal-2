@@ -20,6 +20,11 @@ export interface WantedCardProps {
  * The poster is not one large link. The title and the action both point at the
  * same Wanted, which keeps each accessible name meaningful when a reader lists
  * the links on a Board of twelve posters.
+ *
+ * Neither link is prefetched. A Wanted is rendered per request with no loading
+ * state of its own, so a prefetch would fetch only its route shape — one
+ * server request per poster on sight, for a Board of dozens — and the click
+ * would still wait for the page.
  */
 export function WantedCard({ wanted, now }: WantedCardProps) {
   const href = `/wanted/${wanted.id}`;
@@ -35,13 +40,16 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
         withEmblem
         title={
           <h3 className="wanted-card__title" id={titleId}>
-            <ShotLink href={href}>{wanted.title}</ShotLink>
+            <ShotLink href={href} prefetch={false}>
+              {wanted.title}
+            </ShotLink>
           </h3>
         }
         footer={
           <ShotLink
             className="button button--ink wanted-card__action"
             href={href}
+            prefetch={false}
             aria-label={`View this Wanted: ${wanted.title}`}
           >
             View Wanted

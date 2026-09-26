@@ -58,7 +58,8 @@ export function AppShell({
 
       <header className="app-shell__header">
         <div className="app-shell__bar">
-          <ShotLink className="app-shell__wordmark" href="/">
+          {/* Not prefetched on sight: the homepage has no loading state to buy. */}
+          <ShotLink className="app-shell__wordmark" href="/" prefetch={false}>
             <Image
               className="app-shell__logo"
               src="/brand/logo-tile.webp"
