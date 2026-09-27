@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BoardViewToggle } from "@/components/board-view-toggle";
+import { HuntersWall } from "@/components/hunters-wall";
 import { UiStatus } from "@/components/ui-status";
 import { WantedBoard } from "@/components/wanted-board";
 import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
 import { parseBoardFilters, toListWantedQuery } from "@/features/marketplace/filters";
 import { listWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
+import { huntersHref, parseHuntersParams } from "@/features/presentation/hunters-params";
+import { listPublicHunters } from "@/modules/profiles/loaders/hunters-operations";
 import { loadMarketplaceTaxonomy } from "@/modules/taxonomy/loaders/taxonomy-read";
 
 export const metadata: Metadata = {
@@ -56,7 +60,10 @@ async function readFilterCatalogue(): Promise<MarketplaceTaxonomy | null> {
  * only chooses the wording (context/architecture.md).
  */
 export default async function BoardPage({ searchParams }: BoardPageProps) {
-  const filters = parseBoardFilters(await searchParams);
+  const params = await searchParams;
+  if (params.view === "hunters") return huntersView(params);
+
+  const filters = parseBoardFilters(params);
   const [board, taxonomy] = await Promise.all([
     listWanted(toListWantedQuery(filters)),
     readFilterCatalogue(),
@@ -64,6 +71,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
 
   return (
     <div className="page-bare">
+      <BoardViewToggle current="wanted" />
       <div className="panel page-heading">
         <div>
           <h1>Wanted Board</h1>
@@ -105,6 +113,62 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
           taxonomy={taxonomy}
           now={marketplaceNow()}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The Board's second view: verified members as posters on a wall. It asks
+ * the same of the reader as the Wanted view, a verified email, and the read
+ * operation refuses anyone else; this only chooses the wording.
+ */
+async function huntersView(params: Record<string, string | string[] | undefined>) {
+  const wanted = parseHuntersParams((name) => params[name]);
+  const hunters = await listPublicHunters({ page: wanted.page, pageSize: wanted.per });
+
+  return (
+    <div className="page-bare">
+      <BoardViewToggle current="hunters" />
+      {hunters.ok ? (
+        <HuntersWall key={`${hunters.data.pageSize}:${hunters.data.page}`} initial={hunters.data} />
+      ) : (
+        <>
+          <div className="panel page-heading">
+            <div>
+              <h1>Hunters on the Board</h1>
+              <p className="page-heading__lede">
+                Verified students who hunt and back bounties. Open a poster to see their profile.
+              </p>
+            </div>
+          </div>
+          {hunters.code === "AUTH_REQUIRED" ? (
+            <UiStatus
+              kind="restricted"
+              heading="Sign in to see the Hunters"
+              message="The Hunters are members, so the wall opens once you are signed in with a verified email address."
+              action={
+                <Link href={`/sign-in?next=${encodeURIComponent(huntersHref(wanted))}`}>
+                  Sign in
+                </Link>
+              }
+            />
+          ) : hunters.code === "EMAIL_NOT_VERIFIED" ? (
+            <UiStatus
+              kind="restricted"
+              heading="Verify your email to see the Hunters"
+              message="Seeing other members needs a verified email address and nothing more."
+              action={<Link href="/verify-email">Go to email verification</Link>}
+            />
+          ) : (
+            <UiStatus
+              kind="offline"
+              heading="The Hunters could not be loaded"
+              message="This is not a problem with your account, and nothing has been changed. Try again shortly."
+              action={<Link href={huntersHref(wanted)}>Try again</Link>}
+            />
+          )}
+        </>
       )}
     </div>
   );

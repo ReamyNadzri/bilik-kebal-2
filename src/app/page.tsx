@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { HomeHunters } from "@/components/home-hunters";
 import { UiStatus } from "@/components/ui-status";
 import { WantedCard } from "@/components/wanted-card";
 import { listFeaturedWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
+import { sampleHunters } from "@/modules/profiles/loaders/hunters-operations";
 
 export const metadata: Metadata = {
   title: "VAULTIX — academic resource bounties",
@@ -74,7 +76,7 @@ const SUBMISSION_RULES = [
  * VAULTIX is.
  */
 export default async function HomePage() {
-  const featured = await listFeaturedWanted();
+  const [featured, hunters] = await Promise.all([listFeaturedWanted(), sampleHunters(6)]);
   const now = marketplaceNow();
 
   return (
@@ -241,6 +243,8 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      <HomeHunters hunters={hunters} />
 
       <section className="home-lower" aria-label="Explore and rules">
         <div className="map-teaser">

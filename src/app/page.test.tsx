@@ -2,17 +2,23 @@ import { render, screen, within } from "@testing-library/react";
 import HomePage from "./page";
 import { aWanted } from "@/features/marketplace/test-support/wanted";
 import { toSen } from "@/features/marketplace/money";
+import { aHuntersPage } from "@/features/presentation/test-support/hunters";
 
 const listPublicWanted = vi.hoisted(() => vi.fn());
 const readPublicWanted = vi.hoisted(() => vi.fn());
+
+const sampleHunters = vi.hoisted(() => vi.fn());
 
 vi.mock("@/modules/wanted/loaders/wanted-operations", () => ({
   listPublicWanted,
   readPublicWanted,
 }));
 
+vi.mock("@/modules/profiles/loaders/hunters-operations", () => ({ sampleHunters }));
+
 beforeEach(() => {
   listPublicWanted.mockReset().mockResolvedValue({ ok: true, data: [aWanted()] });
+  sampleHunters.mockReset().mockResolvedValue({ ok: true, data: [] });
 });
 
 function refused(code: string) {
@@ -187,4 +193,34 @@ test("claims no payment, entitlement or file access", async () => {
 
   expect(container.textContent).not.toMatch(/successfully|payment (received|complete|confirmed)/i);
   expect(container.textContent).not.toMatch(/download now|your file is|you now have access/i);
+});
+
+describe("Hunters on the Board", () => {
+  test("follows Featured Wanted with six Hunters picked on the server", async () => {
+    sampleHunters.mockResolvedValue({ ok: true, data: aHuntersPage(1, 10, 6).items });
+    await renderPage();
+
+    expect(sampleHunters).toHaveBeenCalledWith(6);
+    const featured = screen.getByRole("heading", { level: 2, name: "Featured Wanted" });
+    const hunters = screen.getByRole("heading", { level: 2, name: "Hunters on the Board" });
+    expect(
+      featured.compareDocumentPosition(hunters) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole("list", { name: "Some Hunters" })).getAllByRole("link"),
+    ).toHaveLength(6);
+    expect(screen.getByRole("link", { name: "See all Hunters" })).toHaveAttribute(
+      "href",
+      "/board?view=hunters",
+    );
+  });
+
+  test("is gated like Featured Wanted", async () => {
+    refused("AUTH_REQUIRED");
+    sampleHunters.mockResolvedValue({ ok: false, code: "AUTH_REQUIRED", message: "" });
+    await renderPage();
+
+    expect(screen.getByText("Sign in to see the Hunters")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Some Hunters" })).not.toBeInTheDocument();
+  });
 });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MissingPoster } from "@/components/missing-poster";
 import { ProfileHeader } from "@/components/profile-header";
 import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 
 interface MemberPageProps {
   readonly params: Promise<{ publicId: string }>;
+  /** `from=hunters` when the member was opened from a poster on the Hunters wall. */
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 /**
@@ -25,8 +28,9 @@ interface MemberPageProps {
  * verification evidence, claims or who backed what
  * (context/progress-tracker.md, 2026-09-24 decision).
  */
-export default async function MemberPage({ params }: MemberPageProps) {
+export default async function MemberPage({ params, searchParams }: MemberPageProps) {
   const { publicId } = await params;
+  const fromHunters = (await searchParams)?.from === "hunters";
   const result = await readPublicProfile(publicId);
 
   if (!result.ok) {
@@ -65,22 +69,56 @@ export default async function MemberPage({ params }: MemberPageProps) {
   ).length;
   const totalBounty = sen(profile.wanted.reduce((total, item) => total + item.grossBountySen, 0));
 
+  const header = (
+    <ProfileHeader
+      displayName={profile.displayName}
+      avatarUrl={profile.avatarUrl}
+      bio={profile.bio}
+      joinedAt={profile.joinedAt}
+      institutionName={profile.institutionName}
+      institutionVerified={profile.institutionVerified}
+      badge={profile.badge ?? null}
+      stats={[
+        { label: "Requests", value: String(profile.wanted.length) },
+        { label: "Open", value: String(open) },
+        { label: "Bounties posted", value: formatRinggit(totalBounty) },
+      ]}
+    />
+  );
+
   return (
     <div className="page-bare profile-container">
-      <ProfileHeader
-        displayName={profile.displayName}
-        avatarUrl={profile.avatarUrl}
-        bio={profile.bio}
-        joinedAt={profile.joinedAt}
-        institutionName={profile.institutionName}
-        institutionVerified={profile.institutionVerified}
-        badge={profile.badge ?? null}
-        stats={[
-          { label: "Requests", value: String(profile.wanted.length) },
-          { label: "Open", value: String(open) },
-          { label: "Bounties posted", value: formatRinggit(totalBounty) },
-        ]}
-      />
+      {fromHunters ? (
+        <Link className="hunter-profile__back" href="/board?view=hunters">
+          <span aria-hidden="true">←</span> Back to Hunters
+        </Link>
+      ) : null}
+      {profile.institutionVerified && profile.institutionName ? (
+        // A Hunter's poster, as it hangs on the wall, beside the card.
+        <div className="hunter-profile">
+          <div className="hunter-profile__poster">
+            <MissingPoster
+              variant="big"
+              hunter={{
+                publicId: profile.publicId,
+                displayName: profile.displayName,
+                avatarUrl: profile.avatarUrl,
+                institutionName: profile.institutionName,
+                joinedAt: profile.joinedAt,
+              }}
+            />
+          </div>
+          <div className="hunter-profile__card">
+            {header}
+            <p className="hunter-profile__note">
+              Other students see a Hunter&apos;s display name, avatar and institution, never their
+              email address.
+            </p>
+          </div>
+        </div>
+      ) : (
+        header
+      )}
       <ProfileWantedGrid
         heading={`Requests by ${profile.displayName}`}
         wanted={profile.wanted}
