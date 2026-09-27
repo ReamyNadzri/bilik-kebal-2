@@ -39,6 +39,7 @@ export type MarketplaceOperationCode =
   | "AMOUNT_OUT_OF_RANGE"
   | "REGION_CLOSED"
   | "FREE_LIMIT_REACHED"
+  | "WANTED_LOCKED"
   | "MARKETPLACE_UNAVAILABLE";
 
 const uuid = z.uuid();
@@ -143,6 +144,46 @@ export const wantedReplyHideSchema = z.union([
   z.object({ hide: z.literal(true), reasonCode: z.string().regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/) }),
   z.object({ hide: z.literal(false) }),
 ]);
+
+/**
+ * The poster corrects a published Wanted in its first hour. Only the text
+ * changes; bounty, duration, course and every snapshot stay as published.
+ */
+export const wantedPosterEditSchema = z.object({
+  title: authoredText(8, 120),
+  description: authoredText(20, 2000),
+});
+export type WantedPosterEditInput = z.input<typeof wantedPosterEditSchema>;
+
+/** Minutes after publication during which the poster may edit or withdraw. */
+export const POSTER_CHANGE_WINDOW_MINUTES = 60;
+
+/**
+ * Why the poster can no longer edit or withdraw: the Wanted is not open, the
+ * hour has passed, a Hunter has submitted a claim, or someone else replied.
+ */
+export type WantedChangeLock = "not_open" | "window_closed" | "claim_submitted" | "reply_received";
+
+/** Read by the poster only; nobody else learns whether claims or replies exist. */
+export interface WantedChangeWindow {
+  editableUntil: string;
+  /** Null while the poster may still edit or withdraw. */
+  lockedReason: WantedChangeLock | null;
+}
+
+export type ReadWantedChangeWindowResult = OperationResult<
+  WantedChangeWindow,
+  MarketplaceOperationCode
+>;
+export type EditPublishedWantedResult = OperationResult<
+  { state: "edited" },
+  MarketplaceOperationCode
+>;
+/** Every contribution goes to the Owner's manual refund queue. */
+export type WithdrawWantedResult = OperationResult<
+  { state: "withdrawn"; refundsQueued: number },
+  MarketplaceOperationCode
+>;
 
 /** Minutes after posting during which the author may edit a message. */
 export const REPLY_EDIT_WINDOW_MINUTES = 15;

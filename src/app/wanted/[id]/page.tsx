@@ -6,6 +6,7 @@ import { WantedDetail } from "@/components/wanted-detail";
 import { readAccount } from "@/features/presentation/auth/require-account";
 import {
   marketplaceNow,
+  readOwnChangeWindow,
   readSimilarWanted,
   readWanted,
 } from "@/features/marketplace/wanted-source";
@@ -49,8 +50,17 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
     notFound();
   }
 
-  const similar = result.status === "ready" ? await readSimilarWanted(result.data) : [];
   const account = accountOutcome.kind === "account" ? accountOutcome.account : null;
+  const isPoster =
+    result.status === "ready" &&
+    account?.publicId != null &&
+    account.publicId === result.data.commissioner.publicId;
+  // Only the poster asks for their edit window; nobody else learns whether
+  // claims or replies exist.
+  const [similar, changeWindow] = await Promise.all([
+    result.status === "ready" ? readSimilarWanted(result.data) : Promise.resolve([]),
+    isPoster ? readOwnChangeWindow(id) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="page-bare">
@@ -87,6 +97,7 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
           similar={similar}
           now={marketplaceNow()}
           account={account}
+          changeWindow={changeWindow}
         />
       )}
     </div>
