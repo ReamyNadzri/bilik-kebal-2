@@ -58,6 +58,15 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
   Besi; the other branch campuses appear on the map as "coming soon".
 - Public member profiles show name, avatar, joined date, verification badge and the member's
   public Wanted requests only — never email, evidence, claims or contributions.
+- Changing a published Wanted (user decision 2026-09-28): for one hour after publication the poster
+  may edit the title and description or withdraw it. The window closes early at the first claim
+  (not withdrawn by its Hunter) or, on a missing item or discussion, the first reply from someone
+  else. Bounty, duration, course, campus and every snapshot never change; the previous text is kept.
+  Withdrawing hides the Wanted permanently and queues every contribution, the poster's own
+  included, for a full manual refund by the Owner; no fee is taken. A free request used by a
+  withdrawn Wanted is not returned.
+- Anyone who can read a Wanted can share it as a poster picture with a caption (title, course,
+  campus, bounty and link; never the poster's name) to WhatsApp, Telegram or the system share sheet.
 - Gross bounty, Backer count, age, status, and available action shown without previewing unverified content.
 
 ### Contributions, Fees, Payouts, and Refunds

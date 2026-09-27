@@ -1,10 +1,15 @@
 import type {
   ListWantedQuery,
   MarketplaceOperationCode,
+  WantedChangeWindow,
   WantedDetail,
   WantedSummary,
 } from "@/contracts/marketplace";
-import { listPublicWanted, readPublicWanted } from "@/modules/wanted/loaders/wanted-operations";
+import {
+  listPublicWanted,
+  readPublicWanted,
+  readWantedChangeWindow,
+} from "@/modules/wanted/loaders/wanted-operations";
 
 /**
  * The seam between marketplace screens and the published public read
@@ -108,6 +113,17 @@ export async function listFeaturedWanted(
  */
 export function readWanted(publicId: string): Promise<MarketplaceRead<WantedDetail>> {
   return read(() => readPublicWanted(publicId));
+}
+
+/**
+ * The poster's window for editing or withdrawing their own Wanted.
+ *
+ * Null for anyone else, and when the read fails: the page then shows no
+ * owner controls, and the server refuses a change it would not allow anyway.
+ */
+export async function readOwnChangeWindow(publicId: string): Promise<WantedChangeWindow | null> {
+  const result = await read<WantedChangeWindow>(() => readWantedChangeWindow(publicId));
+  return result.status === "ready" ? result.data : null;
 }
 
 /**

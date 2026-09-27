@@ -5,6 +5,9 @@ import type {
   ReadFreeAllowanceResult,
   RequestCommunityPayoutResult,
   CreateWantedDraftResult,
+  EditPublishedWantedResult,
+  ReadWantedChangeWindowResult,
+  WithdrawWantedResult,
   ListCampusRegionsResult,
   ListWantedRepliesResult,
   PostWantedReplyResult,
@@ -26,9 +29,11 @@ import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { loadAccountContext } from "@/modules/identity";
 import type { WantedActor } from "../domain/wanted-policy";
+import { SupabaseWantedPosterRepository } from "../repositories/supabase-wanted-poster-repository";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
 import { WantedCommunityService } from "../services/wanted-community-service";
 import { WantedDraftService } from "../services/wanted-draft-service";
+import { WantedPosterService } from "../services/wanted-poster-service";
 import { WantedPublicationService } from "../services/wanted-publication-service";
 import { WantedReadService } from "../services/wanted-read-service";
 
@@ -41,6 +46,7 @@ async function context(): Promise<{
   draftService: WantedDraftService;
   publicationService: WantedPublicationService;
   communityService: WantedCommunityService;
+  posterService: WantedPosterService;
 }> {
   const client = await getRequestSupabaseClient();
   const repository = new SupabaseWantedRepository(client);
@@ -54,8 +60,10 @@ async function context(): Promise<{
   const communityService = new WantedCommunityService(repository, {
     paymentAvailability: env.PAYMENT_MODE === "disabled" ? "disabled" : "unavailable",
   });
+  const posterService = new WantedPosterService(new SupabaseWantedPosterRepository(client));
   const signedIn = await loadAccountContext();
-  if (!signedIn) return { actor: null, draftService, publicationService, communityService };
+  if (!signedIn)
+    return { actor: null, draftService, publicationService, communityService, posterService };
   const { record: account, user } = signedIn;
   return {
     actor: account
@@ -76,6 +84,7 @@ async function context(): Promise<{
     draftService,
     publicationService,
     communityService,
+    posterService,
   };
 }
 
@@ -210,6 +219,41 @@ export async function reopenCommunityWanted(publicId: string): Promise<ReopenWan
   try {
     const loaded = await context();
     return loaded.communityService.reopen(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+/** The poster's edit-or-withdraw window; refused to everyone else. */
+export async function readWantedChangeWindow(
+  publicId: string,
+): Promise<ReadWantedChangeWindowResult> {
+  try {
+    const loaded = await context();
+    return loaded.posterService.changeWindow(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+/** The poster corrects the title and description in the first hour. */
+export async function editPublishedWanted(
+  publicId: string,
+  input: unknown,
+): Promise<EditPublishedWantedResult> {
+  try {
+    const loaded = await context();
+    return loaded.posterService.edit(loaded.actor, publicId, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+/** The poster withdraws in the first hour; contributions go to the refund queue. */
+export async function withdrawOwnWanted(publicId: string): Promise<WithdrawWantedResult> {
+  try {
+    const loaded = await context();
+    return loaded.posterService.withdraw(loaded.actor, publicId);
   } catch {
     return unavailable();
   }

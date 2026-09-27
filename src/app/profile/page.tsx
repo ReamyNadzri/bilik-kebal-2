@@ -20,7 +20,12 @@ export const metadata: Metadata = {
  */
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage() {
+interface ProfilePageProps {
+  readonly searchParams?: Promise<{ withdrawn?: string }>;
+}
+
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
+  const withdrawn = (await searchParams)?.withdrawn === "1";
   /**
    * Protected: an unauthenticated viewer is redirected to sign in and returned
    * here afterwards, before any of this page is rendered. An unreachable
@@ -66,6 +71,16 @@ export default async function ProfilePage() {
           Post a Wanted <span aria-hidden="true">→</span>
         </Link>
       </header>
+
+      {withdrawn ? (
+        <div className="panel">
+          <UiStatus
+            kind="success"
+            heading="Your Wanted was withdrawn"
+            message="It has left the Board. Any contributions to it, yours included, are in the refund queue and are refunded in full by hand."
+          />
+        </div>
+      ) : null}
 
       {/* The member's own requests lead the page; settings follow. */}
       <ProfileWantedGrid

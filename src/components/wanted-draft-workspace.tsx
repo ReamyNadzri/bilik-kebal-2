@@ -900,6 +900,17 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                     You have not been charged, no payment was started, and no Wanted has been
                     opened. Your draft is saved and still editable.
                   </p>
+                  <p className="ui-status__action">
+                    <Link
+                      className="button button--secondary"
+                      href={`/payment/walkthrough?${new URLSearchParams({
+                        title: draft.title,
+                        amountSen: String(draft.contributionSen ?? 0),
+                      }).toString()}`}
+                    >
+                      See how payment will work (no money moves)
+                    </Link>
+                  </p>
                 </section>
               ) : null}
 

@@ -38,7 +38,7 @@ const NO_CHARGE = "No charge was made and the bounty is unchanged.";
  * nothing was charged, because the one misreading with a real cost is a
  * student believing they paid when they did not, or the reverse.
  */
-function describeRefusal(code: MoneyOperationCode): Refusal {
+function describeRefusal(code: MoneyOperationCode, wantedId: string, amountSen: Sen): Refusal {
   switch (code) {
     case "PAYMENT_DISABLED":
     case "PAYMENT_UNAVAILABLE":
@@ -46,6 +46,10 @@ function describeRefusal(code: MoneyOperationCode): Refusal {
         kind: "offline",
         heading: "Online payment is not open yet",
         message: `The payment gateway is still being connected, so backing a Wanted is not available in this build. ${NO_CHARGE}`,
+        action: {
+          href: `/payment/walkthrough?wanted=${encodeURIComponent(wantedId)}&amountSen=${amountSen}`,
+          label: "See how it will work",
+        },
       };
     case "AUTH_REQUIRED":
       return {
@@ -140,7 +144,9 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
     }
 
     setStatus("idle");
-    setRefusal(describeRefusal(result.ok ? "PAYMENT_UNAVAILABLE" : result.code));
+    setRefusal(
+      describeRefusal(result.ok ? "PAYMENT_UNAVAILABLE" : result.code, wanted.id, selectedSen),
+    );
   }
 
   const projectedTotalSen = sen(wanted.grossBountySen + selectedSen);

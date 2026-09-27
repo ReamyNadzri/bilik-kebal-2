@@ -674,3 +674,52 @@ code and the installed Next.js 16.3.5 sources. Record:
 - ToyyibPay callback verification, fees, refund behaviour and settlement semantics remain unresolved launch gates. Payment defaults to disabled and Phase 3A has no success adapter.
 - Phase 3B migrations `202609150004` through `202609150009` are applied locally without resetting the demo database; the follow-up migrations preserve the actually applied callback hardening history, and the money pgTAP suite exercises the real RPC paths.
 - Phase 3A implementation commits: `d622bd5`, `7501359`, `f7ead1e`, `b1ebd02`, `0fcf925`, `43ef920`, documentation `4d52562`, and token-boundary hardening `fe6b534`.
+
+## 2026-09-28 poster edit/withdraw, share poster, payment walkthrough (on `main`)
+
+User-directed slice. Decisions the user made when asked: the payment "simulation" is a UI
+walkthrough that writes nothing (the local app and the live site share one Supabase Cloud
+database), and a withdrawn paid Wanted sends every contribution to the manual refund queue.
+
+- **Poster edit/withdraw.** Migrations `202610130001` (enum value `withdrawn`, alone because a new
+  enum value cannot be used in its own transaction) and `202610130002` (lifecycle constraint,
+  `withdrawn_at`, private `wanted_request_revisions`, `my_wanted_change_window`,
+  `update_own_published_wanted`, `withdraw_own_wanted`). Rules are in
+  `context/project-overview.md` ("Changing a published Wanted"). Two guards close the gaps
+  around a withdrawal: a trigger queues a refund for a contribution confirmed after withdrawal
+  (late provider callback), and a `before insert` trigger on `claims` takes a share lock on the
+  Wanted and refuses a claim unless it is open or reviewing, which orders claim creation against
+  the withdrawal's row lock. No ledger entry is written by withdrawal; the Owner's existing
+  `record_owner_refund_completion` posts the compensating entries.
+- Routes: `PATCH /api/marketplace/wanted/:id` (title, description) and
+  `POST /api/marketplace/wanted/:id/withdraw`; new operation code `WANTED_LOCKED` (409). The
+  RPCs are called through an untyped client until the database types are regenerated.
+- UI: `WantedPosterControls` on the detail page (countdown, edit dialog, withdraw confirmation
+  that states the refund), a success notice on `/profile?withdrawn=1`.
+- **Share.** `SharePoster` reuses the capture poster's drop, dust and thud without stamp or ink.
+  The picture (1080×1350 PNG) is drawn on a canvas from the CSS tokens when the dialog opens, so
+  the share button can hand it to the system share sheet inside the click. Where files cannot
+  be shared (most desktops), WhatsApp/Telegram open with the caption and link and the picture is
+  saved for the person to attach; web links cannot carry an image to either app.
+- **Walkthrough.** `/payment/walkthrough` (optionally `?wanted=<id>&amountSen=` or
+  `?title=&amountSen=`) steps through checkout, return page, verified callback and ledger, the
+  first-hour window, claims, Sheriff review, payout arithmetic (fee rounded down in integer sen,
+  as `approve_winning_claim_and_fulfill` does) and refund on expiry. Linked from the
+  payment-disabled states of the draft workspace and the Back dialog. No request is sent.
+- Verified: typecheck, full unit suite (172 files, 1326 tests), production build, ESLint and
+  Prettier on the changed files. `supabase/tests/local/poster_edit_withdraw.sql` passes on the
+  full migration chain in PGlite (Postgres 16 in WebAssembly; superuser, so grants and RLS are
+  not exercised; single connection, so the claim/withdraw race is reasoned, not tested); a
+  deliberately broken assertion failed as expected.
+- **Not yet applied to Supabase Cloud.** Until `202610130001` and `202610130002` are pushed, the
+  detail page shows no owner controls (the window read fails closed) and edit/withdraw answer
+  "unavailable". After applying, regenerate the database types and drop the untyped cast in
+  `supabase-wanted-poster-repository.ts`.
+- Found, not fixed: `BackWantedModal` posts to `/api/marketplace/wanted/:id/contribution`, which
+  has no route (only `drafts/:id/contribution` exists), so backing an open Wanted can never
+  reach the provider even once payment is enabled. Needs a backend contribution operation for
+  open Wanteds.
+- Open questions: in-app or email notice to Backers when a Wanted they funded is withdrawn (not
+  sent now; adding a notification kind would also enqueue email through the outbox trigger);
+  whether withdrawing should return a used free request (it does not, because the allowance
+  counts every non-draft free Wanted).

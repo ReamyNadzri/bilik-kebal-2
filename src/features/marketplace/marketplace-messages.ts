@@ -44,6 +44,7 @@ export const MARKETPLACE_MESSAGE: Record<MarketplaceOperationCode | MoneyOperati
     "You have used all your free requests. Redeem a reward code on your profile, or add a bounty.",
   REGION_CLOSED:
     "This campus is not open for new requests yet. VAULTIX is opening campuses region by region.",
+  WANTED_LOCKED: "This Wanted is locked as published and can no longer be edited or withdrawn.",
 };
 
 /** The operation's own message when it sent one, this module's copy otherwise. */
