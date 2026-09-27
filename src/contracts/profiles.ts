@@ -61,3 +61,36 @@ export type AvatarUploadResult = OperationResult<
 >;
 export type SetAvatarResult = OperationResult<{ avatarUrl: string | null }, ProfileOperationCode>;
 export type ReadPublicProfileResult = OperationResult<PublicProfile, ProfileOperationCode>;
+
+/** The Hunters wall offers these page sizes and no others (migration 202610140001). */
+export const HUNTERS_PAGE_SIZES = [10, 15, 20] as const;
+export type HuntersPageSize = (typeof HUNTERS_PAGE_SIZES)[number];
+
+export const listHuntersInputSchema = z.object({
+  pageSize: z.union([z.literal(10), z.literal(15), z.literal(20)]),
+  page: z.number().int().min(1).max(100_000),
+});
+
+/**
+ * A member on the Hunters wall: only what their public profile already shows.
+ * Every Hunter is institution verified, so the institution is always named.
+ */
+export interface PublicHunter {
+  publicId: string;
+  displayName: string;
+  /** Uploaded picture, else the chosen drawn character, else null (the default drawing). */
+  avatarUrl: string | null;
+  institutionName: string;
+  joinedAt: string;
+}
+
+export interface PublicHuntersPage {
+  total: number;
+  /** The page served, which is the last page when a later one was asked for. */
+  page: number;
+  pageSize: HuntersPageSize;
+  items: PublicHunter[];
+}
+
+export type ListHuntersResult = OperationResult<PublicHuntersPage, ProfileOperationCode>;
+export type SampleHuntersResult = OperationResult<PublicHunter[], ProfileOperationCode>;

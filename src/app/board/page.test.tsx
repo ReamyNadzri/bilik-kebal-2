@@ -3,10 +3,12 @@ import BoardPage from "./page";
 import { aTaxonomy, TAXONOMY_ID } from "@/features/marketplace/test-support/taxonomy";
 import { aWanted } from "@/features/marketplace/test-support/wanted";
 import { toSen } from "@/features/marketplace/money";
+import { aHuntersPage } from "@/features/presentation/test-support/hunters";
 
 const listPublicWanted = vi.hoisted(() => vi.fn());
 const readPublicWanted = vi.hoisted(() => vi.fn());
 const loadMarketplaceTaxonomy = vi.hoisted(() => vi.fn());
+const listPublicHunters = vi.hoisted(() => vi.fn());
 
 vi.mock("@/modules/wanted/loaders/wanted-operations", () => ({
   listPublicWanted,
@@ -17,9 +19,18 @@ vi.mock("@/modules/taxonomy/loaders/taxonomy-read", () => ({
   loadMarketplaceTaxonomy,
 }));
 
+vi.mock("@/modules/profiles/loaders/hunters-operations", () => ({ listPublicHunters }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/board",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 beforeEach(() => {
   listPublicWanted.mockReset().mockResolvedValue({ ok: true, data: [aWanted()] });
   loadMarketplaceTaxonomy.mockReset().mockResolvedValue({ ok: true, data: aTaxonomy() });
+  listPublicHunters.mockReset().mockResolvedValue({ ok: true, data: aHuntersPage() });
 });
 
 async function renderPage(params: Record<string, string> = {}) {
@@ -277,5 +288,60 @@ describe("who may read the Board", () => {
       screen.getByRole("heading", { name: "The Wanted Board could not be loaded" }),
     ).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/ECONNREFUSED|127\.0\.0\.1|supabase/i);
+  });
+});
+
+describe("the Hunters view", () => {
+  test("is offered beside the Wanted requests, which stay the default", async () => {
+    await renderPage();
+
+    expect(screen.getByRole("button", { name: "Wanted requests" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Hunters" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(listPublicHunters).not.toHaveBeenCalled();
+  });
+
+  test("reads the page size and page from the URL and reads no Wanted", async () => {
+    listPublicHunters.mockResolvedValue({ ok: true, data: aHuntersPage(2, 15, 44) });
+    await renderPage({ view: "hunters", per: "15", page: "2" });
+
+    expect(listPublicHunters).toHaveBeenCalledWith({ page: 2, pageSize: 15 });
+    expect(listPublicWanted).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Hunters" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("heading", { level: 1, name: "Hunters on the Board" })).toBeVisible();
+    expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+  });
+
+  test("falls back to ten a page for a size the wall does not offer", async () => {
+    await renderPage({ view: "hunters", per: "50", page: "abc" });
+
+    expect(listPublicHunters).toHaveBeenCalledWith({ page: 1, pageSize: 10 });
+  });
+
+  test.each([
+    ["AUTH_REQUIRED", "Sign in to see the Hunters"],
+    ["EMAIL_NOT_VERIFIED", "Verify your email to see the Hunters"],
+    ["PROFILE_UNAVAILABLE", "The Hunters could not be loaded"],
+  ])("explains a %s refusal", async (code, heading) => {
+    listPublicHunters.mockResolvedValue({ ok: false, code, message: "server wording" });
+    await renderPage({ view: "hunters" });
+
+    expect(screen.getByText(heading)).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Hunters" })).not.toBeInTheDocument();
+  });
+
+  test("returns a signed-out reader to the same page of the wall", async () => {
+    listPublicHunters.mockResolvedValue({ ok: false, code: "AUTH_REQUIRED", message: "" });
+    await renderPage({ view: "hunters", per: "20", page: "2" });
+
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
+      "href",
+      `/sign-in?next=${encodeURIComponent("/board?view=hunters&per=20&page=2")}`,
+    );
   });
 });

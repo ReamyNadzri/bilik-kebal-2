@@ -156,6 +156,48 @@
   --swatch-tan: #a06a3c;
   --swatch-deep: #6f4324;
 
+  /* Hunters wall — aged "MISSING" posters on a dark board, old flyers behind. */
+  --poster-aged-ink: #1f160c;
+  --poster-aged-heading: #1a120a;
+  --poster-aged-muted: #3a2a16;
+  --poster-aged-paper: #d6c49c;
+  --poster-aged-wash: rgb(226 212 180 / 0.62);
+  --poster-aged-glow: rgb(255 250 236 / 0.35);
+  --poster-aged-crease-dark: rgb(60 40 15 / 0.14);
+  --poster-aged-crease-light: rgb(255 250 235 / 0.3);
+  --poster-aged-stain: rgb(120 80 30 / 0.34);
+  --poster-aged-shadow: 0 8px 14px rgb(0 0 0 / 0.5), inset 0 0 36px rgb(80 55 20 / 0.42);
+  --poster-photo-frame: #efe3c6;
+  --poster-photo-edge: #5a4225;
+  --poster-photo-filter: grayscale(1) sepia(0.4) contrast(1.15);
+  --poster-tape: rgb(236 226 196 / 0.72);
+  --poster-tape-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  --poster-pin-shadow: 0 2px 3px rgb(0 0 0 / 0.5);
+  --wall-ground: #2a1a0d;
+  --wall-shadow: 0 0 0 3px var(--border-board), inset 0 0 90px rgb(0 0 0 / 0.85);
+  --wall-light:
+    radial-gradient(60% 55% at 50% 45%, rgb(255 196 120 / 0.14), rgb(0 0 0 / 0) 60%),
+    radial-gradient(120% 90% at 50% 50%, rgb(0 0 0 / 0) 45%, rgb(8 4 1 / 0.72) 100%);
+  --wall-dim: rgb(14 8 3 / 0.45);
+  --wall-dim-shadow: inset 0 0 60px rgb(0 0 0 / 0.7);
+  --scrap-filter: sepia(0.3) brightness(0.8);
+  --scrap-shadow: 0 3px 8px rgb(0 0 0 / 0.5);
+  --scrap-shadow-dark: 0 3px 8px rgb(0 0 0 / 0.6);
+  --scrap-paper: #bfa77a;
+  --scrap-paper-wash: rgb(200 184 148 / 0.55);
+  --scrap-notice: #d9cfb4;
+  --scrap-rent: #cdbf9b;
+  --scrap-seen: #d6cbb0;
+  --scrap-tuition: #cfc2a0;
+  --scrap-blank: #d2c6a6;
+  --scrap-receipt: #e8e0cc;
+  --scrap-red: #7a2a1d;
+  --scrap-dark: #15110c;
+  --scrap-dark-ink: #cbb68a;
+  --scrap-dark-bar: rgb(203 182 138 / 0.35);
+  --scrap-bar: rgb(40 28 14 / 0.55);
+  --scrap-rule: #2a1c0e;
+
   /* Type families. The variables are set on <html> by next/font in
      src/app/layout.tsx; the fallbacks keep every page readable without them. */
   --font-ui:
@@ -8061,4 +8103,604 @@ button.capture-poster__hunt {
 
 .walkthrough__exit {
   margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Board view toggle: Wanted requests | Hunters
+   -------------------------------------------------------------------------- */
+
+.board-view-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.board-view-toggle__option {
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  background: var(--bg-rail-raised);
+  border: var(--border-width-2) solid var(--accent-brass);
+  border-radius: var(--radius-sm);
+  color: var(--text-on-dark);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.board-view-toggle__option[aria-pressed="true"] {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Missing poster: a member on the Hunters wall, the homepage and a profile
+   -------------------------------------------------------------------------- */
+
+.missing-poster {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 12px;
+  text-align: center;
+  text-decoration: none;
+  background:
+    linear-gradient(
+      var(--poster-crease),
+      rgb(0 0 0 / 0) 46%,
+      var(--poster-aged-crease-dark) 49.5%,
+      var(--poster-aged-crease-light) 50.5%,
+      rgb(0 0 0 / 0) 54%
+    ),
+    radial-gradient(ellipse at var(--poster-stain), var(--poster-aged-stain), rgb(0 0 0 / 0) 42%),
+    radial-gradient(ellipse at 50% 40%, var(--poster-aged-glow), rgb(0 0 0 / 0) 70%),
+    linear-gradient(var(--poster-aged-wash), var(--poster-aged-wash)),
+    var(--texture-paper) center / cover,
+    var(--poster-aged-paper);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--poster-aged-shadow);
+  color: var(--poster-aged-ink);
+  transition: transform 140ms var(--motion-ease);
+}
+
+/* On the wall the slot carries the tilt, so it can move the poster as a whole. */
+.missing-poster--flat,
+.missing-poster--big {
+  rotate: var(--poster-rotate);
+}
+
+a.missing-poster:hover,
+a.missing-poster:focus-visible {
+  color: var(--poster-aged-ink);
+  transform: translateY(-6px) scale(1.05);
+}
+
+.missing-poster__fixing {
+  position: absolute;
+  left: 50%;
+}
+
+.missing-poster--pin .missing-poster__fixing {
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: var(--pin);
+  border: var(--border-width-2) solid var(--pin-edge);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--poster-pin-shadow);
+}
+
+.missing-poster--tape .missing-poster__fixing {
+  top: -9px;
+  width: 62px;
+  height: 20px;
+  margin-left: -31px;
+  background: var(--poster-tape);
+  box-shadow: var(--poster-tape-shadow);
+  transform: rotate(-4deg);
+}
+
+.missing-poster__heading {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2vw, 1.625rem);
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--poster-aged-heading);
+}
+
+.missing-poster__frame {
+  display: block;
+  margin-top: 8px;
+  padding: 3px;
+  background: var(--poster-photo-frame);
+  border: var(--border-width-1) solid var(--poster-photo-edge);
+}
+
+.missing-poster .missing-poster__photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  filter: var(--poster-photo-filter);
+  mix-blend-mode: multiply;
+}
+
+.missing-poster__name {
+  display: block;
+  margin-top: 8px;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  line-height: var(--leading-tight);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.missing-poster__institution {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  color: var(--poster-aged-muted);
+}
+
+.missing-poster__since {
+  display: block;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: var(--border-width-1) dashed var(--border-poster);
+  font-family: var(--font-pixel);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-poster);
+}
+
+.missing-poster--big .missing-poster__heading {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+}
+
+.missing-poster--big .missing-poster__name {
+  font-size: 1.25rem;
+}
+
+.missing-poster--big .missing-poster__institution {
+  font-size: 0.9375rem;
+}
+
+.missing-poster--big .missing-poster__since {
+  font-size: var(--text-xs);
+}
+
+/* --------------------------------------------------------------------------
+   Hunters wall on the Board
+   -------------------------------------------------------------------------- */
+
+.hunters-wall {
+  display: grid;
+  gap: 1.125rem;
+}
+
+.hunters-heading__intro {
+  flex: 1 1 22rem;
+}
+
+.hunters-heading__title {
+  margin: var(--space-2) 0;
+}
+
+.hunters-heading__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) 1.25rem;
+}
+
+.hunters-heading__count {
+  margin: 0;
+  font-weight: 700;
+}
+
+.hunters-per-page {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.hunters-per-page__label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.hunters-per-page__option {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.625rem;
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hunters-per-page__option[aria-pressed="true"] {
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+}
+
+.hunters-board {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(28px, 5vw, 64px) clamp(14px, 3vw, 40px);
+  background: var(--wall-ground) var(--texture-board) center / cover;
+  border: 4px solid var(--bg-rail);
+  box-shadow: var(--wall-shadow);
+}
+
+.hunters-board__light {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--wall-light);
+}
+
+.hunters-board__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.hunters-board__slot {
+  position: relative;
+  z-index: var(--wall-z);
+  margin: -4px -7px;
+}
+
+.hunters-board__slot:hover,
+.hunters-board__slot:focus-within {
+  z-index: 90;
+}
+
+/* Above the lighting, so an empty state stays readable. */
+.hunters-board__status {
+  position: relative;
+  z-index: 3;
+}
+
+.hunters-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.hunters-pager__button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hunters-pager__next {
+  min-height: 2.75rem;
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.hunters-pager__label {
+  min-width: 8rem;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+  color: var(--text-on-dark);
+}
+
+/* Old flyers and newspaper behind the posters. */
+.wall-scraps {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.wall-scrap {
+  position: absolute;
+  left: var(--scrap-left);
+  top: var(--scrap-top);
+  width: var(--scrap-width);
+  min-width: 110px;
+  color: var(--poster-aged-ink);
+  filter: var(--scrap-filter);
+  transform: rotate(var(--scrap-rotate));
+}
+
+.wall-scrap__sheet {
+  padding: 10px;
+  box-shadow: var(--scrap-shadow);
+  text-align: center;
+}
+
+.wall-scrap__sheet--paper {
+  background:
+    linear-gradient(var(--scrap-paper-wash), var(--scrap-paper-wash)),
+    var(--texture-paper) center / cover,
+    var(--scrap-paper);
+}
+
+.wall-scrap__sheet--notice {
+  background: var(--scrap-notice);
+}
+
+.wall-scrap__sheet--rent {
+  padding-bottom: 0;
+  background: var(--scrap-rent);
+}
+
+.wall-scrap__sheet--seen {
+  text-align: left;
+  background: var(--scrap-seen);
+}
+
+.wall-scrap__sheet--tuition {
+  padding: 8px;
+  text-align: left;
+  background: var(--scrap-tuition);
+}
+
+.wall-scrap__sheet--blank {
+  padding: 9px;
+  background: var(--scrap-blank);
+}
+
+.wall-scrap__sheet--red {
+  padding: 12px 10px;
+  background: var(--scrap-red);
+  color: var(--accent-ink-text);
+}
+
+.wall-scrap__sheet--dark {
+  text-align: left;
+  background: var(--scrap-dark);
+  box-shadow: var(--scrap-shadow-dark);
+  color: var(--scrap-dark-ink);
+}
+
+.wall-scrap__sheet--receipt {
+  padding: 8px 8px 10px;
+  text-align: left;
+  background: var(--scrap-receipt);
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.wall-scrap__masthead {
+  display: block;
+  padding-bottom: 4px;
+  border-bottom: var(--border-width-2) solid var(--scrap-rule);
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.wall-scrap__headline {
+  display: block;
+  margin-top: 6px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.wall-scrap__kicker {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: var(--tracking-pixel);
+}
+
+.wall-scrap__sheet--red .wall-scrap__kicker {
+  margin-top: 4px;
+  font-size: 9px;
+}
+
+.wall-scrap__shout {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.wall-scrap__small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.wall-scrap__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.wall-scrap__title--red {
+  font-size: 12px;
+  color: var(--money-ink);
+}
+
+.wall-scrap__title--left {
+  font-size: 11px;
+}
+
+.wall-scrap__display {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.wall-scrap__display--small {
+  font-size: 16px;
+}
+
+.wall-scrap__issue {
+  display: block;
+  font-size: 9px;
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.wall-scrap__rule {
+  display: block;
+  padding-bottom: 3px;
+  border-bottom: var(--border-width-1) solid var(--scrap-rule);
+  text-align: left;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.wall-scrap__bar {
+  display: block;
+  height: 4px;
+  margin-top: 5px;
+  background: var(--scrap-bar);
+}
+
+.wall-scrap__bar--dark {
+  background: var(--scrap-dark-bar);
+}
+
+.wall-scrap__tabs {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.wall-scrap__tab {
+  flex: 1;
+  height: 34px;
+  border: var(--border-width-1) dashed var(--border-poster);
+  border-bottom: none;
+  font-size: 6px;
+  writing-mode: vertical-rl;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   Homepage: Hunters on the Board
+   -------------------------------------------------------------------------- */
+
+.home-hunters__heading {
+  font-size: clamp(1.375rem, 2.4vw, 1.75rem);
+}
+
+.home-hunters__board {
+  overflow: hidden;
+  background:
+    linear-gradient(var(--wall-dim), var(--wall-dim)),
+    var(--bg-board) var(--texture-board) center / cover;
+  box-shadow: var(--wall-dim-shadow);
+}
+
+.home-hunters__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  gap: 26px 18px;
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+}
+
+.home-hunters__slot {
+  position: relative;
+}
+
+.home-hunters__slot:hover,
+.home-hunters__slot:focus-within {
+  z-index: 90;
+}
+
+/* --------------------------------------------------------------------------
+   Public profile opened from the Hunters wall
+   -------------------------------------------------------------------------- */
+
+.hunter-profile__back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  color: var(--text-on-dark-muted);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hunter-profile__back:hover {
+  color: var(--text-on-dark-strong);
+}
+
+.hunter-profile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.125rem;
+}
+
+.hunter-profile__poster {
+  flex: 1 1 260px;
+  max-width: 360px;
+  padding: 28px 26px;
+  background:
+    linear-gradient(var(--wall-dim), var(--wall-dim)),
+    var(--bg-board) var(--texture-board) center / cover;
+  border: var(--border-width-3) solid var(--border-board);
+  box-shadow: var(--wall-dim-shadow);
+}
+
+.hunter-profile__card {
+  flex: 2 1 420px;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.hunter-profile__note {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-on-dark-muted);
+}
+
+/* Reduced motion: the posters rest where they hang. */
+@media (prefers-reduced-motion: reduce) {
+  a.missing-poster:hover,
+  a.missing-poster:focus-visible {
+    transform: none;
+  }
 }

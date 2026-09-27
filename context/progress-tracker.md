@@ -605,6 +605,11 @@ code and the installed Next.js 16.3.5 sources. Record:
 - Legal review of the drafted posting terms (`src/features/legal/terms.ts`).
 - Moderation of free-text replies on missing-item and discussion requests (reporting exists for
   claims only).
+- Hunters wall: should members be able to opt out of being listed? Every institution-verified,
+  unrestricted member is listed now; there is no profile visibility setting.
+- Hunter profile stats: the design shows "Claims approved" and "Bounties backed". Not shown,
+  because public profiles exclude claims and contributions (2026-09-24). Needs a decision before
+  either count is published, even as a total.
 
 ### Critical Before Public Launch
 
@@ -723,3 +728,33 @@ database), and a withdrawn paid Wanted sends every contribution to the manual re
   sent now; adding a notification kind would also enqueue email through the outbox trigger);
   whether withdrawing should return a used free request (it does not, because the allowance
   counts every non-draft free Wanted).
+
+## 2026-09-28 Hunters wall, homepage Hunters, profile poster (branch `claude/hunters-wall`)
+
+- Handoff: `design_handoff_vaultix_hunters/README.md` (not committed). Decisions (user, 2026-09-28):
+  the wall lists institution-verified members with no active account restriction; the profile
+  keeps its existing stats and does not add "Claims approved" or "Bounties backed"; the homepage
+  sample is drawn in TypeScript from one random page of 20 (every member while there are 20 or
+  fewer), so the migration adds one function only.
+- Migration `202610140001_list_public_hunters.sql`: `list_public_hunters(page_size, page)`,
+  security definer, `authenticated` only, refuses an unverified email (`EMAIL_NOT_VERIFIED`),
+  page_size in {10, 15, 20} and page >= 1 or `22023`. Returns public id, display name, avatar
+  key or preset, verified institution name and joined date; never email or user id. Order
+  `created_at desc, public_id`. Called on the viewer's own session, untyped until the types are
+  regenerated (`supabase-hunters-repository.ts`).
+- `GET /api/hunters?per=&page=` for paging; the service serves the last page when asked for one
+  past the end. `/board?view=hunters&per=&page=` renders the first page on the server; later
+  pages are fetched while the posters fly off and pushed to the URL without a round trip, and
+  Back flips to the page in the URL. Reduced motion swaps in place.
+- UI: `BoardViewToggle`, `HuntersWall`, `MissingPoster`, `HuntersWallScraps`, `HomeHunters`, a
+  big poster, "Back to Hunters" (only with `?from=hunters`) and the privacy note on
+  `/u/[publicId]`. New tokens in `globals.css` under "Hunters wall". The homepage strip's refusal
+  carries no link of its own; Featured Wanted directly above already offers sign-in.
+- Not yet applied to Supabase Cloud. Until `202610140001` is pushed, the wall and the homepage
+  strip show "could not be loaded".
+- `supabase/tests/local/list_public_hunters.sql` was written but not run in this session (no
+  local Postgres, Docker not running).
+- Share-a-Wanted parity with the handoff (section 4) was reviewed, not changed; the gaps are listed
+  in the handoff review: no share button on cards, caption not editable, caption wording and
+  days-left line, the kicker's code, the inherited thud, caption rise at 900 ms not 820 ms, button
+  order and the "Other apps" fallback not saving the picture, no focus trap in the dialog.

@@ -58,6 +58,10 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
   Besi; the other branch campuses appear on the map as "coming soon".
 - Public member profiles show name, avatar, joined date, verification badge and the member's
   public Wanted requests only — never email, evidence, claims or contributions.
+- Hunters wall (user decision 2026-09-28): a second view on the Board (`/board?view=hunters`)
+  lists institution-verified members without an active restriction as posters, 10, 15 or 20 to a
+  page, each linking to the member's public profile; the homepage shows six at random. Same bar as
+  the Board (a verified email). It shows only name, avatar, verified institution and joined month.
 - Changing a published Wanted (user decision 2026-09-28): for one hour after publication the poster
   may edit the title and description or withdraw it. The window closes early at the first claim
   (not withdrawn by its Hunter) or, on a missing item or discussion, the first reply from someone
