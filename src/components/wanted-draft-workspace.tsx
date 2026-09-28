@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { ErrorSummary } from "./error-summary";
+import { SearchSelect } from "./search-select";
 import { TaxonomyRequestDialog } from "./taxonomy-request-dialog";
 import { UiStatus, type UiStatusKind } from "./ui-status";
 import { WantedCard } from "./wanted-card";
 import { WantedPicturePicker } from "./wanted-picture-picker";
 import type {
-  CourseOption,
   MarketplaceOperationCode,
   MarketplaceTaxonomy,
   TaxonomyItem,
@@ -30,11 +30,12 @@ import {
   type DraftFieldError,
 } from "@/features/marketplace/marketplace-messages";
 import { formatRinggit } from "@/features/marketplace/money";
-import { courseLabel, coursesFor, programmesFor } from "@/features/marketplace/taxonomy";
+import { programmesFor } from "@/features/marketplace/taxonomy";
 import {
   MAX_DURATION_DAYS,
   MIN_DURATION_DAYS,
   emptyDraft,
+  normaliseCourseCode,
   toCommunityInput,
   toDraftInput,
   validateDraft,
@@ -44,7 +45,6 @@ import {
 import { MAX_CONTRIBUTION_SEN, MIN_CONTRIBUTION_SEN } from "@/features/marketplace/wanted-draft";
 import { sen } from "@/features/marketplace/money";
 import type { FreeRequestAllowance, WantedKind } from "@/contracts/marketplace";
-import type { TaxonomyRequestCategory } from "@/contracts/taxonomy-requests";
 import {
   AUTO_PICTURE,
   saveWantedPicture,
@@ -244,8 +244,6 @@ interface SelectFieldProps {
   readonly onChange: (value: string) => void;
   /** Optional fields say so and let the placeholder stand as an answer. */
   readonly optional?: boolean;
-  /** A "not listed?" action under the field. */
-  readonly request?: ReactNode;
 }
 
 function SelectField({
@@ -258,7 +256,6 @@ function SelectField({
   error,
   onChange,
   optional = false,
-  request,
 }: SelectFieldProps) {
   const hintId = hint === undefined ? undefined : `${id}-hint`;
   const errorId = error === undefined ? undefined : `${id}-error`;
@@ -298,7 +295,6 @@ function SelectField({
           </option>
         ))}
       </select>
-      {request === undefined ? null : <p className="form-field__request">{request}</p>}
     </div>
   );
 }
@@ -344,7 +340,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   const [announcement, setAnnouncement] = useState("");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [allowance, setAllowance] = useState<FreeRequestAllowance | null>(null);
-  const [entryRequest, setEntryRequest] = useState<TaxonomyRequestCategory | null>(null);
+  const [entryRequestOpen, setEntryRequestOpen] = useState(false);
   const [picture, setPicture] = useState<WantedPictureChoice>(AUTO_PICTURE);
   const [pictureNotice, setPictureNotice] = useState<string | null>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -384,17 +380,23 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   }
 
   /**
-   * Changing a faculty invalidates the programme under it, and changing a
-   * programme invalidates the course. Clearing them is the honest behaviour:
-   * the server enforces the same hierarchy, so a stale pair would be refused
-   * on submission anyway.
+   * A programme belongs to one faculty, and the server enforces the pair. So
+   * choosing a faculty keeps the programme only when it is under that faculty,
+   * and choosing a programme fills in its faculty: a member who searched the
+   * programme directly never has to find the faculty as well. The course code
+   * is typed and belongs to no one programme, so neither choice clears it.
    */
   function chooseFaculty(facultyId: string) {
-    update({ facultyId, programmeId: "", courseId: "" });
+    const programme = taxonomy.programmes.find((option) => option.id === values.programmeId);
+    update({
+      facultyId,
+      programmeId: programme?.facultyId === facultyId ? values.programmeId : "",
+    });
   }
 
   function chooseProgramme(programmeId: string) {
-    update({ programmeId, courseId: "" });
+    const programme = taxonomy.programmes.find((option) => option.id === programmeId);
+    update({ programmeId, facultyId: programme?.facultyId ?? values.facultyId });
   }
 
   function toggleTag(tagId: string, checked: boolean) {
@@ -783,7 +785,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
               <SummaryRow term="Campus">{draft.campus.label}</SummaryRow>
               <SummaryRow term="Faculty">{draft.faculty.label}</SummaryRow>
               <SummaryRow term="Programme">{draft.programme.label}</SummaryRow>
-              <SummaryRow term="Course">{courseLabel(draft.course)}</SummaryRow>
+              <SummaryRow term="Course">{draft.courseCode}</SummaryRow>
               <SummaryRow term="Session">{draft.session?.label ?? "Any session"}</SummaryRow>
               <SummaryRow term="Resource">{draft.resourceType.label}</SummaryRow>
               <SummaryRow term="Language">{draft.language.label}</SummaryRow>
@@ -993,19 +995,13 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
     );
   }
 
-  const programmes = programmesFor(taxonomy, values.facultyId === "" ? null : values.facultyId);
-  const courses = coursesFor(taxonomy, values.programmeId === "" ? null : values.programmeId);
+  // Every programme is searchable until a faculty narrows the list.
+  const programmes =
+    values.facultyId === "" ? taxonomy.programmes : programmesFor(taxonomy, values.facultyId);
+  const courseError = errorFor("wanted-course");
   const isAcademic = values.kind === "academic";
   const need = NEED_COPY[values.kind];
   const noFreeLeft = allowance !== null && allowance.remaining <= 0;
-  const askSheriff = (category: TaxonomyRequestCategory, what: string) => (
-    <>
-      Not listed?{" "}
-      <button type="button" className="link-button" onClick={() => setEntryRequest(category)}>
-        Ask a Sheriff to add {what}
-      </button>
-    </>
-  );
   const durationError = errorFor("wanted-duration");
   const tagError = errorFor("wanted-tags");
   const policyError = errorFor("wanted-policy");
@@ -1030,7 +1026,10 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
       <p className="draft-form__provenance">
         {mode === "preview"
           ? "These options are development fixtures, not a reviewed institutional catalogue. The published taxonomy replaces them on the real screen."
-          : "These options come from reviewed institutional records for your verified institution. If something is missing, it has not been published yet."}
+          : "These options come from reviewed institutional records for your verified institution. If something is missing, it has not been published yet."}{" "}
+        <button type="button" className="link-button" onClick={() => setEntryRequestOpen(true)}>
+          Ask a Sheriff to add something
+        </button>
       </p>
 
       <section className="draft-form__section">
@@ -1134,7 +1133,6 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             placeholder="Choose a campus"
             error={errorFor("wanted-campus")}
             onChange={(campusId) => update({ campusId })}
-            request={askSheriff("campus", "a campus")}
           />
           {values.kind === "missing_item" ? (
             <div className="form-field">
@@ -1167,42 +1165,65 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
               <SelectField
                 id="wanted-faculty"
                 label="Faculty or college"
+                hint="Filled in when you choose a programme. Choose one first to narrow the programmes."
                 value={values.facultyId}
                 options={taxonomy.faculties}
                 placeholder="Choose a faculty"
                 error={errorFor("wanted-faculty")}
                 onChange={chooseFaculty}
-                request={askSheriff("faculty", "a faculty")}
               />
-              <SelectField
+              <SearchSelect
                 id="wanted-programme"
                 label="Programme"
-                hint="Available once a faculty is chosen."
+                hint="Type the programme code or part of its name, for example CS230 or Perakaunan."
                 value={values.programmeId}
                 options={programmes}
-                placeholder={
-                  values.facultyId === "" ? "Choose a faculty first" : "Choose a programme"
-                }
+                placeholder="Search programmes"
+                noun="programme"
                 error={errorFor("wanted-programme")}
                 onChange={chooseProgramme}
-                request={askSheriff("programme", "a programme")}
               />
-              <SelectField
-                id="wanted-course"
-                label="Course"
-                hint="Available once a programme is chosen."
-                value={values.courseId}
-                options={courses.map((course: CourseOption) => ({
-                  id: course.id,
-                  label: courseLabel(course),
-                }))}
-                placeholder={
-                  values.programmeId === "" ? "Choose a programme first" : "Choose a course"
-                }
-                error={errorFor("wanted-course")}
-                onChange={(courseId) => update({ courseId })}
-                request={askSheriff("course", "a course")}
-              />
+              <div className="form-field">
+                <label className="form-field__label" htmlFor="wanted-course">
+                  Course code
+                  <span className="form-field__required"> (required)</span>
+                </label>
+                <p className="form-field__hint" id="wanted-course-hint">
+                  Type the subject code in capital letters, for example CSC510.
+                </p>
+                {courseError === undefined ? null : (
+                  <p className="form-field__error" id="wanted-course-error">
+                    {courseError}
+                  </p>
+                )}
+                <input
+                  className="form-field__input"
+                  id="wanted-course"
+                  type="text"
+                  value={values.courseCode}
+                  maxLength={12}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  list="wanted-course-codes"
+                  aria-invalid={courseError === undefined ? undefined : true}
+                  aria-describedby={
+                    courseError === undefined
+                      ? "wanted-course-hint"
+                      : "wanted-course-hint wanted-course-error"
+                  }
+                  onChange={(event) =>
+                    update({ courseCode: normaliseCourseCode(event.target.value) })
+                  }
+                />
+                <datalist id="wanted-course-codes">
+                  {taxonomy.courses.map((course) => (
+                    <option key={course.id} value={course.code}>
+                      {course.label === course.code ? undefined : course.label}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
               <SelectField
                 id="wanted-session"
                 label="Academic session"
@@ -1213,7 +1234,6 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 optional
                 error={errorFor("wanted-session")}
                 onChange={(sessionId) => update({ sessionId })}
-                request={askSheriff("academic_session", "a session")}
               />
               <SelectField
                 id="wanted-resource-type"
@@ -1223,7 +1243,6 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 placeholder="Choose a resource type"
                 error={errorFor("wanted-resource-type")}
                 onChange={(resourceTypeId) => update({ resourceTypeId })}
-                request={askSheriff("resource_type", "a resource type")}
               />
               <SelectField
                 id="wanted-language"
@@ -1263,7 +1282,6 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 ))}
               </div>
             )}
-            <p className="form-field__request">{askSheriff("tag", "a tag")}</p>
           </fieldset>
         ) : null}
       </section>
@@ -1465,27 +1483,14 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
         </Link>
       </div>
 
-      {entryRequest === null ? null : (
+      {entryRequestOpen ? (
         <TaxonomyRequestDialog
-          category={entryRequest}
           preview={mode === "preview"}
-          parents={
-            entryRequest === "programme"
-              ? taxonomy.faculties
-              : entryRequest === "course"
-                ? taxonomy.programmes
-                : []
-          }
-          defaultParentId={
-            entryRequest === "programme"
-              ? values.facultyId
-              : entryRequest === "course"
-                ? values.programmeId
-                : ""
-          }
-          onClose={() => setEntryRequest(null)}
+          faculties={taxonomy.faculties}
+          defaultFacultyId={values.facultyId}
+          onClose={() => setEntryRequestOpen(false)}
         />
-      )}
+      ) : null}
     </div>
   );
 }

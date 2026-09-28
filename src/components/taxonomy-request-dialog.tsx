@@ -3,46 +3,51 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   TAXONOMY_CATEGORY_LABEL,
+  taxonomyRequestCategories,
   type TaxonomyRequestCategory,
 } from "@/contracts/taxonomy-requests";
 import { callOperation } from "@/features/presentation/call-operation";
 
+/**
+ * What a member can ask for. Not a course: members type the course code on the
+ * request itself, and a new code is added to the list as it is posted.
+ */
+export const REQUESTABLE_CATEGORIES: readonly TaxonomyRequestCategory[] =
+  taxonomyRequestCategories.filter((category) => category !== "course");
+
 export interface TaxonomyRequestDialogProps {
-  readonly category: TaxonomyRequestCategory;
-  /** The faculties (for a programme) or programmes (for a course) to pick from. */
-  readonly parents?: readonly { readonly id: string; readonly label: string }[];
-  readonly defaultParentId?: string;
+  /** What is missing, when the member has already said; they can change it. */
+  readonly initialCategory?: TaxonomyRequestCategory;
+  /** The faculties a new programme can belong to. */
+  readonly faculties?: readonly { readonly id: string; readonly label: string }[];
+  readonly defaultFacultyId?: string;
   /** Preview mode sends nothing and says so. */
   readonly preview?: boolean;
   readonly onClose: () => void;
 }
 
-const PARENT_LABEL: Partial<Record<TaxonomyRequestCategory, string>> = {
-  programme: "Faculty it belongs to",
-  course: "Programme it belongs to",
-};
-
 /**
- * Asks a Sheriff to add a missing entry to the shared lists. Nothing is added
+ * Asks a Sheriff to add a missing entry to the shared lists: one place to ask
+ * for any of them, with the kind of entry chosen inside. Nothing is added
  * straight away: a Sheriff reviews it, and the member is told in the app and
  * by email when it is decided, so the lists stay free of typos and duplicates.
  */
 export function TaxonomyRequestDialog({
-  category,
-  parents = [],
-  defaultParentId = "",
+  initialCategory,
+  faculties = [],
+  defaultFacultyId = "",
   preview = false,
   onClose,
 }: TaxonomyRequestDialogProps) {
+  const [category, setCategory] = useState<TaxonomyRequestCategory | "">(initialCategory ?? "");
   const [label, setLabel] = useState("");
-  const [courseCode, setCourseCode] = useState("");
-  const [parentId, setParentId] = useState(defaultParentId);
+  const [parentId, setParentId] = useState(defaultFacultyId);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const noun = TAXONOMY_CATEGORY_LABEL[category].toLowerCase();
-  const needsParent = category === "programme" || category === "course";
+  const noun = category === "" ? "entry" : TAXONOMY_CATEGORY_LABEL[category].toLowerCase();
+  const needsParent = category === "programme";
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -50,16 +55,16 @@ export function TaxonomyRequestDialog({
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (category === "") {
+      setStatus({ kind: "error", text: "Choose what is missing." });
+      return;
+    }
     if (label.trim().length < 2) {
       setStatus({ kind: "error", text: `Enter the ${noun} name.` });
       return;
     }
     if (needsParent && parentId === "") {
-      setStatus({ kind: "error", text: `Choose the ${PARENT_LABEL[category]?.toLowerCase()}.` });
-      return;
-    }
-    if (category === "course" && !/^[A-Za-z0-9][A-Za-z0-9-]{1,19}$/.test(courseCode.trim())) {
-      setStatus({ kind: "error", text: "Enter the course code, for example CSC508." });
+      setStatus({ kind: "error", text: "Choose the faculty it belongs to." });
       return;
     }
     if (preview) {
@@ -76,7 +81,6 @@ export function TaxonomyRequestDialog({
       {
         category,
         label: label.trim(),
-        ...(category === "course" ? { courseCode: courseCode.trim() } : {}),
         ...(needsParent ? { parentId } : {}),
         ...(note.trim() ? { note: note.trim() } : {}),
       },
@@ -92,7 +96,6 @@ export function TaxonomyRequestDialog({
       text: `Sent. A Sheriff will review “${label.trim()}”, and you will be notified here and by email when it is decided.`,
     });
     setLabel("");
-    setCourseCode("");
     setNote("");
   }
 
@@ -111,7 +114,7 @@ export function TaxonomyRequestDialog({
       <form className="dialog" onSubmit={onSubmit} noValidate>
         <div className="dialog__head">
           <h2 id="taxonomy-request-title" className="dialog__title">
-            Ask a Sheriff to add a {noun}
+            Ask a Sheriff to add something
           </h2>
           <button
             type="button"
@@ -137,10 +140,32 @@ export function TaxonomyRequestDialog({
           </p>
         ) : null}
 
+        <div className="form-field">
+          <label className="form-field__label" htmlFor="taxonomy-request-category">
+            What is missing?
+          </label>
+          <select
+            className="form-field__input"
+            id="taxonomy-request-category"
+            value={category}
+            onChange={(event) => {
+              setCategory(event.target.value as TaxonomyRequestCategory | "");
+              setStatus(null);
+            }}
+          >
+            <option value="">Choose one</option>
+            {REQUESTABLE_CATEGORIES.map((option) => (
+              <option key={option} value={option}>
+                {TAXONOMY_CATEGORY_LABEL[option]}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {needsParent ? (
           <div className="form-field">
             <label className="form-field__label" htmlFor="taxonomy-request-parent">
-              {PARENT_LABEL[category]}
+              Faculty it belongs to
             </label>
             <select
               className="form-field__input"
@@ -149,35 +174,18 @@ export function TaxonomyRequestDialog({
               onChange={(event) => setParentId(event.target.value)}
             >
               <option value="">Choose one</option>
-              {parents.map((parent) => (
-                <option key={parent.id} value={parent.id}>
-                  {parent.label}
+              {faculties.map((faculty) => (
+                <option key={faculty.id} value={faculty.id}>
+                  {faculty.label}
                 </option>
               ))}
             </select>
           </div>
         ) : null}
 
-        {category === "course" ? (
-          <div className="form-field">
-            <label className="form-field__label" htmlFor="taxonomy-request-code">
-              Course code
-            </label>
-            <input
-              className="form-field__input"
-              id="taxonomy-request-code"
-              type="text"
-              maxLength={20}
-              autoCapitalize="characters"
-              value={courseCode}
-              onChange={(event) => setCourseCode(event.target.value)}
-            />
-          </div>
-        ) : null}
-
         <div className="form-field">
           <label className="form-field__label" htmlFor="taxonomy-request-label">
-            {category === "course" ? "Course name" : `${TAXONOMY_CATEGORY_LABEL[category]} name`}
+            {category === "" ? "Name" : `${TAXONOMY_CATEGORY_LABEL[category]} name`}
           </label>
           <input
             className="form-field__input"

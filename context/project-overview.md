@@ -51,11 +51,18 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
   redemptions; a member redeems a code once).
 - A paid missing item or discussion is released when the poster names the member who helped and a
   Sheriff approves; approval creates the same manual payout task as an approved claim.
-- Members cannot type their own campus, faculty, programme, course, session, resource type or tag.
-  They ask a Sheriff to add it and are notified in the app and by email when it is decided.
+- Members type the course (subject) code themselves, in capital letters (for example CSC510); a
+  code already in use is reused, a new one is added to the catalogue. Members cannot type their
+  own campus, faculty, programme, session, resource type or tag. They ask a Sheriff to add it and
+  are notified in the app and by email when it is decided. The programme is found by typing its
+  code or part of its name.
+- Taxonomy names are in Malay, as the institution publishes them; the interface stays English.
+  Faculties and programmes belong to the institution, not to a campus.
 - The academic session is optional on an academic request.
 - Region lock: open campuses are UiTM Shah Alam, Puncak Alam, Kuala Terengganu, Dungun and Bukit
-  Besi; the other branch campuses appear on the map as "coming soon".
+  Besi, and UMPSA Pekan; the other UiTM branch campuses appear on the map as "coming soon".
+- Institutions: UiTM and UMPSA (Pekan campus only). Each member transacts within the institution
+  they verified with and sees that institution's lists.
 - Public member profiles show name, avatar, joined date, verification badge and the member's
   public Wanted requests only — never email, evidence, claims or contributions.
 - Hunters wall (user decision 2026-09-28): a second view on the Board (`/board?view=hunters`)

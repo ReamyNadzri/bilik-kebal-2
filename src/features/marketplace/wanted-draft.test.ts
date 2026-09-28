@@ -5,6 +5,7 @@ import {
   MIN_DURATION_DAYS,
   MIN_CONTRIBUTION_SEN,
   emptyDraft,
+  normaliseCourseCode,
   toCommunityInput,
   toDraftInput,
   validateDraft,
@@ -23,7 +24,7 @@ function aDraft(overrides: Partial<WantedDraftValues> = {}): WantedDraftValues {
     campusId: TAXONOMY_ID.campus,
     facultyId: TAXONOMY_ID.faculty,
     programmeId: TAXONOMY_ID.programme,
-    courseId: TAXONOMY_ID.course,
+    courseCode: "CSC510",
     sessionId: TAXONOMY_ID.session,
     resourceTypeId: TAXONOMY_ID.resourceType,
     languageId: TAXONOMY_ID.language,
@@ -81,11 +82,8 @@ describe("a complete draft", () => {
     expect(result.draft?.description.startsWith("A")).toBe(true);
   });
 
-  test("resolves the chosen course to its code and name for the review step", () => {
-    const result = validateDraft(aDraft(), taxonomy());
-
-    expect(result.draft?.course.code).toBe("CSC510");
-    expect(result.draft?.course.label).toBe("Database Systems");
+  test("carries the typed course code to the review step", () => {
+    expect(validateDraft(aDraft(), taxonomy()).draft?.courseCode).toBe("CSC510");
   });
 });
 
@@ -95,7 +93,7 @@ describe("required fields", () => {
     ["campus", { campusId: "" }, "wanted-campus"],
     ["faculty", { facultyId: "" }, "wanted-faculty"],
     ["programme", { programmeId: "" }, "wanted-programme"],
-    ["course", { courseId: "" }, "wanted-course"],
+    ["course", { courseCode: "" }, "wanted-course"],
     ["resource type", { resourceTypeId: "" }, "wanted-resource-type"],
     ["language", { languageId: "" }, "wanted-language"],
     ["description", { description: "" }, "wanted-description"],
@@ -190,14 +188,16 @@ describe("the academic hierarchy", () => {
     ).toMatch(/chosen faculty/i);
   });
 
-  test("refuses a course that does not belong to the chosen programme", () => {
-    expect(
-      errorFor(
-        { programmeId: TAXONOMY_ID.programme, courseId: TAXONOMY_ID.otherCourse },
-        "wanted-course",
-      ),
-    ).toMatch(/chosen programme/i);
+  test("accepts a course code that is not listed yet, under any programme", () => {
+    expect(errorFor({ courseCode: "ELC231" }, "wanted-course")).toBeUndefined();
   });
+
+  test.each(["csc510", "CSC 510", "C5", "510CSC", "ABCDEFGHIJKLM"])(
+    "refuses the course code %j",
+    (courseCode) => {
+      expect(errorFor({ courseCode }, "wanted-course")).toMatch(/capital letters/i);
+    },
+  );
 
   test("refuses an option that is not in the taxonomy at all", () => {
     const absent = "00000000-0000-4000-8000-000000000000";
@@ -287,7 +287,7 @@ describe("the body sent to the draft operation", () => {
       campusId: TAXONOMY_ID.campus,
       facultyId: TAXONOMY_ID.faculty,
       programmeId: TAXONOMY_ID.programme,
-      courseId: TAXONOMY_ID.course,
+      courseCode: "CSC510",
       academicSessionId: TAXONOMY_ID.session,
       resourceTypeId: TAXONOMY_ID.resourceType,
       languageId: TAXONOMY_ID.language,
@@ -316,10 +316,10 @@ describe("the body sent to the draft operation", () => {
     expect(body).not.toHaveProperty("institutionId");
   });
 
-  test("sends the identifiers, never the labels a browser could have edited", () => {
+  test("sends the identifiers and the typed course code, never a label the browser holds", () => {
     const body = toDraftInput(validateDraft(aDraft(), taxonomy()).draft!);
 
-    expect(JSON.stringify(body)).not.toMatch(/Faculty of Computing|Database Systems|CSC510/);
+    expect(JSON.stringify(body)).not.toMatch(/Faculty of Computing|Computer Science|Database/);
   });
 });
 
@@ -351,7 +351,7 @@ describe("missing-item and discussion requests", () => {
         lastSeenLocation: "Library level 2",
         facultyId: "",
         programmeId: "",
-        courseId: "",
+        courseCode: "",
         sessionId: "",
         resourceTypeId: "",
         languageId: "",
@@ -384,5 +384,16 @@ describe("missing-item and discussion requests", () => {
     expect(community({ policyAccepted: false }).errors.map((e) => e.fieldId)).toContain(
       "wanted-policy",
     );
+  });
+});
+
+describe("typing a course code", () => {
+  test.each([
+    ["csc510", "CSC510"],
+    ["csc 510", "CSC510"],
+    ["Elc-231", "ELC231"],
+    [" ctu551 ", "CTU551"],
+  ])("keeps %j as %j", (typed, kept) => {
+    expect(normaliseCourseCode(typed)).toBe(kept);
   });
 });

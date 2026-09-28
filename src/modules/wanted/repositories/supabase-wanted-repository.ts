@@ -32,11 +32,11 @@ const KIND_LABEL: Record<WantedKind, string> = {
   discussion: "Discussion",
 };
 
-function rpcArgs(values: ValidatedWantedDraftInput) {
+function rpcArgs(values: ValidatedWantedDraftInput, courseId: string) {
   return {
     academic_session_id: values.academicSessionId,
     campus_id: values.campusId,
-    course_id: values.courseId,
+    course_id: courseId,
     description: values.description,
     duration_days: values.durationDays,
     faculty_id: values.facultyId,
@@ -636,14 +636,6 @@ export class SupabaseWantedRepository implements WantedRepository {
         .eq("institution_id", institutionId)
         .eq("active", true)
         .maybeSingle(),
-      this.client
-        .from("courses")
-        .select("id")
-        .eq("id", values.courseId)
-        .eq("programme_id", values.programmeId)
-        .eq("institution_id", institutionId)
-        .eq("active", true)
-        .maybeSingle(),
       // The session is optional; an absent one passes as present.
       values.academicSessionId === null
         ? Promise.resolve({ data: { id: "" }, error: null })
@@ -677,10 +669,20 @@ export class SupabaseWantedRepository implements WantedRepository {
     return !tags.error && tags.data.length === values.tagIds.length;
   }
 
+  async ensureCourse(programmeId: string, courseCode: string): Promise<string | null> {
+    const { data, error } = await this.client.rpc("ensure_course", {
+      target_code: courseCode,
+      target_programme_id: programmeId,
+    });
+    if (error?.message === "course_inactive") return null;
+    if (error) throw error;
+    return data;
+  }
+
   async createDraft(input: PersistWantedDraft): Promise<StoredWantedDraft> {
     const { data: draftId, error } = await this.client.rpc(
       "create_wanted_draft",
-      rpcArgs(input.values),
+      rpcArgs(input.values, input.courseId),
     );
     if (error) throw error;
     const draft = await this.findDraft(draftId, input.commissionerUserId);
@@ -703,8 +705,13 @@ export class SupabaseWantedRepository implements WantedRepository {
     if (draftResult.error || tagsResult.error) throw draftResult.error ?? tagsResult.error;
     const row = draftResult.data;
     if (!row) return null;
+    const course = row.course_id
+      ? await this.client.from("courses").select("code").eq("id", row.course_id).maybeSingle()
+      : { data: null, error: null };
+    if (course.error) throw course.error;
     return {
       commissionerUserId: row.commissioner_user_id,
+      courseId: row.course_id ?? "",
       id: row.id,
       institutionId: row.institution_id,
       state: row.status === "draft" ? "draft" : "awaiting_payment",
@@ -712,7 +719,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       values: {
         academicSessionId: row.academic_session_id,
         campusId: row.campus_id,
-        courseId: row.course_id ?? "",
+        courseCode: course.data?.code ?? "",
         description: row.description,
         durationDays: row.requested_duration_days,
         facultyId: row.faculty_id ?? "",
@@ -729,7 +736,7 @@ export class SupabaseWantedRepository implements WantedRepository {
   async updateDraft(input: PersistWantedDraft & { draftId: string }): Promise<StoredWantedDraft> {
     const { error } = await this.client.rpc("update_wanted_draft", {
       draft_id: input.draftId,
-      ...rpcArgs(input.values),
+      ...rpcArgs(input.values, input.courseId),
     });
     if (error) throw error;
     const draft = await this.findDraft(input.draftId, input.commissionerUserId);

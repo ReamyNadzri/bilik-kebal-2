@@ -54,11 +54,19 @@ export const senSchema = z
   .nonnegative()
   .transform((value) => value as Sen);
 
+/**
+ * A course (subject) code as a member types it: 3 to 12 capital letters and
+ * digits, starting with a letter, for example CSC510. Lower case is refused,
+ * not converted (migration 202610150003).
+ */
+export const COURSE_CODE_PATTERN = /^[A-Z][A-Z0-9]{2,11}$/;
+
 export const wantedDraftInputSchema = z.object({
   campusId: uuid,
   facultyId: uuid,
   programmeId: uuid,
-  courseId: uuid,
+  /** Typed by the member; the server reuses or files the course it names. */
+  courseCode: z.string().trim().regex(COURSE_CODE_PATTERN),
   /** Optional: a request may cover any session. */
   academicSessionId: z
     .union([uuid, z.literal("")])

@@ -132,7 +132,7 @@ export class WantedPublicationService {
       const suggestions = rankDuplicateCandidates(
         {
           academicSessionId: draft.value.values.academicSessionId,
-          courseId: draft.value.values.courseId,
+          courseId: draft.value.courseId,
           resourceTypeId: draft.value.values.resourceTypeId,
           title: draft.value.values.title,
         },
