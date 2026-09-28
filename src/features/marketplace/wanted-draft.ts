@@ -1,10 +1,10 @@
 import { sen, type Sen } from "./money";
-import { coursesFor, programmesFor } from "./taxonomy";
+import { programmesFor } from "./taxonomy";
 import {
+  COURSE_CODE_PATTERN,
   WANTED_DURATION_MAX_DAYS,
   WANTED_DURATION_MIN_DAYS,
   type CommunityWantedInput,
-  type CourseOption,
   type MarketplaceTaxonomy,
   type TaxonomyItem,
   type WantedDraftInput,
@@ -54,7 +54,8 @@ export interface WantedDraftValues {
   readonly campusId: string;
   readonly facultyId: string;
   readonly programmeId: string;
-  readonly courseId: string;
+  /** Typed by the member, kept in capitals by `normaliseCourseCode`. */
+  readonly courseCode: string;
   readonly sessionId: string;
   readonly resourceTypeId: string;
   readonly languageId: string;
@@ -72,7 +73,7 @@ export interface ValidatedDraft {
   readonly campus: TaxonomyItem;
   readonly faculty: TaxonomyItem;
   readonly programme: TaxonomyItem;
-  readonly course: CourseOption;
+  readonly courseCode: string;
   /** Null when the request covers any session. */
   readonly session: TaxonomyItem | null;
   readonly resourceType: TaxonomyItem;
@@ -115,7 +116,7 @@ export function emptyDraft(): WantedDraftValues {
     campusId: "",
     facultyId: "",
     programmeId: "",
-    courseId: "",
+    courseCode: "",
     sessionId: "",
     resourceTypeId: "",
     languageId: "",
@@ -142,6 +143,15 @@ export function toCommunityInput(wanted: ValidatedCommunityWanted): CommunityWan
   };
 }
 
+/**
+ * A course code as it is typed: capitals, letters and digits only. A code
+ * carries no spaces or punctuation, so "csc 510" becomes CSC510 as it is
+ * typed rather than being refused later.
+ */
+export function normaliseCourseCode(raw: string): string {
+  return raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 function find(options: readonly TaxonomyItem[], id: string): TaxonomyItem | undefined {
   return options.find((option) => option.id === id);
 }
@@ -159,7 +169,7 @@ export function toDraftInput(draft: ValidatedDraft): WantedDraftInput {
     campusId: draft.campus.id,
     facultyId: draft.faculty.id,
     programmeId: draft.programme.id,
-    courseId: draft.course.id,
+    courseCode: draft.courseCode,
     academicSessionId: draft.session?.id ?? null,
     resourceTypeId: draft.resourceType.id,
     languageId: draft.language.id,
@@ -324,15 +334,13 @@ export function validateDraft(
     );
   }
 
-  const course = coursesFor(taxonomy, values.programmeId).find(
-    (option) => option.id === values.courseId,
-  );
-  if (course === undefined) {
+  const courseCode = values.courseCode.trim();
+  if (courseCode === "") {
+    fail("wanted-course", "Type the course code, for example CSC510.");
+  } else if (!COURSE_CODE_PATTERN.test(courseCode)) {
     fail(
       "wanted-course",
-      programme === undefined || values.courseId === ""
-        ? "Choose the course this resource is for."
-        : "That course does not belong to the chosen programme.",
+      "A course code is 3 to 12 capital letters and digits, starting with a letter, for example CSC510.",
     );
   }
 
@@ -387,7 +395,6 @@ export function validateDraft(
     campus === undefined ||
     faculty === undefined ||
     programme === undefined ||
-    course === undefined ||
     session === undefined ||
     resourceType === undefined ||
     language === undefined ||
@@ -405,7 +412,7 @@ export function validateDraft(
       campus,
       faculty,
       programme,
-      course,
+      courseCode,
       session,
       resourceType,
       language,

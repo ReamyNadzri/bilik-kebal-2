@@ -2405,6 +2405,10 @@ export type Database = {
         };
         Returns: string;
       };
+      ensure_course: {
+        Args: { target_code: string; target_programme_id: string };
+        Returns: string;
+      };
       expire_wanted_and_generate_refunds: {
         Args: { target_wanted_id: string };
         Returns: number;

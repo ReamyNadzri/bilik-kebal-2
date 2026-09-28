@@ -758,3 +758,51 @@ database), and a withdrawn paid Wanted sends every contribution to the manual re
   in the handoff review: no share button on cards, caption not editable, caption wording and
   days-left line, the kicker's code, the inherited thud, caption rise at 900 ms not 820 ms, button
   order and the "Other apps" fallback not saving the picture, no focus trap in the dialog.
+
+## 2026-09-28 programme catalogue, searchable programme, typed course code, one Sheriff request (branch `claude/uitm-terengganu-taxonomy`)
+
+Decisions (user, 2026-09-28): faculty and programme names in Malay only (the interface stays
+English); faculties and programmes stay under the institution, not tied to a campus; members type
+the course (subject) code themselves, capital letters required; one "Ask a Sheriff" button with the
+kind of entry chosen inside; UMPSA added as a second institution (Pekan campus only).
+
+- Data came from the user as lists compiled with ChatGPT from UiTM and UMPSA pages. It is still not
+  the authoritative taxonomy source the launch gate asks for. Names given in English were put into
+  Malay by Claude and are not the institutions' published Malay names; they need checking.
+- Migrations, each dry-run on Supabase Cloud inside a block that always raised (so rolled back),
+  then pushed with `supabase db push --linked`:
+  - `202610150001` UiTM Kuala Terengganu, Dungun, Bukit Besi: 8 faculties, 26 programmes. The
+    existing FSKM and computer science rows keep their ids (7 Wanteds reference them); only their
+    names changed.
+  - `202610150002` UiTM Puncak Alam and Shah Alam: 12 more faculties, 101 more programmes (UiTM
+    now 20 and 127). HM240/HM242 renamed to their new codes HM260/HM262 with the old code in
+    brackets. Every faculty and programme sort order is 0, so lists read alphabetically and
+    programmes by code. Left out until confirmed: HM260/HM262 as separate rows, AS290/AS291,
+    EM242-EM246, Pra Diploma Sains.
+  - `202610150003` `ensure_course(programme, code)`: finds the institution's course with that
+    code or files a new one under the programme, named by its code. Same eligibility as creating a
+    draft; refuses lower case, a deactivated course and an inactive programme.
+    `wanted_taxonomy_is_valid` no longer requires the course to sit under the chosen programme (a
+    subject code such as ELC231 is shared). Verified by the assertions in
+    `supabase/tests/local/ensure_course.sql`, run against Cloud and rolled back (Docker not
+    running, so the local harness was not run).
+  - `202610150004` UMPSA: institution, open campus "UMPSA Pekan" (map position approximate), 4
+    faculties, 29 programmes. No UMPSA email domain seeded, so UMPSA members verify by evidence.
+- Contract: the draft body carries `courseCode` instead of `courseId`
+  (`docs/integration/marketplace-http-contract.md`). The service checks the rest of the taxonomy
+  first and only then calls `ensureCourse`, so a refused draft files no course.
+- UI: `SearchSelect` (WAI-ARIA combobox) for Programme; every programme is searchable until a
+  faculty narrows it, and choosing a programme fills in its faculty. Course code is a text box
+  that keeps capitals as typed, with the codes already in use suggested. One "Ask a Sheriff to add
+  something" button opens `TaxonomyRequestDialog`, where the member chooses what is missing
+  (courses are no longer asked for).
+- Verified: typecheck, lint on changed files, 1,412 tests and the production build pass (the
+  dialog change was re-tested on its own suites afterwards: 72 tests).
+- Correction: `202610140001_list_public_hunters` is applied on Supabase Cloud (seen in
+  `schema_migrations` on 2026-09-28).
+- Open questions: any verified member can now add a course code, so a typo (CSC51O) becomes a
+  listed course that everyone sees in the Board filter; there is no rate limit or Sheriff review
+  of new codes yet. Which email domains prove UMPSA membership. Whether a campus should narrow the
+  programmes offered there (the user chose not to, for now).
+- Requested, not started: reporting a Wanted (bounty) to Sheriffs and the Owner. Reporting exists
+  for claims only; what a Sheriff may do with a reported Wanted is not decided.

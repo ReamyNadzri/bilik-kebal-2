@@ -44,7 +44,7 @@ The create and update bodies share this shape:
   "campusId": "uuid",
   "facultyId": "uuid",
   "programmeId": "uuid",
-  "courseId": "uuid",
+  "courseCode": "CSC510",
   "academicSessionId": "uuid",
   "resourceTypeId": "uuid",
   "languageId": "uuid",
@@ -57,8 +57,13 @@ The create and update bodies share this shape:
 ```
 
 `durationDays` is exactly 7, 14 or 30. At most five distinct active tags are accepted. The server
-verifies the full faculty → programme → course hierarchy and rejects inactive or
-cross-institution selections.
+verifies the faculty → programme pair and rejects inactive or cross-institution selections.
+
+`courseCode` is typed by the member: 3 to 12 capital letters and digits, starting with a letter.
+Lower case is refused, not converted. The server reuses the institution's course with that code,
+whichever programme it is filed under, or files a new one under `programmeId`
+(`ensure_course`, migration `202610150003`). A code a Sheriff has deactivated is refused with
+`VALIDATION_ERROR` and `fieldErrors.courseCode`. `WantedDraftView.values` carries `courseCode`.
 
 ### `POST /api/marketplace/wanted/drafts`
 

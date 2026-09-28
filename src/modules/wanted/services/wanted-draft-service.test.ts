@@ -19,7 +19,13 @@ const ids = {
 };
 
 const input = {
-  ...ids,
+  campusId: ids.campusId,
+  facultyId: ids.facultyId,
+  programmeId: ids.programmeId,
+  courseCode: "CSC510",
+  academicSessionId: ids.academicSessionId,
+  resourceTypeId: ids.resourceTypeId,
+  languageId: ids.languageId,
   tagIds: [ids.tagId],
   title: "  CSC510 final exam notes  ",
   description: "  Complete revision notes for the final examination.  ",
@@ -43,6 +49,7 @@ function stored(
     id: ids.draftId,
     commissionerUserId: ids.userId,
     institutionId: ids.institutionId,
+    courseId: ids.courseId,
     state,
     values,
     updatedAt: "2026-09-15T00:00:00.000Z",
@@ -54,6 +61,7 @@ function repository(overrides: Partial<WantedRepository> = {}): WantedRepository
     listPublicWanted: vi.fn().mockResolvedValue([]),
     readPublicWanted: vi.fn().mockResolvedValue(null),
     taxonomyMatchesInstitution: vi.fn().mockResolvedValue(true),
+    ensureCourse: vi.fn().mockResolvedValue(ids.courseId),
     createDraft: vi.fn(async ({ values }) => stored(values)),
     findDraft: vi.fn(async () =>
       stored({
@@ -114,14 +122,55 @@ describe("WantedDraftService", () => {
     });
   });
 
-  it("rejects inactive or cross-institution taxonomy", async () => {
+  it("rejects inactive or cross-institution taxonomy before filing any course", async () => {
     const repo = repository({ taxonomyMatchesInstitution: vi.fn().mockResolvedValue(false) });
     expect(await new WantedDraftService(repo).create(actor, input)).toMatchObject({
       ok: false,
       code: "VALIDATION_ERROR",
     });
+    expect(repo.ensureCourse).not.toHaveBeenCalled();
     expect(repo.createDraft).not.toHaveBeenCalled();
   });
+
+  it("files the typed course code under the chosen programme and saves its course", async () => {
+    const repo = repository();
+    await new WantedDraftService(repo).create(actor, input);
+    expect(repo.ensureCourse).toHaveBeenCalledWith(ids.programmeId, "CSC510");
+    expect(repo.createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ courseId: ids.courseId }),
+    );
+  });
+
+  it("refuses a lower-case course code without filing it", async () => {
+    const repo = repository();
+    expect(
+      await new WantedDraftService(repo).create(actor, { ...input, courseCode: "csc510" }),
+    ).toMatchObject({
+      ok: false,
+      code: "VALIDATION_ERROR",
+      fieldErrors: { courseCode: expect.any(Array) },
+    });
+    expect(repo.ensureCourse).not.toHaveBeenCalled();
+  });
+
+  it.each(["create", "update"] as const)(
+    "refuses to %s a draft for a withdrawn course code",
+    async (operation) => {
+      const repo = repository({ ensureCourse: vi.fn().mockResolvedValue(null) });
+      const service = new WantedDraftService(repo);
+      const result =
+        operation === "create"
+          ? await service.create(actor, input)
+          : await service.update(actor, ids.draftId, input);
+      expect(result).toMatchObject({
+        ok: false,
+        code: "VALIDATION_ERROR",
+        fieldErrors: { courseCode: expect.any(Array) },
+      });
+      expect(repo.createDraft).not.toHaveBeenCalled();
+      expect(repo.updateDraft).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not accept caller-supplied commissioner or institution identity", async () => {
     const repo = repository();
@@ -143,7 +192,11 @@ describe("WantedDraftService", () => {
     const result = await new WantedDraftService(repo).update(actor, ids.draftId, input);
     expect(result.ok).toBe(true);
     expect(repo.updateDraft).toHaveBeenCalledWith(
-      expect.objectContaining({ draftId: ids.draftId, commissionerUserId: actor.userId }),
+      expect.objectContaining({
+        draftId: ids.draftId,
+        commissionerUserId: actor.userId,
+        courseId: ids.courseId,
+      }),
     );
   });
 

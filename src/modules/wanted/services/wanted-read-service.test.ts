@@ -51,6 +51,7 @@ function repo(overrides: Partial<WantedRepository> = {}): WantedRepository {
     listPublicWanted: async () => [summary("wanted-1")],
     readPublicWanted: async () => detail,
     taxonomyMatchesInstitution: async () => true,
+    ensureCourse: async () => null,
     createDraft: async () => {
       throw new Error();
     },

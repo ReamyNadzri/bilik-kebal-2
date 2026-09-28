@@ -77,6 +77,14 @@ function set(label: string | RegExp, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
+/** Types into the programme search and chooses the option it offers. */
+function chooseProgramme(typed: string, option: string) {
+  fireEvent.change(screen.getByRole("combobox", { name: /^Programme/ }), {
+    target: { value: typed },
+  });
+  fireEvent.click(screen.getByRole("option", { name: option }));
+}
+
 function review() {
   fireEvent.click(screen.getByRole("button", { name: /^Review request/ }));
 }
@@ -86,8 +94,8 @@ function fillValidDraft() {
   set(/^Title/, "Final exam notes for the whole syllabus");
   set(/^Campus/, TAXONOMY_ID.campus);
   set(/^Faculty or college/, TAXONOMY_ID.faculty);
-  set(/^Programme/, TAXONOMY_ID.programme);
-  set(/^Course/, TAXONOMY_ID.course);
+  chooseProgramme("computer", "Bachelor of Computer Science");
+  set(/^Course code/, "csc510");
   set(/^Academic session/, TAXONOMY_ID.session);
   set(/^Resource type/, TAXONOMY_ID.resourceType);
   set(/^Language/, TAXONOMY_ID.language);
@@ -187,14 +195,38 @@ describe("the intake form", () => {
     ).toBeInTheDocument();
   });
 
-  test("asks a Sheriff to add a missing course instead of accepting free text", () => {
+  test("takes the course code as typed, in capital letters", () => {
     renderWorkspace();
 
-    fireEvent.click(screen.getByRole("button", { name: "Ask a Sheriff to add a course" }));
+    set(/^Course code/, "csc 510");
 
-    const dialog = screen.getByRole("dialog", { name: "Ask a Sheriff to add a course" });
-    expect(within(dialog).getByLabelText("Course code")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Programme it belongs to")).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Course code/)).toHaveValue("CSC510");
+  });
+
+  test("offers one way to ask a Sheriff, choosing what is missing inside", () => {
+    renderWorkspace();
+
+    const asks = screen.getAllByRole("button", { name: /Ask a Sheriff/ });
+    expect(asks).toHaveLength(1);
+    fireEvent.click(asks[0]!);
+
+    const dialog = screen.getByRole("dialog", { name: "Ask a Sheriff to add something" });
+    const what = within(dialog).getByLabelText("What is missing?");
+    expect(within(what).queryByRole("option", { name: "Course" })).toBeNull();
+    expect(within(dialog).queryByLabelText("Faculty it belongs to")).toBeNull();
+
+    fireEvent.change(what, { target: { value: "programme" } });
+
+    expect(within(dialog).getByLabelText("Faculty it belongs to")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Programme name")).toBeInTheDocument();
+  });
+
+  test("suggests the course codes already in use", () => {
+    const { container } = renderWorkspace();
+
+    const input = screen.getByLabelText(/^Course code/);
+    const suggestions = container.querySelector(`datalist#${input.getAttribute("list")}`);
+    expect(suggestions?.querySelector('option[value="CSC510"]')).not.toBeNull();
   });
 
   test("marks a campus outside the open regions as coming soon and unselectable", () => {
@@ -212,44 +244,39 @@ describe("the intake form", () => {
     expect(screen.getByRole("region", { name: /posting terms, version/ })).toBeInTheDocument();
   });
 
-  test("narrows programme by faculty and course by programme", () => {
+  test("searches every programme until a faculty narrows the list", () => {
     renderWorkspace();
 
-    expect(within(screen.getByLabelText(/^Programme/)).getAllByRole("option")).toHaveLength(1);
+    const search = screen.getByRole("combobox", { name: /^Programme/ });
+    fireEvent.change(search, { target: { value: "bachelor" } });
+    expect(screen.getAllByRole("option", { name: /^Bachelor/ })).toHaveLength(2);
 
-    set(/^Faculty or college/, TAXONOMY_ID.faculty);
-
-    expect(within(screen.getByLabelText(/^Programme/)).getAllByRole("option")).toHaveLength(2);
-    expect(within(screen.getByLabelText(/^Course/)).getAllByRole("option")).toHaveLength(1);
-
-    set(/^Programme/, TAXONOMY_ID.programme);
-
-    expect(within(screen.getByLabelText(/^Course/)).getAllByRole("option")).toHaveLength(2);
+    set(/^Faculty or college/, TAXONOMY_ID.otherFaculty);
+    fireEvent.change(search, { target: { value: "bachelor" } });
+    expect(screen.getAllByRole("option", { name: /^Bachelor/ })).toHaveLength(1);
+    expect(screen.getByRole("option", { name: "Bachelor of Legal Studies" })).toBeInTheDocument();
   });
 
-  test("clears a programme and course that no longer belong when the faculty changes", () => {
+  test("fills in the faculty when a programme is chosen directly", () => {
     renderWorkspace();
 
-    set(/^Faculty or college/, TAXONOMY_ID.faculty);
-    set(/^Programme/, TAXONOMY_ID.programme);
-    set(/^Course/, TAXONOMY_ID.course);
+    chooseProgramme("legal", "Bachelor of Legal Studies");
+
+    expect(screen.getByLabelText(/^Faculty or college/)).toHaveValue(TAXONOMY_ID.otherFaculty);
+    expect(screen.getByRole("combobox", { name: /^Programme/ })).toHaveValue(
+      "Bachelor of Legal Studies",
+    );
+  });
+
+  test("clears a programme that no longer belongs when the faculty changes, keeping the course code", () => {
+    renderWorkspace();
+
+    chooseProgramme("computer", "Bachelor of Computer Science");
+    set(/^Course code/, "CSC510");
     set(/^Faculty or college/, TAXONOMY_ID.otherFaculty);
 
-    expect(screen.getByLabelText(/^Programme/)).toHaveValue("");
-    expect(screen.getByLabelText(/^Course/)).toHaveValue("");
-  });
-
-  test("names the course by the code a student searches for", () => {
-    renderWorkspace();
-
-    set(/^Faculty or college/, TAXONOMY_ID.faculty);
-    set(/^Programme/, TAXONOMY_ID.programme);
-
-    expect(
-      within(screen.getByLabelText(/^Course/)).getByRole("option", {
-        name: "CSC510 Database Systems",
-      }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /^Programme/ })).toHaveValue("");
+    expect(screen.getByLabelText(/^Course code/)).toHaveValue("CSC510");
   });
 
   test("says the options are reviewed institutional records, not invented ones", () => {
@@ -315,7 +342,7 @@ describe("persisting the draft", () => {
     expect(saveWantedDraft).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Final exam notes for the whole syllabus",
-        courseId: TAXONOMY_ID.course,
+        courseCode: "CSC510",
         academicSessionId: TAXONOMY_ID.session,
         durationDays: 14,
         policyAccepted: true,
@@ -699,7 +726,10 @@ describe("the review sheet", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back to edit" }));
 
     expect(screen.getByLabelText(/^Title/)).toHaveValue("Final exam notes for the whole syllabus");
-    expect(screen.getByLabelText(/^Course/)).toHaveValue(TAXONOMY_ID.course);
+    expect(screen.getByLabelText(/^Course code/)).toHaveValue("CSC510");
+    expect(screen.getByRole("combobox", { name: /^Programme/ })).toHaveValue(
+      "Bachelor of Computer Science",
+    );
     expect(screen.getByLabelText(/^Your first contribution/)).toHaveValue("12");
     expect(screen.getByRole("slider", { name: /How long/ })).toHaveValue("14");
     expect(screen.getByRole("checkbox", { name: /posting terms/i })).toBeChecked();

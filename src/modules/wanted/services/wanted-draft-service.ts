@@ -10,6 +10,12 @@ const unavailable = () =>
     "The Wanted workspace is temporarily unavailable. Try again.",
   );
 
+/** The typed code names a course a Sheriff has deactivated. */
+const courseWithdrawn = () =>
+  failure("VALIDATION_ERROR" as const, "Check the highlighted Wanted details.", {
+    courseCode: ["That course code has been withdrawn. Check the code, or ask a Sheriff."],
+  });
+
 function validationErrors(error: {
   flatten(): { fieldErrors: Record<string, string[] | undefined> };
 }) {
@@ -52,10 +58,16 @@ export class WantedDraftService {
           { taxonomy: ["One or more selections are unavailable or do not belong together."] },
         );
       }
+      const courseId = await this.repository.ensureCourse(
+        parsed.data.programmeId,
+        parsed.data.courseCode,
+      );
+      if (courseId === null) return courseWithdrawn();
       return success(
         await this.repository.createDraft({
           acceptedAt: this.now().toISOString(),
           commissionerUserId: actor.userId,
+          courseId,
           institutionId: actor.institutionId,
           values: parsed.data,
         }),
@@ -100,10 +112,16 @@ export class WantedDraftService {
           { taxonomy: ["One or more selections are unavailable or do not belong together."] },
         );
       }
+      const courseId = await this.repository.ensureCourse(
+        parsed.data.programmeId,
+        parsed.data.courseCode,
+      );
+      if (courseId === null) return courseWithdrawn();
       return success(
         await this.repository.updateDraft({
           acceptedAt: this.now().toISOString(),
           commissionerUserId: actor.userId,
+          courseId,
           draftId,
           institutionId: actor.institutionId,
           values: parsed.data,

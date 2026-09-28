@@ -80,7 +80,7 @@ const FIELD_ORDER: readonly (readonly [string, string | undefined])[] = [
   ["campusId", "wanted-campus"],
   ["facultyId", "wanted-faculty"],
   ["programmeId", "wanted-programme"],
-  ["courseId", "wanted-course"],
+  ["courseCode", "wanted-course"],
   ["academicSessionId", "wanted-session"],
   ["resourceTypeId", "wanted-resource-type"],
   ["languageId", "wanted-language"],

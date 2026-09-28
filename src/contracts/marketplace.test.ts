@@ -8,7 +8,6 @@ const IDS = {
   campusId: "10000000-0000-4000-8000-000000000001",
   facultyId: "10000000-0000-4000-8000-000000000002",
   programmeId: "10000000-0000-4000-8000-000000000003",
-  courseId: "10000000-0000-4000-8000-000000000004",
   academicSessionId: "10000000-0000-4000-8000-000000000005",
   resourceTypeId: "10000000-0000-4000-8000-000000000006",
   languageId: "10000000-0000-4000-8000-000000000007",
@@ -17,6 +16,7 @@ const IDS = {
 function validDraft(overrides: Partial<WantedDraftInput> = {}): WantedDraftInput {
   return {
     ...IDS,
+    courseCode: "CSC510",
     title: "Final exam notes for every chapter",
     description: "Complete revision notes with diagrams and worked examples.",
     tagIds: ["10000000-0000-4000-8000-000000000008"],
@@ -47,8 +47,21 @@ describe("Wanted draft input", () => {
   });
 
   test("rejects malformed taxonomy identifiers", () => {
-    expect(() => wantedDraftInputSchema.parse(validDraft({ courseId: "csc510" }))).toThrow();
+    expect(() => wantedDraftInputSchema.parse(validDraft({ programmeId: "cs230" }))).toThrow();
   });
+
+  test("accepts a typed course code in capitals and trims it", () => {
+    expect(wantedDraftInputSchema.parse(validDraft({ courseCode: " ELC231 " })).courseCode).toBe(
+      "ELC231",
+    );
+  });
+
+  test.each(["csc510", "Csc510", "CSC 510", "CSC-510", "510CSC", "CS", "ABCDEFGHIJKLM", ""])(
+    "refuses the course code %j rather than converting it",
+    (courseCode) => {
+      expect(() => wantedDraftInputSchema.parse(validDraft({ courseCode }))).toThrow();
+    },
+  );
 
   test("does not accept caller-selected authority fields", () => {
     const result = wantedDraftInputSchema.parse({

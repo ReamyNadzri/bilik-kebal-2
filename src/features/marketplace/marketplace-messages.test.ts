@@ -55,12 +55,12 @@ describe("server field errors", () => {
     expect(
       toDraftFieldErrors({
         title: ["Too short"],
-        courseId: ["Invalid uuid"],
+        courseCode: ["Invalid string"],
         policyAccepted: ["Invalid input"],
       }),
     ).toEqual([
       { fieldId: "wanted-title", message: "Too short" },
-      { fieldId: "wanted-course", message: "Invalid uuid" },
+      { fieldId: "wanted-course", message: "Invalid string" },
       { fieldId: "wanted-policy", message: "Invalid input" },
     ]);
   });
