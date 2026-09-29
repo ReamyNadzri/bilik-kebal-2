@@ -972,17 +972,103 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   on swapped Client ID/secret in Clerk production (corrected by the user; the old secret was
   exposed in the session and is being replaced), and Clerk production paths still point to the
   Account Portal (set sign-in/sign-up to the application domain in the dashboard).
-- 2026-09-30 follow-up (`claude/clerk-sso-return`): after Google the sign-in page could be restored
-  from the browser's back/forward cache still on "Signing in…" (no network activity). The page now
-  resets on a restored `pageshow`, and on arrival reads Clerk's open Google sign-in: shows the
-  refusal in plain English, continues to the emailed code, or finishes it. A breached password
-  (`needs_new_password`) gets a "set a new password" message. Clerk production minimum password
-  length set to 12 by the user to match the forms. The local production build crashes with a
-  Windows process-spawn error (0xc0000142) in Turbopack's CSS worker; the Vercel build is the
-  build check for this change.
-- 2026-09-30 (`claude/clerk-sso-stale-error`): the Google-return handling showed Clerk's last
-  remembered Google failure on every later visit to /sign-in. It now reports a Google result only
-  on a return from a Google sign-in this tab started (sessionStorage marker, 10-minute window,
-  cleared on read), and unmapped Google errors read "Google sign-in could not be completed…"
-  instead of provider text. That remembered error was `invalid_client` (bad client secret in Clerk
-  production), which the user is replacing.
+
+## 2026-09-29 tumbleweed animation and share poster fit (uncommitted, same working tree)
+
+Request (user, 2026-09-29): implement `design_handoff_vaultix_tumbleweed_share` "for animation";
+then (2026-09-30) "just complete implement all", so section 2 (share poster fit) too.
+
+- `src/components/motion/tumbleweed.tsx`, ported from the handoff reference with its values
+  unchanged: three nested layers (roll, hop with a squash on landing, spin), a random sprite,
+  size, direction, speed, hop and spin per pass, one pass at a time, removed when the outer roll
+  ends. It is portalled to the body and rendered once in `src/app/layout.tsx` inside
+  `GunshotProvider`. Styles are in the motion section of `globals.css`, and `display: none` is
+  added to its reduced-motion safety net.
+- `public/brand/tumbleweed-{1,2,3}.webp`: the handoff PNGs (1254 px) scaled to 250 px, twice
+  the largest on-screen size, with nearest-neighbour as the handoff asks, WebP q90 with lossless
+  alpha, 15–34 KB each. They are fetched only when a pass rolls.
+- Adapted, not changed: `noUncheckedIndexedAccess` on the sprite pick, a typed style object, and
+  a pass already rolling disappears at once if reduced motion is switched on.
+- Tests: `tumbleweed.test.tsx`, 8 tests (nothing before 15 s; a pass by 40 s; removed on the
+  outer `animationend` only; the next pass after 50 s; hidden tab skipped but rescheduled; range
+  ends; reduced motion; `enabled={false}`). jsdom lacks `AnimationEvent`, so the file defines one
+  before React DOM loads; without it React listens for `webkitAnimationEnd` and the test passes
+  vacuously.
+- Verified: full unit suite (184 files, 1478 tests), typecheck and lint clean for project
+  sources. In Chrome on `pnpm dev`: a pass appeared after about 27 s at z 96, pixelated, above the
+  page, and was removed when it finished. `pnpm build` compiles, but its type check fails only
+  on the untracked handoff's own `reference/tumbleweed.tsx`, which `tsconfig` picks up. Move or
+  exclude the handoff folder before building.
+- Share poster fit: `src/components/motion/use-share-fit.ts` and the fit rules after the
+  existing share-poster rules in `globals.css`. `share-poster.tsx` gains the two scale wrappers
+  and refs; the share logic, focus, Escape and copy are unchanged. The poster is laid out at a
+  fixed 420 px and scaled 0.36–1 on a wrapper, since the sheet animates its own transform.
+- Three departures from the reference, each because it broke the handoff's own acceptance or
+  arithmetic: (1) a short landscape viewport goes side by side when stacking would need a scale
+  under 0.36. At 667×375 the handoff's 760 px rule stacked the dialog, and it scrolled 50 px even
+  at the floor. (2) The caption's `flex: 0 1 400px` became a 400 px height basis when stacked, so
+  it is `0 0 auto` there. (3) The 18 px gap moved from the tight class to the stacked class. The
+  tight class also cut the side-by-side gap to 18 px while the hook budgets 44 px; the README says
+  44 px side by side and 18 px stacked. No wrapping in either layout: side by side, the width
+  budget is exact to the pixel.
+- Verified in Chrome on `pnpm dev`, through a temporary page (since deleted) that opened the
+  dialog with a sample Wanted, the shell hidden: `scrollHeight <= innerHeight` at 360×640 (stacked,
+  0.77), 390×844 (stacked, 0.85), 667×375 (side, 0.455), 768×1024 (stacked, 1), 1024×768,
+  1280×720 and 1440×900 (side, 1). The handoff expects 0.4–0.5 at 360×640, but the sample
+  poster, one title line, is only 485 px tall, so it needs less shrinking. Only the finished
+  (transparent) dust puffs reach past the sides, inside the dialog's `overflow-x: hidden`.
+- Tests: `use-share-fit.test.ts`, 19 tests (the handoff's three layouts plus 768×1024, the scale
+  inside 0.36–1 at every acceptance size and two extremes, the stacked and side scale arithmetic,
+  the landscape fallback, an unmeasured poster, and re-measuring on resize and rotation).
+- Not added: the Playwright check that the share dialog does not scroll on the `mobile` project.
+  The dialog is on `/wanted/[id]`, which needs an email-verified session and a published Wanted.
+  CI cannot seed either, and this checkout points at the hosted Supabase project, where signing
+  up would send real email. Add it with the gated specs once a local stack has a seeded Wanted.
+- Seen, not touched: on the other session's in-progress mobile shell, `.shell-compact` and
+  `.mobile-tab-bar` reach 473 px at a 360 px viewport, so mobile Chrome widens the layout viewport.
+- Open question: WCAG 2.2.2 (Pause, Stop, Hide, Level A) covers moving content that starts on
+  its own and lasts over 5 s. The tumbleweed respects reduced motion but has no on-page control.
+  Recommendation: let the Gunshot toggle (or a general Motion toggle) also turn it off.
+
+## 2026-09-30 — Mobile and tablet shell (design_handoff_vaultix_mobile)
+
+- Lane: Claude Code, frontend only; `globals.css` and `context/**` shared-by-review for this slice.
+  No contract, money, entitlement or backend change.
+- Breakpoints: mobile below 720 px (`44.9375rem`), tablet 720–1199 px, desktop from 1200 px
+  (`75rem`), unchanged. The same queries live in `src/features/presentation/viewport.ts` for the
+  script-only behaviours. The old stacked-rail rules (60rem, 30rem) are gone.
+- New: `shell-menu.tsx` (menu state, header hide-on-scroll, Menu toggle, panel with focus held
+  between toggle and panel, Esc returns focus, closes on navigation, backdrop tap and widening),
+  `shell-back-button.tsx` (Navigation API `canGoBack`, else screens seen; no in-app history goes
+  home), `mobile-tab-bar.tsx`, `page-swipe.tsx` with the pure rules in
+  `features/presentation/page-swipe.ts`. `AppShell` gains `compactAccount` and `menuAccount`
+  slots (`CompactAccount`, `MenuAccount` in `account-menu.tsx`) so it still renders without a
+  session. `GunshotProvider` exposes `go(href, point)` for swipes and `useOptionalGunshot()`.
+- Departures from the handoff, each because the design predates or cannot hold it:
+  (1) Music: `ThemeMusic` is split into `ThemeMusicProvider` (the one `<audio>`) and
+  `ThemeMusicToggle`; the compact menu carries a Music row, because the rail toggle is hidden below
+  1200 px and WCAG 1.4.2 needs a way to stop it. (2) Hunt is `/claims`, not `/hunt`. (3) Signed in
+  below 448 px the row needs ~445 px, so the wordmark shows its logo tile only (word kept for
+  assistive technology); the prototype overflows the same way. (4) The Inbox link's name is
+  "Inbox, N unread", not "Notifications, N unread", to keep the visible label in the name
+  (WCAG 2.5.3). (5) The Board filter toggle look applies to the whole disclosure range (below
+  896 px), not only below 720 px, so one component has one look; filters now start collapsed even
+  when some are applied, as the handoff asks; the summary still states the count. (6) The Hunters
+  "Verified students…" line is trimmed on both the Board Hunters view and the Hunters wall.
+- The Post Wanted intro trimmed on phones includes "A Sheriff reviews every claim…"; the form keeps
+  its own policy and money notes. Revisit if the designer wants that sentence kept.
+- Verified with headless Chromium on `pnpm dev` (guest session) at 360, 390, 768, 1024 and
+  1280 px across `/`, `/board`, `/map`, `/claims`, `/archive`, `/wanted/new`, `/sign-in`:
+  `scrollWidth` equals the viewport everywhere, no new header or tab-bar target under 44 px, footer
+  hidden only below 720 px, Esc on the open menu returns focus to the toggle. The signed-in row was
+  measured with injected Inbox and avatar controls: fits at 360 and 390; 320 (below the 360 floor)
+  still overflows by 25 px. The other session's note of 473 px at 360 matched the desktop Post
+  button leaking into the compact row, a specificity bug fixed here.
+- Tests: `app-shell.test.tsx` scoped to the rail landmark (jsdom applies no media queries, so all
+  layouts are in the document) plus compact header, menu (open, Esc, focus ring, backdrop,
+  navigation, never tucked while open) and tab bar; Featured rail and hint in `page.test.tsx`;
+  collapsed filters in `board/page.test.tsx`; `page-swipe.test.ts`. Full suite 1524 passed;
+  typecheck clean for project sources. `pnpm build` compiles; its type check fails only on the
+  untracked tumbleweed handoff's `reference/tumbleweed.tsx`, as recorded above.
+- Not verified: real touch swipes and the hint timer on a device, and the signed-in menu with a
+  real session. Not added: Playwright specs under `tests/e2e/ui/` for these.

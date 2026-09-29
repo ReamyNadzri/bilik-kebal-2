@@ -3,7 +3,12 @@ import { AppShell } from "./app-shell";
 import { SHERIFF_CONSOLE_NAV } from "@/features/presentation/navigation";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
-const router = vi.hoisted(() => ({ prefetch: vi.fn(), refresh: vi.fn() }));
+const router = vi.hoisted(() => ({
+  prefetch: vi.fn(),
+  refresh: vi.fn(),
+  push: vi.fn(),
+  back: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
@@ -13,6 +18,8 @@ vi.mock("next/navigation", () => ({
 beforeEach(() => {
   pathname.current = "/";
   router.prefetch.mockClear();
+  router.push.mockClear();
+  router.back.mockClear();
   // jsdom has no media playback; the shell's theme music meets a browser that
   // blocks autoplay. Its behaviour is covered in theme-music.test.tsx.
   vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(
@@ -31,6 +38,14 @@ function renderShell(props: Partial<React.ComponentProps<typeof AppShell>> = {})
       <h1>Board</h1>
     </AppShell>,
   );
+}
+
+/**
+ * The desktop rail's destinations. jsdom applies no media queries, so every
+ * layout's controls are in the document at once; the rail is its landmark.
+ */
+function rail() {
+  return within(screen.getByRole("navigation", { name: "Primary" }));
 }
 
 test("provides keyboard-first navigation landmarks", () => {
@@ -103,10 +118,12 @@ describe("marketplace navigation", () => {
   test("offers posting a Wanted as the one prominent action", () => {
     renderShell();
 
-    expect(screen.getByRole("link", { name: "Post a Wanted" })).toHaveAttribute(
-      "href",
-      "/wanted/new",
-    );
+    // The desktop rail, the tablet row and the phone's tab bar each carry it;
+    // CSS shows exactly one per layout.
+    const posts = screen.getAllByRole("link", { name: "Post a Wanted" });
+
+    expect(posts.length).toBeGreaterThan(0);
+    for (const post of posts) expect(post).toHaveAttribute("href", "/wanted/new");
   });
 
   test("routes the wordmark home", () => {
@@ -121,11 +138,11 @@ describe("current destination", () => {
     pathname.current = "/board";
     renderShell();
 
-    expect(screen.getByRole("link", { name: "Wanted Board" })).toHaveAttribute(
+    expect(rail().getByRole("link", { name: "Wanted Board" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "Hunt" })).not.toHaveAttribute("aria-current");
+    expect(rail().getByRole("link", { name: "Hunt" })).not.toHaveAttribute("aria-current");
   });
 
   test("keeps the Board marked while reading one of its Wanteds", () => {
@@ -142,24 +159,25 @@ describe("current destination", () => {
     pathname.current = "/claims";
     renderShell();
 
-    expect(screen.getByRole("link", { name: "Hunt" })).toHaveAttribute("aria-current", "page");
+    expect(rail().getByRole("link", { name: "Hunt" })).toHaveAttribute("aria-current", "page");
   });
 
   test("marks no destination on the homepage", () => {
     pathname.current = "/";
     renderShell();
 
-    for (const label of ["Wanted Board", "Hunt", "Archive", "Notifications"]) {
-      expect(screen.getByRole("link", { name: label })).not.toHaveAttribute("aria-current");
+    for (const label of ["Wanted Board", "Hunt", "Archive"]) {
+      expect(rail().getByRole("link", { name: label })).not.toHaveAttribute("aria-current");
     }
+    expect(screen.getByRole("link", { name: "Notifications" })).not.toHaveAttribute("aria-current");
   });
 
   test("accepts an explicit override from the caller", () => {
     pathname.current = "/board";
     renderShell({ currentNavId: "archive" });
 
-    expect(screen.getByRole("link", { name: "Archive" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Wanted Board" })).not.toHaveAttribute("aria-current");
+    expect(rail().getByRole("link", { name: "Archive" })).toHaveAttribute("aria-current", "page");
+    expect(rail().getByRole("link", { name: "Wanted Board" })).not.toHaveAttribute("aria-current");
   });
 });
 
@@ -186,7 +204,16 @@ describe("prefetching", () => {
   test("prefetches a destination when it takes keyboard focus", () => {
     renderShell();
 
-    act(() => screen.getByRole("link", { name: "Post a Wanted" }).focus());
+    act(() => rail().getByRole("link", { name: "Hunt" }).focus());
+
+    expect(router.prefetch).toHaveBeenCalledWith("/claims");
+  });
+
+  test("prefetches the Post action when it takes keyboard focus", () => {
+    renderShell();
+
+    const [railPost] = screen.getAllByRole("link", { name: "Post a Wanted" });
+    act(() => railPost?.focus());
 
     expect(router.prefetch).toHaveBeenCalledWith("/wanted/new");
   });
@@ -271,5 +298,156 @@ describe("footer", () => {
     expect(
       screen.queryByText("Provisional interface. Final visual design pending external handoff."),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("compact header", () => {
+  test("offers a way back on every screen but the homepage", () => {
+    pathname.current = "/";
+    const { unmount } = renderShell();
+    expect(screen.queryByRole("button", { name: "Go back" })).not.toBeInTheDocument();
+    unmount();
+
+    pathname.current = "/board";
+    renderShell();
+    expect(screen.getByRole("button", { name: "Go back" })).toBeInTheDocument();
+  });
+
+  test("goes home rather than out of the site when there is no in-app history", () => {
+    pathname.current = "/wanted/csc510-final-exam-notes";
+    renderShell();
+
+    fireEvent.click(screen.getByRole("button", { name: "Go back" }));
+
+    expect(router.back).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/");
+  });
+
+  test("renders the compact account slot it is given", () => {
+    renderShell({ compactAccount: <a href="/notifications">Inbox</a> });
+
+    expect(screen.getByRole("link", { name: "Inbox" })).toBeInTheDocument();
+  });
+});
+
+describe("compact menu", () => {
+  function toggle() {
+    return screen.getByRole("button", { name: /menu/i, expanded: false }) as HTMLElement;
+  }
+
+  test("starts closed, with its panel out of the accessibility tree", () => {
+    renderShell();
+
+    expect(toggle()).toHaveAttribute("aria-controls", "vx-menu");
+    expect(screen.getAllByRole("navigation", { name: "Primary" })).toHaveLength(1);
+  });
+
+  test("opens into the destinations, the title search and the account block", () => {
+    pathname.current = "/board";
+    renderShell({ menuAccount: <button type="button">Sign out</button> });
+
+    fireEvent.click(toggle());
+
+    const close = screen.getByRole("button", { name: "Close menu" });
+    expect(close).toHaveAttribute("aria-expanded", "true");
+    expect(close).toHaveTextContent("Close");
+
+    const panel = within(document.getElementById("vx-menu") as HTMLElement);
+    expect(panel.getByRole("searchbox", { name: "Quick search by request title" })).toBeVisible();
+    expect(panel.getByRole("link", { name: /Wanted Board/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(panel.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+    expect(panel.getByRole("button", { name: "Music" })).toBeInTheDocument();
+  });
+
+  test("closes on Escape and hands focus back to the toggle", () => {
+    renderShell();
+
+    fireEvent.click(toggle());
+    const panel = document.getElementById("vx-menu") as HTMLElement;
+    act(() => within(panel).getByRole("searchbox").focus());
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(panel).not.toBeVisible();
+    expect(toggle()).toHaveFocus();
+  });
+
+  test("keeps keyboard focus between the toggle and the panel while open", () => {
+    renderShell();
+
+    fireEvent.click(toggle());
+    const close = screen.getByRole("button", { name: "Close menu" });
+    const focusable = document
+      .getElementById("vx-menu")
+      ?.querySelectorAll<HTMLElement>("a[href], button, input");
+    const last = focusable?.[focusable.length - 1];
+
+    act(() => last?.focus());
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(last).toHaveFocus();
+  });
+
+  test("closes when the dimmed page behind it is tapped", () => {
+    const { container } = renderShell();
+
+    fireEvent.click(toggle());
+    fireEvent.click(container.querySelector(".shell-menu__backdrop") as Element);
+
+    expect(document.getElementById("vx-menu")).not.toBeVisible();
+  });
+
+  test("closes on navigation", () => {
+    pathname.current = "/board";
+    const { rerender } = renderShell();
+
+    fireEvent.click(toggle());
+    pathname.current = "/map";
+    rerender(
+      <AppShell>
+        <h1>Map</h1>
+      </AppShell>,
+    );
+
+    expect(document.getElementById("vx-menu")).not.toBeVisible();
+  });
+
+  test("never tucks the header away while the menu is open", () => {
+    renderShell();
+
+    fireEvent.click(toggle());
+
+    expect(document.querySelector(".app-shell__header")).toHaveAttribute("data-tucked", "false");
+  });
+});
+
+describe("phone tab bar", () => {
+  function tabs() {
+    return within(screen.getByRole("navigation", { name: "Quick" }));
+  }
+
+  test("reaches Board, Map, Post, Hunt and Archive", () => {
+    renderShell();
+
+    expect(tabs().getByRole("link", { name: "Board" })).toHaveAttribute("href", "/board");
+    expect(tabs().getByRole("link", { name: "Map" })).toHaveAttribute("href", "/map");
+    expect(tabs().getByRole("link", { name: "Post a Wanted" })).toHaveAttribute(
+      "href",
+      "/wanted/new",
+    );
+    expect(tabs().getByRole("link", { name: "Hunt" })).toHaveAttribute("href", "/claims");
+    expect(tabs().getByRole("link", { name: "Archive" })).toHaveAttribute("href", "/archive");
+  });
+
+  test("marks the current tab", () => {
+    pathname.current = "/claims";
+    renderShell();
+
+    expect(tabs().getByRole("link", { name: "Hunt" })).toHaveAttribute("aria-current", "page");
+    expect(tabs().getByRole("link", { name: "Board" })).not.toHaveAttribute("aria-current");
   });
 });

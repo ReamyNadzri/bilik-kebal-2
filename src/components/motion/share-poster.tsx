@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { WantedDetail } from "@/features/marketplace/types";
 import {
@@ -10,6 +10,7 @@ import {
   type ShareWantedContent,
 } from "@/features/presentation/share-wanted";
 import { usePrefersReducedMotion } from "./gunshot-transition";
+import { useShareFit } from "./use-share-fit";
 
 export interface SharePosterProps {
   readonly wanted: WantedDetail;
@@ -29,10 +30,16 @@ type ShareTarget = "whatsapp" | "telegram" | "other";
  * that follows a slow await. Where files cannot be shared (most desktops),
  * WhatsApp and Telegram open with the caption and link, and the picture is
  * saved for the person to attach.
+ *
+ * The dialog never scrolls: `useShareFit` lays the poster out at a fixed size
+ * and scales it into whatever the caption leaves, side by side or stacked.
  */
 export function SharePoster({ wanted, onClose }: SharePosterProps) {
   const still = usePrefersReducedMotion();
   const firstRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const captionRef = useRef<HTMLDivElement>(null);
+  const fit = useShareFit(sheetRef, captionRef);
   const [content] = useState<ShareWantedContent>(() =>
     shareWantedContent(wanted, window.location.origin),
   );
@@ -129,31 +136,48 @@ export function SharePoster({ wanted, onClose }: SharePosterProps) {
 
   const stop = (event: MouseEvent) => event.stopPropagation();
 
+  const layout = [
+    fit.side ? "" : " share-poster--stacked",
+    fit.tight ? " share-poster--tight" : "",
+    still ? " capture-poster--still" : "",
+  ].join("");
+  const fitVars = {
+    "--share-scale": String(fit.scale),
+    "--share-poster-h": `${fit.posterH}px`,
+    "--share-pad-v": `${fit.padV}px`,
+  } as CSSProperties;
+
   const node = (
     <div
-      className={`vx-motion capture-poster capture-poster--share${still ? " capture-poster--still" : ""}`}
+      className={`vx-motion capture-poster capture-poster--share${layout}`}
+      style={fitVars}
       role="dialog"
       aria-modal="true"
       aria-label={`Share this Wanted: ${wanted.title}`}
       onClick={onClose}
     >
-      <div className="capture-poster__sheet" onClick={stop} aria-hidden="true">
-        <span className="capture-poster__pin" />
-        <p className="capture-poster__heading">{content.heading}</p>
-        <div className="capture-poster__portrait">
-          <span className="capture-poster__code">{content.code}</span>
-          <span className="capture-poster__course">{content.subject}</span>
+      {/* The scale sits on wrappers: the sheet already animates its own transform. */}
+      <div className="share-poster__fit">
+        <div className="share-poster__scale">
+          <div ref={sheetRef} className="capture-poster__sheet" onClick={stop} aria-hidden="true">
+            <span className="capture-poster__pin" />
+            <p className="capture-poster__heading">{content.heading}</p>
+            <div className="capture-poster__portrait">
+              <span className="capture-poster__code">{content.code}</span>
+              <span className="capture-poster__course">{content.subject}</span>
+            </div>
+            <p className="capture-poster__title">{content.title}</p>
+            <div className="capture-poster__reward">
+              <span className="capture-poster__reward-label">{content.rewardLabel}</span>
+              <span className="capture-poster__amount">{content.reward}</span>
+            </div>
+            <span className="capture-poster__dust capture-poster__dust--left" />
+            <span className="capture-poster__dust capture-poster__dust--right" />
+          </div>
         </div>
-        <p className="capture-poster__title">{content.title}</p>
-        <div className="capture-poster__reward">
-          <span className="capture-poster__reward-label">{content.rewardLabel}</span>
-          <span className="capture-poster__amount">{content.reward}</span>
-        </div>
-        <span className="capture-poster__dust capture-poster__dust--left" />
-        <span className="capture-poster__dust capture-poster__dust--right" />
       </div>
 
-      <div className="capture-poster__caption" onClick={stop}>
+      <div ref={captionRef} className="capture-poster__caption" onClick={stop}>
         <p className="capture-poster__eyebrow">Share this Wanted</p>
         <p className="capture-poster__message share-poster__caption">{content.caption}</p>
         <div className="capture-poster__actions">

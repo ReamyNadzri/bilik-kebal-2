@@ -124,6 +124,15 @@ describe("keeping the reader's filters", () => {
     expect(screen.getAllByText("2 filters applied").length).toBeGreaterThan(0);
   });
 
+  test("folds the filters away until asked, even when some are applied", async () => {
+    const { container } = await renderPage({ campus: TAXONOMY_ID.campus, status: "open" });
+
+    // Below the rail's breakpoint the summary is the toggle; from it, CSS forces it open.
+    const disclosure = container.querySelector("details.board-filters__disclosure");
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(disclosure?.querySelector("summary")).toHaveTextContent("2 filters applied");
+  });
+
   test("offers a way back to the unfiltered Board that keeps the search", async () => {
     await renderPage({ q: "notes", campus: TAXONOMY_ID.campus });
 

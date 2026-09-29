@@ -59,7 +59,7 @@ export function HunterOffice({ claims, account }: HunterOfficeProps) {
           <h1 id="hunt-office-title">
             {displayName ? `Welcome back, ${displayName}` : "Take a hunt, claim the bounty"}
           </h1>
-          <p className="hunt-office__lede">
+          <p className="hunt-office__lede mobile-hide">
             Pick up an open request, submit a resource you are authorised to share, and follow it
             through Sheriff review.
           </p>

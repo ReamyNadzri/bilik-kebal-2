@@ -63,7 +63,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <header className="panel page-heading">
         <div>
           <h1>Profile</h1>
-          <p className="page-heading__lede">
+          <p className="page-heading__lede mobile-hide">
             Your requests first, then your details, verification and free requests.
           </p>
         </div>

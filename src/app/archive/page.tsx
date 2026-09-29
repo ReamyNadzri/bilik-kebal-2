@@ -117,7 +117,7 @@ export default async function ArchivePage() {
       <header className="panel page-heading">
         <div>
           <h1>Archive</h1>
-          <p className="page-heading__lede">
+          <p className="page-heading__lede mobile-hide">
             Fulfilled and resolved requests, and the approved resources you can download.
           </p>
         </div>

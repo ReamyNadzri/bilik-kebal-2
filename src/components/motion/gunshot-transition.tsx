@@ -49,6 +49,8 @@ interface GunshotContextValue {
   readonly enabled: boolean;
   readonly setEnabled: (next: boolean) => void;
   readonly fire: (event: MouseEvent<HTMLElement>, href: string) => void;
+  /** Navigates with the transition from a screen point, for gestures that are not clicks. */
+  readonly go: (href: string, point: { readonly x: number; readonly y: number }) => void;
 }
 
 const GunshotContext = createContext<GunshotContextValue | null>(null);
@@ -129,24 +131,12 @@ export function GunshotProvider({
     savePreference(preference);
   }, []);
 
-  const fire = useCallback(
-    (event: MouseEvent<HTMLElement>, href: string) => {
-      // New tab / new window / non-primary button: let the browser handle it.
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+  const shoot = useCallback(
+    (href: string, x: number, y: number) => {
+      if (busy.current) return;
+      if (!enabled || reduced) {
+        router.push(href);
         return;
-      }
-      event.preventDefault();
-      if (!enabled || reduced || busy.current) {
-        if (!busy.current) router.push(href);
-        return;
-      }
-      let x = event.clientX;
-      let y = event.clientY;
-      // Keyboard activation (detail === 0) has no pointer position: use the element centre.
-      if (event.detail === 0) {
-        const rect = event.currentTarget.getBoundingClientRect();
-        x = rect.left + rect.width / 2;
-        y = rect.top + rect.height / 2;
       }
       busy.current = true;
       setShot({ x, y, w: window.innerWidth, h: window.innerHeight, key: Date.now() });
@@ -162,7 +152,33 @@ export function GunshotProvider({
     [enabled, reduced, router],
   );
 
-  const value = useMemo(() => ({ enabled, setEnabled, fire }), [enabled, setEnabled, fire]);
+  const fire = useCallback(
+    (event: MouseEvent<HTMLElement>, href: string) => {
+      // New tab / new window / non-primary button: let the browser handle it.
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      let x = event.clientX;
+      let y = event.clientY;
+      // Keyboard activation (detail === 0) has no pointer position: use the element centre.
+      if (event.detail === 0) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
+      shoot(href, x, y);
+    },
+    [shoot],
+  );
+
+  const go = useCallback(
+    (href: string, point: { readonly x: number; readonly y: number }) =>
+      shoot(href, point.x, point.y),
+    [shoot],
+  );
+
+  const value = useMemo(() => ({ enabled, setEnabled, fire, go }), [enabled, setEnabled, fire, go]);
 
   return (
     <GunshotContext.Provider value={value}>
@@ -171,6 +187,11 @@ export function GunshotProvider({
       {shot === null ? null : <ShotOverlay key={shot.key} shot={shot} />}
     </GunshotContext.Provider>
   );
+}
+
+/** The transition when a provider is mounted, or null in a bare test or preview. */
+export function useOptionalGunshot(): GunshotContextValue | null {
+  return useContext(GunshotContext);
 }
 
 export function useGunshot(): GunshotContextValue {

@@ -57,10 +57,11 @@ export interface BoardFiltersProps {
  * only the two values the published query accepts; the other lifecycle words a
  * card can show are presentations the server derives, not filters.
  *
- * At 360 px the rail collapses into a disclosure whose summary reports the
- * applied count in words. At the rail's own breakpoint the summary is removed
- * and the body is forced open in CSS, so the same markup serves both without a
- * second copy of the controls.
+ * Below the rail's own breakpoint the filters fold behind a closed disclosure
+ * whose summary reports the applied count in words, so the posters come first
+ * on a phone (design_handoff_vaultix_mobile, §5). At the breakpoint the summary
+ * is removed and the body is forced open in CSS, so the same markup serves
+ * both without a second copy of the controls.
  */
 export function BoardFilters({ filters, taxonomy }: BoardFiltersProps) {
   const applied = countActiveFilters(filters);
@@ -77,7 +78,7 @@ export function BoardFilters({ filters, taxonomy }: BoardFiltersProps) {
         <span className="board-filters__summary-count">{appliedLabel}</span>
       </p>
 
-      <details className="board-filters__disclosure" open={applied > 0}>
+      <details className="board-filters__disclosure">
         <summary className="board-filters__summary">
           <span className="board-filters__summary-label">Filters</span>
           <span className="board-filters__summary-count">{appliedLabel}</span>

@@ -76,6 +76,29 @@ describe("a populated marketplace", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(2);
   });
 
+  test("lays the posters out as a rail a phone can swipe through", async () => {
+    listPublicWanted.mockResolvedValue({
+      ok: true,
+      data: [aWanted({ id: "one" }), aWanted({ id: "two" })],
+    });
+    const { container } = await renderPage();
+
+    // The rail is CSS below 720 px; the list stays one list for assistive technology.
+    expect(screen.getByRole("list", { name: "Open Wanted requests" })).toHaveClass(
+      "wanted-grid--rail",
+    );
+    const hint = container.querySelector(".rail-hint");
+    expect(hint).toHaveTextContent("Swipe for more");
+    expect(hint).toHaveAttribute("aria-hidden", "true");
+  });
+
+  test("offers no swipe hint for a single poster", async () => {
+    listPublicWanted.mockResolvedValue({ ok: true, data: [aWanted({ id: "one" })] });
+    const { container } = await renderPage();
+
+    expect(container.querySelector(".rail-hint")).toBeNull();
+  });
+
   test("asks the operation for the newest first", async () => {
     await renderPage();
 

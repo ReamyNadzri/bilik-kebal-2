@@ -156,7 +156,7 @@ async function huntersView(params: Record<string, string | string[] | undefined>
           <div className="panel page-heading">
             <div>
               <h1>Hunters on the Board</h1>
-              <p className="page-heading__lede">
+              <p className="page-heading__lede mobile-hide">
                 Verified students who hunt and back bounties. Open a poster to see their profile.
               </p>
             </div>

@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { PixelIcon } from "./pixel-icon";
 
 /**
@@ -23,6 +32,10 @@ import { PixelIcon } from "./pixel-icon";
  *
  * Provisional audio, like every other provisional brand asset: the designer's
  * handoff replaces the files in `THEME_TRACKS` without touching this component.
+ *
+ * The one `<audio>` element lives in `ThemeMusicProvider`; any number of
+ * `ThemeMusicToggle`s drive it. The desktop rail and the compact menu each
+ * show one, and only one is ever displayed at a time.
  */
 export const THEME_TRACKS = [
   { src: "/audio/vaultix-theme.mp3", title: "VAULTIX Theme" },
@@ -52,9 +65,19 @@ function writeEnabled(enabled: boolean) {
   }
 }
 
-export function ThemeMusic() {
+/** Marks a toggle, so the first-gesture unlock leaves its press to it. */
+const TOGGLE_ATTRIBUTE = "data-theme-music-toggle";
+const STATUS_ID = "theme-music-status";
+
+interface ThemeMusicContextValue {
+  readonly playing: boolean;
+  readonly toggle: () => void;
+}
+
+const ThemeMusicContext = createContext<ThemeMusicContextValue | null>(null);
+
+export function ThemeMusicProvider({ children }: { readonly children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const enabledRef = useRef(true);
   const resumeOnShowRef = useRef(false);
   const fadeRef = useRef<number | null>(null);
@@ -172,7 +195,7 @@ export function ThemeMusic() {
       }
       // The toggle decides for itself; starting here as well would have the
       // same press start the theme and then stop it again.
-      if (event.target instanceof Node && buttonRef.current?.contains(event.target)) return;
+      if (event.target instanceof Element && event.target.closest(`[${TOGGLE_ATTRIBUTE}]`)) return;
       if (event instanceof KeyboardEvent && event.key === "Escape") return;
       void play().then((started) => {
         if (started) disarm();
@@ -212,7 +235,7 @@ export function ThemeMusic() {
 
   useEffect(() => stopFade, [stopFade]);
 
-  function toggle() {
+  const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (audio === null) return;
     if (audio.paused) {
@@ -226,26 +249,76 @@ export function ThemeMusic() {
       stopFade();
       audio.pause();
     }
-  }
+  }, [failed, play, stopFade]);
+
+  const value = useMemo(() => ({ playing, toggle }), [playing, toggle]);
 
   return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        className="theme-music"
-        aria-pressed={playing}
-        aria-describedby="theme-music-status"
-        onClick={toggle}
-      >
-        <PixelIcon name={playing ? "sound" : "sound-off"} className="shell-nav__icon" />
-        <span className="shell-nav__link-text--secondary">Music</span>
-      </button>
-      <span id="theme-music-status" className="visually-hidden" role="status">
+    <ThemeMusicContext.Provider value={value}>
+      {children}
+      <span id={STATUS_ID} className="visually-hidden" role="status">
         {failed ? "The theme music could not be loaded. Press Music to try again." : ""}
       </span>
       {/* No captions track: the songs are instrumental, with no words to caption. */}
       <audio ref={audioRef} src={song.src} preload="none" />
-    </>
+    </ThemeMusicContext.Provider>
+  );
+}
+
+/**
+ * A Music on/off button for the provider above it.
+ *
+ * `rail` is the icon button on the desktop rail; `row` is the full-width row
+ * in the compact menu, which names the state in words beside the icon.
+ */
+export function ThemeMusicToggle({ variant = "rail" }: { readonly variant?: "rail" | "row" }) {
+  const music = useContext(ThemeMusicContext);
+  if (music === null) throw new Error("ThemeMusicToggle must be used inside <ThemeMusicProvider>");
+  const { playing, toggle } = music;
+  const toggleMarker = { [TOGGLE_ATTRIBUTE]: "" };
+
+  if (variant === "row") {
+    return (
+      <button
+        type="button"
+        className="shell-menu__setting"
+        aria-pressed={playing}
+        aria-describedby={STATUS_ID}
+        onClick={toggle}
+        {...toggleMarker}
+      >
+        <span className="shell-menu__setting-name">
+          <PixelIcon name={playing ? "sound" : "sound-off"} className="shell-nav__icon" />
+          Music
+        </span>
+        <span className="shell-menu__setting-state" aria-hidden="true">
+          <span className="shell-menu__setting-dot" />
+          {playing ? "On" : "Off"}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="theme-music"
+      aria-pressed={playing}
+      aria-describedby={STATUS_ID}
+      onClick={toggle}
+      {...toggleMarker}
+    >
+      <PixelIcon name={playing ? "sound" : "sound-off"} className="shell-nav__icon" />
+      <span className="shell-nav__link-text--secondary">Music</span>
+    </button>
+  );
+}
+
+/** The provider and its rail toggle together, for a screen that needs only one. */
+export function ThemeMusic() {
+  return (
+    <ThemeMusicProvider>
+      <ThemeMusicToggle />
+    </ThemeMusicProvider>
   );
 }

@@ -13,6 +13,9 @@ export interface CampusMapProps {
   readonly showCounts: boolean;
 }
 
+/** Pins right of the map's midline stand in Sarawak and Sabah. */
+const BORNEO_FROM_X = 50;
+
 function describeOpen(count: number): string {
   return `${count} open request${count === 1 ? "" : "s"}`;
 }
@@ -55,7 +58,7 @@ export function CampusMap({ campuses, showCounts }: CampusMapProps) {
         <section className="panel campus-map__intro" aria-labelledby="campus-map-title">
           <p className="pixel-label">Welcome, Hunter</p>
           <h1 id="campus-map-title">Where is knowledge needed?</h1>
-          <p>
+          <p className="mobile-hide">
             VAULTIX is opening campus by campus. Select an open campus to see its requests; locked
             campuses are coming soon.
           </p>
@@ -106,32 +109,38 @@ export function CampusMap({ campuses, showCounts }: CampusMapProps) {
         </section>
 
         <figure className="campus-map__chart">
-          <Image
-            className="campus-map__image"
-            src="/brand/map-malaysia.webp"
-            alt="Illustrated map of Malaysia with a pin for each campus"
-            width={1672}
-            height={941}
-            sizes="(min-width: 56rem) 60rem, 100vw"
-            priority
-          />
-          <MapLife />
-          {pinned.map((campus) => (
-            <button
-              key={campus.id}
-              type="button"
-              className="campus-map__pin"
-              style={{ left: `${campus.mapX}%`, top: `${campus.mapY}%` }}
-              data-selected={campus.id === selected.id}
-              data-locked={!campus.regionOpen}
-              aria-pressed={campus.id === selected.id}
-              aria-label={pinLabel(campus, showCounts)}
-              onClick={() => setSelectedId(campus.id)}
-            >
-              <span className="campus-map__pin-head" aria-hidden="true" />
-            </button>
-          ))}
-          <figcaption className="campus-map__hint">
+          {/* On a phone the layer is twice the figure's width, so the figure
+              frames Semenanjung alone; the Borneo pins leave the page and
+              those campuses stay selectable from the list below. */}
+          <div className="campus-map__layer">
+            <Image
+              className="campus-map__image"
+              src="/brand/map-malaysia.webp"
+              alt="Illustrated map of Malaysia with a pin for each campus"
+              width={1672}
+              height={941}
+              sizes="(max-width: 44.9375rem) 200vw, (min-width: 56rem) 60rem, 100vw"
+              priority
+            />
+            <MapLife />
+            {pinned.map((campus) => (
+              <button
+                key={campus.id}
+                type="button"
+                className="campus-map__pin"
+                style={{ left: `${campus.mapX}%`, top: `${campus.mapY}%` }}
+                data-selected={campus.id === selected.id}
+                data-locked={!campus.regionOpen}
+                data-borneo={(campus.mapX ?? 0) > BORNEO_FROM_X}
+                aria-pressed={campus.id === selected.id}
+                aria-label={pinLabel(campus, showCounts)}
+                onClick={() => setSelectedId(campus.id)}
+              >
+                <span className="campus-map__pin-head" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+          <figcaption className="campus-map__hint mobile-hide">
             Red pins are open campuses. Grey pins are coming soon.
           </figcaption>
         </figure>
@@ -142,7 +151,7 @@ export function CampusMap({ campuses, showCounts }: CampusMapProps) {
           <h2 className="board-surface__heading" id="campus-list-title">
             Open campuses
           </h2>
-          <p className="board-surface__lede">
+          <p className="board-surface__lede mobile-hide">
             {showCounts
               ? "Live open requests and gross bounty for each open campus."
               : "Campuses accepting requests now."}

@@ -51,6 +51,11 @@ No component may hardcode a final colour value. Temporary development tokens mus
 - Pixel-art assets must be original, lightweight, responsive, and optional under reduced-motion or data-saving conditions.
 - Animation is decorative only. Respect `prefers-reduced-motion`.
 - No essential state may rely on colour, animation, themed terminology, or an icon alone.
+- A tumbleweed (`src/components/motion/tumbleweed.tsx`) rolls along the bottom of every screen
+  now and then: first 15–40 s after load, then every 50–120 s, 7–12 s per crossing. It is
+  decorative (`aria-hidden`, no pointer events), sits at z 96 (above the wood rails and hunter
+  slots, below the posters and the gunshot overlay), skips hidden tabs, and never runs under
+  reduced motion. Values are from `design_handoff_vaultix_tumbleweed_share`.
 
 ## Sound
 
@@ -80,6 +85,14 @@ No component may hardcode a final colour value. Temporary development tokens mus
 ## Required Layout Patterns
 
 - Student experience: responsive top-level navigation with Wanted Board, Hunt/Claims, Archive, Notifications, and Profile.
+- Shell layouts (design_handoff_vaultix_mobile), chosen in CSS so the server renders each: desktop
+  from 1200 px keeps the full rail; below 1200 px one compact row (back, wordmark, Inbox and avatar
+  or Sign in, tablet-only Post a Wanted, Menu) with a drop-down menu holding the destinations,
+  title search, account block and the Music toggle; below 720 px also a bottom tab bar (Board, Map,
+  Post, Hunt, Archive), sideways page swipes (`/`, `/board`, `/map`, `/claims`, `/archive`), a
+  one-time swipe hint, poster rails, the Gunshot switch inside the menu, no footer, and helper
+  paragraphs trimmed (`.mobile-hide`). Swipes are a shortcut only; every page stays reachable by
+  tab bar, menu and keyboard.
 - Wanted Board: searchable filter area plus cards showing course, institution/campus, resource type, academic period, gross bounty, Backer count, age, and safe status.
 - Wanted detail: lifecycle/status, metadata, bounty breakdown, contribution action, claim action, and policy notice without unverified file preview.
 - Create Wanted: multi-step or sectioned form with duplicate suggestions before payment.
