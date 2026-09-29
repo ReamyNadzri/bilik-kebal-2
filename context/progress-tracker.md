@@ -910,3 +910,12 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   DB suites pass on PGlite (no local Postgres here). Cloud check:
   `supabase/tests/cloud/verify_202610160001_clerk_identity_bridge.sql`. **Not pushed to Supabase
   Cloud** — waits for review.
+- Slice 2: migration `202610160002_clerk_user_sync.sql` adds `public.sync_clerk_user(...)`
+  (service role only): creates the profile and identity for a new Clerk user, links an imported
+  Supabase Auth account through Clerk `external_id`, ignores out-of-order deliveries by Clerk
+  `updated_at`, and enqueues the one-per-account welcome when the email is verified. Route
+  `POST /api/webhooks/clerk` verifies the Svix signature (`CLERK_WEBHOOK_SIGNING_SECRET`), answers
+  400 on a bad signature and 503 on a failed sync so Clerk retries, and logs no payload.
+  `user.deleted` is acknowledged and not acted on (deletion is still an open question). Tests:
+  `supabase/tests/local/clerk_user_sync.sql`, `clerk-user-sync.test.ts`,
+  `clerk-webhook-http.test.ts`; full unit suite (185 files) and 13 DB suites pass.
