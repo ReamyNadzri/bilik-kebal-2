@@ -80,6 +80,28 @@ Each slice ships with acceptance criteria, RLS access-control tests and a passin
    `current_user_recently_authenticated()`, `getRequestUser()` and the proxy's Supabase refresh.
    Update `architecture.md` (auth row and auth model), `code-standards.md`, the progress tracker.
 
+## Production cutover runbook
+
+Order matters: existing members can only sign in with Clerk once they are imported.
+
+1. Back up the Supabase database (Dashboard → Database → Backups).
+2. `npx supabase login`, then `npx supabase db push` (migrations `202610160001`–`202610160003`);
+   run `supabase/tests/cloud/verify_202610160001_clerk_identity_bridge.sql` — every row PASS.
+3. Clerk dashboard (Production): webhook endpoint `https://bilikkebal.afes.my/api/webhooks/clerk`
+   for `user.created`, `user.updated`, `user.deleted`; put its `whsec_…` in Vercel Production as
+   `CLERK_WEBHOOK_SIGNING_SECRET`. Also set `SUPABASE_SERVICE_ROLE_KEY` there.
+4. Export: run `scripts/sql/export-supabase-users-for-clerk.sql` in the Supabase SQL editor, save
+   the `users` cell as a JSON file **outside the repository**.
+5. Import, dry run first, with a file holding the production Clerk key, Supabase URL and service
+   role key:
+   `node --env-file=<prod env file> scripts/import-users-to-clerk.mjs --file <export.json>`
+   then add `--apply --production`. Re-running is safe. Delete the export file afterwards.
+6. Deploy the branch to Vercel Production. Check sign-in with an imported account, sign-up, the
+   Sheriff step-up and sign-out.
+
+Verified on the dev instance (2026-09-30): Clerk accepts the import body — the bcrypt password
+works, `external_id` and the join date are kept — and marks Backend-created emails **verified**.
+
 ## Decisions (user, 2026-09-29)
 
 - Existing Supabase Auth users are imported into Clerk with their bcrypt password hashes; they sign
@@ -90,6 +112,12 @@ Each slice ships with acceptance criteria, RLS access-control tests and a passin
   server-side (slice 4).
 
 ## Open questions (escalate, do not infer)
+
+- Accounts that never confirmed their email: Clerk would import them as verified. Skipped by
+  default (`--include-unverified` imports them); they can sign up again, which creates a new
+  profile. Decide whether to import them, skip them, or clean them up.
+- An address that already has a Clerk account (someone signed up with it before the import) is
+  skipped as `email_taken`; the old profile stays unlinked. Resolve case by case.
 
 - Deleting a Clerk user: soft-delete the profile (ledger and audit references must survive) — confirm
   retention behaviour against `architecture.md`.

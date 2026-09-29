@@ -942,3 +942,13 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   routes stay until slice 6. **The import (slice 5) must run before slice 4 is deployed.**
   A Google-only Sheriff has no password to reverify with and is told so. 189 unit files, lint,
   typecheck and build pass.
+- Slice 5: `scripts/sql/export-supabase-users-for-clerk.sql` (read-only; output holds bcrypt
+  hashes, keep outside the repo and delete after) and `scripts/import-users-to-clerk.mjs` (Node
+  24, no new dependencies; dry run by default, `--apply`, `--production` required for `sk_live_`).
+  Planning is `src/modules/identity/services/clerk-user-import.ts` (tested): creates Clerk users
+  with the bcrypt digest, `external_id` = Supabase user id and the original join date, then links
+  each through `sync_clerk_user`; re-runs skip created users and re-check their link. Skips
+  unverified emails (Clerk would mark them verified — open question), addresses already in Clerk,
+  duplicates and malformed rows; emails masked in output. Dry run and a create/delete probe ran
+  against the dev Clerk instance only. Cutover runbook in the migration plan. Not run on
+  production.
