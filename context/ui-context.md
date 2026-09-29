@@ -51,6 +51,11 @@ No component may hardcode a final colour value. Temporary development tokens mus
 - Pixel-art assets must be original, lightweight, responsive, and optional under reduced-motion or data-saving conditions.
 - Animation is decorative only. Respect `prefers-reduced-motion`.
 - No essential state may rely on colour, animation, themed terminology, or an icon alone.
+- A tumbleweed (`src/components/motion/tumbleweed.tsx`) rolls along the bottom of every screen
+  now and then: first 15–40 s after load, then every 50–120 s, 7–12 s per crossing. It is
+  decorative (`aria-hidden`, no pointer events), sits at z 96 (above the wood rails and hunter
+  slots, below the posters and the gunshot overlay), skips hidden tabs, and never runs under
+  reduced motion. Values are from `design_handoff_vaultix_tumbleweed_share`.
 
 ## Sound
 

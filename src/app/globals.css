@@ -8157,6 +8157,101 @@ button.capture-poster__hunt {
 .share-poster__notice:empty {
   display: none;
 }
+
+/* Share poster fit (design_handoff_vaultix_tumbleweed_share, section 2): no
+   scrolling at any size. use-share-fit.ts picks side by side or stacked and
+   the scale; the capture poster is unchanged. */
+.capture-poster--share {
+  display: flex;
+  flex-direction: row;
+  /* use-share-fit.ts sizes the poster to the width left beside the caption,
+     to the pixel; wrapping on a rounding error would push the caption below. */
+  flex-wrap: nowrap;
+  justify-content: safe center;
+  align-items: center;
+  align-content: safe center;
+  gap: 28px 44px;
+  padding: max(var(--share-pad-v, 28px), env(safe-area-inset-top)) 16px
+    max(var(--share-pad-v, 28px), env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+}
+/* 44 px beside the caption, 18 px above it, as use-share-fit.ts reckons. */
+.capture-poster--share.share-poster--stacked {
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* The outer box takes the scaled size, so the layout matches what is seen. */
+.share-poster__fit {
+  flex: 0 0 auto;
+  width: calc(420px * var(--share-scale, 1));
+  height: calc(var(--share-poster-h, 520px) * var(--share-scale, 1));
+}
+.share-poster__scale {
+  width: 420px;
+  transform: scale(var(--share-scale, 1));
+  transform-origin: 0 0;
+}
+
+/* Fixed type inside the share sheet: the scale does the shrinking. */
+.capture-poster--share .capture-poster__sheet {
+  width: 420px;
+  padding: 30px 28px 20px;
+}
+.capture-poster--share .capture-poster__heading {
+  font-size: 74px;
+}
+.capture-poster--share .capture-poster__portrait {
+  margin-top: 16px;
+  padding: 24px 14px;
+}
+.capture-poster--share .capture-poster__code {
+  font-size: 58px;
+}
+.capture-poster--share .capture-poster__course {
+  margin-top: 8px;
+  font-size: 17px;
+}
+.capture-poster--share .capture-poster__title {
+  font-size: 22px;
+}
+.capture-poster--share .capture-poster__amount {
+  font-size: 50px;
+}
+
+/* Caption column: 400 px wide beside the poster. Stacked, the flex axis is
+   vertical, so the column keeps its content height instead of a 400 px basis. */
+.capture-poster--share .capture-poster__caption {
+  flex: 0 1 400px;
+  width: min(100%, 400px);
+  max-width: none;
+}
+.capture-poster--share.share-poster--stacked .capture-poster__caption {
+  flex: 0 0 auto;
+}
+.capture-poster--share.share-poster--tight .capture-poster__caption {
+  gap: 10px;
+}
+.capture-poster--share.share-poster--tight .share-poster__caption {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.capture-poster--share .capture-poster__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: stretch;
+  gap: 10px;
+}
+.capture-poster--share.share-poster--tight .capture-poster__actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.capture-poster--share .capture-poster__actions > * {
+  justify-content: center;
+  padding-inline: 8px;
+}
 /* Reduced motion: the finished poster appears at once. The dust has no
    resting state, so it stays invisible, exactly as in the prototype. */
 .capture-poster--still,
@@ -8248,11 +8343,73 @@ button.capture-poster__hunt {
   animation: vx-wingR 0.45s var(--vx-delay) ease-in-out infinite alternate;
 }
 
+/* Tumbleweed (design_handoff_vaultix_tumbleweed_share, section 1). Portalled
+   to the body, so it sits above the wood rails and hunter slots (z 90) and
+   below the capture/share poster (z 250) and the gunshot overlay (z 300).
+   Three layers: the outer rolls across, the middle hops, the sprite spins. */
+.tumbleweed {
+  position: fixed;
+  left: 0;
+  z-index: 96;
+  pointer-events: none;
+  animation: vx-tw-roll var(--tw-dur) linear 1 both;
+}
+.tumbleweed__hop {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+  animation: vx-tw-hop var(--tw-hop-dur) infinite;
+}
+.tumbleweed__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 0 rgb(0 0 0 / 0.25));
+  animation: vx-tw-spin var(--tw-spin) linear infinite;
+}
+.tumbleweed__img--rev {
+  animation-direction: reverse;
+}
+
+@keyframes vx-tw-roll {
+  from {
+    transform: translateX(var(--tw-x0));
+  }
+  to {
+    transform: translateX(var(--tw-x1));
+  }
+}
+/* Land squashed (scaleY .94), spring up, ease out to the apex, fall back in. */
+@keyframes vx-tw-hop {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(0.94);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  8% {
+    transform: translateY(0) scaleY(1);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+  }
+  50% {
+    transform: translateY(calc(var(--tw-hop) * -1));
+    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.3);
+  }
+}
+@keyframes vx-tw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* The components already skip motion when this matches; this is a safety net. */
 @media (prefers-reduced-motion: reduce) {
   .vx-motion,
   .vx-motion * {
     animation: none !important;
+  }
+  .tumbleweed {
+    display: none;
   }
 }
 

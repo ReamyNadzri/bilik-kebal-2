@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { ClerkAuthControls } from "@/components/clerk-auth-controls";
 import { AppShell } from "@/components/app-shell";
 import { GunshotProvider } from "@/components/motion/gunshot-transition";
+import { Tumbleweed } from "@/components/motion/tumbleweed";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
 import { readAccount } from "@/features/presentation/auth/require-account";
 import { SHERIFF_CONSOLE_NAV } from "@/features/presentation/navigation";
@@ -78,6 +79,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               >
                 {children}
               </AppShell>
+              <Tumbleweed />
             </GunshotProvider>
           </AuthProvider>
         </ClerkProvider>

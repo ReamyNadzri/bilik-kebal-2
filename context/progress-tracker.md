@@ -972,3 +972,60 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   on swapped Client ID/secret in Clerk production (corrected by the user; the old secret was
   exposed in the session and is being replaced), and Clerk production paths still point to the
   Account Portal (set sign-in/sign-up to the application domain in the dashboard).
+
+## 2026-09-29 tumbleweed animation and share poster fit (uncommitted, same working tree)
+
+Request (user, 2026-09-29): implement `design_handoff_vaultix_tumbleweed_share` "for animation";
+then (2026-09-30) "just complete implement all", so section 2 (share poster fit) too.
+
+- `src/components/motion/tumbleweed.tsx`, ported from the handoff reference with its values
+  unchanged: three nested layers (roll, hop with a squash on landing, spin), a random sprite,
+  size, direction, speed, hop and spin per pass, one pass at a time, removed when the outer roll
+  ends. It is portalled to the body and rendered once in `src/app/layout.tsx` inside
+  `GunshotProvider`. Styles are in the motion section of `globals.css`, and `display: none` is
+  added to its reduced-motion safety net.
+- `public/brand/tumbleweed-{1,2,3}.webp`: the handoff PNGs (1254 px) scaled to 250 px, twice
+  the largest on-screen size, with nearest-neighbour as the handoff asks, WebP q90 with lossless
+  alpha, 15–34 KB each. They are fetched only when a pass rolls.
+- Adapted, not changed: `noUncheckedIndexedAccess` on the sprite pick, a typed style object, and
+  a pass already rolling disappears at once if reduced motion is switched on.
+- Tests: `tumbleweed.test.tsx`, 8 tests (nothing before 15 s; a pass by 40 s; removed on the
+  outer `animationend` only; the next pass after 50 s; hidden tab skipped but rescheduled; range
+  ends; reduced motion; `enabled={false}`). jsdom lacks `AnimationEvent`, so the file defines one
+  before React DOM loads; without it React listens for `webkitAnimationEnd` and the test passes
+  vacuously.
+- Verified: full unit suite (184 files, 1478 tests), typecheck and lint clean for project
+  sources. In Chrome on `pnpm dev`: a pass appeared after about 27 s at z 96, pixelated, above the
+  page, and was removed when it finished. `pnpm build` compiles, but its type check fails only
+  on the untracked handoff's own `reference/tumbleweed.tsx`, which `tsconfig` picks up. Move or
+  exclude the handoff folder before building.
+- Share poster fit: `src/components/motion/use-share-fit.ts` and the fit rules after the
+  existing share-poster rules in `globals.css`. `share-poster.tsx` gains the two scale wrappers
+  and refs; the share logic, focus, Escape and copy are unchanged. The poster is laid out at a
+  fixed 420 px and scaled 0.36–1 on a wrapper, since the sheet animates its own transform.
+- Three departures from the reference, each because it broke the handoff's own acceptance or
+  arithmetic: (1) a short landscape viewport goes side by side when stacking would need a scale
+  under 0.36. At 667×375 the handoff's 760 px rule stacked the dialog, and it scrolled 50 px even
+  at the floor. (2) The caption's `flex: 0 1 400px` became a 400 px height basis when stacked, so
+  it is `0 0 auto` there. (3) The 18 px gap moved from the tight class to the stacked class. The
+  tight class also cut the side-by-side gap to 18 px while the hook budgets 44 px; the README says
+  44 px side by side and 18 px stacked. No wrapping in either layout: side by side, the width
+  budget is exact to the pixel.
+- Verified in Chrome on `pnpm dev`, through a temporary page (since deleted) that opened the
+  dialog with a sample Wanted, the shell hidden: `scrollHeight <= innerHeight` at 360×640 (stacked,
+  0.77), 390×844 (stacked, 0.85), 667×375 (side, 0.455), 768×1024 (stacked, 1), 1024×768,
+  1280×720 and 1440×900 (side, 1). The handoff expects 0.4–0.5 at 360×640, but the sample
+  poster, one title line, is only 485 px tall, so it needs less shrinking. Only the finished
+  (transparent) dust puffs reach past the sides, inside the dialog's `overflow-x: hidden`.
+- Tests: `use-share-fit.test.ts`, 19 tests (the handoff's three layouts plus 768×1024, the scale
+  inside 0.36–1 at every acceptance size and two extremes, the stacked and side scale arithmetic,
+  the landscape fallback, an unmeasured poster, and re-measuring on resize and rotation).
+- Not added: the Playwright check that the share dialog does not scroll on the `mobile` project.
+  The dialog is on `/wanted/[id]`, which needs an email-verified session and a published Wanted.
+  CI cannot seed either, and this checkout points at the hosted Supabase project, where signing
+  up would send real email. Add it with the gated specs once a local stack has a seeded Wanted.
+- Seen, not touched: on the other session's in-progress mobile shell, `.shell-compact` and
+  `.mobile-tab-bar` reach 473 px at a 360 px viewport, so mobile Chrome widens the layout viewport.
+- Open question: WCAG 2.2.2 (Pause, Stop, Hide, Level A) covers moving content that starts on
+  its own and lasts over 5 s. The tumbleweed respects reduced motion but has no on-page control.
+  Recommendation: let the Gunshot toggle (or a general Motion toggle) also turn it off.
