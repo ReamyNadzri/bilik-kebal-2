@@ -7,7 +7,11 @@ import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { GoogleIcon } from "./google-icon";
 import { UiStatus } from "./ui-status";
-import { clerkErrorField, clerkMessage } from "@/features/presentation/auth/clerk-messages";
+import {
+  clerkErrorField,
+  clerkMessage,
+  toClerkError,
+} from "@/features/presentation/auth/clerk-messages";
 import { useFinalizeNavigation } from "@/features/presentation/auth/clerk-navigation";
 import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
 import { useHydrated } from "@/features/presentation/use-hydrated";
@@ -51,11 +55,24 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
     }
   }, [errors]);
 
-  function refuse(error: Parameters<typeof clerkMessage>[0]) {
+  function refuse(error: unknown) {
     const message = clerkMessage(error);
-    const field = error ? clerkErrorField(error) : null;
+    const field = clerkErrorField(error);
     setErrors(field ? [{ fieldId: field, message }] : []);
-    setOutcome({ kind: "refused", message, offline: !error });
+    setOutcome({ kind: "refused", message, offline: toClerkError(error) === null });
+  }
+
+  /**
+   * Clerk methods usually return their refusal, but can also throw (network,
+   * an unexpected sign-in state). Either way the form must leave "Signing
+   * in…" and say what happened, never wait forever.
+   */
+  async function attempt(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (caught) {
+      refuse(caught);
+    }
   }
 
   async function finishOrContinue() {
@@ -64,12 +81,14 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
       await signIn.finalize({ navigate: finalizeTo(next) });
       return;
     }
-    const emailFactor = signIn.supportedSecondFactors.some(
+    // Device trust (a password sign-in from a new device) is always an email
+    // code; a second factor is only handled here when email is one of them.
+    const emailFactor = (signIn.supportedSecondFactors ?? []).some(
       (factor) => factor.strategy === "email_code",
     );
     if (
-      (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") &&
-      emailFactor
+      signIn.status === "needs_client_trust" ||
+      (signIn.status === "needs_second_factor" && emailFactor)
     ) {
       const { error } = await signIn.mfa.sendEmailCode();
       if (error) return refuse(error);
@@ -87,12 +106,14 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
   async function handleGoogleSignIn() {
     if (!signIn) return;
     setOutcome({ kind: "submitting" });
-    const { error } = await signIn.sso({
-      strategy: "oauth_google",
-      redirectUrl: next,
-      redirectCallbackUrl: "/sso-callback",
+    await attempt(async () => {
+      const { error } = await signIn.sso({
+        strategy: "oauth_google",
+        redirectUrl: next,
+        redirectCallbackUrl: "/sso-callback",
+      });
+      if (error) refuse(error);
     });
-    if (error) refuse(error);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -124,9 +145,11 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const { error } = await signIn.password({ emailAddress: email, password });
-    if (error) return refuse(error);
-    await finishOrContinue();
+    await attempt(async () => {
+      const { error } = await signIn.password({ emailAddress: email, password });
+      if (error) return refuse(error);
+      await finishOrContinue();
+    });
   }
 
   async function handleCode(event: FormEvent<HTMLFormElement>) {
@@ -141,9 +164,11 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
 
     setErrors([]);
     setOutcome({ kind: "submitting" });
-    const { error } = await signIn.mfa.verifyEmailCode({ code });
-    if (error) return refuse(error);
-    await finishOrContinue();
+    await attempt(async () => {
+      const { error } = await signIn.mfa.verifyEmailCode({ code });
+      if (error) return refuse(error);
+      await finishOrContinue();
+    });
   }
 
   const errorFor = (fieldId: string) => errors.find((error) => error.fieldId === fieldId)?.message;
@@ -190,7 +215,12 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
           <button
             type="button"
             className="button button--quiet"
-            onClick={() => void signIn?.mfa.sendEmailCode()}
+            onClick={() =>
+              void attempt(async () => {
+                const result = await signIn?.mfa.sendEmailCode();
+                if (result?.error) refuse(result.error);
+              })
+            }
             disabled={submitting}
           >
             Send a new code

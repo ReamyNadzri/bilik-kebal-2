@@ -148,3 +148,14 @@ test("leaves room for Clerk's bot check", () => {
 
   expect(container.querySelector("#clerk-captcha")).not.toBeNull();
 });
+
+test("never stays on 'Creating your account…' when Clerk throws", async () => {
+  const signUp = fakeSignUp();
+  signUp.password.mockRejectedValue(new TypeError("boom"));
+  render(<SignUpForm />);
+
+  register();
+
+  expect(await screen.findByText("No account was created")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Create account" })).toBeEnabled();
+});

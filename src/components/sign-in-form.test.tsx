@@ -162,3 +162,45 @@ test("starts Google sign-in through the SSO callback", async () => {
     }),
   );
 });
+
+test("reads the code Clerk nests inside its API error, so the wording stays neutral", async () => {
+  const signIn = fakeSignIn();
+  signIn.password.mockResolvedValue({
+    error: {
+      code: "api_response_error",
+      message: "Couldn't find your account.",
+      errors: [{ code: "form_identifier_not_found", message: "Couldn't find your account." }],
+    },
+  } as never);
+  render(<SignInForm />);
+
+  signInWith();
+
+  expect(
+    await screen.findAllByText("The email address or password is not correct."),
+  ).not.toHaveLength(0);
+  expect(screen.queryByText("Couldn't find your account.")).not.toBeInTheDocument();
+});
+
+test("asks for the device code even when Clerk lists no second factors yet", async () => {
+  const signIn = fakeSignIn("needs_client_trust");
+  (signIn as { supportedSecondFactors: unknown }).supportedSecondFactors = null;
+  render(<SignInForm />);
+
+  signInWith();
+
+  expect(await screen.findByText("Check your email")).toBeInTheDocument();
+  expect(signIn.mfa.sendEmailCode).toHaveBeenCalledOnce();
+});
+
+test("never stays on 'Signing in…' when Clerk throws", async () => {
+  const signIn = fakeSignIn();
+  signIn.password.mockRejectedValue(new TypeError("boom"));
+  render(<SignInForm />);
+
+  signInWith();
+
+  expect(await screen.findByText("You were not signed in")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Sign in$/ })).toBeEnabled();
+  expect(screen.queryByText("boom")).not.toBeInTheDocument();
+});

@@ -7,7 +7,11 @@ import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { GoogleIcon } from "./google-icon";
 import { UiStatus } from "./ui-status";
-import { clerkErrorField, clerkMessage } from "@/features/presentation/auth/clerk-messages";
+import {
+  clerkErrorField,
+  clerkMessage,
+  toClerkError,
+} from "@/features/presentation/auth/clerk-messages";
 import {
   syncClerkAccount,
   useFinalizeNavigation,
@@ -43,11 +47,20 @@ export function SignUpForm() {
     }
   }, [errors]);
 
-  function refuse(error: Parameters<typeof clerkMessage>[0]) {
+  function refuse(error: unknown) {
     const message = clerkMessage(error);
-    const field = error ? clerkErrorField(error) : null;
+    const field = clerkErrorField(error);
     setErrors(field ? [{ fieldId: field, message }] : []);
-    setOutcome({ kind: "refused", message, offline: !error });
+    setOutcome({ kind: "refused", message, offline: toClerkError(error) === null });
+  }
+
+  /** Clerk can throw as well as return a refusal; the form must never hang. */
+  async function attempt(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (caught) {
+      refuse(caught);
+    }
   }
 
   async function finish() {
@@ -59,12 +72,14 @@ export function SignUpForm() {
   async function handleGoogleSignUp() {
     if (!signUp) return;
     setOutcome({ kind: "submitting" });
-    const { error } = await signUp.sso({
-      strategy: "oauth_google",
-      redirectUrl: DEFAULT_SIGNED_IN_PATH,
-      redirectCallbackUrl: "/sso-callback",
+    await attempt(async () => {
+      const { error } = await signUp.sso({
+        strategy: "oauth_google",
+        redirectUrl: DEFAULT_SIGNED_IN_PATH,
+        redirectCallbackUrl: "/sso-callback",
+      });
+      if (error) refuse(error);
     });
-    if (error) refuse(error);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -118,24 +133,26 @@ export function SignUpForm() {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    // The display name travels as the first name; it becomes the profile name
-    // once, when the account is provisioned, and belongs to the member after.
-    const { error } = await signUp.password({
-      emailAddress: email,
-      password,
-      firstName: displayName,
+    await attempt(async () => {
+      // The display name travels as the first name; it becomes the profile name
+      // once, when the account is provisioned, and belongs to the member after.
+      const { error } = await signUp.password({
+        emailAddress: email,
+        password,
+        firstName: displayName,
+      });
+      if (error) return refuse(error);
+
+      if (signUp.status === "complete") {
+        await finish();
+        return;
+      }
+
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) return refuse(sendError);
+      setStep("code");
+      setOutcome({ kind: "idle" });
     });
-    if (error) return refuse(error);
-
-    if (signUp.status === "complete") {
-      await finish();
-      return;
-    }
-
-    const { error: sendError } = await signUp.verifications.sendEmailCode();
-    if (sendError) return refuse(sendError);
-    setStep("code");
-    setOutcome({ kind: "idle" });
   }
 
   async function handleCode(event: FormEvent<HTMLFormElement>) {
@@ -150,25 +167,29 @@ export function SignUpForm() {
 
     setErrors([]);
     setOutcome({ kind: "submitting" });
-    const { error } = await signUp.verifications.verifyEmailCode({ code });
-    if (error) return refuse(error);
+    await attempt(async () => {
+      const { error } = await signUp.verifications.verifyEmailCode({ code });
+      if (error) return refuse(error);
 
-    if (signUp.status === "complete") {
-      await finish();
-      return;
-    }
-    setOutcome({
-      kind: "refused",
-      message:
-        "Your email is confirmed, but the account needs more details. Contact VAULTIX support.",
+      if (signUp.status === "complete") {
+        await finish();
+        return;
+      }
+      setOutcome({
+        kind: "refused",
+        message:
+          "Your email is confirmed, but the account needs more details. Contact VAULTIX support.",
+      });
     });
   }
 
   async function resend() {
     if (!signUp) return;
-    const { error } = await signUp.verifications.sendEmailCode();
-    if (error) return refuse(error);
-    setResent(true);
+    await attempt(async () => {
+      const { error } = await signUp.verifications.sendEmailCode();
+      if (error) return refuse(error);
+      setResent(true);
+    });
   }
 
   const errorFor = (fieldId: string) => errors.find((error) => error.fieldId === fieldId)?.message;
