@@ -959,3 +959,7 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   SECURITY DEFINER warning. Production has 7 accounts, all email-verified, so the unverified-import
   question does not arise. The live site keeps working on Supabase Auth through the transitional
   paths until the branch is deployed.
+- 2026-09-30: the 7 production accounts were imported into Clerk production (`--apply
+  --production`) and linked: 7 profiles, 7 distinct Clerk ids, 7 verified; a re-run plans nothing.
+  The export file was deleted. Remaining: Clerk webhook + `CLERK_WEBHOOK_SIGNING_SECRET` and
+  `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production, merge and deploy, smoke test, then slice 6.
