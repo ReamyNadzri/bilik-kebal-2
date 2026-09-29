@@ -337,7 +337,7 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
 
       <p className="auth-form__links">
         <Link href="/recover">Forgot your password?</Link>
-        <Link href="/sign-up">Create an account</Link>
+        <Link href="/sign-up">Create account</Link>
       </p>
     </form>
   );

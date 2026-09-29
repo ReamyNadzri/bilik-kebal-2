@@ -79,10 +79,7 @@ test("withholds the resend when no address is pending in this browser", () => {
   render(<EmailVerification status="pending" address={null} />);
 
   expect(screen.queryByRole("button", { name: "Resend the link" })).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /create an account/i })).toHaveAttribute(
-    "href",
-    "/sign-up",
-  );
+  expect(screen.getByRole("link", { name: "Create account" })).toHaveAttribute("href", "/sign-up");
 });
 
 test("sends the resend request with no browser-chosen recipient", async () => {

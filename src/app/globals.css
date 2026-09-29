@@ -828,9 +828,29 @@ textarea {
 
 .account-menu {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* A guest's Sign in and Create account on the rail: the shared ghost and
+   brass buttons, a little narrower so the rail holds one row. */
+.account-menu--guest .button {
+  padding-inline: 0.875rem;
+}
+
+/* Where the rail cannot hold both in one row it keeps Sign in, as the tablet
+   row does; the sign-in screen links on to Create account. */
+@media (max-width: 81.9375rem) {
+  .account-menu .account-menu__create {
+    display: none;
+  }
+}
+
+/* A guest has no inbox; the bell would only be a second way to sign in. The
+   compact row likewise shows Inbox to members only. */
+.app-shell__bar:has(.account-menu--guest) .shell-nav__account {
+  display: none;
 }
 
 .account-menu__name {
@@ -842,29 +862,6 @@ textarea {
   margin: 0;
   color: var(--text-on-dark-muted);
   font-size: 0.9375rem;
-}
-
-.account-menu__action.button--quiet {
-  border-color: var(--border-rail);
-  color: var(--text-on-dark);
-}
-
-.account-menu__action.button--quiet:hover {
-  background: var(--border-rail);
-  color: var(--text-on-dark-strong);
-}
-
-.account-menu__action.account-menu__signup {
-  background: var(--accent-brass);
-  border-color: var(--accent-brass);
-  color: var(--bg-rail);
-  font-weight: 700;
-}
-
-.account-menu__action.account-menu__signup:hover {
-  background: var(--text-on-dark-strong);
-  border-color: var(--text-on-dark-strong);
-  color: var(--bg-rail);
 }
 
 /* The failure sits on a surface rather than bare on the rail: the error token
@@ -1162,9 +1159,10 @@ textarea {
   }
 }
 
-/* Tablet-only controls: a phone reaches them from the tab bar and the menu. */
+/* Tablet-only controls: a phone reaches them from the tab bar and the menu.
+   Scoped to the row so it outranks `.button`, declared later. */
 @media (max-width: 44.9375rem) {
-  .shell-compact__tablet {
+  .shell-compact .shell-compact__tablet {
     display: none;
   }
 }
@@ -1358,32 +1356,10 @@ textarea {
   gap: var(--space-2);
 }
 
-.shell-menu__sign-in {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* The guest's Sign in and Create account: the same ghost and brass buttons
+   as the rail and the tablet row, given the menu's taller touch target. */
+.shell-menu__auth.button {
   min-height: 3.25rem;
-  padding: 0 0.875rem;
-  background: var(--bg-rail-raised);
-  border: var(--border-width-1) solid var(--border-rail);
-  color: var(--text-on-dark);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.shell-menu__sign-in:hover {
-  border-color: var(--accent-brass);
-  color: var(--text-on-dark-strong);
-}
-
-.shell-menu__create.button {
-  justify-content: center;
-  min-height: 3.25rem;
-  font-family: var(--font-pixel);
-  font-size: var(--text-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 /* A preference row: Music, and on a phone the Gunshot transition. */

@@ -43,7 +43,7 @@ test.describe("email verification", () => {
     // Exact: "Expired" would also match "has expired" in the heading.
     await expect(page.getByText("Expired", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Resend the link" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Create an account" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Create account" })).toBeVisible();
   });
 
   test("no longer marks the screen as development fixture data", async ({ page }) => {

@@ -44,16 +44,9 @@ export function AccountMenu() {
 
   if (!isUserSignedIn) {
     return (
-      <div className="flex items-center gap-2">
-        <Link className="button button--quiet account-menu__action" href={signInPathFor(pathname)}>
-          Sign in
-        </Link>
-        <Link
-          className="button button--quiet account-menu__action account-menu__signup"
-          href="/sign-up"
-        >
-          Sign up
-        </Link>
+      <div className="account-menu account-menu--guest">
+        <SignInLink pathname={pathname} />
+        <CreateAccountLink className="account-menu__create" />
       </div>
     );
   }
@@ -168,6 +161,29 @@ export function AccountMenu() {
 }
 
 /**
+ * The two ways in for a guest, worded and styled the same wherever the shell
+ * offers them — the desktop rail, the tablet row and the compact menu:
+ * "Sign in" as a ghost button, "Create account" as the brass one.
+ *
+ * Sign in carries the current path forward; creating an account starts fresh.
+ */
+function SignInLink({ className = "", pathname }: { className?: string; pathname: string }) {
+  return (
+    <Link className={`button button--ghost ${className}`.trim()} href={signInPathFor(pathname)}>
+      Sign in
+    </Link>
+  );
+}
+
+function CreateAccountLink({ className = "" }: { className?: string }) {
+  return (
+    <Link className={`button button--brass ${className}`.trim()} href="/sign-up">
+      Create account
+    </Link>
+  );
+}
+
+/**
  * The signed-in viewer as the compact header and menu show them, by the same
  * rules as `AccountMenu`: signed in when either the app account or the Clerk
  * session says so, with Clerk's name and picture standing in until the
@@ -233,11 +249,7 @@ export function CompactAccount({ unreadCount = null }: { readonly unreadCount?: 
   if (viewer.kind === "loading") return null;
 
   if (viewer.kind === "guest") {
-    return (
-      <Link className="shell-compact__control shell-compact__tablet" href={signInPathFor(pathname)}>
-        Sign in
-      </Link>
-    );
+    return <SignInLink className="shell-compact__tablet" pathname={pathname} />;
   }
 
   const unread = unreadCount ?? 0;
@@ -280,12 +292,8 @@ export function MenuAccount() {
   if (viewer.kind === "guest") {
     return (
       <div className="shell-menu__guest">
-        <Link className="shell-menu__sign-in" href={signInPathFor(pathname)}>
-          Sign in
-        </Link>
-        <Link className="button button--brass shell-menu__create" href="/sign-up">
-          Create account
-        </Link>
+        <SignInLink className="shell-menu__auth" pathname={pathname} />
+        <CreateAccountLink className="shell-menu__auth" />
       </div>
     );
   }

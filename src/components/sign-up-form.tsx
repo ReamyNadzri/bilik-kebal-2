@@ -345,7 +345,9 @@ export function SignUpForm() {
       {submitting ? <UiStatus kind="loading" heading="Creating your account" /> : null}
 
       <p className="auth-form__links">
-        <Link href="/sign-in">Already have an account?</Link>
+        <span>
+          Already have an account? <Link href="/sign-in">Sign in</Link>
+        </span>
       </p>
     </form>
   );

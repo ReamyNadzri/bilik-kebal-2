@@ -1,6 +1,6 @@
 import { clerkHooks } from "@/features/presentation/test-support/clerk-hooks";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { AccountMenu } from "./account-menu";
+import { AccountMenu, CompactAccount, MenuAccount } from "./account-menu";
 import type { AccountViewModel } from "@/contracts";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
 import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
@@ -53,6 +53,35 @@ describe("signed out", () => {
     renderMenu(null);
 
     expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
+  });
+
+  /** The rail, the tablet row and the compact menu word and style these alike. */
+  test.each([
+    ["rail", AccountMenu],
+    ["compact menu", MenuAccount],
+  ])("the %s offers Sign in and Create account as the shared button pair", (_, Component) => {
+    render(
+      <AuthProvider initialAccount={null}>
+        <Component />
+      </AuthProvider>,
+    );
+
+    const signIn = screen.getByRole("link", { name: "Sign in" });
+    const create = screen.getByRole("link", { name: "Create account" });
+    expect(signIn).toHaveClass("button", "button--ghost");
+    expect(create).toHaveClass("button", "button--brass");
+    expect(create).toHaveAttribute("href", "/sign-up");
+    expect(screen.queryByText(/sign up|register/i)).not.toBeInTheDocument();
+  });
+
+  test("the tablet row offers the same Sign in button", () => {
+    render(
+      <AuthProvider initialAccount={null}>
+        <CompactAccount />
+      </AuthProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveClass("button", "button--ghost");
   });
 });
 

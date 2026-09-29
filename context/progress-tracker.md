@@ -1072,3 +1072,26 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
   untracked tumbleweed handoff's `reference/tumbleweed.tsx`, as recorded above.
 - Not verified: real touch swipes and the hint timer on a device, and the signed-in menu with a
   real session. Not added: Playwright specs under `tests/e2e/ui/` for these.
+
+## 2026-09-30 — Guest account actions standardised (`claude/mobile-tablet-layout`)
+
+- One vocabulary for getting in: **Sign in** and **Create account** (plus Sign out). "Sign up" on
+  the desktop rail and "Create an account" on the sign-up heading, the sign-in form and the email
+  verification screen are gone; the sign-up form now reads "Already have an account? Sign in".
+  `src/app/api/auth/resend-verification/route.ts` still says "Sign up again." — Codex lane, left
+  for them.
+- One look: Sign in is the ghost-on-timber `.button`, Create account the brass one, on the desktop
+  rail, the tablet row and the compact menu (`SignInLink` / `CreateAccountLink` in
+  `account-menu.tsx`). The rail and menu previously used three different treatments.
+- Where each appears: the rail shows both from 1312 px; from 1200 to 1311 px it keeps Sign in only,
+  as the tablet row does, because the guest rail could not hold one row there. The menu shows both
+  at every compact width; a phone row shows neither.
+- The rail's Notifications bell is hidden for guests (CSS `:has(.account-menu--guest)`); for a guest
+  it was only a second link to sign-in, and the compact row already shows Inbox to members only.
+- Fixed on the way: the guest rail wrapped "Post a Wanted" onto a second row at every desktop
+  width; now one row from 1200 px up (checked every 5 px from 1200 to 1330 px, plus 1440 and 1600).
+- Verified: unit suite 1577 passed, typecheck, lint and `pnpm build` clean. Playwright
+  `auth-guards`, `auth-forms`, `email-verification` and `hunters` specs: 60 passed, 14 failed, and
+  the same 14 fail on an unmodified build of HEAD (the `/verify-email` specs predate the Clerk
+  screen, the 360 px shell test expects a header Sign in that the phone row moved into the menu,
+  and the recovery spec times out) — not caused by this change, still to be updated.
