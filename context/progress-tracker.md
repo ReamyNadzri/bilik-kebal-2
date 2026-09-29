@@ -804,5 +804,34 @@ kind of entry chosen inside; UMPSA added as a second institution (Pekan campus o
   listed course that everyone sees in the Board filter; there is no rate limit or Sheriff review
   of new codes yet. Which email domains prove UMPSA membership. Whether a campus should narrow the
   programmes offered there (the user chose not to, for now).
-- Requested, not started: reporting a Wanted (bounty) to Sheriffs and the Owner. Reporting exists
-  for claims only; what a Sheriff may do with a reported Wanted is not decided.
+- Reporting a Wanted (bounty) to Sheriffs and the Owner was requested and then cancelled by the
+  user (2026-09-28). Reporting still exists for claims only.
+
+## 2026-09-29 each university browsed on its own (branch `claude/uitm-terengganu-taxonomy`)
+
+Decisions (user, 2026-09-29): UMPSA and UiTM are separate. A filter, not a wall: a member sees only
+their own university's Board, map and Hunters, and a shared link to another university's Wanted
+still opens read-only. Anyone not yet institution-verified picks a university with a switch. UMPSA
+student addresses are `@adab.umpsa.edu.my`. Assumed, stated to the user and not objected to: one
+account belongs to one university.
+
+- Migration `202610150005_university_separation.sql` (dry-run on Cloud and rolled back, then
+  pushed): `institutions.short_name` (UiTM, UMPSA); `adab.umpsa.edu.my` as a UMPSA verification
+  domain; `list_public_hunters_at(institution, page_size, page)`. The two-argument
+  `list_public_hunters` stays so the deployed site keeps working until it moves over; drop it
+  after that deploy. Dry run: 5 UiTM Hunters, 0 UMPSA.
+- `loadUniversityChoice` (identity) and the pure `chooseUniversity`. The Board list, featured
+  requests, campus map, Hunters wall, homepage Hunters and the filter catalogue of anyone not yet
+  verified are read for that university. `ListWantedQuery.institutionId` is set by the loader and
+  never taken from the URL. `WantedSummary.institutionId` is new.
+- The institutions list for the switch is read with the service client (a signed-out reader has
+  no RLS path to `institutions`); only id, slug and names of active institutions.
+- UI: `UniversitySwitch` on the Board (both views), the map and the homepage's Featured Wanted; a
+  verified member sees "Showing UiTM, the university you verified with." instead. Switching drops
+  the filters in the URL. The Hunters wall label follows the university. A member verified at
+  another university sees a Wanted read-only: no Back, Claim or reply, and a note naming its
+  university. "UiTM email domain" copy is now "university email domain".
+- Not done: a university badge on each card (the campus name, for example "UMPSA Pekan", already
+  says it, and a Board only shows one university); an Institution Sheriff for UMPSA (Platform
+  Sheriffs and the Owner review UMPSA meanwhile); profile pages still list a member's Wanteds
+  whatever the viewer's university.

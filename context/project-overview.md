@@ -61,8 +61,11 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - The academic session is optional on an academic request.
 - Region lock: open campuses are UiTM Shah Alam, Puncak Alam, Kuala Terengganu, Dungun and Bukit
   Besi, and UMPSA Pekan; the other UiTM branch campuses appear on the map as "coming soon".
-- Institutions: UiTM and UMPSA (Pekan campus only). Each member transacts within the institution
-  they verified with and sees that institution's lists.
+- Institutions: UiTM and UMPSA (Pekan campus only), browsed separately. A member verified at one
+  sees only that university's Board, map, Hunters and homepage; anyone not yet verified picks a
+  university with a switch (remembered in a cookie). A shared link to another university's Wanted
+  opens read-only, naming its university. Posting, backing, claiming, replying and downloading stay
+  within the member's own university. This is a filter, not access control: RLS is unchanged.
 - Public member profiles show name, avatar, joined date, verification badge and the member's
   public Wanted requests only — never email, evidence, claims or contributions.
 - Hunters wall (user decision 2026-09-28): a second view on the Board (`/board?view=hunters`)

@@ -86,6 +86,7 @@ export class SupabaseWantedRepository implements WantedRepository {
       : request.or(
           `status.in.(open,reviewing),and(kind.in.(missing_item,discussion),status.in.(closed,fulfilled,expired),thread_closed_at.gte.${closedSince})`,
         );
+    if (query.institutionId) request = request.eq("institution_id", query.institutionId);
     if (query.kind) request = request.eq("kind", query.kind);
     if (query.campusId) request = request.eq("campus_id", query.campusId);
     if (query.courseId) request = request.eq("course_id", query.courseId);
@@ -296,20 +297,24 @@ export class SupabaseWantedRepository implements WantedRepository {
         lastSeenLocation: row.last_seen_location,
         thread: wantedThreadState(row, bounty),
         picture: pictures.get(row.id) ?? null,
+        institutionId: row.institution_id,
       };
       return [summary];
     });
   }
 
-  /** Every active campus with its region state and live open-Wanted totals. */
-  async listCampusRegions(): Promise<CampusRegion[]> {
+  /**
+   * Every active campus with its region state and live open-Wanted totals,
+   * of one university when `institutionId` is given.
+   */
+  async listCampusRegions(institutionId: string | null = null): Promise<CampusRegion[]> {
+    let campusesQuery = this.client
+      .from("campuses")
+      .select("id, name, region_open, latitude, longitude, map_x, map_y")
+      .eq("active", true);
+    if (institutionId !== null) campusesQuery = campusesQuery.eq("institution_id", institutionId);
     const [campuses, wanted] = await Promise.all([
-      this.client
-        .from("campuses")
-        .select("id, name, region_open, latitude, longitude, map_x, map_y")
-        .eq("active", true)
-        .order("sort_order")
-        .order("name"),
+      campusesQuery.order("sort_order").order("name"),
       this.client
         .from("wanted_requests")
         .select("id, campus_id")

@@ -3,12 +3,14 @@ import Link from "next/link";
 import { BoardViewToggle } from "@/components/board-view-toggle";
 import { HuntersWall } from "@/components/hunters-wall";
 import { UiStatus } from "@/components/ui-status";
+import { UniversitySwitch } from "@/components/university-switch";
 import { WantedBoard } from "@/components/wanted-board";
 import type { MarketplaceTaxonomy } from "@/contracts/marketplace";
 import { parseBoardFilters, toListWantedQuery } from "@/features/marketplace/filters";
 import { listWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
 import { huntersHref, parseHuntersParams } from "@/features/presentation/hunters-params";
 import { listPublicHunters } from "@/modules/profiles/loaders/hunters-operations";
+import { loadUniversityChoice } from "@/modules/identity";
 import { loadMarketplaceTaxonomy } from "@/modules/taxonomy/loaders/taxonomy-read";
 
 export const metadata: Metadata = {
@@ -64,20 +66,27 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
   if (params.view === "hunters") return huntersView(params);
 
   const filters = parseBoardFilters(params);
-  const [board, taxonomy] = await Promise.all([
+  const [board, taxonomy, university] = await Promise.all([
     listWanted(toListWantedQuery(filters)),
     readFilterCatalogue(),
+    loadUniversityChoice(),
   ]);
 
   return (
     <div className="page-bare">
       <BoardViewToggle current="wanted" />
+      {university !== null && board.status === "ready" ? (
+        <UniversitySwitch choice={university} resetHref="/board" />
+      ) : null}
       <div className="panel page-heading">
         <div>
           <h1>Wanted Board</h1>
           <p className="page-heading__lede">
-            Browse open academic requests across Malaysian campuses. Back a request or submit a
-            claim.
+            Browse open academic requests
+            {university === null
+              ? " across Malaysian campuses"
+              : ` at ${university.current.shortName}`}
+            . Back a request or submit a claim.
           </p>
         </div>
         <Link className="button button--primary" href="/wanted/new">
@@ -125,13 +134,23 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
  */
 async function huntersView(params: Record<string, string | string[] | undefined>) {
   const wanted = parseHuntersParams((name) => params[name]);
-  const hunters = await listPublicHunters({ page: wanted.page, pageSize: wanted.per });
+  const [hunters, university] = await Promise.all([
+    listPublicHunters({ page: wanted.page, pageSize: wanted.per }),
+    loadUniversityChoice(),
+  ]);
 
   return (
     <div className="page-bare">
       <BoardViewToggle current="hunters" />
+      {university !== null && hunters.ok ? (
+        <UniversitySwitch choice={university} resetHref="/board?view=hunters" />
+      ) : null}
       {hunters.ok ? (
-        <HuntersWall key={`${hunters.data.pageSize}:${hunters.data.page}`} initial={hunters.data} />
+        <HuntersWall
+          key={`${hunters.data.pageSize}:${hunters.data.page}`}
+          initial={hunters.data}
+          {...(university === null ? {} : { universityLabel: university.current.shortName })}
+        />
       ) : (
         <>
           <div className="panel page-heading">

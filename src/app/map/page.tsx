@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CampusMap } from "@/components/campus-map";
 import { UiStatus } from "@/components/ui-status";
+import { UniversitySwitch } from "@/components/university-switch";
 import { readAccount } from "@/features/presentation/auth/require-account";
+import { loadUniversityChoice } from "@/modules/identity";
 import { listCampusRegions } from "@/modules/wanted/loaders/wanted-operations";
 
 export const metadata: Metadata = {
@@ -19,7 +21,11 @@ export const dynamic = "force-dynamic";
  * email, the same bar as browsing the Board.
  */
 export default async function ExploreMapPage() {
-  const [regions, outcome] = await Promise.all([listCampusRegions(), readAccount()]);
+  const [regions, outcome, university] = await Promise.all([
+    listCampusRegions(),
+    readAccount(),
+    loadUniversityChoice(),
+  ]);
   const showCounts = outcome.kind === "account" && outcome.account.trust.email === "verified";
 
   if (!regions.ok) {
@@ -46,6 +52,7 @@ export default async function ExploreMapPage() {
 
   return (
     <div className="page-bare">
+      {university === null ? null : <UniversitySwitch choice={university} resetHref="/map" />}
       <CampusMap campuses={regions.data} showCounts={showCounts} />
     </div>
   );

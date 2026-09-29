@@ -124,7 +124,14 @@ Database records store `storage_provider`, `bucket`, `object_key`, checksum, siz
 
 - Every account registers with email/password and must verify its email.
 - Email verification proves control of an address; it does not grant a star emblem or transaction rights.
-- Institution verification is automatic only for approved UiTM domains or manual after private evidence review.
+- Institution verification is automatic only for approved institution domains (UiTM:
+  `student.uitm.edu.my`, `uitm.edu.my`; UMPSA: `adab.umpsa.edu.my`) or manual after private
+  evidence review.
+- Each university is browsed on its own. `loadUniversityChoice` (identity module) decides which
+  university a render shows: a verified member's own, otherwise the one picked in the
+  `vaultix_university` cookie, else the first active institution. The Board, featured requests,
+  campus map, Hunters wall and filter catalogue are read for that university; the server sets it and
+  never takes it from a query string. It filters what is listed and grants nothing.
 - Email-verified users may browse public Wanted metadata.
 - Institution-verified users may create/fund Wanted requests, submit claims, and receive entitled downloads.
 - A single student account may act as Commissioner, Backer, and Hunter.

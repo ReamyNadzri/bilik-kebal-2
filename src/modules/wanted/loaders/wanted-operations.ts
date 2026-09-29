@@ -27,7 +27,7 @@ import { failure, success } from "@/contracts/operation-result";
 import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { loadAccountContext } from "@/modules/identity";
+import { loadAccountContext, loadUniversityChoice } from "@/modules/identity";
 import type { WantedActor } from "../domain/wanted-policy";
 import { SupabaseWantedPosterRepository } from "../repositories/supabase-wanted-poster-repository";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
@@ -152,10 +152,17 @@ async function readContext() {
   return { actor, service: new WantedReadService(new SupabaseWantedRepository(readClient)) };
 }
 
+/**
+ * The Board of the reader's university: a verified member's own, anyone
+ * else's choice. The university is the server's, never the query string's.
+ */
 export async function listPublicWanted(query: ListWantedQuery): Promise<ListWantedResult> {
   try {
-    const loaded = await readContext();
-    return loaded.service.list(loaded.actor, query);
+    const [loaded, university] = await Promise.all([readContext(), loadUniversityChoice()]);
+    const scoped: ListWantedQuery = { ...query };
+    delete scoped.institutionId;
+    if (university !== null) scoped.institutionId = university.current.id;
+    return loaded.service.list(loaded.actor, scoped);
   } catch {
     return failure(
       "MARKETPLACE_UNAVAILABLE",
@@ -333,10 +340,10 @@ export async function listWantedReplies(publicId: string): Promise<ListWantedRep
  */
 export async function listCampusRegions(): Promise<ListCampusRegionsResult> {
   try {
-    const loaded = await readContext();
+    const [loaded, university] = await Promise.all([readContext(), loadUniversityChoice()]);
     const regions = await new SupabaseWantedRepository(
       createSupabaseAdminClient(),
-    ).listCampusRegions();
+    ).listCampusRegions(university?.current.id ?? null);
     const canSeeCounts = loaded.actor?.emailVerified === true;
     return success(
       regions.map((region): CampusRegion =>
