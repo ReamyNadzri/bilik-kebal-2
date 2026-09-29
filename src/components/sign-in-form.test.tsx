@@ -232,6 +232,55 @@ describe("arriving back from Google", () => {
     ).toBeInTheDocument();
   });
 
+  test("words a raw Google failure plainly instead of showing provider text", async () => {
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: {
+        code: "oauth_token_exchange_error",
+        message: 'oauth: token exchange: oauth2: "invalid_client"',
+      },
+    };
+    render(<SignInForm />);
+
+    expect(
+      await screen.findByText(
+        "Google sign-in could not be completed. Try again, or sign in with your password.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/invalid_client/)).not.toBeInTheDocument();
+  });
+
+  test("says nothing about an old Google attempt on a later plain visit", async () => {
+    window.sessionStorage.clear();
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: { code: "external_account_exists" },
+    };
+    render(<SignInForm />);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("You were not signed in")).not.toBeInTheDocument();
+  });
+
+  test("forgets a Google start older than ten minutes", async () => {
+    window.sessionStorage.setItem("vaultix_google_sign_in", String(Date.now() - 11 * 60_000));
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: { code: "external_account_exists" },
+    };
+    render(<SignInForm />);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("You were not signed in")).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("vaultix_google_sign_in")).toBeNull();
+  });
+
   test("continues to the emailed code when Clerk needs one more step", async () => {
     const signIn = fakeSignIn();
     signIn.status = "needs_second_factor";
