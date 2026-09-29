@@ -952,3 +952,10 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   duplicates and malformed rows; emails masked in output. Dry run and a create/delete probe ran
   against the dev Clerk instance only. Cutover runbook in the migration plan. Not run on
   production.
+- 2026-09-30: migrations `202610160001`–`202610160003` pushed to Supabase Cloud (`vaultix`) after a
+  pre-migration snapshot of every public/private function, public/storage policy and the profiles
+  FK (restore script kept outside the repo; `supabase db dump` needs Docker, which did not start).
+  Cloud check: all 7 PASS. Security advisor: only the intended `current_identity()` authenticated
+  SECURITY DEFINER warning. Production has 7 accounts, all email-verified, so the unverified-import
+  question does not arise. The live site keeps working on Supabase Auth through the transitional
+  paths until the branch is deployed.
