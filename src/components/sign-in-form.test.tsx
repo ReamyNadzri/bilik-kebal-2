@@ -153,7 +153,8 @@ test("says sign-in is unavailable when Clerk has not loaded", async () => {
   expect(screen.getByText(/Sign-in is unavailable right now/)).toBeInTheDocument();
 });
 
-test("starts Google sign-in through the SSO callback", async () => {
+test("starts Google sign-in through the SSO callback and marks the round trip", async () => {
+  window.sessionStorage.clear();
   const signIn = fakeSignIn();
   render(<SignInForm next="/board" />);
 
@@ -166,6 +167,7 @@ test("starts Google sign-in through the SSO callback", async () => {
       redirectCallbackUrl: "/sso-callback",
     }),
   );
+  expect(Number(window.sessionStorage.getItem("vaultix_google_sign_in"))).toBeGreaterThan(0);
 });
 
 test("reads the code Clerk nests inside its API error, so the wording stays neutral", async () => {
@@ -211,6 +213,9 @@ test("never stays on 'Signing in…' when Clerk throws", async () => {
 });
 
 describe("arriving back from Google", () => {
+  beforeEach(() => window.sessionStorage.setItem("vaultix_google_sign_in", String(Date.now())));
+  afterEach(() => window.sessionStorage.clear());
+
   test("says why Clerk refused the Google sign-in", async () => {
     const signIn = fakeSignIn();
     signIn.firstFactorVerification = {

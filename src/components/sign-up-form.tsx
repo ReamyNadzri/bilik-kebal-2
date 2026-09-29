@@ -13,6 +13,7 @@ import {
   toClerkError,
 } from "@/features/presentation/auth/clerk-messages";
 import {
+  markGoogleSignInStarted,
   syncClerkAccount,
   useFinalizeNavigation,
 } from "@/features/presentation/auth/clerk-navigation";
@@ -72,6 +73,7 @@ export function SignUpForm() {
   async function handleGoogleSignUp() {
     if (!signUp) return;
     setOutcome({ kind: "submitting" });
+    markGoogleSignInStarted();
     await attempt(async () => {
       const { error } = await signUp.sso({
         strategy: "oauth_google",

@@ -980,3 +980,9 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   length set to 12 by the user to match the forms. The local production build crashes with a
   Windows process-spawn error (0xc0000142) in Turbopack's CSS worker; the Vercel build is the
   build check for this change.
+- 2026-09-30 (`claude/clerk-sso-stale-error`): the Google-return handling showed Clerk's last
+  remembered Google failure on every later visit to /sign-in. It now reports a Google result only
+  on a return from a Google sign-in this tab started (sessionStorage marker, 10-minute window,
+  cleared on read), and unmapped Google errors read "Google sign-in could not be completed…"
+  instead of provider text. That remembered error was `invalid_client` (bad client secret in Clerk
+  production), which the user is replacing.
