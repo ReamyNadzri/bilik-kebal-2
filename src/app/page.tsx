@@ -184,7 +184,7 @@ export default async function HomePage() {
         </ol>
 
         <div className="home-steps__foot">
-          <p>
+          <p className="mobile-hide">
             An unfulfilled bounty expires at the end of its duration, and every contribution is
             refunded.
           </p>
@@ -200,9 +200,15 @@ export default async function HomePage() {
             <h2 className="on-dark" id="home-featured-title">
               Featured Wanted
             </h2>
-            <p className="section-head__lede on-dark-muted">
+            <p className="section-head__lede on-dark-muted mobile-hide">
               The newest open requests students have posted on the Board.
             </p>
+            {featured.status === "ready" && featured.data.length > 1 ? (
+              <p className="rail-hint" aria-hidden="true">
+                <span>Swipe for more</span>
+                <span className="rail-hint__arrows">›››</span>
+              </p>
+            ) : null}
             {university !== null && featured.status === "ready" ? (
               <UniversitySwitch choice={university} resetHref="/" />
             ) : null}
@@ -244,7 +250,7 @@ export default async function HomePage() {
           />
         ) : (
           <div className="board-surface">
-            <ul className="wanted-grid" aria-label="Open Wanted requests">
+            <ul className="wanted-grid wanted-grid--rail" aria-label="Open Wanted requests">
               {featured.data.map((wanted) => (
                 <WantedCard key={wanted.id} wanted={wanted} now={now} />
               ))}
@@ -265,7 +271,9 @@ export default async function HomePage() {
             sizes="(min-width: 56rem) 45rem, 100vw"
           />
           <h2>Where is knowledge needed?</h2>
-          <p>Open the map to see where students are asking for resources, campus by campus.</p>
+          <p className="mobile-hide">
+            Open the map to see where students are asking for resources, campus by campus.
+          </p>
           <Link className="button button--brass" href="/map">
             Explore the map <span aria-hidden="true">→</span>
           </Link>

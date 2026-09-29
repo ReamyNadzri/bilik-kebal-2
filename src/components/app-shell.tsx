@@ -1,9 +1,13 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { MobileTabBar } from "./mobile-tab-bar";
 import { ShotLink } from "./motion/gunshot-transition";
+import { PageSwipe } from "./page-swipe";
+import { ShellBackButton } from "./shell-back-button";
+import { ShellHeader, ShellMenu, ShellMenuProvider, ShellMenuToggle } from "./shell-menu";
 import { ShellNav } from "./shell-nav";
-import { ThemeMusic } from "./theme-music";
-import type { NavItem, NavItemId } from "@/features/presentation/navigation";
+import { ThemeMusicProvider, ThemeMusicToggle } from "./theme-music";
+import { POST_WANTED_NAV, type NavItem, type NavItemId } from "@/features/presentation/navigation";
 
 export interface AppShellProps {
   children: ReactNode;
@@ -29,16 +33,31 @@ export interface AppShellProps {
    * without standing up a session.
    */
   accountMenu?: ReactNode;
+  /**
+   * The compact header's account controls (Inbox and avatar, or Sign in),
+   * shown below 1200 px in place of `accountMenu`. A slot for the same reason.
+   */
+  compactAccount?: ReactNode;
+  /** The account block at the foot of the compact menu. A slot likewise. */
+  menuAccount?: ReactNode;
 }
 
 /**
  * Application frame: skip link, timber rail, main landmark, footer.
  *
- * The frame is a Server Component; only the navigation hydrates, because
- * marking the current destination needs the path, and the theme music toggle,
- * which lives here so the root layout keeps it playing across navigation. At 360 px the rail stacks
- * into bands rather than collapsing behind a disclosure button, so the shell
- * still needs no JavaScript to be usable.
+ * The frame is a Server Component; the navigation, the header's scroll and
+ * menu state, and the theme music toggle hydrate — the music lives here so the
+ * root layout keeps it playing across navigation.
+ *
+ * Three layouts, chosen in CSS so the server renders each correctly
+ * (design_handoff_vaultix_mobile):
+ * - From 1200 px, the full rail: destinations, title search, account, and
+ *   the one prominent action.
+ * - Below 1200 px, one compact row — back, wordmark, account shortcuts and a
+ *   Menu toggle — whose drop-down panel carries the destinations, the search
+ *   and the account block. Tablets keep "Post a Wanted" in the row.
+ * - Below 720 px, a bottom tab bar as well, sideways page swipes, and no
+ *   footer.
  *
  * Content is written on paper laid over the timber
  * (docs/superpowers/specs/2026-09-16-vaultix-frontier-visual-handoff.md).
@@ -48,72 +67,98 @@ export interface AppShellProps {
 export function AppShell({
   accountMenu,
   children,
+  compactAccount,
   currentNavId,
+  menuAccount,
   roleNav = [],
   unreadCount = null,
 }: AppShellProps) {
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content">
-        Skip to content
-      </a>
+    <ThemeMusicProvider>
+      <ShellMenuProvider>
+        <div className="app-shell">
+          <a className="skip-link" href="#main-content">
+            Skip to content
+          </a>
 
-      <header className="app-shell__header">
-        <div className="app-shell__bar">
-          {/* Not prefetched on sight: the homepage has no loading state to buy. */}
-          <ShotLink className="app-shell__wordmark" href="/" prefetch={false}>
-            <Image
-              className="app-shell__logo"
-              src="/brand/logo-tile.webp"
-              alt=""
-              width={40}
-              height={40}
-              priority
-              unoptimized
-            />
-            VAULTIX
-          </ShotLink>
+          <ShellHeader>
+            <div className="app-shell__bar">
+              <ShellBackButton />
 
-          <ShellNav currentNavId={currentNavId} roleNav={roleNav} unreadCount={unreadCount} />
+              {/* Not prefetched on sight: the homepage has no loading state to buy. */}
+              <ShotLink className="app-shell__wordmark" href="/" prefetch={false}>
+                <Image
+                  className="app-shell__logo"
+                  src="/brand/logo-tile.webp"
+                  alt=""
+                  width={40}
+                  height={40}
+                  priority
+                  unoptimized
+                />
+                <span className="app-shell__wordmark-text">VAULTIX</span>
+              </ShotLink>
 
-          <div className="app-shell__account">
-            <ThemeMusic />
-            {accountMenu}
-          </div>
-        </div>
-      </header>
+              <ShellNav currentNavId={currentNavId} roleNav={roleNav} unreadCount={unreadCount} />
 
-      <main id="main-content" tabIndex={-1} className="app-shell__main">
-        <div className="app-shell__sheet">{children}</div>
-      </main>
+              <div className="app-shell__account">
+                <ThemeMusicToggle />
+                {accountMenu}
+              </div>
 
-      <footer className="app-shell__footer">
-        <div className="app-shell__footer-inner">
-          <div className="app-shell__footer-brand">
-            <Image
-              className="app-shell__logo"
-              src="/brand/logo-tile.webp"
-              alt=""
-              width={44}
-              height={44}
-              unoptimized
-            />
-            <div>
-              <p className="app-shell__footer-name">VAULTIX</p>
-              <p className="app-shell__footer-motto">Knowledge worth sharing</p>
+              <div className="shell-compact">
+                {compactAccount}
+                <ShotLink
+                  className="shell-compact__post shell-compact__tablet"
+                  href={POST_WANTED_NAV.href}
+                  prefetch={false}
+                >
+                  {POST_WANTED_NAV.label}
+                </ShotLink>
+                <ShellMenuToggle />
+              </div>
             </div>
-          </div>
-          <p className="app-shell__footer-line">
-            VAULTIX is an academic resource bounty marketplace for Malaysian university students. A
-            Sheriff reviews every claim before anyone gains access or is paid.
-          </p>
-          {process.env.NODE_ENV === "production" ? null : (
-            <p className="app-shell__dev-marker">
-              Development build. Screens marked &ldquo;Development only&rdquo; show fixture data.
-            </p>
-          )}
+
+            <ShellMenu account={menuAccount} currentNavId={currentNavId} roleNav={roleNav} />
+          </ShellHeader>
+
+          <main id="main-content" tabIndex={-1} className="app-shell__main">
+            <div className="app-shell__sheet">{children}</div>
+          </main>
+
+          <footer className="app-shell__footer">
+            <div className="app-shell__footer-inner">
+              <div className="app-shell__footer-brand">
+                <Image
+                  className="app-shell__logo"
+                  src="/brand/logo-tile.webp"
+                  alt=""
+                  width={44}
+                  height={44}
+                  unoptimized
+                />
+                <div>
+                  <p className="app-shell__footer-name">VAULTIX</p>
+                  <p className="app-shell__footer-motto">Knowledge worth sharing</p>
+                </div>
+              </div>
+              <p className="app-shell__footer-line">
+                VAULTIX is an academic resource bounty marketplace for Malaysian university
+                students. A Sheriff reviews every claim before anyone gains access or is paid.
+              </p>
+              {process.env.NODE_ENV === "production" ? null : (
+                <p className="app-shell__dev-marker">
+                  Development build. Screens marked &ldquo;Development only&rdquo; show fixture
+                  data.
+                </p>
+              )}
+            </div>
+          </footer>
+
+          <MobileTabBar currentNavId={currentNavId} />
+          <PageSwipe />
         </div>
-      </footer>
-    </div>
+      </ShellMenuProvider>
+    </ThemeMusicProvider>
   );
 }

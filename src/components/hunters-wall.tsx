@@ -169,7 +169,7 @@ export function HuntersWall({ initial, universityLabel }: HuntersWallProps) {
         <div className="hunters-heading__intro">
           <p className="pixel-label">{universityLabel ?? "VAULTIX"} · Hunters</p>
           <h1 className="hunters-heading__title">Hunters on the Board</h1>
-          <p className="page-heading__lede">
+          <p className="page-heading__lede mobile-hide">
             Verified students who hunt and back bounties. Open a poster to see their profile.
           </p>
         </div>

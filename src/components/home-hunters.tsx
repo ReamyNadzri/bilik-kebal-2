@@ -25,7 +25,7 @@ export function HomeHunters({ hunters }: HomeHuntersProps) {
           <h2 className="on-dark home-hunters__heading" id="home-hunters-title">
             Hunters on the Board
           </h2>
-          <p className="section-head__lede on-dark-muted">
+          <p className="section-head__lede on-dark-muted mobile-hide">
             A few of the students hunting and backing bounties right now.
           </p>
         </div>

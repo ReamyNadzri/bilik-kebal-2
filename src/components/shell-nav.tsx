@@ -43,7 +43,7 @@ const ACCOUNT_ICONS: Partial<Record<NavItemId, PixelIconName>> = {
  * for every rail link on every page load; on intent, it is one for the link the
  * reader is about to use, which keeps its loading state instant.
  */
-function useIntentPrefetch(href: string) {
+export function useIntentPrefetch(href: string) {
   const router = useRouter();
   const prefetch = useCallback(() => router.prefetch(href), [router, href]);
 

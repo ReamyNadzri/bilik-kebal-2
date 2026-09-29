@@ -167,3 +167,170 @@ export function AccountMenu() {
   );
 }
 
+/**
+ * The signed-in viewer as the compact header and menu show them, by the same
+ * rules as `AccountMenu`: signed in when either the app account or the Clerk
+ * session says so, with Clerk's name and picture standing in until the
+ * account record has loaded.
+ */
+function useCompactViewer() {
+  const { signOut, state } = useAuth();
+  const { user, isSignedIn } = useUser();
+  const { signOut: clerkSignOut } = useClerk();
+
+  if (state.status === "loading") return { kind: "loading" } as const;
+  if (state.account === null && !(isSignedIn && user)) return { kind: "guest" } as const;
+
+  const account = state.account;
+  const institutionVerified = account?.trust.institution === "verified";
+
+  async function signOutEverywhere() {
+    try {
+      if (clerkSignOut) await clerkSignOut();
+    } catch {
+      // Best-effort Clerk sign-out
+    }
+    try {
+      await signOut();
+    } catch {
+      // Best-effort Auth sign-out
+    }
+  }
+
+  return {
+    kind: "member",
+    displayName:
+      account?.displayName ??
+      user?.fullName ??
+      user?.firstName ??
+      user?.username ??
+      user?.primaryEmailAddress?.emailAddress ??
+      "Member",
+    avatarUrl: account?.avatarUrl ?? user?.imageUrl ?? null,
+    institutionVerified,
+    status: institutionVerified
+      ? "Institution verified"
+      : account?.trust.email === "verified" || isSignedIn
+        ? "Email verified"
+        : "Email not verified",
+    error: state.error,
+    signOutEverywhere,
+  } as const;
+}
+
+/**
+ * The compact header's account controls (design_handoff_vaultix_mobile, §1).
+ *
+ * Signed in: an Inbox link carrying the unread count, and the avatar, which
+ * leads to the profile. Signed out: a Sign in button, on tablets only — a
+ * phone reaches it in the menu. Sign-out itself lives in the menu, away from
+ * the thumb's path along the header.
+ */
+export function CompactAccount({ unreadCount = null }: { readonly unreadCount?: number | null }) {
+  const viewer = useCompactViewer();
+  const pathname = usePathname() ?? "";
+
+  if (viewer.kind === "loading") return null;
+
+  if (viewer.kind === "guest") {
+    return (
+      <Link className="shell-compact__control shell-compact__tablet" href={signInPathFor(pathname)}>
+        Sign in
+      </Link>
+    );
+  }
+
+  const unread = unreadCount ?? 0;
+
+  return (
+    <>
+      <Link className="shell-compact__control shell-compact__inbox" href="/notifications">
+        Inbox
+        {unread > 0 ? (
+          <span className="shell-compact__badge">
+            <span aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
+            <span className="visually-hidden">{`, ${unread} unread`}</span>
+          </span>
+        ) : null}
+      </Link>
+      <Link className="shell-compact__avatar" href="/profile" aria-label="Your profile">
+        <Avatar src={viewer.avatarUrl} size={34} />
+      </Link>
+    </>
+  );
+}
+
+/**
+ * The account block at the foot of the compact menu: a profile card and
+ * Sign out, or Sign in and Create account for a guest.
+ */
+export function MenuAccount() {
+  const viewer = useCompactViewer();
+  const pathname = usePathname() ?? "";
+  const [busy, setBusy] = useState(false);
+
+  if (viewer.kind === "loading") {
+    return (
+      <p className="shell-menu__pending" aria-live="polite">
+        Checking your account…
+      </p>
+    );
+  }
+
+  if (viewer.kind === "guest") {
+    return (
+      <div className="shell-menu__guest">
+        <Link className="shell-menu__sign-in" href={signInPathFor(pathname)}>
+          Sign in
+        </Link>
+        <Link className="button button--brass shell-menu__create" href="/sign-up">
+          Create account
+        </Link>
+      </div>
+    );
+  }
+
+  const { signOutEverywhere } = viewer;
+
+  async function handleSignOut() {
+    setBusy(true);
+    await signOutEverywhere();
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <div className="shell-menu__member">
+        <Link className="shell-menu__profile" href="/profile">
+          <Avatar src={viewer.avatarUrl} size={38} className="shell-menu__profile-avatar" />
+          <span className="shell-menu__profile-text">
+            <span className="shell-menu__profile-name">
+              <span className="visually-hidden">Signed in as </span>
+              {viewer.displayName}
+              {viewer.institutionVerified ? (
+                <span className="account-chip__star" aria-hidden="true">
+                  {" "}
+                  ★
+                </span>
+              ) : null}
+            </span>
+            <span className="shell-menu__profile-status">{viewer.status}</span>
+          </span>
+        </Link>
+        <button
+          className="shell-menu__sign-out"
+          type="button"
+          onClick={handleSignOut}
+          disabled={busy}
+        >
+          {busy ? "Signing out…" : "Sign out"}
+        </button>
+      </div>
+      {viewer.error === null ? null : (
+        <p className="account-menu__error" role="alert">
+          {viewer.error}
+        </p>
+      )}
+    </>
+  );
+}

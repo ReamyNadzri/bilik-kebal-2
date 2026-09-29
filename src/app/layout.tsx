@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Karla, Rye, Silkscreen } from "next/font/google";
 import type { ReactNode } from "react";
+import { CompactAccount, MenuAccount } from "@/components/account-menu";
 import { ClerkAuthControls } from "@/components/clerk-auth-controls";
 import { AppShell } from "@/components/app-shell";
 import { GunshotProvider } from "@/components/motion/gunshot-transition";
@@ -75,6 +76,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               <AppShell
                 roleNav={roleNav}
                 accountMenu={<ClerkAuthControls />}
+                compactAccount={<CompactAccount unreadCount={unreadCount} />}
+                menuAccount={<MenuAccount />}
                 unreadCount={unreadCount}
               >
                 {children}

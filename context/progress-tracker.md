@@ -1029,3 +1029,46 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
 - Open question: WCAG 2.2.2 (Pause, Stop, Hide, Level A) covers moving content that starts on
   its own and lasts over 5 s. The tumbleweed respects reduced motion but has no on-page control.
   Recommendation: let the Gunshot toggle (or a general Motion toggle) also turn it off.
+
+## 2026-09-30 — Mobile and tablet shell (design_handoff_vaultix_mobile)
+
+- Lane: Claude Code, frontend only; `globals.css` and `context/**` shared-by-review for this slice.
+  No contract, money, entitlement or backend change.
+- Breakpoints: mobile below 720 px (`44.9375rem`), tablet 720–1199 px, desktop from 1200 px
+  (`75rem`), unchanged. The same queries live in `src/features/presentation/viewport.ts` for the
+  script-only behaviours. The old stacked-rail rules (60rem, 30rem) are gone.
+- New: `shell-menu.tsx` (menu state, header hide-on-scroll, Menu toggle, panel with focus held
+  between toggle and panel, Esc returns focus, closes on navigation, backdrop tap and widening),
+  `shell-back-button.tsx` (Navigation API `canGoBack`, else screens seen; no in-app history goes
+  home), `mobile-tab-bar.tsx`, `page-swipe.tsx` with the pure rules in
+  `features/presentation/page-swipe.ts`. `AppShell` gains `compactAccount` and `menuAccount`
+  slots (`CompactAccount`, `MenuAccount` in `account-menu.tsx`) so it still renders without a
+  session. `GunshotProvider` exposes `go(href, point)` for swipes and `useOptionalGunshot()`.
+- Departures from the handoff, each because the design predates or cannot hold it:
+  (1) Music: `ThemeMusic` is split into `ThemeMusicProvider` (the one `<audio>`) and
+  `ThemeMusicToggle`; the compact menu carries a Music row, because the rail toggle is hidden below
+  1200 px and WCAG 1.4.2 needs a way to stop it. (2) Hunt is `/claims`, not `/hunt`. (3) Signed in
+  below 448 px the row needs ~445 px, so the wordmark shows its logo tile only (word kept for
+  assistive technology); the prototype overflows the same way. (4) The Inbox link's name is
+  "Inbox, N unread", not "Notifications, N unread", to keep the visible label in the name
+  (WCAG 2.5.3). (5) The Board filter toggle look applies to the whole disclosure range (below
+  896 px), not only below 720 px, so one component has one look; filters now start collapsed even
+  when some are applied, as the handoff asks; the summary still states the count. (6) The Hunters
+  "Verified students…" line is trimmed on both the Board Hunters view and the Hunters wall.
+- The Post Wanted intro trimmed on phones includes "A Sheriff reviews every claim…"; the form keeps
+  its own policy and money notes. Revisit if the designer wants that sentence kept.
+- Verified with headless Chromium on `pnpm dev` (guest session) at 360, 390, 768, 1024 and
+  1280 px across `/`, `/board`, `/map`, `/claims`, `/archive`, `/wanted/new`, `/sign-in`:
+  `scrollWidth` equals the viewport everywhere, no new header or tab-bar target under 44 px, footer
+  hidden only below 720 px, Esc on the open menu returns focus to the toggle. The signed-in row was
+  measured with injected Inbox and avatar controls: fits at 360 and 390; 320 (below the 360 floor)
+  still overflows by 25 px. The other session's note of 473 px at 360 matched the desktop Post
+  button leaking into the compact row, a specificity bug fixed here.
+- Tests: `app-shell.test.tsx` scoped to the rail landmark (jsdom applies no media queries, so all
+  layouts are in the document) plus compact header, menu (open, Esc, focus ring, backdrop,
+  navigation, never tucked while open) and tab bar; Featured rail and hint in `page.test.tsx`;
+  collapsed filters in `board/page.test.tsx`; `page-swipe.test.ts`. Full suite 1524 passed;
+  typecheck clean for project sources. `pnpm build` compiles; its type check fails only on the
+  untracked tumbleweed handoff's `reference/tumbleweed.tsx`, as recorded above.
+- Not verified: real touch swipes and the hint timer on a device, and the signed-in menu with a
+  real session. Not added: Playwright specs under `tests/e2e/ui/` for these.

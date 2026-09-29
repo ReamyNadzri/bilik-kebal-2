@@ -373,11 +373,17 @@ export function WantedDetail({
       {similar.length === 0 ? null : (
         <section className="board-surface wanted-detail__similar">
           <h2>Similar requests</h2>
-          <p className="wanted-detail__similar-note">
+          <p className="wanted-detail__similar-note mobile-hide">
             Backing an existing request builds one larger bounty instead of splitting the class
             across two.
           </p>
-          <ul className="wanted-grid" aria-label="Similar Wanted requests">
+          {similar.length > 1 ? (
+            <p className="rail-hint" aria-hidden="true">
+              <span>Swipe for more</span>
+              <span className="rail-hint__arrows">›››</span>
+            </p>
+          ) : null}
+          <ul className="wanted-grid wanted-grid--rail" aria-label="Similar Wanted requests">
             {similar.map((other) => (
               <WantedCard key={other.id} wanted={other} now={now} />
             ))}
