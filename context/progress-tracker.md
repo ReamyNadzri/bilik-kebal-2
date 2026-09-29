@@ -972,3 +972,11 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   on swapped Client ID/secret in Clerk production (corrected by the user; the old secret was
   exposed in the session and is being replaced), and Clerk production paths still point to the
   Account Portal (set sign-in/sign-up to the application domain in the dashboard).
+- 2026-09-30 follow-up (`claude/clerk-sso-return`): after Google the sign-in page could be restored
+  from the browser's back/forward cache still on "Signing in…" (no network activity). The page now
+  resets on a restored `pageshow`, and on arrival reads Clerk's open Google sign-in: shows the
+  refusal in plain English, continues to the emailed code, or finishes it. A breached password
+  (`needs_new_password`) gets a "set a new password" message. Clerk production minimum password
+  length set to 12 by the user to match the forms. The local production build crashes with a
+  Windows process-spawn error (0xc0000142) in Turbopack's CSS worker; the Vercel build is the
+  build check for this change.

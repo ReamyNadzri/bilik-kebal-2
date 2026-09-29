@@ -28,6 +28,13 @@ const MESSAGES: Readonly<Record<string, string>> = {
   form_password_not_strong_enough: "Choose a stronger password.",
   form_param_format_invalid: "Check the details you entered.",
   too_many_requests: "Too many attempts. Wait a few minutes, then try again.",
+  oauth_access_denied: "Google sign-in was cancelled. Try again, or sign in with your password.",
+  external_account_exists: "This Google account is already linked to a different VAULTIX account.",
+  identifier_already_signed_in: "You are already signed in on this device.",
+  session_exists: "You are already signed in on this device.",
+  not_allowed_access: "This account cannot sign in. Contact VAULTIX support.",
+  external_account_email_address_verification_required:
+    "Google did not confirm this email address. Sign in with your password instead.",
   user_locked: "This account is locked after too many attempts. Try again later.",
 };
 
