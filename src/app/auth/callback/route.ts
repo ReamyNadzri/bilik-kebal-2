@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { safeNextPath } from "@/modules/identity/delivery/auth-http";
 import { resolveAuthCallbackPath } from "@/modules/identity/delivery/auth-callback";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAuthClient } from "@/lib/supabase/server";
 import { setRecoveryGrantCookie } from "@/modules/identity/delivery/recovery-grant-cookie";
 
 const allowedOtpTypes: ReadonlySet<string> = new Set([
@@ -21,7 +21,7 @@ export async function GET(request: Request): Promise<Response> {
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
   const flow = requestUrl.searchParams.get("flow");
-  const client = await createSupabaseServerClient();
+  const client = await createSupabaseAuthClient();
 
   const result = code
     ? await client.auth.exchangeCodeForSession(code)

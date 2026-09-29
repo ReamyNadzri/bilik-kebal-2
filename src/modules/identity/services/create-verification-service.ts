@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 
 import { SupabaseVerificationRepository } from "../repositories/supabase-verification-repository";
 import {
@@ -20,7 +20,7 @@ export async function createVerificationContext(): Promise<AuthenticatedIdentity
   const {
     data: { user },
     error,
-  } = await client.auth.getUser();
+  } = await getRequestUser();
 
   if (error || !user?.email) {
     return null;

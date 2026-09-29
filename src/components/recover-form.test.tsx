@@ -1,99 +1,140 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { RecoverForm } from "./recover-form";
+import { clerkHooks, clerkResult } from "@/features/presentation/test-support/clerk-hooks";
 
-function respondWith(body: unknown) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => body } as Response));
+const replace = vi.fn();
+const refresh = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, refresh }),
+  usePathname: () => "/recover",
+}));
+
+function fakeSignIn() {
+  const signIn = {
+    status: "needs_identifier" as string,
+    create: vi.fn(async () => clerkResult()),
+    finalize: vi.fn(
+      async ({ navigate }: { navigate: (p: { decorateUrl: (u: string) => string }) => void }) => {
+        navigate({ decorateUrl: (url) => url });
+        return clerkResult();
+      },
+    ),
+    resetPasswordEmailCode: {
+      sendCode: vi.fn(async () => clerkResult()),
+      verifyCode: vi.fn(async () => {
+        signIn.status = "needs_new_password";
+        return clerkResult();
+      }),
+      submitPassword: vi.fn(async () => {
+        signIn.status = "complete";
+        return clerkResult();
+      }),
+    },
+  };
+  clerkHooks.signIn = signIn;
+  return signIn;
 }
 
-function submit() {
-  fireEvent.click(screen.getByRole("button", { name: /Send recovery link/ }));
+function fill(label: RegExp, value: string) {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
-function enterAddress() {
-  fireEvent.change(screen.getByLabelText(/Email address/), {
-    target: { value: "student@example.edu.my" },
-  });
+function requestCode(email = "aina@student.uitm.edu.my") {
+  fill(/Email address/, email);
+  fireEvent.click(screen.getByRole("button", { name: "Send a reset code" }));
 }
 
 beforeEach(() => {
-  sessionStorage.clear();
-  vi.unstubAllGlobals();
+  replace.mockReset();
+  refresh.mockReset();
 });
 
-test("asks only for the email address", () => {
+test("asks only for the email address, and needs one", async () => {
+  const signIn = fakeSignIn();
   render(<RecoverForm />);
 
-  expect(screen.getByLabelText(/Email address/)).toBeInTheDocument();
-  expect(screen.queryByLabelText(/Password/)).not.toBeInTheDocument();
+  expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Send a reset code" }));
+
+  expect(await screen.findAllByText("Enter your email address.")).not.toHaveLength(0);
+  expect(signIn.create).not.toHaveBeenCalled();
 });
 
-test("does not call the operation without an address", () => {
-  const fetchSpy = vi.fn();
-  vi.stubGlobal("fetch", fetchSpy);
-
+test("sends the code, then sets the new password and signs in", async () => {
+  const signIn = fakeSignIn();
   render(<RecoverForm />);
-  submit();
 
-  expect(fetchSpy).not.toHaveBeenCalled();
-  expect(document.getElementById("email-error")).toHaveTextContent("Enter your email address.");
-  expect(screen.getByRole("alert")).toHaveFocus();
-});
+  requestCode();
 
-test("posts the address to the recovery operation", async () => {
-  respondWith({ ok: true, data: { accepted: true } });
+  expect(
+    await screen.findByText("If an account exists for that address, a code is on its way"),
+  ).toBeInTheDocument();
+  expect(signIn.create).toHaveBeenCalledWith({ identifier: "aina@student.uitm.edu.my" });
+  expect(signIn.resetPasswordEmailCode.sendCode).toHaveBeenCalledOnce();
 
-  render(<RecoverForm />);
-  enterAddress();
-  submit();
+  fill(/Code from the email/, "123456");
+  fill(/New password/, "a-new-long-passphrase");
+  fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
 
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-
-  const [path, init] = vi.mocked(fetch).mock.calls[0]!;
-  expect(path).toBe("/api/auth/recovery");
-  expect(JSON.parse(String(init?.body))).toEqual({ email: "student@example.edu.my" });
-});
-
-test("never reveals whether an account exists", async () => {
-  respondWith({ ok: true, data: { accepted: true } });
-
-  render(<RecoverForm />);
-  enterAddress();
-  submit();
-
-  await waitFor(() => expect(screen.getByText(/If an account exists/i)).toBeInTheDocument());
-  expect(screen.queryByText(/student@example\.edu\.my/)).not.toBeInTheDocument();
-});
-
-test("reports an unreachable server as offline", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-
-  render(<RecoverForm />);
-  enterAddress();
-  submit();
-
-  await waitFor(() => expect(screen.getByText("Offline")).toBeInTheDocument());
-});
-
-test("disables the submit button with a cooldown timer after submitting", async () => {
-  respondWith({ ok: true, data: { accepted: true } });
-
-  render(<RecoverForm />);
-  enterAddress();
-  submit();
-
-  await waitFor(() => {
-    const button = screen.getByRole("button", { name: /Send recovery link/ });
-    expect(button).toBeDisabled();
-    expect(button).toHaveTextContent(/wait/i);
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+  expect(signIn.resetPasswordEmailCode.verifyCode).toHaveBeenCalledWith({ code: "123456" });
+  expect(signIn.resetPasswordEmailCode.submitPassword).toHaveBeenCalledWith({
+    password: "a-new-long-passphrase",
   });
 });
 
-test("an accepted request shows the spam-folder hint", async () => {
-  respondWith({ ok: true, data: { accepted: true } });
-
+test("never reveals whether an account exists", async () => {
+  const signIn = fakeSignIn();
+  signIn.create.mockResolvedValue(clerkResult({ code: "form_identifier_not_found" }));
   render(<RecoverForm />);
-  enterAddress();
-  submit();
 
-  expect(await screen.findByRole("note")).toHaveTextContent("Spam or Junk");
+  requestCode("nobody@x.test");
+
+  expect(
+    await screen.findByText("If an account exists for that address, a code is on its way"),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/not found|no account/i)).not.toBeInTheDocument();
+  expect(signIn.resetPasswordEmailCode.sendCode).not.toHaveBeenCalled();
+});
+
+test("refuses a short new password before asking Clerk", async () => {
+  const signIn = fakeSignIn();
+  render(<RecoverForm />);
+
+  requestCode();
+  await screen.findByLabelText(/Code from the email/);
+  fill(/Code from the email/, "123456");
+  fill(/New password/, "short");
+  fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
+
+  expect(await screen.findAllByText("Use a password of at least 12 characters.")).not.toHaveLength(
+    0,
+  );
+  expect(signIn.resetPasswordEmailCode.verifyCode).not.toHaveBeenCalled();
+});
+
+test("reports an expired code and keeps the reset step open", async () => {
+  const signIn = fakeSignIn();
+  signIn.resetPasswordEmailCode.verifyCode.mockResolvedValue(
+    clerkResult({ code: "verification_expired" }),
+  );
+  render(<RecoverForm />);
+
+  requestCode();
+  await screen.findByLabelText(/Code from the email/);
+  fill(/Code from the email/, "123456");
+  fill(/New password/, "a-new-long-passphrase");
+  fireEvent.click(screen.getByRole("button", { name: "Set new password" }));
+
+  expect(await screen.findAllByText("That code has expired. Send a new one.")).not.toHaveLength(0);
+  expect(replace).not.toHaveBeenCalled();
+});
+
+test("reports an unreachable Clerk as offline", async () => {
+  render(<RecoverForm />);
+
+  requestCode();
+
+  expect(await screen.findByText("The code could not be sent")).toBeInTheDocument();
 });

@@ -29,18 +29,16 @@ export class SupabaseProfileRepository implements ProfileRepository {
     private readonly readClient: Client = writeClient,
   ) {}
 
+  /**
+   * Read through `current_identity` (migration 202610160003): a Clerk-token
+   * client has no `auth` API. Untyped until the database types are regenerated.
+   */
   async ownPublicId(): Promise<string | null> {
-    const {
-      data: { user },
-    } = await this.writeClient.auth.getUser();
-    if (!user) return null;
-    const { data, error } = await this.writeClient
-      .from("profiles")
-      .select("public_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data, error } = await (this.writeClient as unknown as SupabaseClient).rpc(
+      "current_identity",
+    );
     if (error) throw error;
-    return data?.public_id ?? null;
+    return (data as Array<{ public_id: string }> | null)?.[0]?.public_id ?? null;
   }
 
   /**

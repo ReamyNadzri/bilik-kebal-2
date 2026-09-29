@@ -1,3 +1,4 @@
+import { clerkHooks } from "@/features/presentation/test-support/clerk-hooks";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AccountMenu } from "./account-menu";
 import type { AccountViewModel } from "@/contracts";
@@ -120,18 +121,15 @@ describe("signed in", () => {
   });
 
   test("announces a failed sign-out and keeps the account on screen", async () => {
-    respondWith({
-      ok: false,
-      code: "AUTH_UNAVAILABLE",
-      message: "Identity services are temporarily unavailable. Try again.",
-    });
+    respondWith({ ok: true, data: { signedOut: true } });
+    clerkHooks.signOut = vi.fn().mockRejectedValue(new Error("network"));
 
     renderMenu(anAccountViewModel({ displayName: "Aina" }));
     act(() => screen.getByRole("button", { name: "Sign out" }).click());
 
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Identity services are temporarily unavailable. Try again.",
+        "You could not be signed out. Try again shortly.",
       ),
     );
     expect(screen.getByText("Aina")).toBeInTheDocument();

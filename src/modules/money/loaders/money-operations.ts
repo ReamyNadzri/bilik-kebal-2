@@ -3,7 +3,7 @@ import {
   getMarketplaceTokenSecret,
   getToyyibPayCallbackSecret,
 } from "@/lib/config/server-env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { SupabaseIdentityReadRepository } from "@/modules/identity/repositories/supabase-identity-read-repository";
 import { SupabaseWantedRepository } from "@/modules/wanted/repositories/supabase-wanted-repository";
@@ -44,7 +44,7 @@ async function loadContext() {
   const {
     data: { user },
     error,
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   const wantedRepository = new SupabaseWantedRepository(client);
   const repository = new SupabaseMoneyRepository(client, wantedRepository);
   const env = parseServerEnv(process.env);

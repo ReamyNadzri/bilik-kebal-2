@@ -881,3 +881,85 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   Boomtown -> Campfire -> Theme, each 120 s, the rail stays on and the media title follows.
 - The earlier `.theme-music` styles and the `--bg-rail-selected` token were committed by the
   other session in `9c3203f` (they were in `globals.css` when it committed).
+
+## 2026-09-29 Clerk production setup (decision: move auth to Clerk)
+
+- Decision (user): option A, Clerk replaces Supabase Auth; Supabase trusts Clerk tokens as a
+  third-party provider. `architecture.md` still says Supabase Auth until the migration slices land;
+  plan and open questions in `docs/superpowers/plans/2026-09-29-clerk-auth-migration.md`.
+- Done: Clerk production instance `ins_3K0FcdljHNhcTPvFfTf4SHyNygS` on `bilikkebal.afes.my`
+  (cloned from dev); Vercel project `bilik-kebal` linked to the GitLab repo with Clerk live keys and
+  sign-in/up URL vars in Production only.
+- Pending (user): DNS CNAMEs, Vercel domain, Clerk `role: authenticated` session claim, Google
+  OAuth production credentials, Supabase Clerk third-party provider, remaining Production env.
+- Later the same day (user): Vercel project is `reamynadzris-projects/vaultix` (the
+  `haziq3010s-projects/bilik-kebal` project created by mistake is to be deleted); Clerk live keys and
+  URL vars set there; DNS records added and verified; Supabase Clerk third-party provider enabled
+  for `https://clerk.bilikkebal.afes.my`; session claim `role: authenticated` and Google
+  production credentials set. Decisions: import users with passwords, Clerk sends auth email,
+  Sheriff step-up = Clerk reverification with the 15-minute window.
+- Until slices 1–3 of the plan ship, a production deploy signs people into Clerk but Supabase RLS
+  still keys on `auth.uid()`, so identity-backed screens will not work. Do not launch on it.
+- Slice 1 (branch `claude/clerk-auth-migration`): migration `202610160001_clerk_identity_bridge.sql`
+  adds `private.user_identities` (Clerk subject, email, email verified; private because
+  Institution Sheriffs can read profiles), `private.current_user_id()`, rewrites every `auth.uid()`
+  in public/private functions and public/storage policies from their live definitions, reworks the
+  five functions that read `auth.users`, and drops `profiles → auth.users`. Supabase Auth sessions
+  keep working through a transitional uuid branch and an `auth.users` sync trigger. Step-up reads
+  Clerk `fva` (0–14 minutes). Tests: `supabase/tests/local/clerk_identity_bridge.sql`; all 12 local
+  DB suites pass on PGlite (no local Postgres here). Cloud check:
+  `supabase/tests/cloud/verify_202610160001_clerk_identity_bridge.sql`. **Not pushed to Supabase
+  Cloud** — waits for review.
+- Slice 2: migration `202610160002_clerk_user_sync.sql` adds `public.sync_clerk_user(...)`
+  (service role only): creates the profile and identity for a new Clerk user, links an imported
+  Supabase Auth account through Clerk `external_id`, ignores out-of-order deliveries by Clerk
+  `updated_at`, and enqueues the one-per-account welcome when the email is verified. Route
+  `POST /api/webhooks/clerk` verifies the Svix signature (`CLERK_WEBHOOK_SIGNING_SECRET`), answers
+  400 on a bad signature and 503 on a failed sync so Clerk retries, and logs no payload.
+  `user.deleted` is acknowledged and not acted on (deletion is still an open question). Tests:
+  `supabase/tests/local/clerk_user_sync.sql`, `clerk-user-sync.test.ts`,
+  `clerk-webhook-http.test.ts`; full unit suite (185 files) and 13 DB suites pass.
+- Slice 3: with a Clerk session, `createSupabaseServerClient()` sends the Clerk session token
+  (`accessToken`, no `auth` API) and `getRequestUser()` reads the member through
+  `public.current_identity()` (migration `202610160003`), keeping Supabase's `User` field names
+  (`RequestUser`) so callers are unchanged; `last_sign_in_at` comes from Clerk `fva`. A Clerk
+  account the webhook has not reached yet is provisioned on first request through
+  `sync_clerk_user`. Without a Clerk session everything still runs on Supabase Auth. The Supabase
+  Auth flows (confirm, recover, reset, reauthenticate, callback, auth gateway) use
+  `createSupabaseAuthClient()` until slice 4. The proxy's Supabase refresh and 7-day idle backstop
+  only affect Supabase Auth sessions; the Clerk equivalent is the instance inactivity timeout
+  (dashboard, pending). Sign-out does not end a Clerk session yet (slice 4). Unit suite, 14 DB
+  suites and the production build pass.
+- Slice 4: sign-in (password, Google via the new `/sso-callback`, Clerk device-trust email code),
+  sign-up (email code before the session starts, `#clerk-captcha`), `/recover` (Clerk reset code +
+  new password; unknown addresses answered like known ones), `/verify-email` (Clerk email code for
+  a signed-in unverified account) and the Sheriff step-up (`ConfirmIdentity` → Clerk session
+  reverification, token refreshed so `fva` reaches the server) run on Clerk. `/reset-password`
+  permanently redirects to `/recover`. Sign-out and idle sign-out clear the old Supabase cookie,
+  then end the Clerk session. `POST /api/identity/clerk-sync` copies the caller's own Clerk
+  account to VAULTIX immediately (idempotent; no body). Clerk refusals go through
+  `clerk-messages.ts` so a wrong password and an unknown address read the same. The Supabase auth
+  routes stay until slice 6. **The import (slice 5) must run before slice 4 is deployed.**
+  A Google-only Sheriff has no password to reverify with and is told so. 189 unit files, lint,
+  typecheck and build pass.
+- Slice 5: `scripts/sql/export-supabase-users-for-clerk.sql` (read-only; output holds bcrypt
+  hashes, keep outside the repo and delete after) and `scripts/import-users-to-clerk.mjs` (Node
+  24, no new dependencies; dry run by default, `--apply`, `--production` required for `sk_live_`).
+  Planning is `src/modules/identity/services/clerk-user-import.ts` (tested): creates Clerk users
+  with the bcrypt digest, `external_id` = Supabase user id and the original join date, then links
+  each through `sync_clerk_user`; re-runs skip created users and re-check their link. Skips
+  unverified emails (Clerk would mark them verified — open question), addresses already in Clerk,
+  duplicates and malformed rows; emails masked in output. Dry run and a create/delete probe ran
+  against the dev Clerk instance only. Cutover runbook in the migration plan. Not run on
+  production.
+- 2026-09-30: migrations `202610160001`–`202610160003` pushed to Supabase Cloud (`vaultix`) after a
+  pre-migration snapshot of every public/private function, public/storage policy and the profiles
+  FK (restore script kept outside the repo; `supabase db dump` needs Docker, which did not start).
+  Cloud check: all 7 PASS. Security advisor: only the intended `current_identity()` authenticated
+  SECURITY DEFINER warning. Production has 7 accounts, all email-verified, so the unverified-import
+  question does not arise. The live site keeps working on Supabase Auth through the transitional
+  paths until the branch is deployed.
+- 2026-09-30: the 7 production accounts were imported into Clerk production (`--apply
+  --production`) and linked: 7 profiles, 7 distinct Clerk ids, 7 verified; a re-run plans nothing.
+  The export file was deleted. Remaining: Clerk webhook + `CLERK_WEBHOOK_SIGNING_SECRET` and
+  `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production, merge and deploy, smoke test, then slice 6.

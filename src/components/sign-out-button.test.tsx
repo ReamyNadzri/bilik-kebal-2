@@ -1,3 +1,4 @@
+import { clerkHooks } from "@/features/presentation/test-support/clerk-hooks";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SignOutButton } from "./sign-out-button";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
@@ -43,7 +44,8 @@ test("signs out through the auth provider and leaves the signed-in screen", asyn
 });
 
 test("stays put and says so when the sign-out is refused", async () => {
-  respondWith({ ok: false, code: "AUTH_UNAVAILABLE", message: "" });
+  respondWith({ ok: true, data: { signedOut: true } });
+  clerkHooks.signOut = vi.fn().mockRejectedValue(new Error("network"));
   renderButton();
 
   fireEvent.click(screen.getByRole("button", { name: "Sign out" }));

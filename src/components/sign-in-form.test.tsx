@@ -1,7 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SignInForm } from "./sign-in-form";
-import { AuthProvider } from "@/features/presentation/auth/auth-provider";
-import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
+import { clerkHooks, clerkResult } from "@/features/presentation/test-support/clerk-hooks";
 
 const replace = vi.fn();
 const refresh = vi.fn();
@@ -11,218 +10,155 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/sign-in",
 }));
 
-function renderForm(props: Partial<React.ComponentProps<typeof SignInForm>> = {}) {
-  return render(
-    <AuthProvider initialAccount={null}>
-      <SignInForm {...props} />
-    </AuthProvider>,
-  );
+type Status = "needs_first_factor" | "needs_client_trust" | "needs_second_factor" | "complete";
+
+/** A Clerk `SignInFuture` whose outcome each test scripts. */
+function fakeSignIn(afterPassword: Status = "complete") {
+  const signIn = {
+    status: "needs_first_factor" as Status,
+    supportedSecondFactors: [{ strategy: "email_code" }],
+    password: vi.fn(async () => {
+      signIn.status = afterPassword;
+      return clerkResult();
+    }),
+    sso: vi.fn(async () => clerkResult()),
+    finalize: vi.fn(
+      async ({ navigate }: { navigate: (p: { decorateUrl: (u: string) => string }) => void }) => {
+        navigate({ decorateUrl: (url) => url });
+        return clerkResult();
+      },
+    ),
+    mfa: {
+      sendEmailCode: vi.fn(async () => clerkResult()),
+      verifyEmailCode: vi.fn(async () => {
+        signIn.status = "complete";
+        return clerkResult();
+      }),
+    },
+  };
+  clerkHooks.signIn = signIn;
+  return signIn;
 }
 
 function fill(label: RegExp, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
-function submit() {
-  fireEvent.click(screen.getByRole("button", { name: /Sign in/ }));
-}
-
-function credentials() {
-  fill(/Email address/, "student@example.edu.my");
-  fill(/Password/, "a-long-passphrase");
-}
-
-function respondWith(body: unknown, ok = true) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok, json: async () => body } as unknown as Response),
-  );
-}
-
-/**
- * A successful sign-in is two operations: the sign-in itself, then the account
- * re-read that lets the shell know who is signed in before the form navigates.
- */
-function respondWithSuccess() {
-  const mock = vi
-    .fn()
-    .mockResolvedValueOnce({ json: async () => ({ ok: true, data: { next: "profile" } }) })
-    .mockResolvedValueOnce({ json: async () => ({ ok: true, data: anAccountViewModel() }) });
-
-  vi.stubGlobal("fetch", mock);
-  return mock;
+function signInWith(email = "student@example.edu.my", password = "a-long-passphrase") {
+  fill(/Email address/, email);
+  fill(/Password/, password);
+  fireEvent.click(screen.getByRole("button", { name: /^Sign in$/ }));
 }
 
 beforeEach(() => {
   replace.mockReset();
   refresh.mockReset();
-  vi.unstubAllGlobals();
 });
 
-test("does not call the operation until the fields are present", () => {
-  const fetchSpy = vi.fn();
-  vi.stubGlobal("fetch", fetchSpy);
+test("does not ask Clerk without both fields", async () => {
+  const signIn = fakeSignIn();
+  render(<SignInForm />);
 
-  renderForm();
-  submit();
+  fireEvent.click(screen.getByRole("button", { name: /^Sign in$/ }));
 
-  expect(fetchSpy).not.toHaveBeenCalled();
-  expect(screen.getByRole("alert")).toHaveTextContent("There is a problem");
+  expect(await screen.findAllByText("Enter your email address.")).not.toHaveLength(0);
+  expect(screen.getAllByText("Enter your password.")).not.toHaveLength(0);
+  expect(signIn.password).not.toHaveBeenCalled();
 });
 
-test("posts the credentials to the sign-in operation", async () => {
-  const fetchMock = respondWithSuccess();
+test("signs in with Clerk and lands on the requested destination, replacing history", async () => {
+  const signIn = fakeSignIn("complete");
+  render(<SignInForm next="/wanted/abc" />);
 
-  renderForm();
-  credentials();
-  submit();
+  signInWith();
 
-  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-
-  const [path, init] = fetchMock.mock.calls[0]!;
-  expect(path).toBe("/api/auth/sign-in");
-  expect(init?.method).toBe("POST");
-  expect(JSON.parse(String(init?.body))).toEqual({
-    email: "student@example.edu.my",
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/wanted/abc"));
+  expect(signIn.password).toHaveBeenCalledWith({
+    emailAddress: "student@example.edu.my",
     password: "a-long-passphrase",
   });
+  expect(refresh).toHaveBeenCalled();
 });
 
-test("moves to the profile once the operation succeeds", async () => {
-  respondWithSuccess();
+test("falls back to the profile when no destination was requested", async () => {
+  fakeSignIn("complete");
+  render(<SignInForm />);
 
-  renderForm();
-  credentials();
-  submit();
+  signInWith();
 
   await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
 });
 
-describe("returning the viewer to where they were", () => {
-  test("lands on the destination that was requested", async () => {
-    respondWithSuccess();
+test.each(["form_password_incorrect", "form_identifier_not_found"])(
+  "answers %s the same way, never saying whether the account exists",
+  async (code) => {
+    const signIn = fakeSignIn();
+    signIn.password.mockResolvedValue(clerkResult({ code, message: "Clerk's own wording" }));
+    render(<SignInForm />);
 
-    renderForm({ next: "/wanted/csc510-final-exam-notes" });
-    credentials();
-    submit();
+    signInWith();
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/wanted/csc510-final-exam-notes"));
-  });
+    expect(
+      await screen.findAllByText("The email address or password is not correct."),
+    ).not.toHaveLength(0);
+    expect(screen.queryByText("Clerk's own wording")).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  },
+);
 
-  /**
-   * `replace` rather than `push`: a back button that returns to a sign-in form
-   * which now redirects away is a dead end in the history stack.
-   */
-  test("replaces the sign-in screen in history rather than stacking on it", async () => {
-    respondWithSuccess();
+test("asks for the emailed code on a new device, then finishes signing in", async () => {
+  const signIn = fakeSignIn("needs_client_trust");
+  render(<SignInForm />);
 
-    renderForm({ next: "/console" });
-    credentials();
-    submit();
+  signInWith();
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/console"));
-    expect(refresh).toHaveBeenCalled();
-  });
+  expect(await screen.findByText("Check your email")).toBeInTheDocument();
+  expect(signIn.mfa.sendEmailCode).toHaveBeenCalledOnce();
+  expect(replace).not.toHaveBeenCalled();
 
-  test("falls back to the profile when no destination was requested", async () => {
-    respondWithSuccess();
+  fill(/Code from the email/, "123456");
+  fireEvent.click(screen.getByRole("button", { name: "Finish signing in" }));
 
-    renderForm();
-    credentials();
-    submit();
-
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
-  });
+  await waitFor(() => expect(replace).toHaveBeenCalledWith("/profile"));
+  expect(signIn.mfa.verifyEmailCode).toHaveBeenCalledWith({ code: "123456" });
 });
 
-test("shows the operation's own message when credentials are refused", async () => {
-  respondWith({
-    ok: false,
-    code: "INVALID_CREDENTIALS",
-    message: "That email address and password do not match an account.",
-  });
+test("keeps the code step open when the code is wrong", async () => {
+  const signIn = fakeSignIn("needs_client_trust");
+  signIn.mfa.verifyEmailCode.mockResolvedValue(clerkResult({ code: "form_code_incorrect" }));
+  render(<SignInForm />);
 
-  renderForm();
-  credentials();
-  submit();
+  signInWith();
+  await screen.findByLabelText(/Code from the email/);
+  fill(/Code from the email/, "000000");
+  fireEvent.click(screen.getByRole("button", { name: "Finish signing in" }));
 
-  await waitFor(() => expect(screen.getByText("You were not signed in")).toBeInTheDocument());
   expect(
-    screen.getByText("That email address and password do not match an account."),
-  ).toBeInTheDocument();
+    await screen.findAllByText("That code is not correct. Check the email and try again."),
+  ).not.toHaveLength(0);
   expect(replace).not.toHaveBeenCalled();
 });
 
-test("routes an unverified email to the verification screen instead of a field error", async () => {
-  respondWith({
-    ok: false,
-    code: "EMAIL_NOT_VERIFIED",
-    message: "Confirm your email address before signing in.",
-  });
+test("says sign-in is unavailable when Clerk has not loaded", async () => {
+  render(<SignInForm />);
 
-  renderForm();
-  credentials();
-  submit();
+  signInWith();
+
+  expect(await screen.findByText("You were not signed in")).toBeInTheDocument();
+  expect(screen.getByText(/Sign-in is unavailable right now/)).toBeInTheDocument();
+});
+
+test("starts Google sign-in through the SSO callback", async () => {
+  const signIn = fakeSignIn();
+  render(<SignInForm next="/board" />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
 
   await waitFor(() =>
-    expect(screen.getByText("Confirm your email address first")).toBeInTheDocument(),
+    expect(signIn.sso).toHaveBeenCalledWith({
+      strategy: "oauth_google",
+      redirectUrl: "/board",
+      redirectCallbackUrl: "/sso-callback",
+    }),
   );
-  expect(screen.getByRole("link", { name: "Resend the verification link" })).toHaveAttribute(
-    "href",
-    "/verify-email",
-  );
-});
-
-test("attaches the operation's field errors to their fields", async () => {
-  respondWith({
-    ok: false,
-    code: "VALIDATION_ERROR",
-    message: "Check the highlighted fields and try again.",
-    fieldErrors: { email: ["That is not a valid email address."] },
-  });
-
-  renderForm();
-  credentials();
-  submit();
-
-  await waitFor(() =>
-    expect(document.getElementById("email-error")).toHaveTextContent(
-      "That is not a valid email address.",
-    ),
-  );
-
-  const summary = screen.getByRole("alert");
-  expect(within(summary).getByRole("link")).toHaveAttribute("href", "#email");
-});
-
-test("reports an unreachable server as offline rather than as a refusal", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
-
-  renderForm();
-  credentials();
-  submit();
-
-  await waitFor(() => expect(screen.getByText("Offline")).toBeInTheDocument());
-  expect(replace).not.toHaveBeenCalled();
-});
-
-test("offers recovery and registration routes", () => {
-  renderForm();
-
-  expect(screen.getByRole("link", { name: "Forgot your password?" })).toHaveAttribute(
-    "href",
-    "/recover",
-  );
-  expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute(
-    "href",
-    "/sign-up",
-  );
-});
-
-test("renders the Continue with Google button with icon", () => {
-  renderForm();
-
-  const googleButton = screen.getByRole("button", { name: /Continue with Google/i });
-  expect(googleButton).toBeInTheDocument();
-  expect(googleButton.querySelector("svg")).toBeInTheDocument();
 });

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 import { failure } from "@/contracts/operation-result";
 import { getIdentityPendingCookieSecret } from "@/lib/config/server-env";
-import { createSupabaseServerClient, getApplicationUrl } from "@/lib/supabase/server";
+import { createSupabaseAuthClient, getApplicationUrl } from "@/lib/supabase/server";
 import { executeJsonOperation, operationResponse } from "@/modules/identity/delivery/auth-http";
 import { AuthService } from "@/modules/identity/services/auth-service";
 import { verifyPasswordRecoveryGrant } from "@/modules/identity/services/password-recovery-grant";
@@ -14,7 +14,7 @@ const recoveryCookieName = "vaultix_password_recovery";
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const client = await createSupabaseServerClient();
+    const client = await createSupabaseAuthClient();
     const service = new AuthService(new SupabaseAuthGateway(client.auth), getApplicationUrl());
     const cookieStore = await cookies();
 

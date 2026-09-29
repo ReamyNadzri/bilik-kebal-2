@@ -20,18 +20,11 @@ export class SupabaseWantedPictureRepository implements WantedPictureRepository 
     this.client = client as Untyped;
   }
 
+  /** Read through `current_identity` (migration 202610160003): a Clerk-token client has no `auth` API. */
   async ownPublicId(): Promise<string | null> {
-    const {
-      data: { user },
-    } = await this.client.auth.getUser();
-    if (!user) return null;
-    const { data, error } = await this.client
-      .from("profiles")
-      .select("public_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data, error } = await this.client.rpc("current_identity");
     if (error) throw error;
-    return (data as { public_id: string } | null)?.public_id ?? null;
+    return (data as Array<{ public_id: string }> | null)?.[0]?.public_id ?? null;
   }
 
   async createUpload(objectKey: string): Promise<{ signedUrl: string }> {

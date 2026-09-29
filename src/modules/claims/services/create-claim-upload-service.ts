@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { parseServerEnv } from "@/lib/config/server-env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 
 import { SupabaseClaimUploadGateway } from "../gateways/supabase-claim-upload-gateway";
 import { SupabaseClaimsRepository } from "../repositories/supabase-claims-repository";
@@ -28,11 +28,13 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 export async function createClaimUploadContext(): Promise<ClaimUploadContext | null> {
   const client = await createSupabaseServerClient();
-  const { data: auth } = await client.auth.getUser();
-  if (!auth.user) return null;
+  const {
+    data: { user },
+  } = await getRequestUser();
+  if (!user) return null;
 
   return {
-    userId: auth.user.id,
+    userId: user.id,
     service: new ClaimUploadService({
       generateId: randomUUID,
       gateway: new SupabaseClaimUploadGateway(client),
@@ -57,13 +59,13 @@ export async function createClaimUploadContext(): Promise<ClaimUploadContext | n
         client
           .from("institution_memberships")
           .select("institution_id, verification_state")
-          .eq("user_id", auth.user.id)
+          .eq("user_id", user.id)
           .eq("verification_state", "verified")
           .maybeSingle(),
         client
           .from("account_restrictions")
           .select("id")
-          .eq("user_id", auth.user.id)
+          .eq("user_id", user.id)
           .is("lifted_at", null)
           .maybeSingle(),
       ]);
@@ -75,9 +77,9 @@ export async function createClaimUploadContext(): Promise<ClaimUploadContext | n
             : "missing";
       const actor = membership.data
         ? {
-            userId: auth.user.id,
+            userId: user.id,
             institutionId: membership.data.institution_id,
-            emailVerified: Boolean(auth.user.email_confirmed_at),
+            emailVerified: Boolean(user.email_confirmed_at),
             institutionVerified: true,
             restricted: Boolean(restriction.data),
           }

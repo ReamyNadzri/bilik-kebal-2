@@ -8,6 +8,7 @@ export type OperationName =
   | "identity.recover_password"
   | "identity.reset_password"
   | "identity.sign_out"
+  | "identity.clerk_webhook"
   | "notifications.list"
   | "notifications.read"
   | "notifications.email_dispatch";

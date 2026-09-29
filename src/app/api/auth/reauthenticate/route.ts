@@ -1,12 +1,12 @@
 import { authRequiredResponse, executeJsonOperation } from "@/modules/identity/delivery/auth-http";
 import { createAuthService } from "@/modules/identity/services/create-auth-service";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAuthClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /** "Confirm it's you": re-enter the password to refresh the 15-minute step-up window. */
 export async function POST(request: Request): Promise<Response> {
-  const client = await createSupabaseServerClient();
+  const client = await createSupabaseAuthClient();
   const {
     data: { user },
   } = await client.auth.getUser();

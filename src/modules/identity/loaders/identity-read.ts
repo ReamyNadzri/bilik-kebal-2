@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { RequestUser as User } from "@/lib/supabase/server";
 import { cache } from "react";
 
 import type {

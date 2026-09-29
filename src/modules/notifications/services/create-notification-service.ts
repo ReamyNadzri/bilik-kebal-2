@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 import {
   SupabaseNotificationRepository,
   type NotificationDatabase,
@@ -7,7 +7,7 @@ import { NotificationService } from "./notification-service";
 
 export async function createNotificationService(): Promise<NotificationService | null> {
   const client = await createSupabaseServerClient<NotificationDatabase>();
-  const { data, error } = await client.auth.getUser();
+  const { data, error } = await getRequestUser();
   if (error) {
     if (error.name === "AuthSessionMissingError") return null;
     throw new Error("Notification authentication unavailable");

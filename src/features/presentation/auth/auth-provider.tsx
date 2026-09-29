@@ -11,7 +11,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AccountViewModel, IdentityOperationCode, SignInResult } from "@/contracts";
+import { useClerk } from "@clerk/nextjs";
+import type { AccountViewModel } from "@/contracts";
 import { callOperation, readOperation } from "@/features/presentation/call-operation";
 import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 import {
@@ -30,7 +31,6 @@ export interface AuthContextValue {
   /** Whether the account holds a published capability. */
   readonly can: (capability: AccountCapability) => boolean;
   readonly hasConsoleAccess: boolean;
-  readonly signIn: (credentials: { email: string; password: string }) => Promise<SignInResult>;
   readonly signOut: () => Promise<void>;
   readonly refreshAccount: () => Promise<void>;
 }
@@ -52,6 +52,7 @@ export interface AuthProviderProps {
 
 export function AuthProvider({ children, initialAccount }: AuthProviderProps) {
   const router = useRouter();
+  const { signOut: clerkSignOut } = useClerk();
   const pathname = usePathname() ?? "";
   const [state, setState] = useState<AuthState>(() => authStateFor(initialAccount));
 
@@ -147,37 +148,8 @@ export function AuthProvider({ children, initialAccount }: AuthProviderProps) {
     });
   }, [pathname, router, state.status]);
 
-  const signIn = useCallback(
-    async (credentials: { email: string; password: string }): Promise<SignInResult> => {
-      setState((current) => ({ ...current, status: "loading", error: null }));
-
-      const result = (await callOperation<{ next: "profile" }, IdentityOperationCode>(
-        "/api/auth/sign-in",
-        credentials,
-        "AUTH_UNAVAILABLE",
-      )) as SignInResult;
-
-      if (!result.ok) {
-        setState({
-          account: null,
-          status: "unauthenticated",
-          error: result.message === "" ? IDENTITY_MESSAGE[result.code] : result.message,
-        });
-        return result;
-      }
-
-      await refreshAccount();
-      return result;
-    },
-    [refreshAccount],
-  );
-
   const signOut = useCallback(async () => {
-    const result = await callOperation<{ signedOut: true }, "AUTH_UNAVAILABLE">(
-      "/api/auth/sign-out",
-      {},
-      "AUTH_UNAVAILABLE",
-    );
+    const result = await endSession((redirectUrl) => clerkSignOut({ redirectUrl }), "/");
 
     /**
      * A refused sign-out leaves the session standing, so the account stays on
@@ -186,44 +158,34 @@ export function AuthProvider({ children, initialAccount }: AuthProviderProps) {
      * misreading of this screen with a real cost.
      */
     if (!result.ok) {
-      setState((current) => ({
-        ...current,
-        error:
-          result.message === ""
-            ? "You could not be signed out. Try again shortly."
-            : result.message,
-      }));
+      setState((current) => ({ ...current, error: result.message }));
       return;
     }
 
     setState({ account: null, status: "unauthenticated", error: null });
     router.replace("/");
     router.refresh();
-  }, [router]);
+  }, [clerkSignOut, router]);
 
   /** Idle sign-out: the session ends on the server, then the viewer is told why. */
   const expireIdle = useCallback(async () => {
-    await callOperation<{ signedOut: true }, "AUTH_UNAVAILABLE">(
-      "/api/auth/sign-out",
-      {},
-      "AUTH_UNAVAILABLE",
-    );
-    setState({ account: null, status: "unauthenticated", error: null });
     const target = signInPathFor(pathname);
-    router.replace(`${target}${target.includes("?") ? "&" : "?"}idle=1`);
+    const destination = `${target}${target.includes("?") ? "&" : "?"}idle=1`;
+    await endSession((redirectUrl) => clerkSignOut({ redirectUrl }), destination);
+    setState({ account: null, status: "unauthenticated", error: null });
+    router.replace(destination);
     router.refresh();
-  }, [pathname, router]);
+  }, [clerkSignOut, pathname, router]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       state,
       can: (capability: AccountCapability) => canDo(state, capability),
       hasConsoleAccess: consoleAccess(state),
-      signIn,
       signOut,
       refreshAccount,
     }),
-    [state, signIn, signOut, refreshAccount],
+    [state, signOut, refreshAccount],
   );
 
   return (
@@ -257,4 +219,27 @@ export function useAuth(): AuthContextValue {
  */
 function withExpiredFlag(pathname: string): string {
   return signInPathFor(pathname).includes("?") ? "&expired=1" : "?expired=1";
+}
+
+/**
+ * Clears any Supabase Auth cookie left from before the move to Clerk, then
+ * ends the Clerk session, which navigates to `destination` itself. The Clerk
+ * session is the one that matters: if it cannot be ended, the viewer is still
+ * signed in and is told so.
+ */
+async function endSession(
+  clerkSignOut: (redirectUrl: string) => Promise<unknown>,
+  destination: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  await callOperation<{ signedOut: true }, "AUTH_UNAVAILABLE">(
+    "/api/auth/sign-out",
+    {},
+    "AUTH_UNAVAILABLE",
+  );
+  try {
+    await clerkSignOut(destination);
+  } catch {
+    return { ok: false, message: "You could not be signed out. Try again shortly." };
+  }
+  return { ok: true };
 }

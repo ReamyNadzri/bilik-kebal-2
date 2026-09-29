@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./auth-provider";
 import { reportSessionExpired } from "./session-expiry";
 import type { AccountViewModel } from "@/contracts";
 import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
+import { clerkHooks } from "@/features/presentation/test-support/clerk-hooks";
 
 const replace = vi.fn();
 const refresh = vi.fn();
@@ -25,7 +26,7 @@ function respondWith(...bodies: unknown[]) {
 
 /** Surfaces the provider's state and actions to the assertions. */
 function Probe() {
-  const { can, hasConsoleAccess, refreshAccount, signIn, signOut, state } = useAuth();
+  const { can, hasConsoleAccess, refreshAccount, signOut, state } = useAuth();
 
   return (
     <div>
@@ -34,9 +35,6 @@ function Probe() {
       <p data-testid="error">{state.error ?? "none"}</p>
       <p data-testid="transact">{String(can("transact"))}</p>
       <p data-testid="console">{String(hasConsoleAccess)}</p>
-      <button type="button" onClick={() => void signIn({ email: "a@b.my", password: "secret" })}>
-        Sign in
-      </button>
       <button type="button" onClick={() => void signOut()}>
         Sign out
       </button>
@@ -98,72 +96,47 @@ describe("seeding from the server", () => {
   });
 });
 
-describe("signing in", () => {
-  test("re-reads the account before the caller navigates", async () => {
-    const fetchMock = respondWith(
-      { ok: true, data: { next: "profile" } },
-      { ok: true, data: anAccountViewModel({ displayName: "Aina" }) },
-    );
-
-    renderProvider(null);
-    act(() => screen.getByRole("button", { name: "Sign in" }).click());
-
-    await waitFor(() => expect(screen.getByTestId("name")).toHaveTextContent("Aina"));
-    expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/auth/sign-in");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/identity/account");
-  });
-
-  test("keeps the viewer signed out and explains a refusal", async () => {
-    respondWith({
-      ok: false,
-      code: "INVALID_CREDENTIALS",
-      message: "That email address and password do not match an account.",
-    });
-
-    renderProvider(null);
-    act(() => screen.getByRole("button", { name: "Sign in" }).click());
-
-    await waitFor(() =>
-      expect(screen.getByTestId("error")).toHaveTextContent(
-        "That email address and password do not match an account.",
-      ),
-    );
-    expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated");
-    expect(replace).not.toHaveBeenCalled();
-  });
-});
-
 describe("signing out", () => {
-  test("clears the account and returns the viewer to the homepage", async () => {
-    respondWith({ ok: true, data: { signedOut: true } });
+  test("ends the Clerk session, clears the old Supabase cookie and returns home", async () => {
+    const order: string[] = [];
+    const fetchMock = vi.fn(async () => {
+      order.push("supabase");
+      return { json: async () => ({ ok: true, data: { signedOut: true } }) } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const signOut = vi.fn(async () => void order.push("clerk"));
+    clerkHooks.signOut = signOut;
 
     renderProvider(anAccountViewModel());
     act(() => screen.getByRole("button", { name: "Sign out" }).click());
 
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+    expect(signOut).toHaveBeenCalledWith({ redirectUrl: "/" });
+    expect(fetchMock.mock.calls[0]).toEqual([
+      "/api/auth/sign-out",
+      expect.objectContaining({ method: "POST" }),
+    ]);
+    // Clerk navigates away itself, so the cookie is cleared first.
+    expect(order).toEqual(["supabase", "clerk"]);
     expect(replace).toHaveBeenCalledWith("/");
     expect(refresh).toHaveBeenCalled();
   });
 
   /**
-   * A signed-out shell over a session that is still live on the server is the
-   * one misreading of this screen with a real cost: the viewer walks away
+   * A signed-out shell over a session that is still live is the one
+   * misreading of this screen with a real cost: the viewer walks away
    * believing they are signed out.
    */
-  test("keeps the account on screen when sign-out fails", async () => {
-    respondWith({
-      ok: false,
-      code: "AUTH_UNAVAILABLE",
-      message: "Identity services are temporarily unavailable. Try again.",
-    });
+  test("keeps the account on screen when the Clerk session cannot be ended", async () => {
+    respondWith({ ok: true, data: { signedOut: true } });
+    clerkHooks.signOut = vi.fn().mockRejectedValue(new Error("network"));
 
     renderProvider(anAccountViewModel({ displayName: "Aina" }));
     act(() => screen.getByRole("button", { name: "Sign out" }).click());
 
     await waitFor(() =>
       expect(screen.getByTestId("error")).toHaveTextContent(
-        "Identity services are temporarily unavailable. Try again.",
+        "You could not be signed out. Try again shortly.",
       ),
     );
     expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
