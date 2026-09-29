@@ -218,3 +218,11 @@ test("offers recovery and registration routes", () => {
     "/sign-up",
   );
 });
+
+test("renders the Continue with Google button with icon", () => {
+  renderForm();
+
+  const googleButton = screen.getByRole("button", { name: /Continue with Google/i });
+  expect(googleButton).toBeInTheDocument();
+  expect(googleButton.querySelector("svg")).toBeInTheDocument();
+});

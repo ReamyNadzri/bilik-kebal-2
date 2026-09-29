@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useSignIn } from "@clerk/nextjs";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
+import { GoogleIcon } from "./google-icon";
 import { UiStatus } from "./ui-status";
 import type { IdentityOperationCode } from "@/contracts";
 import { useAuth } from "@/features/presentation/auth/auth-provider";
@@ -30,20 +32,12 @@ export interface SignInFormProps {
 }
 
 /**
- * Sign-in, wired to the identity operation through the auth provider.
- *
- * Presence checks stay in the client for fast feedback, but they decide
- * nothing: the operation re-validates and is the only thing that can
- * authenticate. Field errors come from the operation's fieldErrors so the
- * wording a user reads matches the decision that was actually made.
- *
- * The provider performs the sign-in so that the account is re-read before this
- * form navigates. Landing on a protected screen a moment before the shell
- * knows who is signed in is the flash the guards exist to prevent.
+ * Sign-in, wired to the identity operation through the auth provider and Clerk.
  */
 export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
   const router = useRouter();
   const { signIn } = useAuth();
+  const { signIn: clerkSignIn } = useSignIn();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -54,6 +48,19 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
       summaryRef.current?.focus();
     }
   }, [errors]);
+
+  async function handleGoogleSignIn() {
+    if (!clerkSignIn) return;
+    try {
+      await clerkSignIn.sso({
+        strategy: "oauth_google",
+        redirectUrl: next,
+        redirectCallbackUrl: "/sso-callback",
+      });
+    } catch (err: unknown) {
+      console.error("Google SSO error", err);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -78,6 +85,43 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
 
     setErrors([]);
     setOutcome({ kind: "submitting" });
+
+    // Authenticate with Clerk when available
+    if (clerkSignIn) {
+      try {
+        const { error: clerkErr } = await clerkSignIn.password({
+          emailAddress: email,
+          password,
+        });
+
+        if (clerkErr) {
+          setErrors([{ fieldId: "password", message: clerkErr.message }]);
+          setOutcome({
+            kind: "refused",
+            code: "INVALID_CREDENTIALS",
+            message: clerkErr.message,
+          });
+          return;
+        }
+
+        if (clerkSignIn.status === "complete") {
+          await clerkSignIn.finalize({
+            navigate: ({ decorateUrl }) => {
+              const url = decorateUrl(next);
+              if (url.startsWith("http")) {
+                window.location.href = url;
+              } else {
+                router.replace(url);
+                router.refresh();
+              }
+            },
+          });
+          return;
+        }
+      } catch (err: unknown) {
+        console.error("Clerk sign-in error", err);
+      }
+    }
 
     const result = await signIn({ email, password });
 
@@ -155,9 +199,21 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
         error={errorFor("password")}
       />
 
-      <button className="auth-form__submit" type="submit" disabled={submitting}>
-        {submitting ? "Signing in…" : "Sign in"}
-      </button>
+      <div className="flex flex-col gap-3">
+        <button className="auth-form__submit" type="submit" disabled={submitting}>
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+
+        <button
+          type="button"
+          className="button button--secondary w-full"
+          onClick={handleGoogleSignIn}
+          disabled={submitting}
+        >
+          <GoogleIcon size={18} />
+          <span>Continue with Google</span>
+        </button>
+      </div>
 
       {submitting ? <UiStatus kind="loading" heading="Checking your details" /> : null}
 

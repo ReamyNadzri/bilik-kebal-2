@@ -125,3 +125,11 @@ test("says that an account alone does not permit transacting", () => {
 
   expect(screen.getByText(/institution verification/i)).toBeInTheDocument();
 });
+
+test("renders the Continue with Google button with icon", () => {
+  render(<SignUpForm />);
+
+  const googleButton = screen.getByRole("button", { name: /Continue with Google/i });
+  expect(googleButton).toBeInTheDocument();
+  expect(googleButton.querySelector("svg")).toBeInTheDocument();
+});

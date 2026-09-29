@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { FormField } from "./form-field";
 
 test("associates the label with its control", () => {
@@ -63,3 +63,25 @@ test("states that a field is required in words, not by a symbol alone", () => {
   expect(screen.getByText("(required)")).toBeInTheDocument();
   expect(screen.getByLabelText(/Email address/)).toBeRequired();
 });
+
+test("toggles password visibility between password and text", () => {
+  render(<FormField id="password" label="Password" type="password" />);
+
+  const input = screen.getByLabelText("Password");
+  expect(input).toHaveAttribute("type", "password");
+
+  const toggle = screen.getByRole("button", { name: /Show characters/i });
+  expect(toggle).toBeInTheDocument();
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+  fireEvent.click(toggle);
+  expect(input).toHaveAttribute("type", "text");
+  expect(toggle).toHaveAttribute("aria-label", "Hide characters");
+  expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+  fireEvent.click(toggle);
+  expect(input).toHaveAttribute("type", "password");
+  expect(toggle).toHaveAttribute("aria-label", "Show characters");
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+});
+

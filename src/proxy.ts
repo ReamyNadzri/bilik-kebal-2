@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
 import { refreshSupabaseSession } from "@/lib/supabase/proxy";
 
@@ -10,10 +10,16 @@ import { refreshSupabaseSession } from "@/lib/supabase/proxy";
  * it is silently ignored rather than reported, and the Supabase session then
  * never refreshes for anyone.
  */
-export async function proxy(request: NextRequest) {
+export const proxy = clerkMiddleware(async (_auth, request) => {
   return refreshSupabaseSession(request);
-}
+});
+
+export default proxy;
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/(api|trpc)(.*)",
+    "/__clerk/:path*",
+  ],
 };

@@ -1,7 +1,8 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Karla, Rye, Silkscreen } from "next/font/google";
 import type { ReactNode } from "react";
-import { AccountMenu } from "@/components/account-menu";
+import { ClerkAuthControls } from "@/components/clerk-auth-controls";
 import { AppShell } from "@/components/app-shell";
 import { GunshotProvider } from "@/components/motion/gunshot-transition";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
@@ -67,13 +68,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={`${karla.variable} ${rye.variable} ${silkscreen.variable}`}>
       <body>
-        <AuthProvider initialAccount={account}>
-          <GunshotProvider>
-            <AppShell roleNav={roleNav} accountMenu={<AccountMenu />} unreadCount={unreadCount}>
-              {children}
-            </AppShell>
-          </GunshotProvider>
-        </AuthProvider>
+        <ClerkProvider>
+          <AuthProvider initialAccount={account}>
+            <GunshotProvider>
+              <AppShell
+                roleNav={roleNav}
+                accountMenu={<ClerkAuthControls />}
+                unreadCount={unreadCount}
+              >
+                {children}
+              </AppShell>
+            </GunshotProvider>
+          </AuthProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
