@@ -41,3 +41,27 @@ export async function syncClerkAccount(): Promise<void> {
     // The webhook will deliver the same change.
   }
 }
+
+const GOOGLE_PENDING_KEY = "vaultix_google_sign_in";
+/** A Google round trip longer than this is not a return, it is a later visit. */
+const GOOGLE_RETURN_WINDOW_MS = 10 * 60_000;
+
+/** Marks that this tab is leaving for Google, so the return can be told apart from a visit. */
+export function markGoogleSignInStarted(): void {
+  try {
+    window.sessionStorage.setItem(GOOGLE_PENDING_KEY, String(Date.now()));
+  } catch {
+    // Storage can be refused (private mode); the return is then not reported.
+  }
+}
+
+/** True once, on the first sign-in render after a Google round trip in this tab. */
+export function takeGoogleSignInReturn(): boolean {
+  try {
+    const startedAt = Number(window.sessionStorage.getItem(GOOGLE_PENDING_KEY));
+    window.sessionStorage.removeItem(GOOGLE_PENDING_KEY);
+    return startedAt > 0 && Date.now() - startedAt < GOOGLE_RETURN_WINDOW_MS;
+  } catch {
+    return false;
+  }
+}

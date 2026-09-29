@@ -96,3 +96,18 @@ function fieldForCode(error: ClerkErrorLike): "email" | "password" | "code" | nu
   if (error.code.startsWith("form_password")) return "password";
   return null;
 }
+
+export const GOOGLE_UNAVAILABLE_MESSAGE =
+  "Google sign-in could not be completed. Try again, or sign in with your password.";
+
+/**
+ * A Google refusal in plain English. Codes we know keep their own wording;
+ * anything else (Google's raw token-exchange text, say) reads the same way
+ * for every member instead of leaking provider internals.
+ */
+export function googleSignInMessage(error: unknown): string {
+  const clerkError = toClerkError(error);
+  return clerkError && MESSAGES[clerkError.code]
+    ? MESSAGES[clerkError.code]!
+    : GOOGLE_UNAVAILABLE_MESSAGE;
+}
