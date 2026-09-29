@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { ReactNode } from "react";
 import { ShotLink } from "./motion/gunshot-transition";
 import { ShellNav } from "./shell-nav";
+import { ThemeMusic } from "./theme-music";
 import type { NavItem, NavItemId } from "@/features/presentation/navigation";
 
 export interface AppShellProps {
@@ -34,7 +35,8 @@ export interface AppShellProps {
  * Application frame: skip link, timber rail, main landmark, footer.
  *
  * The frame is a Server Component; only the navigation hydrates, because
- * marking the current destination needs the path. At 360 px the rail stacks
+ * marking the current destination needs the path, and the theme music toggle,
+ * which lives here so the root layout keeps it playing across navigation. At 360 px the rail stacks
  * into bands rather than collapsing behind a disclosure button, so the shell
  * still needs no JavaScript to be usable.
  *
@@ -74,9 +76,10 @@ export function AppShell({
 
           <ShellNav currentNavId={currentNavId} roleNav={roleNav} unreadCount={unreadCount} />
 
-          {accountMenu === undefined ? null : (
-            <div className="app-shell__account">{accountMenu}</div>
-          )}
+          <div className="app-shell__account">
+            <ThemeMusic />
+            {accountMenu}
+          </div>
         </div>
       </header>
 

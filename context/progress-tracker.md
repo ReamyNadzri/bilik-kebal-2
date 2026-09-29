@@ -835,3 +835,49 @@ account belongs to one university.
   says it, and a Board only shows one university); an Institution Sheriff for UMPSA (Platform
   Sheriffs and the Owner review UMPSA meanwhile); profile pages still list a member's Wanteds
   whatever the viewer's university.
+
+## 2026-09-29 theme music (uncommitted, in the `claude/uitm-terengganu-taxonomy` working tree)
+
+Request (user, 2026-09-29): "I want the theme song for this game VAULTIX to be played in the
+background of the page. 2 minutes is long enough."
+
+- `public/audio/vaultix-theme.mp3`: 120.0 s, 128 kbps, 1.9 MB. An original western theme in A
+  minor at 104 BPM (whistle, fingerpicked and tremolo guitars, trumpet, choir, gallop drums),
+  synthesised in `brag-output-2026-09-29-201653/work/theme.py` (not committed, like the earlier
+  brag cues; keep it to re-render). It opens with the whistle call from the brag videos. The last
+  bar fades to silence, so the gap a browser leaves when looping an MP3 cannot be heard.
+- `ThemeMusic` (`src/components/theme-music.tsx`) sits on the rail in `AppShell`, which the root
+  layout keeps mounted, so the music carries on across client-side navigation. Behaviour is in
+  `context/ui-context.md` (Sound). New pixel icons `sound`, `sound-off`; new token
+  `--bg-rail-selected` (the nav's current-page tint now uses it too).
+- Verified: 11 component tests plus the shell suite (38), typecheck, and lint on the changed
+  files. In Chrome on `pnpm dev`: plays, fades in to 0.45, carries on across a navigation, stays
+  off after a reload once turned off (the file is not fetched), and starts on the first tap when
+  autoplay is blocked (360 px, touch). No console errors.
+- Assumed, not asked (reversible): on by default and on every screen, including the Sheriff
+  console; a toggle rather than a volume slider.
+- Open questions: whether screens that call for focus (claim review, payment, evidence) should
+  stay silent; whether the owner or designer wants to approve or replace the provisional theme
+  before launch (it is a brand asset).
+
+## 2026-09-29 two more songs; the music becomes a three-song playlist (uncommitted, same working tree)
+
+Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each one different."
+
+- `public/audio/vaultix-boomtown.mp3`: a saloon romp in G major at 132 BPM (fiddle, honky-tonk
+  piano, banjo, washboard), up a step to A halfway, ending on "shave and a haircut".
+  `public/audio/vaultix-campfire.mp3`: a quiet night in E minor, 6/8 (nylon guitar, harmonica,
+  cello, crickets and a fire). Each is exactly 120.0 s and ends in silence. Sources are in
+  `brag-output-2026-09-29-204049/work/` (`vx_synth.py`, `boomtown.py`, `campfire.py`, and
+  `master.py`, which matches all three songs, the theme included, to -17.1 LUFS and encodes
+  them). Not committed; keep them to re-render.
+- `ThemeMusic` plays `THEME_TRACKS` in turn (theme, Boomtown, Campfire, then the theme again)
+  instead of looping one file, keeps the rail on through each handover, and names the song
+  for the operating system's media controls.
+- Fixed: the fade-in could set a negative volume when the first animation frame was stamped
+  a moment before the fade began. The browser threw and the fade stopped at volume 0, so the
+  song played silently. Seen in Chrome's console, reproduced in a test, clamped.
+- Verified: 40 tests (theme music and shell), typecheck, lint. In Chrome on `pnpm dev`: Theme ->
+  Boomtown -> Campfire -> Theme, each 120 s, the rail stays on and the media title follows.
+- The earlier `.theme-music` styles and the `--bg-rail-selected` token were committed by the
+  other session in `9c3203f` (they were in `globals.css` when it committed).

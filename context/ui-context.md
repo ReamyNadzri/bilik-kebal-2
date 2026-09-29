@@ -52,6 +52,24 @@ No component may hardcode a final colour value. Temporary development tokens mus
 - Animation is decorative only. Respect `prefers-reduced-motion`.
 - No essential state may rely on colour, animation, themed terminology, or an icon alone.
 
+## Sound
+
+- The only sound is the provisional soundtrack: three original two-minute songs in
+  `public/audio/`, synthesised with no samples and matched in loudness: the theme
+  (`vaultix-theme.mp3`, western adventure), `vaultix-boomtown.mp3` (upbeat saloon) and
+  `vaultix-campfire.mp3` (quiet night). They play in that order and then start again. The
+  handoff may replace the files in `THEME_TRACKS`; the component
+  (`src/components/theme-music.tsx`) does not change.
+- It plays behind every screen and carries on across navigation. It is on by default: if the
+  browser refuses sound at first, it starts on the visitor's first click, tap or key press, fading
+  in. The operating system's media controls show the song's name.
+- The Music toggle on the rail (`aria-pressed`, a speaker icon that is crossed out when off, a
+  brass rule when on) stops and restarts it, meeting WCAG 2.1 SC 1.4.2. Turning it off is
+  remembered in that browser.
+- It pauses while the tab is hidden, and the file is not downloaded until it actually plays.
+- Sound never carries information. Nothing about payment, policy, security, status, or errors is
+  conveyed by audio.
+
 ## Component Foundation
 
 - Tailwind CSS implements semantic tokens and responsive layout.
