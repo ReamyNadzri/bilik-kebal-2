@@ -835,3 +835,22 @@ account belongs to one university.
   says it, and a Board only shows one university); an Institution Sheriff for UMPSA (Platform
   Sheriffs and the Owner review UMPSA meanwhile); profile pages still list a member's Wanteds
   whatever the viewer's university.
+
+## 2026-09-29 integrated into GitLab `main`
+
+User-approved push to `gitlab/main`.
+
+- `gitlab/main` had moved on: merge requests for `claude/hunters-wall` and
+  `claude/poster-edit-share-walkthrough`, then `49346c8 clerk` (haziq), which adds Clerk sign-in
+  to the layout, proxy and sign-in/sign-up forms plus a new dependency.
+- The two commits of `claude/uitm-terengganu-taxonomy` were cherry-picked onto it in a separate
+  worktree (`.worktrees/main-push`), without conflicts, and fast-forwarded to `main`:
+  `d42cdc6` (programme catalogue, searchable programme, typed course code, one Sheriff request)
+  and `134f945` (each university browsed on its own).
+- Verified on the combined tree before pushing: typecheck, 1,460 tests and the production build.
+- Migrations `202610150001` to `202610150005` were already applied to Supabase Cloud, so `main`
+  and the database match.
+- `claude/uitm-terengganu-taxonomy` holds the same changes under its pre-rebase hashes (`91c303e`,
+  `9c3203f`); `main` is the one to build on.
+- Follow-up: once the deploy carrying `134f945` is live, drop the two-argument
+  `list_public_hunters` in a new migration; the app now calls `list_public_hunters_at`.
