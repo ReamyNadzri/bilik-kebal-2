@@ -16,6 +16,10 @@ supabase/.temp/
 # next
 next-env.d.ts
 
+# local working folders: brag video renders and design handoffs
+brag-output*/
+design_handoff_*/
+
 # screenshots
 vaultix-*.png
 !vaultix-home.png
