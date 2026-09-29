@@ -1,22 +1,9 @@
-import type { Metadata } from "next";
-import { ResetPasswordForm } from "@/components/reset-password-form";
+import { permanentRedirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Set a new password | VAULTIX" };
-export const dynamic = "force-dynamic";
-
-export default async function ResetPasswordPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const params = await searchParams;
-  const status = Array.isArray(params.status) ? params.status[0] : params.status;
-  const email = Array.isArray(params.email) ? params.email[0] : params.email;
-
-  return (
-    <>
-      <h1>Set a new password</h1>
-      <ResetPasswordForm expired={status === "expired"} initialEmail={email} />
-    </>
-  );
+/**
+ * Password resets happen on /recover with a Clerk code. Links from older
+ * Supabase recovery emails still land here, so they are sent there.
+ */
+export default function ResetPasswordPage(): never {
+  permanentRedirect("/recover");
 }

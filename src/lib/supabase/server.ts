@@ -118,7 +118,7 @@ type UntypedRpc = {
  * the same idempotent database function, so the first page after sign-up does
  * not see a stranger. The webhook arriving later changes nothing.
  */
-async function provisionClerkUser(): Promise<void> {
+export async function syncCurrentClerkUser(): Promise<void> {
   const user = await currentUser();
   if (!user?.raw) return;
   await new SupabaseClerkUserSyncRepository(createSupabaseAdminClient()).syncUser(
@@ -135,7 +135,7 @@ function minutesAgo(minutes: unknown): string | null {
 async function readClerkRequestUser(fva: unknown): Promise<RequestUserResult> {
   let row = await readOwnIdentity();
   if (!row) {
-    await provisionClerkUser();
+    await syncCurrentClerkUser();
     row = await readOwnIdentity();
   }
   if (!row) return { data: { user: null }, error: null };

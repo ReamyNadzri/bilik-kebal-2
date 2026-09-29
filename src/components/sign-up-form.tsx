@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { GoogleIcon } from "./google-icon";
 import { UiStatus } from "./ui-status";
-import type { IdentityOperationCode, RegistrationResult } from "@/contracts";
-import { callOperation } from "@/features/presentation/call-operation";
-import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
+import { clerkErrorField, clerkMessage } from "@/features/presentation/auth/clerk-messages";
+import {
+  syncClerkAccount,
+  useFinalizeNavigation,
+} from "@/features/presentation/auth/clerk-navigation";
+import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
 const MINIMUM_PASSWORD_LENGTH = 12;
@@ -18,18 +20,20 @@ const MINIMUM_PASSWORD_LENGTH = 12;
 type Outcome =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "refused"; code: IdentityOperationCode; message: string };
+  | { kind: "refused"; message: string; offline?: boolean };
 
 /**
- * Registration, wired to POST /api/auth/sign-up and Clerk useSignUp.
+ * Registration with Clerk: the account is created, Clerk emails a 6-digit
+ * code, and the session starts once the code is entered, so every account
+ * that reaches VAULTIX has a verified email.
  */
 export function SignUpForm() {
-  const router = useRouter();
-  const { signUp: clerkSignUp } = useSignUp();
+  const { signUp } = useSignUp();
+  const finalizeTo = useFinalizeNavigation();
+  const [step, setStep] = useState<"details" | "code">("details");
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
-  const [verifyingEmail, setVerifyingEmail] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
+  const [resent, setResent] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
 
@@ -39,67 +43,28 @@ export function SignUpForm() {
     }
   }, [errors]);
 
-  async function handleGoogleSignUp() {
-    if (!clerkSignUp) return;
-    try {
-      await clerkSignUp.sso({
-        strategy: "oauth_google",
-        redirectUrl: "/profile",
-        redirectCallbackUrl: "/sso-callback",
-      });
-    } catch (err: unknown) {
-      console.error("Google sign up error", err);
-    }
+  function refuse(error: Parameters<typeof clerkMessage>[0]) {
+    const message = clerkMessage(error);
+    const field = error ? clerkErrorField(error) : null;
+    setErrors(field ? [{ fieldId: field, message }] : []);
+    setOutcome({ kind: "refused", message, offline: !error });
   }
 
-  async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!clerkSignUp) return;
+  async function finish() {
+    if (!signUp) return;
+    await syncClerkAccount();
+    await signUp.finalize({ navigate: finalizeTo(DEFAULT_SIGNED_IN_PATH) });
+  }
 
-    if (verificationCode.trim() === "") {
-      setErrors([{ fieldId: "code", message: "Enter the verification code sent to your email." }]);
-      return;
-    }
-
-    setErrors([]);
+  async function handleGoogleSignUp() {
+    if (!signUp) return;
     setOutcome({ kind: "submitting" });
-
-    try {
-      const { error: verifyErr } = await clerkSignUp.verifications.verifyEmailCode({
-        code: verificationCode.trim(),
-      });
-
-      if (verifyErr) {
-        setErrors([{ fieldId: "code", message: verifyErr.message }]);
-        setOutcome({
-          kind: "refused",
-          code: "INVALID_CREDENTIALS",
-          message: verifyErr.message,
-        });
-        return;
-      }
-
-      if (clerkSignUp.status === "complete") {
-        await clerkSignUp.finalize({
-          navigate: ({ decorateUrl }) => {
-            const url = decorateUrl("/profile");
-            if (url.startsWith("http")) {
-              window.location.href = url;
-            } else {
-              router.replace(url);
-              router.refresh();
-            }
-          },
-        });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Verification failed. Try again.";
-      setOutcome({
-        kind: "refused",
-        code: "AUTH_UNAVAILABLE",
-        message,
-      });
-    }
+    const { error } = await signUp.sso({
+      strategy: "oauth_google",
+      redirectUrl: DEFAULT_SIGNED_IN_PATH,
+      redirectCallbackUrl: "/sso-callback",
+    });
+    if (error) refuse(error);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -145,94 +110,84 @@ export function SignUpForm() {
       return;
     }
 
-    setErrors([]);
-    setOutcome({ kind: "submitting" });
-
-    // Authenticate with Clerk when available
-    if (clerkSignUp) {
-      try {
-        const { error: clerkErr } = await clerkSignUp.password({
-          emailAddress: email,
-          password,
-          firstName: displayName,
-        });
-
-        if (clerkErr) {
-          setErrors([{ fieldId: "email", message: clerkErr.message }]);
-          setOutcome({
-            kind: "refused",
-            code: "REGISTRATION_FAILED",
-            message: clerkErr.message,
-          });
-          return;
-        }
-
-        if (clerkSignUp.status === "missing_requirements") {
-          await clerkSignUp.verifications.sendEmailCode();
-          setVerifyingEmail(true);
-          setOutcome({ kind: "idle" });
-          return;
-        }
-
-        if (clerkSignUp.status === "complete") {
-          await clerkSignUp.finalize({
-            navigate: ({ decorateUrl }) => {
-              const url = decorateUrl("/profile");
-              if (url.startsWith("http")) {
-                window.location.href = url;
-              } else {
-                router.replace(url);
-                router.refresh();
-              }
-            },
-          });
-          return;
-        }
-      } catch (err: unknown) {
-        console.error("Clerk sign-up error", err);
-      }
-    }
-
-    const result = (await callOperation<
-      { next: "verify_email" | "profile" },
-      IdentityOperationCode
-    >(
-      "/api/auth/sign-up",
-      { displayName, email, password },
-      "AUTH_UNAVAILABLE",
-    )) as RegistrationResult;
-
-    if (result.ok) {
-      if (result.data.next === "profile") {
-        router.replace("/profile");
-        router.refresh();
-        return;
-      }
-      router.push("/verify-email");
+    if (!signUp) {
+      refuse(null);
       return;
     }
 
-    const mapped = Object.entries(result.fieldErrors ?? {}).flatMap(([fieldId, messages]) =>
-      messages.map((message) => ({ fieldId, message })),
-    );
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
 
-    setErrors(mapped);
+    // The display name travels as the first name; it becomes the profile name
+    // once, when the account is provisioned, and belongs to the member after.
+    const { error } = await signUp.password({
+      emailAddress: email,
+      password,
+      firstName: displayName,
+    });
+    if (error) return refuse(error);
+
+    if (signUp.status === "complete") {
+      await finish();
+      return;
+    }
+
+    const { error: sendError } = await signUp.verifications.sendEmailCode();
+    if (sendError) return refuse(sendError);
+    setStep("code");
+    setOutcome({ kind: "idle" });
+  }
+
+  async function handleCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!signUp) return;
+
+    const code = String(new FormData(event.currentTarget).get("code") ?? "").trim();
+    if (code === "") {
+      setErrors([{ fieldId: "code", message: "Enter the code from the email." }]);
+      return;
+    }
+
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
+    const { error } = await signUp.verifications.verifyEmailCode({ code });
+    if (error) return refuse(error);
+
+    if (signUp.status === "complete") {
+      await finish();
+      return;
+    }
     setOutcome({
       kind: "refused",
-      code: result.code,
-      message: result.message === "" ? IDENTITY_MESSAGE[result.code] : result.message,
+      message:
+        "Your email is confirmed, but the account needs more details. Contact VAULTIX support.",
     });
+  }
+
+  async function resend() {
+    if (!signUp) return;
+    const { error } = await signUp.verifications.sendEmailCode();
+    if (error) return refuse(error);
+    setResent(true);
   }
 
   const errorFor = (fieldId: string) => errors.find((error) => error.fieldId === fieldId)?.message;
   const submitting = outcome.kind === "submitting";
+  const refusal =
+    outcome.kind === "refused" && errors.length === 0 ? (
+      <UiStatus
+        kind={outcome.offline ? "offline" : "error"}
+        heading={step === "code" ? "Your email is not confirmed yet" : "No account was created"}
+        message={outcome.message}
+      />
+    ) : null;
 
-  if (verifyingEmail) {
+  if (step === "code") {
     return (
       <form
         className="auth-form"
         noValidate
-        onSubmit={handleVerifyCode}
+        onSubmit={handleCode}
         data-hydrated={hydrated ? "true" : "false"}
       >
         <ErrorSummary errors={errors} ref={summaryRef} />
@@ -240,32 +195,46 @@ export function SignUpForm() {
         <UiStatus
           kind="restricted"
           heading="Check your email"
-          message="We have sent a verification code to your email address. Enter it below to complete registration."
+          message="We sent a 6-digit code to your email address. Enter it to finish creating your account."
         />
+        {refusal}
+        {resent ? <p role="status">A new code is on its way.</p> : null}
 
         <FormField
           id="code"
           name="code"
           type="text"
-          label="Verification code"
-          hint="6-digit code sent to your email"
+          label="Code from the email"
+          hint="6 digits"
+          autoComplete="one-time-code"
+          inputMode="numeric"
           required
-          value={verificationCode}
-          onChange={(e) => setVerificationCode(e.target.value)}
           error={errorFor("code")}
         />
 
         <button className="auth-form__submit" type="submit" disabled={submitting}>
-          {submitting ? "Verifying…" : "Verify and complete"}
+          {submitting ? "Checking…" : "Confirm and create account"}
         </button>
 
         <p className="auth-form__links">
           <button
             type="button"
             className="button button--quiet"
-            onClick={() => setVerifyingEmail(false)}
+            onClick={() => void resend()}
+            disabled={submitting}
           >
-            ← Back to sign up
+            Send a new code
+          </button>
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => {
+              setStep("details");
+              setErrors([]);
+              setOutcome({ kind: "idle" });
+            }}
+          >
+            Use a different email
           </button>
         </p>
       </form>
@@ -287,13 +256,7 @@ export function SignUpForm() {
         verification.
       </p>
 
-      {outcome.kind === "refused" && errors.length === 0 ? (
-        <UiStatus
-          kind={outcome.code === "AUTH_UNAVAILABLE" ? "offline" : "error"}
-          heading="No account was created"
-          message={outcome.message}
-        />
-      ) : null}
+      {refusal}
 
       <FormField
         id="display-name"
@@ -337,6 +300,9 @@ export function SignUpForm() {
         error={errorFor("confirm-password")}
       />
 
+      {/* Clerk's bot protection renders its challenge here when it needs one. */}
+      <div id="clerk-captcha" />
+
       <div className="flex flex-col gap-3">
         <button className="auth-form__submit" type="submit" disabled={submitting}>
           {submitting ? "Creating your account…" : "Create account"}
@@ -345,7 +311,7 @@ export function SignUpForm() {
         <button
           type="button"
           className="button button--secondary w-full"
-          onClick={handleGoogleSignUp}
+          onClick={() => void handleGoogleSignUp()}
           disabled={submitting}
         >
           <GoogleIcon size={18} />

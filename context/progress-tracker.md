@@ -930,3 +930,15 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   only affect Supabase Auth sessions; the Clerk equivalent is the instance inactivity timeout
   (dashboard, pending). Sign-out does not end a Clerk session yet (slice 4). Unit suite, 14 DB
   suites and the production build pass.
+- Slice 4: sign-in (password, Google via the new `/sso-callback`, Clerk device-trust email code),
+  sign-up (email code before the session starts, `#clerk-captcha`), `/recover` (Clerk reset code +
+  new password; unknown addresses answered like known ones), `/verify-email` (Clerk email code for
+  a signed-in unverified account) and the Sheriff step-up (`ConfirmIdentity` → Clerk session
+  reverification, token refreshed so `fva` reaches the server) run on Clerk. `/reset-password`
+  permanently redirects to `/recover`. Sign-out and idle sign-out clear the old Supabase cookie,
+  then end the Clerk session. `POST /api/identity/clerk-sync` copies the caller's own Clerk
+  account to VAULTIX immediately (idempotent; no body). Clerk refusals go through
+  `clerk-messages.ts` so a wrong password and an unknown address read the same. The Supabase auth
+  routes stay until slice 6. **The import (slice 5) must run before slice 4 is deployed.**
+  A Google-only Sheriff has no password to reverify with and is told so. 189 unit files, lint,
+  typecheck and build pass.

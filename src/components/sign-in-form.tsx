@@ -1,23 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSignIn } from "@clerk/nextjs";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { GoogleIcon } from "./google-icon";
 import { UiStatus } from "./ui-status";
-import type { IdentityOperationCode } from "@/contracts";
-import { useAuth } from "@/features/presentation/auth/auth-provider";
+import { clerkErrorField, clerkMessage } from "@/features/presentation/auth/clerk-messages";
+import { useFinalizeNavigation } from "@/features/presentation/auth/clerk-navigation";
 import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
-import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
 type Outcome =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "refused"; code: IdentityOperationCode; message: string };
+  | { kind: "refused"; message: string; offline?: boolean };
 
 export interface SignInFormProps {
   /**
@@ -32,12 +30,16 @@ export interface SignInFormProps {
 }
 
 /**
- * Sign-in, wired to the identity operation through the auth provider and Clerk.
+ * Sign-in with Clerk: email and password, or Google.
+ *
+ * A password sign-in from a device Clerk does not know yet asks for a code
+ * sent to the account's email (Clerk device trust) before the session starts.
+ * Refusals never say whether an address has an account.
  */
 export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
-  const router = useRouter();
-  const { signIn } = useAuth();
-  const { signIn: clerkSignIn } = useSignIn();
+  const { signIn } = useSignIn();
+  const finalizeTo = useFinalizeNavigation();
+  const [step, setStep] = useState<"credentials" | "code">("credentials");
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -49,17 +51,48 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
     }
   }, [errors]);
 
-  async function handleGoogleSignIn() {
-    if (!clerkSignIn) return;
-    try {
-      await clerkSignIn.sso({
-        strategy: "oauth_google",
-        redirectUrl: next,
-        redirectCallbackUrl: "/sso-callback",
-      });
-    } catch (err: unknown) {
-      console.error("Google SSO error", err);
+  function refuse(error: Parameters<typeof clerkMessage>[0]) {
+    const message = clerkMessage(error);
+    const field = error ? clerkErrorField(error) : null;
+    setErrors(field ? [{ fieldId: field, message }] : []);
+    setOutcome({ kind: "refused", message, offline: !error });
+  }
+
+  async function finishOrContinue() {
+    if (!signIn) return;
+    if (signIn.status === "complete") {
+      await signIn.finalize({ navigate: finalizeTo(next) });
+      return;
     }
+    const emailFactor = signIn.supportedSecondFactors.some(
+      (factor) => factor.strategy === "email_code",
+    );
+    if (
+      (signIn.status === "needs_client_trust" || signIn.status === "needs_second_factor") &&
+      emailFactor
+    ) {
+      const { error } = await signIn.mfa.sendEmailCode();
+      if (error) return refuse(error);
+      setStep("code");
+      setOutcome({ kind: "idle" });
+      return;
+    }
+    setOutcome({
+      kind: "refused",
+      message:
+        "This account needs a sign-in step this screen does not support yet. Contact VAULTIX support.",
+    });
+  }
+
+  async function handleGoogleSignIn() {
+    if (!signIn) return;
+    setOutcome({ kind: "submitting" });
+    const { error } = await signIn.sso({
+      strategy: "oauth_google",
+      redirectUrl: next,
+      redirectCallbackUrl: "/sso-callback",
+    });
+    if (error) refuse(error);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -83,73 +116,89 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
       return;
     }
 
-    setErrors([]);
-    setOutcome({ kind: "submitting" });
-
-    // Authenticate with Clerk when available
-    if (clerkSignIn) {
-      try {
-        const { error: clerkErr } = await clerkSignIn.password({
-          emailAddress: email,
-          password,
-        });
-
-        if (clerkErr) {
-          setErrors([{ fieldId: "password", message: clerkErr.message }]);
-          setOutcome({
-            kind: "refused",
-            code: "INVALID_CREDENTIALS",
-            message: clerkErr.message,
-          });
-          return;
-        }
-
-        if (clerkSignIn.status === "complete") {
-          await clerkSignIn.finalize({
-            navigate: ({ decorateUrl }) => {
-              const url = decorateUrl(next);
-              if (url.startsWith("http")) {
-                window.location.href = url;
-              } else {
-                router.replace(url);
-                router.refresh();
-              }
-            },
-          });
-          return;
-        }
-      } catch (err: unknown) {
-        console.error("Clerk sign-in error", err);
-      }
-    }
-
-    const result = await signIn({ email, password });
-
-    if (result.ok) {
-      /**
-       * `replace` rather than `push`: going back to a sign-in form that would
-       * now redirect away is a dead end in the history stack.
-       */
-      router.replace(next);
-      router.refresh();
+    if (!signIn) {
+      refuse(null);
       return;
     }
 
-    const fieldErrors = result.fieldErrors ?? {};
-    const mapped = Object.entries(fieldErrors).flatMap(([fieldId, messages]) =>
-      messages.map((message) => ({ fieldId, message })),
-    );
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
 
-    setErrors(mapped);
-    setOutcome({
-      kind: "refused",
-      code: result.code,
-      message: result.message === "" ? IDENTITY_MESSAGE[result.code] : result.message,
-    });
+    const { error } = await signIn.password({ emailAddress: email, password });
+    if (error) return refuse(error);
+    await finishOrContinue();
+  }
+
+  async function handleCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!signIn) return;
+
+    const code = String(new FormData(event.currentTarget).get("code") ?? "").trim();
+    if (code === "") {
+      setErrors([{ fieldId: "code", message: "Enter the code from the email." }]);
+      return;
+    }
+
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
+    const { error } = await signIn.mfa.verifyEmailCode({ code });
+    if (error) return refuse(error);
+    await finishOrContinue();
   }
 
   const errorFor = (fieldId: string) => errors.find((error) => error.fieldId === fieldId)?.message;
   const submitting = outcome.kind === "submitting";
+  const refusal =
+    outcome.kind === "refused" && errors.length === 0 ? (
+      <UiStatus
+        kind={outcome.offline ? "offline" : "error"}
+        heading="You were not signed in"
+        message={outcome.message}
+      />
+    ) : null;
+
+  if (step === "code") {
+    return (
+      <form
+        className="auth-form"
+        noValidate
+        onSubmit={handleCode}
+        data-hydrated={hydrated ? "true" : "false"}
+      >
+        <ErrorSummary errors={errors} ref={summaryRef} />
+        <UiStatus
+          kind="restricted"
+          heading="Check your email"
+          message="This device is new to your account, so we sent a 6-digit code to your email address. Enter it to finish signing in."
+        />
+        {refusal}
+        <FormField
+          id="code"
+          name="code"
+          type="text"
+          label="Code from the email"
+          hint="6 digits"
+          autoComplete="one-time-code"
+          inputMode="numeric"
+          required
+          error={errorFor("code")}
+        />
+        <button className="auth-form__submit" type="submit" disabled={submitting}>
+          {submitting ? "Checking…" : "Finish signing in"}
+        </button>
+        <p className="auth-form__links">
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => void signIn?.mfa.sendEmailCode()}
+            disabled={submitting}
+          >
+            Send a new code
+          </button>
+        </p>
+      </form>
+    );
+  }
 
   return (
     <form
@@ -160,24 +209,7 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
     >
       <ErrorSummary errors={errors} ref={summaryRef} />
 
-      {outcome.kind === "refused" && outcome.code === "EMAIL_NOT_VERIFIED" ? (
-        <UiStatus
-          kind="restricted"
-          heading="Confirm your email address first"
-          message={outcome.message}
-          action={<Link href="/verify-email">Resend the verification link</Link>}
-        />
-      ) : null}
-
-      {outcome.kind === "refused" &&
-      outcome.code !== "EMAIL_NOT_VERIFIED" &&
-      errors.length === 0 ? (
-        <UiStatus
-          kind={outcome.code === "AUTH_UNAVAILABLE" ? "offline" : "error"}
-          heading="You were not signed in"
-          message={outcome.message}
-        />
-      ) : null}
+      {refusal}
 
       <FormField
         id="email"
@@ -207,7 +239,7 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
         <button
           type="button"
           className="button button--secondary w-full"
-          onClick={handleGoogleSignIn}
+          onClick={() => void handleGoogleSignIn()}
           disabled={submitting}
         >
           <GoogleIcon size={18} />

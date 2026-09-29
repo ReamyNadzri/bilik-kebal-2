@@ -1,62 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useSignIn } from "@clerk/nextjs";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { UiStatus } from "./ui-status";
-import type { IdentityOperationCode, PasswordRecoveryResult } from "@/contracts";
-import { callOperation } from "@/features/presentation/call-operation";
-import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
-import { useHydrated } from "@/features/presentation/use-hydrated";
 import { EmailDeliveryHint } from "./email-delivery-hint";
+import { clerkErrorField, clerkMessage } from "@/features/presentation/auth/clerk-messages";
+import { useFinalizeNavigation } from "@/features/presentation/auth/clerk-navigation";
+import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
+import { useHydrated } from "@/features/presentation/use-hydrated";
 
-const COOLDOWN_SECONDS = 120;
-const STORAGE_KEY = "vaultix_recovery_cooldown";
+const MINIMUM_PASSWORD_LENGTH = 12;
 
-/** The stored cooldown expiry, read once the form is in the browser. */
-function readStoredExpiry(): number | null {
-  try {
-    const stored = Number(sessionStorage.getItem(STORAGE_KEY));
-    return Number.isFinite(stored) && stored > 0 ? stored : null;
-  } catch {
-    return null;
-  }
-}
-
-const subscribeToNothing = () => () => {};
-const noStoredExpiry = () => null;
-
-function formatCooldown(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
+/** Clerk refusals that would reveal whether an address has an account. */
+const ACCOUNT_EXISTENCE_CODES = new Set(["form_identifier_not_found", "strategy_for_user_invalid"]);
 
 type Outcome =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "accepted" }
-  | { kind: "refused"; code: IdentityOperationCode; message: string };
+  | { kind: "refused"; message: string; offline?: boolean };
 
 /**
- * Password recovery, wired to POST /api/auth/recovery.
+ * Password recovery with Clerk: a 6-digit code goes to the address, and the
+ * code plus a new password signs the member in.
  *
- * The operation returns success for unknown addresses by design, and this
- * screen must not undo that: the confirmation never says whether an account
- * exists and never echoes the address back, so the screen cannot be used to
- * enumerate accounts.
+ * The screen answers the same whether or not the address has an account, so
+ * it cannot be used to find out who is registered.
  */
 export function RecoverForm() {
+  const { signIn } = useSignIn();
+  const finalizeTo = useFinalizeNavigation();
+  const [step, setStep] = useState<"email" | "reset">("email");
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
-  const storedExpiry = useSyncExternalStore(subscribeToNothing, readStoredExpiry, noStoredExpiry);
-  const [issuedExpiry, setIssuedExpiry] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
   const summaryRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
-  const expiry = issuedExpiry ?? storedExpiry;
-  const cooldown = expiry === null ? 0 : Math.max(0, Math.ceil((expiry - now) / 1000));
 
   useEffect(() => {
     if (errors.length > 0) {
@@ -64,27 +44,15 @@ export function RecoverForm() {
     }
   }, [errors]);
 
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const timer = setInterval(() => {
-      const current = Date.now();
-      setNow(current);
-      if (expiry !== null && current >= expiry) {
-        try {
-          sessionStorage.removeItem(STORAGE_KEY);
-        } catch {}
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldown, expiry]);
+  function refuse(error: Parameters<typeof clerkMessage>[0]) {
+    const message = clerkMessage(error);
+    const field = error ? clerkErrorField(error) : null;
+    setErrors(field ? [{ fieldId: field, message }] : []);
+    setOutcome({ kind: "refused", message, offline: !error });
+  }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (cooldown > 0) {
-      return;
-    }
-
     const email = String(new FormData(event.currentTarget).get("email") ?? "").trim();
 
     if (email === "") {
@@ -92,74 +60,147 @@ export function RecoverForm() {
       setOutcome({ kind: "idle" });
       return;
     }
+    if (!signIn) {
+      refuse(null);
+      return;
+    }
 
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const result = (await callOperation<{ accepted: true }, IdentityOperationCode>(
-      "/api/auth/recovery",
-      { email },
-      "AUTH_UNAVAILABLE",
-    )) as PasswordRecoveryResult;
+    const { error } = await signIn.create({ identifier: email });
+    if (error && !ACCOUNT_EXISTENCE_CODES.has(error.code)) return refuse(error);
+    if (!error) {
+      const { error: sendError } = await signIn.resetPasswordEmailCode.sendCode();
+      if (sendError && !ACCOUNT_EXISTENCE_CODES.has(sendError.code)) return refuse(sendError);
+    }
 
-    if (result.ok) {
-      setOutcome({ kind: "accepted" });
-      const expiry = Date.now() + COOLDOWN_SECONDS * 1000;
-      try {
-        sessionStorage.setItem(STORAGE_KEY, String(expiry));
-        sessionStorage.setItem("vaultix_recovery_email", email);
-      } catch {}
-      setNow(Date.now());
-      setIssuedExpiry(expiry);
+    setStep("reset");
+    setOutcome({ kind: "idle" });
+  }
+
+  async function handleReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!signIn) return;
+
+    const form = new FormData(event.currentTarget);
+    const code = String(form.get("code") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+
+    const found: FieldError[] = [];
+    if (code === "") found.push({ fieldId: "code", message: "Enter the code from the email." });
+    if (password.length < MINIMUM_PASSWORD_LENGTH) {
+      found.push({
+        fieldId: "password",
+        message: `Use a password of at least ${MINIMUM_PASSWORD_LENGTH} characters.`,
+      });
+    }
+    if (found.length > 0) {
+      setErrors(found);
       return;
     }
 
-    const mapped = Object.entries(result.fieldErrors ?? {}).flatMap(([fieldId, messages]) =>
-      messages.map((message) => ({ fieldId, message })),
-    );
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
 
-    setErrors(mapped);
+    const { error } = await signIn.resetPasswordEmailCode.verifyCode({ code });
+    if (error) return refuse(error);
+    const { error: passwordError } = await signIn.resetPasswordEmailCode.submitPassword({
+      password,
+    });
+    if (passwordError) return refuse(passwordError);
+
+    if (signIn.status === "complete") {
+      await signIn.finalize({ navigate: finalizeTo(DEFAULT_SIGNED_IN_PATH) });
+      return;
+    }
     setOutcome({
       kind: "refused",
-      code: result.code,
-      message: result.message === "" ? IDENTITY_MESSAGE[result.code] : result.message,
+      message: "Your password was changed. Sign in with the new password to continue.",
     });
   }
 
+  const errorFor = (fieldId: string) => errors.find((error) => error.fieldId === fieldId)?.message;
   const submitting = outcome.kind === "submitting";
+  const refusal =
+    outcome.kind === "refused" && errors.length === 0 ? (
+      <UiStatus
+        kind={outcome.offline ? "offline" : "error"}
+        heading={step === "reset" ? "Your password was not changed" : "The code could not be sent"}
+        message={outcome.message}
+      />
+    ) : null;
+
+  if (step === "reset") {
+    return (
+      <form
+        className="auth-form"
+        noValidate
+        onSubmit={handleReset}
+        data-hydrated={hydrated ? "true" : "false"}
+      >
+        <ErrorSummary errors={errors} ref={summaryRef} />
+        <UiStatus
+          kind="empty"
+          heading="If an account exists for that address, a code is on its way"
+          message="Enter the 6-digit code from the email and choose a new password."
+        />
+        <EmailDeliveryHint />
+        {refusal}
+
+        <FormField
+          id="code"
+          name="code"
+          type="text"
+          label="Code from the email"
+          hint="6 digits"
+          autoComplete="one-time-code"
+          inputMode="numeric"
+          required
+          error={errorFor("code")}
+        />
+        <FormField
+          id="password"
+          name="password"
+          type="password"
+          label="New password"
+          hint={`At least ${MINIMUM_PASSWORD_LENGTH} characters.`}
+          autoComplete="new-password"
+          required
+          error={errorFor("password")}
+        />
+
+        <button className="auth-form__submit" type="submit" disabled={submitting}>
+          {submitting ? "Saving…" : "Set new password"}
+        </button>
+
+        <p className="auth-form__links">
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => {
+              setStep("email");
+              setErrors([]);
+              setOutcome({ kind: "idle" });
+            }}
+          >
+            Use a different email
+          </button>
+          <Link href="/sign-in">Back to sign in</Link>
+        </p>
+      </form>
+    );
+  }
 
   return (
     <form
       className="auth-form"
       noValidate
-      onSubmit={handleSubmit}
+      onSubmit={handleEmail}
       data-hydrated={hydrated ? "true" : "false"}
     >
       <ErrorSummary errors={errors} ref={summaryRef} />
-
-      {outcome.kind === "accepted" ? (
-        <div className="stack">
-          <UiStatus
-            kind="empty"
-            heading="If an account exists for that address, a reset email is on its way"
-            message="Open the reset link in the email, or enter the 6-digit code from the same email."
-          />
-          <EmailDeliveryHint />
-          <p className="auth-form__links text-center">
-            <Link href="/reset-password" className="link-strong">
-              Enter 6-digit recovery code &rarr;
-            </Link>
-          </p>
-        </div>
-      ) : null}
-
-      {outcome.kind === "refused" && errors.length === 0 ? (
-        <UiStatus
-          kind={outcome.code === "AUTH_UNAVAILABLE" ? "offline" : "error"}
-          heading="The request could not be sent"
-          message={outcome.message}
-        />
-      ) : null}
+      {refusal}
 
       <FormField
         id="email"
@@ -168,18 +209,14 @@ export function RecoverForm() {
         label="Email address"
         autoComplete="email"
         required
-        error={errors.find((error) => error.fieldId === "email")?.message}
+        error={errorFor("email")}
       />
 
-      <button className="auth-form__submit" type="submit" disabled={submitting || cooldown > 0}>
-        {submitting
-          ? "Sending…"
-          : cooldown > 0
-            ? `Send recovery link (wait ${formatCooldown(cooldown)})`
-            : "Send recovery link"}
+      <button className="auth-form__submit" type="submit" disabled={submitting}>
+        {submitting ? "Sending…" : "Send a reset code"}
       </button>
 
-      {submitting ? <UiStatus kind="loading" heading="Sending the recovery link" /> : null}
+      {submitting ? <UiStatus kind="loading" heading="Sending the reset code" /> : null}
 
       <p className="auth-form__links">
         <Link href="/sign-in">Back to sign in</Link>

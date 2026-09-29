@@ -67,13 +67,18 @@ Each slice ships with acceptance criteria, RLS access-control tests and a passin
    `getRequestUser` becomes Clerk `auth()` + profile lookup; `src/lib/supabase/proxy.ts` session
    refresh and `signOut` removed; the 7-day idle backstop and 30-minute Sheriff limit move to
    Clerk session settings plus the existing browser timer.
-4. **Auth screens.** Sign-in/up, verify email, reset password and reauthenticate on Clerk hooks;
-   delete `supabase-auth-gateway`, `/auth/confirm`, `/api/auth/confirm`, `/auth/callback` and the
-   Supabase auth email templates once unused.
+4. **Auth screens.** Sign-in/up, verify email, reset password and reauthenticate on Clerk hooks.
+   The Supabase auth routes stay in place (unused by the screens) until slice 6, so a deploy
+   before the import cannot strand existing accounts' legacy sessions.
 5. **Existing users.** Import Supabase Auth users into Clerk (bcrypt hashes are accepted by the
-   Clerk user import), write `clerk_user_id` back. Dry-run on a copy first.
-6. **Context update.** `architecture.md` auth row and auth model, `code-standards.md`, and the
-   progress tracker.
+   Clerk user import) with `external_id` = the Supabase user id; the webhook links them.
+   Dry-run first. **Must run before slice 4 is deployed**, or existing members cannot sign in.
+6. **Cleanup and context.** Delete `supabase-auth-gateway`, `auth-service`, the `/api/auth/*`
+   Supabase routes, `/auth/confirm`, `/auth/callback`, `email-verification.tsx`,
+   `reset-password-form.tsx`, the pending-verification and recovery-grant cookies, the Supabase
+   auth email templates, the transitional branches in `private.current_user_id()`,
+   `current_user_recently_authenticated()`, `getRequestUser()` and the proxy's Supabase refresh.
+   Update `architecture.md` (auth row and auth model), `code-standards.md`, the progress tracker.
 
 ## Decisions (user, 2026-09-29)
 
