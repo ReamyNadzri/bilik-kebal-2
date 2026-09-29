@@ -16,6 +16,11 @@ type Status = "needs_first_factor" | "needs_client_trust" | "needs_second_factor
 function fakeSignIn(afterPassword: Status = "complete") {
   const signIn = {
     status: "needs_first_factor" as Status,
+    firstFactorVerification: null as null | {
+      strategy: string;
+      status: string | null;
+      error: unknown;
+    },
     supportedSecondFactors: [{ strategy: "email_code" }],
     password: vi.fn(async () => {
       signIn.status = afterPassword;
@@ -148,7 +153,8 @@ test("says sign-in is unavailable when Clerk has not loaded", async () => {
   expect(screen.getByText(/Sign-in is unavailable right now/)).toBeInTheDocument();
 });
 
-test("starts Google sign-in through the SSO callback", async () => {
+test("starts Google sign-in through the SSO callback and marks the round trip", async () => {
+  window.sessionStorage.clear();
   const signIn = fakeSignIn();
   render(<SignInForm next="/board" />);
 
@@ -161,6 +167,7 @@ test("starts Google sign-in through the SSO callback", async () => {
       redirectCallbackUrl: "/sso-callback",
     }),
   );
+  expect(Number(window.sessionStorage.getItem("vaultix_google_sign_in"))).toBeGreaterThan(0);
 });
 
 test("reads the code Clerk nests inside its API error, so the wording stays neutral", async () => {
@@ -203,4 +210,121 @@ test("never stays on 'Signing in…' when Clerk throws", async () => {
   expect(await screen.findByText("You were not signed in")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^Sign in$/ })).toBeEnabled();
   expect(screen.queryByText("boom")).not.toBeInTheDocument();
+});
+
+describe("arriving back from Google", () => {
+  beforeEach(() => window.sessionStorage.setItem("vaultix_google_sign_in", String(Date.now())));
+  afterEach(() => window.sessionStorage.clear());
+
+  test("says why Clerk refused the Google sign-in", async () => {
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: { code: "external_account_exists" },
+    };
+    render(<SignInForm />);
+
+    expect(
+      await screen.findByText(
+        "This Google account is already linked to a different VAULTIX account.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  test("words a raw Google failure plainly instead of showing provider text", async () => {
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: {
+        code: "oauth_token_exchange_error",
+        message: 'oauth: token exchange: oauth2: "invalid_client"',
+      },
+    };
+    render(<SignInForm />);
+
+    expect(
+      await screen.findByText(
+        "Google sign-in could not be completed. Try again, or sign in with your password.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/invalid_client/)).not.toBeInTheDocument();
+  });
+
+  test("says nothing about an old Google attempt on a later plain visit", async () => {
+    window.sessionStorage.clear();
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: { code: "external_account_exists" },
+    };
+    render(<SignInForm />);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("You were not signed in")).not.toBeInTheDocument();
+  });
+
+  test("forgets a Google start older than ten minutes", async () => {
+    window.sessionStorage.setItem("vaultix_google_sign_in", String(Date.now() - 11 * 60_000));
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "oauth_google",
+      status: "failed",
+      error: { code: "external_account_exists" },
+    };
+    render(<SignInForm />);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("You were not signed in")).not.toBeInTheDocument();
+    expect(window.sessionStorage.getItem("vaultix_google_sign_in")).toBeNull();
+  });
+
+  test("continues to the emailed code when Clerk needs one more step", async () => {
+    const signIn = fakeSignIn();
+    signIn.status = "needs_second_factor";
+    signIn.firstFactorVerification = { strategy: "oauth_google", status: "verified", error: null };
+    render(<SignInForm />);
+
+    expect(await screen.findByText("Check your email")).toBeInTheDocument();
+    expect(signIn.mfa.sendEmailCode).toHaveBeenCalledOnce();
+  });
+
+  test("finishes a Google sign-in Clerk already completed", async () => {
+    const signIn = fakeSignIn();
+    signIn.status = "complete";
+    signIn.firstFactorVerification = { strategy: "oauth_google", status: "verified", error: null };
+    render(<SignInForm next="/board" />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/board"));
+  });
+
+  test("ignores an old password attempt on a fresh visit", () => {
+    const signIn = fakeSignIn();
+    signIn.firstFactorVerification = {
+      strategy: "password",
+      status: "failed",
+      error: { code: "form_password_incorrect" },
+    };
+    render(<SignInForm />);
+
+    expect(screen.queryByText("You were not signed in")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sign in$/ })).toBeEnabled();
+  });
+});
+
+test("a page restored from the back/forward cache starts over", async () => {
+  const signIn = fakeSignIn();
+  signIn.sso.mockReturnValue(new Promise(() => {}) as never);
+  render(<SignInForm />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
+  expect(await screen.findByRole("button", { name: "Signing in…" })).toBeDisabled();
+
+  const restored = new Event("pageshow") as PageTransitionEvent;
+  Object.defineProperty(restored, "persisted", { value: true });
+  fireEvent(window, restored);
+
+  expect(await screen.findByRole("button", { name: /^Sign in$/ })).toBeEnabled();
 });

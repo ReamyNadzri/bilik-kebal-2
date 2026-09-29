@@ -10,9 +10,14 @@ import { UiStatus } from "./ui-status";
 import {
   clerkErrorField,
   clerkMessage,
+  googleSignInMessage,
   toClerkError,
 } from "@/features/presentation/auth/clerk-messages";
-import { useFinalizeNavigation } from "@/features/presentation/auth/clerk-navigation";
+import {
+  markGoogleSignInStarted,
+  takeGoogleSignInReturn,
+  useFinalizeNavigation,
+} from "@/features/presentation/auth/clerk-navigation";
 import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
@@ -55,6 +60,47 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
     }
   }, [errors]);
 
+  /**
+   * Going to Google leaves this page, and browsers may later restore it from
+   * the back/forward cache exactly as it was: on "Signing in…", waiting for a
+   * redirect that already happened. A restored page starts over instead.
+   */
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setOutcome({ kind: "idle" });
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  /**
+   * Back from Google, Clerk may send the member here with the sign-in still
+   * open: it failed (say why), needs one more step (the emailed code), or is
+   * complete. Only a return from a Google sign-in this tab started is picked
+   * up: Clerk remembers the last attempt, and a later plain visit must not
+   * resurface it.
+   */
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!signIn || resumed.current) return;
+    resumed.current = true;
+    if (!takeGoogleSignInReturn()) return;
+    const verification = signIn.firstFactorVerification;
+    if (!verification?.strategy?.startsWith("oauth_")) return;
+    // Picked up after this render, like any response from Clerk.
+    void Promise.resolve().then(async () => {
+      if (verification.error) {
+        setErrors([]);
+        setOutcome({ kind: "refused", message: googleSignInMessage(verification.error) });
+      } else if (verification.status === "verified") {
+        setOutcome({ kind: "submitting" });
+        await attempt(finishOrContinue);
+      }
+    });
+    // Only on arrival: later changes are driven by this form's own handlers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signIn]);
+
   function refuse(error: unknown) {
     const message = clerkMessage(error);
     const field = clerkErrorField(error);
@@ -96,6 +142,15 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
       setOutcome({ kind: "idle" });
       return;
     }
+    if (signIn.status === "needs_new_password") {
+      // Clerk found the password in a known data breach and will not accept it.
+      setOutcome({
+        kind: "refused",
+        message:
+          "For your safety this password must be changed before you can sign in. Use “Forgot your password?” below to set a new one.",
+      });
+      return;
+    }
     setOutcome({
       kind: "refused",
       message:
@@ -106,6 +161,7 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
   async function handleGoogleSignIn() {
     if (!signIn) return;
     setOutcome({ kind: "submitting" });
+    markGoogleSignInStarted();
     await attempt(async () => {
       const { error } = await signIn.sso({
         strategy: "oauth_google",
