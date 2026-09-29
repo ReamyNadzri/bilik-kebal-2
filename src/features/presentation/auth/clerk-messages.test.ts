@@ -1,4 +1,9 @@
-import { CLERK_UNAVAILABLE_MESSAGE, clerkErrorField, clerkMessage } from "./clerk-messages";
+import {
+  CLERK_UNAVAILABLE_MESSAGE,
+  clerkErrorField,
+  clerkMessage,
+  toClerkError,
+} from "./clerk-messages";
 
 test("a wrong password and an unknown address read the same", () => {
   expect(clerkMessage({ code: "form_password_incorrect" })).toBe(
@@ -21,4 +26,22 @@ test.each([
   ["too_many_requests", null],
 ] as const)("puts %s on the %s field", (code, field) => {
   expect(clerkErrorField({ code })).toBe(field);
+});
+
+test("unwraps the specific code Clerk nests in errors[0], camelCase or snake_case", () => {
+  expect(
+    toClerkError({
+      code: "api_response_error",
+      errors: [{ code: "form_code_incorrect", long_message: "L" }],
+    }),
+  ).toEqual({ code: "form_code_incorrect", longMessage: "L" });
+  expect(clerkMessage({ errors: [{ code: "form_identifier_not_found" }] })).toBe(
+    "The email address or password is not correct.",
+  );
+});
+
+test("treats anything that is not a Clerk error as unavailable, never shown raw", () => {
+  expect(toClerkError(new TypeError("boom"))).toBeNull();
+  expect(clerkMessage(new TypeError("boom"))).toBe(CLERK_UNAVAILABLE_MESSAGE);
+  expect(clerkErrorField("nope")).toBeNull();
 });

@@ -16,6 +16,8 @@ const MESSAGES: Readonly<Record<string, string>> = {
   form_identifier_not_found: "The email address or password is not correct.",
   form_password_validation_failed: "The email address or password is not correct.",
   strategy_for_user_invalid: "The email address or password is not correct.",
+  form_identifier_not_found_or_password_incorrect: "The email address or password is not correct.",
+  identifier_not_found: "The email address or password is not correct.",
   form_code_incorrect: "That code is not correct. Check the email and try again.",
   verification_expired: "That code has expired. Send a new one.",
   verification_failed: "That code could not be checked. Send a new one.",
@@ -32,13 +34,55 @@ const MESSAGES: Readonly<Record<string, string>> = {
 export const CLERK_UNAVAILABLE_MESSAGE =
   "Sign-in is unavailable right now. Check your connection and try again.";
 
-export function clerkMessage(error: ClerkErrorLike | null | undefined): string {
-  if (!error) return CLERK_UNAVAILABLE_MESSAGE;
-  return MESSAGES[error.code] ?? error.longMessage ?? error.message ?? CLERK_UNAVAILABLE_MESSAGE;
+/**
+ * The Clerk error that decided the refusal.
+ *
+ * Clerk wraps API refusals: the outer error carries a generic code and the
+ * specific one (`form_identifier_not_found`, …) sits in `errors[0]`. Resource
+ * methods throw that shape instead of returning it. Anything else thrown
+ * (a network failure, a bug) is treated as unavailable, never shown raw.
+ */
+export function toClerkError(error: unknown): ClerkErrorLike | null {
+  if (typeof error !== "object" || error === null) return null;
+  const nested = (error as { errors?: unknown }).errors;
+  if (Array.isArray(nested) && nested[0] && typeof nested[0].code === "string") {
+    const inner = nested[0] as {
+      code: string;
+      message?: string;
+      longMessage?: string;
+      long_message?: string;
+    };
+    return {
+      code: inner.code,
+      ...(inner.message ? { message: inner.message } : {}),
+      longMessage: inner.longMessage ?? inner.long_message,
+    };
+  }
+  const code = (error as { code?: unknown }).code;
+  if (typeof code !== "string") return null;
+  const { message, longMessage } = error as { message?: string; longMessage?: string };
+  return { code, ...(message ? { message } : {}), longMessage };
+}
+
+export function clerkMessage(error: unknown): string {
+  const clerkError = toClerkError(error);
+  if (!clerkError) return CLERK_UNAVAILABLE_MESSAGE;
+  return (
+    MESSAGES[clerkError.code] ??
+    clerkError.longMessage ??
+    clerkError.message ??
+    CLERK_UNAVAILABLE_MESSAGE
+  );
 }
 
 /** Which form field a Clerk refusal belongs to, if any. */
-export function clerkErrorField(error: ClerkErrorLike): "email" | "password" | "code" | null {
+export function clerkErrorField(error: unknown): "email" | "password" | "code" | null {
+  const clerkError = toClerkError(error);
+  if (!clerkError) return null;
+  return fieldForCode(clerkError);
+}
+
+function fieldForCode(error: ClerkErrorLike): "email" | "password" | "code" | null {
   if (error.code.startsWith("form_code") || error.code.startsWith("verification_")) return "code";
   if (error.code === "form_identifier_exists" || error.code === "form_param_format_invalid")
     return "email";

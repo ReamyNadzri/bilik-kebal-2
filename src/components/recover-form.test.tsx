@@ -138,3 +138,17 @@ test("reports an unreachable Clerk as offline", async () => {
 
   expect(await screen.findByText("The code could not be sent")).toBeInTheDocument();
 });
+
+test("hides an unknown address even when Clerk nests the refusal", async () => {
+  const signIn = fakeSignIn();
+  signIn.create.mockResolvedValue({
+    error: { code: "api_response_error", errors: [{ code: "form_identifier_not_found" }] },
+  } as never);
+  render(<RecoverForm />);
+
+  requestCode("nobody@x.test");
+
+  expect(
+    await screen.findByText("If an account exists for that address, a code is on its way"),
+  ).toBeInTheDocument();
+});

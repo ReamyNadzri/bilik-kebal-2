@@ -963,3 +963,12 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   --production`) and linked: 7 profiles, 7 distinct Clerk ids, 7 verified; a re-run plans nothing.
   The export file was deleted. Remaining: Clerk webhook + `CLERK_WEBHOOK_SIGNING_SECRET` and
   `SUPABASE_SERVICE_ROLE_KEY` in Vercel Production, merge and deploy, smoke test, then slice 6.
+- 2026-09-30 production smoke test found two sign-in bugs (fixed on `claude/clerk-signin-hang`):
+  a password sign-in from a new device stayed on "Signing in…" because an exception from the
+  device-trust step (`supportedSecondFactors` null) was not caught; and Clerk's nested API error
+  (`errors[0].code`) was not unwrapped, so "Couldn't find your account." leaked account existence.
+  Every Clerk call in the sign-in, sign-up and recovery forms is now guarded, device trust always
+  asks for the email code, and `toClerkError` unwraps nested refusals. Google sign-in failed first
+  on swapped Client ID/secret in Clerk production (corrected by the user; the old secret was
+  exposed in the session and is being replaced), and Clerk production paths still point to the
+  Account Portal (set sign-in/sign-up to the application domain in the dashboard).

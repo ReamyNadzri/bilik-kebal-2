@@ -7,7 +7,11 @@ import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { UiStatus } from "./ui-status";
 import { EmailDeliveryHint } from "./email-delivery-hint";
-import { clerkErrorField, clerkMessage } from "@/features/presentation/auth/clerk-messages";
+import {
+  clerkErrorField,
+  clerkMessage,
+  toClerkError,
+} from "@/features/presentation/auth/clerk-messages";
 import { useFinalizeNavigation } from "@/features/presentation/auth/clerk-navigation";
 import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
 import { useHydrated } from "@/features/presentation/use-hydrated";
@@ -16,6 +20,11 @@ const MINIMUM_PASSWORD_LENGTH = 12;
 
 /** Clerk refusals that would reveal whether an address has an account. */
 const ACCOUNT_EXISTENCE_CODES = new Set(["form_identifier_not_found", "strategy_for_user_invalid"]);
+
+function revealsAccountExistence(error: unknown): boolean {
+  const code = toClerkError(error)?.code;
+  return code !== undefined && ACCOUNT_EXISTENCE_CODES.has(code);
+}
 
 type Outcome =
   | { kind: "idle" }
@@ -44,11 +53,20 @@ export function RecoverForm() {
     }
   }, [errors]);
 
-  function refuse(error: Parameters<typeof clerkMessage>[0]) {
+  function refuse(error: unknown) {
     const message = clerkMessage(error);
-    const field = error ? clerkErrorField(error) : null;
+    const field = clerkErrorField(error);
     setErrors(field ? [{ fieldId: field, message }] : []);
-    setOutcome({ kind: "refused", message, offline: !error });
+    setOutcome({ kind: "refused", message, offline: toClerkError(error) === null });
+  }
+
+  /** Clerk can throw as well as return a refusal; the form must never hang. */
+  async function attempt(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (caught) {
+      refuse(caught);
+    }
   }
 
   async function handleEmail(event: FormEvent<HTMLFormElement>) {
@@ -68,15 +86,17 @@ export function RecoverForm() {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const { error } = await signIn.create({ identifier: email });
-    if (error && !ACCOUNT_EXISTENCE_CODES.has(error.code)) return refuse(error);
-    if (!error) {
-      const { error: sendError } = await signIn.resetPasswordEmailCode.sendCode();
-      if (sendError && !ACCOUNT_EXISTENCE_CODES.has(sendError.code)) return refuse(sendError);
-    }
+    await attempt(async () => {
+      const { error } = await signIn.create({ identifier: email });
+      if (error && !revealsAccountExistence(error)) return refuse(error);
+      if (!error) {
+        const { error: sendError } = await signIn.resetPasswordEmailCode.sendCode();
+        if (sendError && !revealsAccountExistence(sendError)) return refuse(sendError);
+      }
 
-    setStep("reset");
-    setOutcome({ kind: "idle" });
+      setStep("reset");
+      setOutcome({ kind: "idle" });
+    });
   }
 
   async function handleReset(event: FormEvent<HTMLFormElement>) {
@@ -103,20 +123,22 @@ export function RecoverForm() {
     setErrors([]);
     setOutcome({ kind: "submitting" });
 
-    const { error } = await signIn.resetPasswordEmailCode.verifyCode({ code });
-    if (error) return refuse(error);
-    const { error: passwordError } = await signIn.resetPasswordEmailCode.submitPassword({
-      password,
-    });
-    if (passwordError) return refuse(passwordError);
+    await attempt(async () => {
+      const { error } = await signIn.resetPasswordEmailCode.verifyCode({ code });
+      if (error) return refuse(error);
+      const { error: passwordError } = await signIn.resetPasswordEmailCode.submitPassword({
+        password,
+      });
+      if (passwordError) return refuse(passwordError);
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({ navigate: finalizeTo(DEFAULT_SIGNED_IN_PATH) });
-      return;
-    }
-    setOutcome({
-      kind: "refused",
-      message: "Your password was changed. Sign in with the new password to continue.",
+      if (signIn.status === "complete") {
+        await signIn.finalize({ navigate: finalizeTo(DEFAULT_SIGNED_IN_PATH) });
+        return;
+      }
+      setOutcome({
+        kind: "refused",
+        message: "Your password was changed. Sign in with the new password to continue.",
+      });
     });
   }
 
