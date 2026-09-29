@@ -881,3 +881,32 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   Boomtown -> Campfire -> Theme, each 120 s, the rail stays on and the media title follows.
 - The earlier `.theme-music` styles and the `--bg-rail-selected` token were committed by the
   other session in `9c3203f` (they were in `globals.css` when it committed).
+
+## 2026-09-29 Clerk production setup (decision: move auth to Clerk)
+
+- Decision (user): option A, Clerk replaces Supabase Auth; Supabase trusts Clerk tokens as a
+  third-party provider. `architecture.md` still says Supabase Auth until the migration slices land;
+  plan and open questions in `docs/superpowers/plans/2026-09-29-clerk-auth-migration.md`.
+- Done: Clerk production instance `ins_3K0FcdljHNhcTPvFfTf4SHyNygS` on `bilikkebal.afes.my`
+  (cloned from dev); Vercel project `bilik-kebal` linked to the GitLab repo with Clerk live keys and
+  sign-in/up URL vars in Production only.
+- Pending (user): DNS CNAMEs, Vercel domain, Clerk `role: authenticated` session claim, Google
+  OAuth production credentials, Supabase Clerk third-party provider, remaining Production env.
+- Later the same day (user): Vercel project is `reamynadzris-projects/vaultix` (the
+  `haziq3010s-projects/bilik-kebal` project created by mistake is to be deleted); Clerk live keys and
+  URL vars set there; DNS records added and verified; Supabase Clerk third-party provider enabled
+  for `https://clerk.bilikkebal.afes.my`; session claim `role: authenticated` and Google
+  production credentials set. Decisions: import users with passwords, Clerk sends auth email,
+  Sheriff step-up = Clerk reverification with the 15-minute window.
+- Until slices 1–3 of the plan ship, a production deploy signs people into Clerk but Supabase RLS
+  still keys on `auth.uid()`, so identity-backed screens will not work. Do not launch on it.
+- Slice 1 (branch `claude/clerk-auth-migration`): migration `202610160001_clerk_identity_bridge.sql`
+  adds `private.user_identities` (Clerk subject, email, email verified; private because
+  Institution Sheriffs can read profiles), `private.current_user_id()`, rewrites every `auth.uid()`
+  in public/private functions and public/storage policies from their live definitions, reworks the
+  five functions that read `auth.users`, and drops `profiles → auth.users`. Supabase Auth sessions
+  keep working through a transitional uuid branch and an `auth.users` sync trigger. Step-up reads
+  Clerk `fva` (0–14 minutes). Tests: `supabase/tests/local/clerk_identity_bridge.sql`; all 12 local
+  DB suites pass on PGlite (no local Postgres here). Cloud check:
+  `supabase/tests/cloud/verify_202610160001_clerk_identity_bridge.sql`. **Not pushed to Supabase
+  Cloud** — waits for review.
