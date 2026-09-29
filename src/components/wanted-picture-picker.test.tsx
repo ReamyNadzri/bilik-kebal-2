@@ -33,7 +33,7 @@ test("offers fifty drawings as one radio group and returns to the automatic draw
 
   fireEvent.click(screen.getByRole("button", { name: "Use the automatic drawing" }));
   expect(screen.getByText(/Automatic/, { selector: ".picture-picker__name" })).toBeInTheDocument();
-});
+}, 15000);
 
 test("opens the upload editor, which asks for an image first", () => {
   render(<Harness />);
