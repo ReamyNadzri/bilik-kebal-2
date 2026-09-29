@@ -1,11 +1,12 @@
 import type { ListTaxonomyResult } from "@/contracts/marketplace";
 import { getRequestSupabaseClient } from "@/lib/supabase/server";
-import { loadAccountContext } from "@/modules/identity";
+import { loadAccountContext, loadUniversityChoice } from "@/modules/identity";
 import { SupabaseTaxonomyRepository } from "../repositories/supabase-taxonomy-repository";
 import { TaxonomyService } from "../services/taxonomy-service";
 
 /**
- * The catalogue scoped to the viewer's verified institution.
+ * The catalogue of the university the viewer is shown: their verified
+ * institution's, or for anyone not yet verified, the one they chose.
  *
  * The viewer comes from the identity module's account read, which a page
  * render shares with its layout and guard. The catalogue itself is read per
@@ -21,12 +22,11 @@ export async function loadMarketplaceTaxonomy(): Promise<ListTaxonomyResult> {
   }
 
   const { record: account, user } = signedIn;
+  const verifiedInstitutionId =
+    account?.institutionVerificationState === "verified" ? (account.institution?.id ?? null) : null;
   return service.list({
     authenticated: true,
     emailVerified: Boolean(user.email_confirmed_at),
-    institutionId:
-      account?.institutionVerificationState === "verified"
-        ? (account.institution?.id ?? null)
-        : null,
+    institutionId: verifiedInstitutionId ?? (await loadUniversityChoice())?.current.id ?? null,
   });
 }

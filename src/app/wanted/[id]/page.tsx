@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { UiStatus } from "@/components/ui-status";
 import { WantedDetail } from "@/components/wanted-detail";
 import { readAccount } from "@/features/presentation/auth/require-account";
+import { loadUniversityChoice } from "@/modules/identity";
 import {
   marketplaceNow,
   readOwnChangeWindow,
@@ -44,13 +45,28 @@ interface WantedDetailPageProps {
 export default async function WantedDetailPage({ params }: WantedDetailPageProps) {
   const { id } = await params;
   // Independent reads sharing the request's one Auth check: run together.
-  const [result, accountOutcome] = await Promise.all([readWanted(id), readAccount()]);
+  const [result, accountOutcome, university] = await Promise.all([
+    readWanted(id),
+    readAccount(),
+    loadUniversityChoice(),
+  ]);
 
   if (result.status === "not-found") {
     notFound();
   }
 
   const account = accountOutcome.kind === "account" ? accountOutcome.account : null;
+  // A member verified at another university may read a shared link, but only
+  // this Wanted's own university can back, claim or reply; the server refuses
+  // the rest anyway (current_user_can_transact_at).
+  const verifiedAt =
+    account?.trust.institution === "verified" ? account.institution?.id : undefined;
+  const wantedAt = result.status === "ready" ? result.data.institutionId : undefined;
+  const otherUniversity =
+    verifiedAt !== undefined && wantedAt !== undefined && wantedAt !== verifiedAt
+      ? (university?.options.find((option) => option.id === wantedAt)?.shortName ??
+        "another university")
+      : null;
   const isPoster =
     result.status === "ready" &&
     account?.publicId != null &&
@@ -98,6 +114,7 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
           now={marketplaceNow()}
           account={account}
           changeWindow={changeWindow}
+          otherUniversity={otherUniversity}
         />
       )}
     </div>

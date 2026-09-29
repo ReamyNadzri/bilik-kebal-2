@@ -267,7 +267,7 @@ export function ProfileSettings({ account, bio, allowance, entryRequests }: Prof
                   ? `${account.institution?.name ?? "Your institution"}, ${
                       request?.state === "approved"
                         ? "confirmed by a Sheriff after reviewing your evidence."
-                        : "confirmed automatically through your UiTM email domain."
+                        : "confirmed automatically through your university email domain."
                     }`
                   : account.trust.institution === "pending"
                     ? "Your evidence is waiting for a Sheriff. It is stored privately."

@@ -1160,6 +1160,7 @@ export type Database = {
           created_at: string;
           id: string;
           name: string;
+          short_name: string | null;
           slug: string;
           updated_at: string;
         };
@@ -1168,6 +1169,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           name: string;
+          short_name?: string | null;
           slug: string;
           updated_at?: string;
         };
@@ -1176,6 +1178,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           name?: string;
+          short_name?: string | null;
           slug?: string;
           updated_at?: string;
         };
@@ -2404,6 +2407,10 @@ export type Database = {
           title: string;
         };
         Returns: string;
+      };
+      list_public_hunters_at: {
+        Args: { page: number; page_size: number; target_institution_id: string };
+        Returns: Json;
       };
       ensure_course: {
         Args: { target_code: string; target_programme_id: string };

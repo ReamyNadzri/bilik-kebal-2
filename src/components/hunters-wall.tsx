@@ -38,6 +38,8 @@ import { useHydrated } from "@/features/presentation/use-hydrated";
 export interface HuntersWallProps {
   /** The page the server rendered, from the Board's URL. */
   readonly initial: PublicHuntersPage;
+  /** The university whose Hunters these are: "UiTM", "UMPSA". */
+  readonly universityLabel?: string;
 }
 
 function subscribeToWidth(onChange: () => void): () => void {
@@ -73,7 +75,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(re
  * page is linkable and Back returns to the one before. With reduced motion
  * the page is swapped in place.
  */
-export function HuntersWall({ initial }: HuntersWallProps) {
+export function HuntersWall({ initial, universityLabel }: HuntersWallProps) {
   const still = usePrefersReducedMotion();
   const hydrated = useHydrated();
   const width = useSyncExternalStore(subscribeToWidth, readWidth, serverWidth);
@@ -165,7 +167,7 @@ export function HuntersWall({ initial }: HuntersWallProps) {
     <div className="hunters-wall">
       <div className="panel page-heading hunters-heading">
         <div className="hunters-heading__intro">
-          <p className="pixel-label">UiTM · Hunters</p>
+          <p className="pixel-label">{universityLabel ?? "VAULTIX"} · Hunters</p>
           <h1 className="hunters-heading__title">Hunters on the Board</h1>
           <p className="page-heading__lede">
             Verified students who hunt and back bounties. Open a poster to see their profile.

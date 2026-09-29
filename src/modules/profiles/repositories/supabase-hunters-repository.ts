@@ -26,7 +26,14 @@ interface HunterRow {
 export class SupabaseHuntersRepository implements HuntersRepository {
   private readonly client: Untyped;
 
-  constructor(client: unknown) {
+  /**
+   * `institutionId` limits the wall to one university
+   * (`list_public_hunters_at`, migration 202610150005); null lists everyone.
+   */
+  constructor(
+    client: unknown,
+    private readonly institutionId: string | null = null,
+  ) {
     this.client = client as Untyped;
   }
 
@@ -34,10 +41,14 @@ export class SupabaseHuntersRepository implements HuntersRepository {
     pageSize: number,
     page: number,
   ): Promise<{ total: number; items: PublicHunter[] }> {
-    const { data, error } = await this.client.rpc("list_public_hunters", {
-      page,
-      page_size: pageSize,
-    });
+    const { data, error } =
+      this.institutionId === null
+        ? await this.client.rpc("list_public_hunters", { page, page_size: pageSize })
+        : await this.client.rpc("list_public_hunters_at", {
+            page,
+            page_size: pageSize,
+            target_institution_id: this.institutionId,
+          });
     if (error) throw error;
     const body = data as { total: number; items: HunterRow[] } | null;
     return {

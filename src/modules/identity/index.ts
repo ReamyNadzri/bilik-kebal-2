@@ -17,6 +17,8 @@ export {
   loadVerificationReviewQueue,
 } from "./loaders/identity-read";
 export type { AccountContext } from "./loaders/identity-read";
+export { chooseUniversity } from "./domain/university-choice";
+export { loadUniversityChoice } from "./loaders/university-choice";
 export type {
   ProfileReader,
   ProfileRecord,

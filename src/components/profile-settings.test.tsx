@@ -79,7 +79,9 @@ test("shows both trust states, with how the institution was confirmed", () => {
 
   expect(screen.getByText("Email verified")).toBeInTheDocument();
   expect(
-    screen.getByText("UiTM Shah Alam, confirmed automatically through your UiTM email domain."),
+    screen.getByText(
+      "UiTM Shah Alam, confirmed automatically through your university email domain.",
+    ),
   ).toBeInTheDocument();
   expect(
     screen.getByText("Institution verified", { selector: ".status-stamp" }),

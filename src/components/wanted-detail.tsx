@@ -26,6 +26,11 @@ export interface WantedDetailProps {
   readonly account?: AccountViewModel | null;
   /** The poster's edit-or-withdraw window; null for everyone else. */
   readonly changeWindow?: WantedChangeWindow | null;
+  /**
+   * The Wanted's university, when the reader is verified at another one: the
+   * page is then read-only, since only its own members can take part.
+   */
+  readonly otherUniversity?: string | null;
 }
 
 /**
@@ -54,6 +59,7 @@ export function WantedDetail({
   now,
   account,
   changeWindow = null,
+  otherUniversity = null,
 }: WantedDetailProps) {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -125,53 +131,64 @@ export function WantedDetail({
           />
         ) : null}
 
-        <div className="ledger-panel">
-          {!wanted.isFree ? (
-            account?.capabilities?.transact && isOpen ? (
-              <button
-                type="button"
-                className="button button--primary ledger-panel__action"
-                onClick={() => setIsBackModalOpen(true)}
-              >
-                Back this Wanted
-              </button>
-            ) : (
-              <Link
-                className="button button--primary ledger-panel__action"
-                href="/profile/institution-verification"
-              >
-                Back this Wanted
-              </Link>
-            )
-          ) : null}
-          {academic ? (
-            account?.capabilities?.submitClaim && isOpen ? (
-              <button
-                type="button"
-                className="button button--secondary ledger-panel__action"
-                onClick={() => setIsClaimModalOpen(true)}
-              >
-                Submit a Claim
-              </button>
-            ) : (
-              <Link
-                className="button button--secondary ledger-panel__action"
-                href="/profile/institution-verification"
-              >
-                Submit a Claim
-              </Link>
-            )
-          ) : null}
-          <p className="ledger-panel__note">
-            {!academic
-              ? wanted.isFree
-                ? "Replies need institution verification. This is a free request: no bounty, no payment and no file."
-                : "Backing and replying need institution verification. The poster names who helped, and a Sheriff approves before the bounty is paid. Payment is disabled in this build until the launch gate passes."
-              : wanted.isFree
-                ? "This is a free request: no bounty and no payment. Submitting a claim needs institution verification."
-                : "Both actions need institution verification. Contributions are RM1 to RM50 per Backer, and payment is disabled in this build until the launch gate passes."}
-          </p>
-        </div>
+        {otherUniversity !== null ? (
+          <div className="ledger-panel">
+            <p className="ledger-panel__note">
+              This request belongs to {otherUniversity}. Only members verified at {otherUniversity}{" "}
+              can back it, claim it or reply.
+            </p>
+          </div>
+        ) : null}
+
+        {otherUniversity !== null ? null : (
+          <div className="ledger-panel">
+            {!wanted.isFree ? (
+              account?.capabilities?.transact && isOpen ? (
+                <button
+                  type="button"
+                  className="button button--primary ledger-panel__action"
+                  onClick={() => setIsBackModalOpen(true)}
+                >
+                  Back this Wanted
+                </button>
+              ) : (
+                <Link
+                  className="button button--primary ledger-panel__action"
+                  href="/profile/institution-verification"
+                >
+                  Back this Wanted
+                </Link>
+              )
+            ) : null}
+            {academic ? (
+              account?.capabilities?.submitClaim && isOpen ? (
+                <button
+                  type="button"
+                  className="button button--secondary ledger-panel__action"
+                  onClick={() => setIsClaimModalOpen(true)}
+                >
+                  Submit a Claim
+                </button>
+              ) : (
+                <Link
+                  className="button button--secondary ledger-panel__action"
+                  href="/profile/institution-verification"
+                >
+                  Submit a Claim
+                </Link>
+              )
+            ) : null}
+            <p className="ledger-panel__note">
+              {!academic
+                ? wanted.isFree
+                  ? "Replies need institution verification. This is a free request: no bounty, no payment and no file."
+                  : "Backing and replying need institution verification. The poster names who helped, and a Sheriff approves before the bounty is paid. Payment is disabled in this build until the launch gate passes."
+                : wanted.isFree
+                  ? "This is a free request: no bounty and no payment. Submitting a claim needs institution verification."
+                  : "Both actions need institution verification. Contributions are RM1 to RM50 per Backer, and payment is disabled in this build until the launch gate passes."}
+            </p>
+          </div>
+        )}
 
         {/*
           The platform fee is shown to the poster, who pays it from their
@@ -339,7 +356,7 @@ export function WantedDetail({
           wantedId={wanted.id}
           kind={wanted.kind}
           open={isOpen}
-          canReply={account?.capabilities?.transact === true}
+          canReply={account?.capabilities?.transact === true && otherUniversity === null}
           isPoster={isPoster}
           now={now}
           bountySen={wanted.isFree ? 0 : wanted.grossBountySen}

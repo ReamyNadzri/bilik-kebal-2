@@ -4,7 +4,9 @@ import Link from "next/link";
 import { HomeHunters } from "@/components/home-hunters";
 import { UiStatus } from "@/components/ui-status";
 import { WantedCard } from "@/components/wanted-card";
+import { UniversitySwitch } from "@/components/university-switch";
 import { listFeaturedWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
+import { loadUniversityChoice } from "@/modules/identity";
 import { sampleHunters } from "@/modules/profiles/loaders/hunters-operations";
 
 export const metadata: Metadata = {
@@ -76,7 +78,11 @@ const SUBMISSION_RULES = [
  * VAULTIX is.
  */
 export default async function HomePage() {
-  const [featured, hunters] = await Promise.all([listFeaturedWanted(), sampleHunters(6)]);
+  const [featured, hunters, university] = await Promise.all([
+    listFeaturedWanted(),
+    sampleHunters(6),
+    loadUniversityChoice(),
+  ]);
   const now = marketplaceNow();
 
   return (
@@ -197,6 +203,9 @@ export default async function HomePage() {
             <p className="section-head__lede on-dark-muted">
               The newest open requests students have posted on the Board.
             </p>
+            {university !== null && featured.status === "ready" ? (
+              <UniversitySwitch choice={university} resetHref="/" />
+            ) : null}
           </div>
           {featured.status === "ready" && featured.data.length > 0 ? (
             <Link className="button button--ghost" href="/board">

@@ -3,6 +3,7 @@ import WantedDetailPage from "./page";
 import type { WantedDetail } from "@/contracts/marketplace";
 import { toSen } from "@/features/marketplace/money";
 import { aWanted } from "@/features/marketplace/test-support/wanted";
+import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
 
 const listPublicWanted = vi.hoisted(() => vi.fn());
 const readPublicWanted = vi.hoisted(() => vi.fn());
@@ -18,6 +19,12 @@ vi.mock("@/modules/wanted/loaders/wanted-operations", () => ({
 }));
 
 vi.mock("next/navigation", () => ({ notFound }));
+
+const readAccount = vi.hoisted(() => vi.fn());
+const loadUniversityChoice = vi.hoisted(() => vi.fn());
+
+vi.mock("@/features/presentation/auth/require-account", () => ({ readAccount }));
+vi.mock("@/modules/identity", () => ({ loadUniversityChoice }));
 
 function aDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
   return {
@@ -45,6 +52,8 @@ function aDetail(overrides: Partial<WantedDetail> = {}): WantedDetail {
 
 beforeEach(() => {
   readPublicWanted.mockReset().mockResolvedValue({ ok: true, data: aDetail() });
+  readAccount.mockReset().mockResolvedValue({ kind: "unauthenticated" });
+  loadUniversityChoice.mockReset().mockResolvedValue(null);
   notFound.mockClear();
 });
 
@@ -275,4 +284,44 @@ test("claims no payment, entitlement or file access", async () => {
 
   expect(shown).not.toMatch(/successfully|payment (received|complete|confirmed)/i);
   expect(shown).not.toMatch(/download now|your file is|you now have access/i);
+});
+
+describe("a request from another university", () => {
+  const UITM = { id: "uitm-id", slug: "uitm", name: "UiTM", shortName: "UiTM" };
+  const UMPSA = { id: "umpsa-id", slug: "umpsa", name: "UMPSA", shortName: "UMPSA" };
+
+  function verifiedAt(institutionId: string) {
+    return anAccountViewModel({
+      trust: { email: "verified", institution: "verified", restricted: false },
+      capabilities: { browseMetadata: true, transact: true, submitClaim: true, download: true },
+      institution: { id: institutionId, name: "Somewhere" },
+    });
+  }
+
+  beforeEach(() => {
+    loadUniversityChoice.mockResolvedValue({ current: UITM, options: [UITM, UMPSA], locked: true });
+  });
+
+  test("opens read-only, naming its university, for a member verified elsewhere", async () => {
+    readAccount.mockResolvedValue({ kind: "account", account: verifiedAt("uitm-id") });
+    readPublicWanted.mockResolvedValue({ ok: true, data: aDetail({ institutionId: "umpsa-id" }) });
+    await renderPage();
+
+    expect(
+      screen.getByText(/This request belongs to UMPSA\. Only members verified at UMPSA/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back this Wanted" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Back this Wanted" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit a Claim" })).toBeNull();
+  });
+
+  test("keeps the actions for a member of its own university", async () => {
+    readAccount.mockResolvedValue({ kind: "account", account: verifiedAt("umpsa-id") });
+    readPublicWanted.mockResolvedValue({ ok: true, data: aDetail({ institutionId: "umpsa-id" }) });
+    await renderPage();
+
+    expect(screen.queryByText(/This request belongs to/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Back this Wanted" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit a Claim" })).toBeInTheDocument();
+  });
 });

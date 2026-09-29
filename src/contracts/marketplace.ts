@@ -302,6 +302,8 @@ export interface WantedSummary {
   thread?: WantedThreadState;
   /** The poster's chosen picture; absent or null shows the automatic drawing. */
   picture?: WantedPicture | null;
+  /** The university it belongs to. Absent in fixtures predating it. */
+  institutionId?: string;
 }
 
 /**
@@ -352,6 +354,11 @@ export interface WantedDuplicateSuggestion {
 }
 
 export interface ListWantedQuery {
+  /**
+   * The university shown. Set by the server from the reader's university
+   * (loadUniversityChoice), never taken from the query string.
+   */
+  institutionId?: string;
   query?: string;
   campusId?: string;
   courseId?: string;

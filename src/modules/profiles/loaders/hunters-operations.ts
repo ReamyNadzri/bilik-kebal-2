@@ -1,17 +1,23 @@
 import { failure } from "@/contracts/operation-result";
 import type { ListHuntersResult, SampleHuntersResult } from "@/contracts/profiles";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
+import { loadUniversityChoice } from "@/modules/identity";
 import { SupabaseHuntersRepository } from "../repositories/supabase-hunters-repository";
 import { HuntersService } from "../services/hunters-service";
 import type { ProfileActor } from "../services/profile-service";
 
 async function context(): Promise<{ actor: ProfileActor | null; service: HuntersService }> {
-  const client = await getRequestSupabaseClient();
+  const [client, university] = await Promise.all([
+    getRequestSupabaseClient(),
+    loadUniversityChoice(),
+  ]);
   const {
     data: { user },
   } = await getRequestUser();
   const actor = user ? { emailVerified: Boolean(user.email_confirmed_at), userId: user.id } : null;
-  return { actor, service: new HuntersService(new SupabaseHuntersRepository(client)) };
+  // The wall of the reader's university: their own, or the one they chose.
+  const repository = new SupabaseHuntersRepository(client, university?.current.id ?? null);
+  return { actor, service: new HuntersService(repository) };
 }
 
 const unavailable = () =>
