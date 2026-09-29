@@ -1,5 +1,5 @@
 import { resolveAvatarUrl } from "@/lib/avatars";
-import type { User } from "@supabase/supabase-js";
+import type { RequestUser as User } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {

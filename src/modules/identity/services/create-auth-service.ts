@@ -1,9 +1,9 @@
-import { getApplicationUrl, createSupabaseServerClient } from "@/lib/supabase/server";
+import { getApplicationUrl, createSupabaseAuthClient } from "@/lib/supabase/server";
 
 import { AuthService } from "./auth-service";
 import { SupabaseAuthGateway } from "./supabase-auth-gateway";
 
 export async function createAuthService(): Promise<AuthService> {
-  const client = await createSupabaseServerClient();
+  const client = await createSupabaseAuthClient();
   return new AuthService(new SupabaseAuthGateway(client.auth), getApplicationUrl());
 }

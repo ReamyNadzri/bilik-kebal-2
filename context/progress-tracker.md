@@ -919,3 +919,14 @@ Request (user, 2026-09-29): "I want two other songs, about 2 minutes each, each 
   `user.deleted` is acknowledged and not acted on (deletion is still an open question). Tests:
   `supabase/tests/local/clerk_user_sync.sql`, `clerk-user-sync.test.ts`,
   `clerk-webhook-http.test.ts`; full unit suite (185 files) and 13 DB suites pass.
+- Slice 3: with a Clerk session, `createSupabaseServerClient()` sends the Clerk session token
+  (`accessToken`, no `auth` API) and `getRequestUser()` reads the member through
+  `public.current_identity()` (migration `202610160003`), keeping Supabase's `User` field names
+  (`RequestUser`) so callers are unchanged; `last_sign_in_at` comes from Clerk `fva`. A Clerk
+  account the webhook has not reached yet is provisioned on first request through
+  `sync_clerk_user`. Without a Clerk session everything still runs on Supabase Auth. The Supabase
+  Auth flows (confirm, recover, reset, reauthenticate, callback, auth gateway) use
+  `createSupabaseAuthClient()` until slice 4. The proxy's Supabase refresh and 7-day idle backstop
+  only affect Supabase Auth sessions; the Clerk equivalent is the instance inactivity timeout
+  (dashboard, pending). Sign-out does not end a Clerk session yet (slice 4). Unit suite, 14 DB
+  suites and the production build pass.

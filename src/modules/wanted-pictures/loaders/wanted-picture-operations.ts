@@ -3,7 +3,7 @@ import type {
   SetWantedPictureResult,
   WantedPictureUploadResult,
 } from "@/contracts/wanted-pictures";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 import { SupabaseWantedPictureRepository } from "../repositories/supabase-wanted-picture-repository";
 import { WantedPictureService } from "../services/wanted-picture-service";
 
@@ -11,7 +11,7 @@ async function context() {
   const client = await createSupabaseServerClient();
   const {
     data: { user },
-  } = await client.auth.getUser();
+  } = await getRequestUser();
   return {
     actor: user ? { userId: user.id } : null,
     service: new WantedPictureService(new SupabaseWantedPictureRepository(client)),

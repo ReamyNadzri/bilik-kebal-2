@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/headers", () => ({ cookies: async () => mocks.cookieStore }));
 vi.mock("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => ({ auth: mocks.auth }),
+  createSupabaseAuthClient: async () => ({ auth: mocks.auth }),
   getApplicationUrl: () => "https://vaultix.example",
 }));
 

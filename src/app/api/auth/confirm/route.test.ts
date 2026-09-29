@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   auth: { verifyOtp: vi.fn(), getUser: vi.fn() },
 }));
 vi.mock("@/lib/supabase/server", () => ({
-  createSupabaseServerClient: async () => ({ auth: mocks.auth }),
+  createSupabaseAuthClient: async () => ({ auth: mocks.auth }),
 }));
 
 import { POST } from "./route";

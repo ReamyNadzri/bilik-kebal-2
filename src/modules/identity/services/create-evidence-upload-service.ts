@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 
 import { SupabaseEvidenceUploadGateway } from "../gateways/supabase-evidence-upload-gateway";
 import { EvidenceUploadService } from "./evidence-upload-service";
@@ -16,7 +16,7 @@ export async function createEvidenceUploadContext(): Promise<EvidenceUploadConte
   const {
     data: { user },
     error,
-  } = await client.auth.getUser();
+  } = await getRequestUser();
 
   if (error || !user) {
     return null;

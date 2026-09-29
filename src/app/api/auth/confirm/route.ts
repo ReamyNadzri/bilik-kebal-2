@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAuthClient } from "@/lib/supabase/server";
 import {
   confirmPathFor,
   parseEmailLinkInput,
@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<Response> {
   });
   if (!input) return redirect("/verify-email?status=invalid", origin);
 
-  const client = await createSupabaseServerClient();
+  const client = await createSupabaseAuthClient();
   const { error } = await client.auth.verifyOtp({ token_hash: input.tokenHash, type: input.type });
 
   if (error) {
