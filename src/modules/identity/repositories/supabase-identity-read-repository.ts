@@ -1,5 +1,9 @@
 import { resolveAvatarUrl } from "@/lib/avatars";
-import type { RequestUser as User } from "@/lib/supabase/server";
+import {
+  currentAccountSnapshot,
+  type CurrentAccountSnapshot,
+  type RequestUser as User,
+} from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
@@ -26,6 +30,10 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
   constructor(private readonly client: SupabaseClient<Database>) {}
 
   async readAccount(user: User): Promise<AccountRecord | null> {
+    // Already read with the identity this request: no second round of queries.
+    const snapshot = currentAccountSnapshot(user.id);
+    if (snapshot) return this.fromSnapshot(snapshot, user);
+
     const [profile, membership, restriction, latestRequest, platformRoles, institutionRoles] =
       await Promise.all([
         this.client
@@ -127,6 +135,46 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       institution,
       institutionVerificationState,
       latestVerificationRequest,
+    };
+  }
+
+  private fromSnapshot(snapshot: CurrentAccountSnapshot, user: User): AccountRecord {
+    const membership = snapshot.membership;
+    const request = snapshot.latest_request;
+    const requestState = request?.state;
+    return {
+      displayName: snapshot.display_name,
+      publicId: snapshot.public_id,
+      avatarUrl: resolveAvatarUrl(
+        this.client,
+        snapshot.avatar_object_key,
+        snapshot.avatar_preset,
+        snapshot.external_avatar_url,
+      ),
+      avatarPreset: snapshot.avatar_preset,
+      email: user.email ?? null,
+      joinedAt: snapshot.created_at,
+      emailConfirmedAt: user.email_confirmed_at ?? null,
+      hasActiveRestriction: snapshot.restriction !== null,
+      restrictionExpiresAt: snapshot.restriction?.expires_at ?? null,
+      hasConsoleAccess: snapshot.has_console_access,
+      institution:
+        membership?.institution_name != null
+          ? { id: membership.institution_id, name: membership.institution_name }
+          : null,
+      institutionVerificationState:
+        membership?.verification_state ??
+        (requestState === "pending" || requestState === "rejected" ? requestState : "unverified"),
+      latestVerificationRequest: request
+        ? {
+            decidedAt: request.reviewed_at,
+            evidenceDeleteAfter: request.evidence_delete_after,
+            reasonCode: request.decision_reason_code,
+            requestId: request.id,
+            state: request.state,
+            submittedAt: request.created_at,
+          }
+        : null,
     };
   }
 

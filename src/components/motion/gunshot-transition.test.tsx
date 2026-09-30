@@ -50,21 +50,17 @@ afterEach(() => {
 });
 
 describe("ShotLink", () => {
-  test("plays the shot, then changes the route at 390 ms and clears the overlay at 1050 ms", () => {
+  beforeEach(() => window.localStorage.setItem("vaultix.gunshot", "on"));
+
+  test("plays the shot, asks for the route at once and clears the overlay at 1050 ms", () => {
     vi.useFakeTimers();
     const link = renderLink();
 
     expect(clickAndReportPrevented(link, { button: 0, clientX: 40, clientY: 60 })).toBe(true);
     expect(screen.getByTestId("gunshot-overlay")).toBeInTheDocument();
-    expect(router.push).not.toHaveBeenCalled();
-
-    act(() => vi.advanceTimersByTime(389));
-    expect(router.push).not.toHaveBeenCalled();
-
-    act(() => vi.advanceTimersByTime(1));
     expect(router.push).toHaveBeenCalledExactlyOnceWith("/board");
 
-    act(() => vi.advanceTimersByTime(659));
+    act(() => vi.advanceTimersByTime(1049));
     expect(screen.getByTestId("gunshot-overlay")).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(1));
@@ -125,30 +121,39 @@ describe("ShotLink", () => {
 });
 
 describe("GunshotToggle", () => {
-  test("is on by default, and flips aria-pressed and the saved choice", () => {
+  test("is off by default, and flips aria-pressed and the saved choice", () => {
     renderLink();
     const toggle = screen.getByRole("button", { name: "Gunshot page transition" });
 
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("Gunshot Off");
+
+    fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(toggle).toHaveTextContent("Gunshot On");
+    expect(window.localStorage.getItem("vaultix.gunshot")).toBe("on");
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle).toHaveTextContent("Gunshot Off");
     expect(window.localStorage.getItem("vaultix.gunshot")).toBe("off");
+  });
 
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(window.localStorage.getItem("vaultix.gunshot")).toBe("on");
+  test("navigates at once, with no effect, for a visitor who never turned it on", () => {
+    const link = renderLink();
+
+    fireEvent.click(link, { button: 0 });
+
+    expect(router.push).toHaveBeenCalledExactlyOnceWith("/board");
+    expect(screen.queryByTestId("gunshot-overlay")).not.toBeInTheDocument();
   });
 
   test("starts from the saved choice", () => {
-    window.localStorage.setItem("vaultix.gunshot", "off");
+    window.localStorage.setItem("vaultix.gunshot", "on");
     renderLink();
 
     expect(screen.getByRole("button", { name: "Gunshot page transition" })).toHaveAttribute(
       "aria-pressed",
-      "false",
+      "true",
     );
   });
 });

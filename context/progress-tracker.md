@@ -1126,3 +1126,56 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
 - Verified: unit suite 1597 passed, typecheck, lint and `pnpm build` clean. Not verified: the
   migration against Postgres (no local Docker) and a real Google round trip with a leftover
   sign-in.
+
+## 2026-09-30 — Faster pages: region, fewer round trips, cached lists (`claude/perf-round-trips`)
+
+- **Cause found:** Vercel functions ran in `iad1` (US East) while Supabase is in `ap-southeast-1`
+  (Singapore), so every query crossed the Pacific (~0.2 s), and a signed-in page made 5–7 in a
+  row. The user moved the Function Region to `sin1` in Vercel project settings (Hobby: one
+  region) and redeployed; `X-Vercel-Id` now reads `sin1::sin1`. Anonymous time to first byte went
+  from 0.4–1.2 s to 0.2–0.4 s.
+- **Gunshot (C):** the route is requested at the click instead of 390 ms later; a thin
+  `.route-pending` bar (role status, "Loading the page…") stays until the new page renders, so a
+  slow page no longer looks like an ignored click. Overlay timing is unchanged (1050 ms).
+- **Account read (D):** `current_account()` (migration `202610170002`) returns identity, profile,
+  membership + institution name, restriction, latest verification request and console access in
+  one call. `readOwnIdentity` uses it and keeps the result for the request
+  (`currentAccountSnapshot`); `readAccount` builds from it instead of seven more queries. Falls
+  back to `current_identity` + the old queries until the migration is applied. A member with
+  several membership rows is read as their verified one (the old read refused such an account).
+- **Map (E):** `campus_region_totals(target_institution_id)` sums open/reviewing Wanteds and their
+  contributions per campus in the database, same sums as before; service role only. Falls back to
+  the old table reads until applied.
+- **Caching (F):** active institutions cached 5 min and marketplace taxonomy 60 s per university
+  (`unstable_cache`, service client, returning only the active rows the browse policies give any
+  email-verified member; `TaxonomyService` still refuses others first). New taxonomy entries can
+  take up to a minute to appear.
+- Not done yet (user's call): `loading.tsx` for `/map`, `/hunt`, `/archive`, `/`, `/u/[id]`,
+  `/wanted/[id]` (item B); removing the transitional Supabase session refresh from the proxy.
+- Verified: typecheck, lint, `pnpm build`; full suite run hit 5 s timeouts on 10 unrelated files
+  under machine load, all 10 pass when re-run. Migration not run against Postgres (no Docker).
+
+## 2026-09-30 — Loading indicator and page skeletons (`claude/perf-round-trips`)
+
+- `LoadingIndicator` (`src/components/loading/`): a small pill at the bottom of the screen (above
+  the phone tab bar) with a turning cylinder and "Loading …" text, one `role="status"`. It fades
+  in only after 150 ms (CSS delay), so fast pages never flash it, and turns for as long as the page
+  loads; reduced motion shows it still. The cylinder face is provisional: the pixel-art revolver
+  (still under review, previews in the untracked `output/`) replaces `.loading-indicator__cylinder`.
+- The gunshot transition shows it while a navigation is pending (replacing the thin bar); a page's
+  `loading.tsx` shows it with the skeleton once that renders.
+- Skeleton `loading.tsx` (`PageSkeleton`, `SkeletonPanel`, `SkeletonBlock`): new for `/` (and any
+  route without its own), `/map`, `/archive`, `/notifications`, `/u/[publicId]`, `/wanted/[id]`;
+  `/claims`, `/profile`, `/profile/institution-verification`, `/wanted/new` and `/console` moved
+  from a status box to skeletons; `/board` keeps its poster skeleton plus the indicator. Fixed
+  headings stay real; placeholders are `aria-hidden`; no focus moves.
+- Still to decide: removing the gunshot overlay and its toggle, and the revolver art itself.
+- Verified: typecheck, lint, 751 UI tests; indicator checked at desktop and 375 px in the dev
+  server. Locally `/map` and `/archive` show their "unavailable" state because `.env.local` has no
+  `SUPABASE_SERVICE_ROLE_KEY` (unrelated to this change).
+- Follow-up (same day, user decisions): the gunshot overlay stays but is **off by default** (a saved
+  "on" still wins). The loader uses Claude's original pixel-art revolver
+  (`public/brand/revolver-reload.png`, 33 frames of 72 x 48, shown x2, 2.39 s loop, drawn in
+  `scripts/revolver-art/preview.html`, re-export with `node scripts/revolver-art/export.mjs`). It is
+  now centred on a dim, lightly blurred backdrop (`--bg-loading-scrim`, clicks pass through) with
+  no card and no visible text; the words remain for screen readers.

@@ -1,9 +1,34 @@
+import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { UNIVERSITY_COOKIE, type UniversityChoice } from "@/contracts/universities";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { chooseUniversity } from "../domain/university-choice";
 import { loadAccountContext } from "./identity-read";
+
+/**
+ * The active universities, shared across requests for five minutes: they
+ * change only when one is added, and every page asks. A failed read throws,
+ * so it is never cached.
+ */
+const readActiveInstitutions = unstable_cache(
+  async () => {
+    const { data, error } = await createSupabaseAdminClient()
+      .from("institutions")
+      .select("id, slug, name, short_name")
+      .eq("active", true)
+      .order("created_at");
+    if (error) throw error;
+    return data.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      shortName: row.short_name ?? row.name,
+    }));
+  },
+  ["active-institutions"],
+  { revalidate: 300 },
+);
 
 /**
  * The university this request's screens show, read once per render.
@@ -18,23 +43,13 @@ import { loadAccountContext } from "./identity-read";
 export const loadUniversityChoice = cache(async (): Promise<UniversityChoice | null> => {
   try {
     const [institutions, signedIn, jar] = await Promise.all([
-      createSupabaseAdminClient()
-        .from("institutions")
-        .select("id, slug, name, short_name")
-        .eq("active", true)
-        .order("created_at"),
+      readActiveInstitutions(),
       loadAccountContext(),
       cookies(),
     ]);
-    if (institutions.error) return null;
     const account = signedIn?.record ?? null;
     return chooseUniversity(
-      institutions.data.map((row) => ({
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
-        shortName: row.short_name ?? row.name,
-      })),
+      institutions,
       account?.institutionVerificationState === "verified"
         ? (account.institution?.id ?? null)
         : null,

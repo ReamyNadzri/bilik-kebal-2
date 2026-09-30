@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LoadingIndicator } from "@/components/loading/loading-indicator";
 import { WantedCardSkeleton } from "@/components/wanted-card-skeleton";
 
 /**
@@ -9,7 +10,7 @@ import { WantedCardSkeleton } from "@/components/wanted-card-skeleton";
  * Moves no focus. Next swaps this for the resolved page inside `main`, and
  * taking focus on the way in or out would drag a keyboard reader away from
  * wherever they were. The placeholders are hidden from assistive technology;
- * one polite status says the Board is loading.
+ * the loading indicator is the one polite status.
  */
 export default function BoardLoading() {
   return (
@@ -28,9 +29,6 @@ export default function BoardLoading() {
       </div>
 
       <div className="board" aria-busy="true">
-        <p className="visually-hidden" role="status">
-          Loading the Wanted Board
-        </p>
         <div className="panel board__head skeleton-panel" aria-hidden="true">
           <span className="skeleton skeleton--line skeleton--wide" />
           <span className="skeleton skeleton--field" />
@@ -42,6 +40,7 @@ export default function BoardLoading() {
             ))}
           </ul>
         </div>
+        <LoadingIndicator label="Loading the Wanted Board" />
       </div>
     </div>
   );
