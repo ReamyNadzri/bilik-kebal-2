@@ -1126,3 +1126,31 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
 - Verified: unit suite 1597 passed, typecheck, lint and `pnpm build` clean. Not verified: the
   migration against Postgres (no local Docker) and a real Google round trip with a leftover
   sign-in.
+
+## 2026-09-30 — Faster pages: region, fewer round trips, cached lists (`claude/perf-round-trips`)
+
+- **Cause found:** Vercel functions ran in `iad1` (US East) while Supabase is in `ap-southeast-1`
+  (Singapore), so every query crossed the Pacific (~0.2 s), and a signed-in page made 5–7 in a
+  row. The user moved the Function Region to `sin1` in Vercel project settings (Hobby: one
+  region) and redeployed; `X-Vercel-Id` now reads `sin1::sin1`. Anonymous time to first byte went
+  from 0.4–1.2 s to 0.2–0.4 s.
+- **Gunshot (C):** the route is requested at the click instead of 390 ms later; a thin
+  `.route-pending` bar (role status, "Loading the page…") stays until the new page renders, so a
+  slow page no longer looks like an ignored click. Overlay timing is unchanged (1050 ms).
+- **Account read (D):** `current_account()` (migration `202610170002`) returns identity, profile,
+  membership + institution name, restriction, latest verification request and console access in
+  one call. `readOwnIdentity` uses it and keeps the result for the request
+  (`currentAccountSnapshot`); `readAccount` builds from it instead of seven more queries. Falls
+  back to `current_identity` + the old queries until the migration is applied. A member with
+  several membership rows is read as their verified one (the old read refused such an account).
+- **Map (E):** `campus_region_totals(target_institution_id)` sums open/reviewing Wanteds and their
+  contributions per campus in the database, same sums as before; service role only. Falls back to
+  the old table reads until applied.
+- **Caching (F):** active institutions cached 5 min and marketplace taxonomy 60 s per university
+  (`unstable_cache`, service client, returning only the active rows the browse policies give any
+  email-verified member; `TaxonomyService` still refuses others first). New taxonomy entries can
+  take up to a minute to appear.
+- Not done yet (user's call): `loading.tsx` for `/map`, `/hunt`, `/archive`, `/`, `/u/[id]`,
+  `/wanted/[id]` (item B); removing the transitional Supabase session refresh from the proxy.
+- Verified: typecheck, lint, `pnpm build`; full suite run hit 5 s timeouts on 10 unrelated files
+  under machine load, all 10 pass when re-run. Migration not run against Postgres (no Docker).

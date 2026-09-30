@@ -50,21 +50,15 @@ afterEach(() => {
 });
 
 describe("ShotLink", () => {
-  test("plays the shot, then changes the route at 390 ms and clears the overlay at 1050 ms", () => {
+  test("plays the shot, asks for the route at once and clears the overlay at 1050 ms", () => {
     vi.useFakeTimers();
     const link = renderLink();
 
     expect(clickAndReportPrevented(link, { button: 0, clientX: 40, clientY: 60 })).toBe(true);
     expect(screen.getByTestId("gunshot-overlay")).toBeInTheDocument();
-    expect(router.push).not.toHaveBeenCalled();
-
-    act(() => vi.advanceTimersByTime(389));
-    expect(router.push).not.toHaveBeenCalled();
-
-    act(() => vi.advanceTimersByTime(1));
     expect(router.push).toHaveBeenCalledExactlyOnceWith("/board");
 
-    act(() => vi.advanceTimersByTime(659));
+    act(() => vi.advanceTimersByTime(1049));
     expect(screen.getByTestId("gunshot-overlay")).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(1));

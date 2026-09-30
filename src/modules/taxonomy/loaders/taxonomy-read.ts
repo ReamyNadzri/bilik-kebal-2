@@ -1,7 +1,6 @@
 import type { ListTaxonomyResult } from "@/contracts/marketplace";
-import { getRequestSupabaseClient } from "@/lib/supabase/server";
 import { loadAccountContext, loadUniversityChoice } from "@/modules/identity";
-import { SupabaseTaxonomyRepository } from "../repositories/supabase-taxonomy-repository";
+import { CachedTaxonomyRepository } from "../repositories/cached-taxonomy-repository";
 import { TaxonomyService } from "../services/taxonomy-service";
 
 /**
@@ -13,8 +12,7 @@ import { TaxonomyService } from "../services/taxonomy-service";
  * request through the viewer's own client, so RLS still decides what it holds.
  */
 export async function loadMarketplaceTaxonomy(): Promise<ListTaxonomyResult> {
-  const client = await getRequestSupabaseClient();
-  const service = new TaxonomyService(new SupabaseTaxonomyRepository(client));
+  const service = new TaxonomyService(new CachedTaxonomyRepository());
   const signedIn = await loadAccountContext();
 
   if (!signedIn) {

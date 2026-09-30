@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  useTransition,
   type ComponentProps,
   type CSSProperties,
   type MouseEvent,
@@ -25,13 +26,14 @@ import {
  * the wordmark, "Post a Wanted" and the Wanted card links, and nowhere else:
  * form submits, dialogs and auth redirects stay instant.
  *
- * Timeline, from the prototype: flash and bloom start at 0 ms, the route
- * changes at 390 ms (the bloom covers the screen by 400 ms), and the overlay
- * is removed at 1050 ms.
+ * Timeline: flash and bloom start at 0 ms and the overlay is removed at
+ * 1050 ms. The route is requested at the click, not when the bloom covers the
+ * screen (390 ms in the prototype): waiting added that much to every page.
+ * Until the new page has rendered, a thin bar says it is still coming, so a
+ * slow page never looks like a click that did nothing.
  */
 
 const STORAGE_KEY = "vaultix.gunshot";
-const NAV_AT_MS = 390;
 const CLEAR_AT_MS = 1050;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
@@ -117,6 +119,7 @@ export function GunshotProvider({
   const [chosen, setChosen] = useState<Preference | null>(null);
   const enabled = (chosen ?? saved ?? (defaultEnabled ? "on" : "off")) === "on";
   const [shot, setShot] = useState<Shot | null>(null);
+  const [navigating, startNavigation] = useTransition();
   const busy = useRef(false);
   const timers = useRef<number[]>([]);
 
@@ -134,15 +137,16 @@ export function GunshotProvider({
   const shoot = useCallback(
     (href: string, x: number, y: number) => {
       if (busy.current) return;
+      // In a transition, so `navigating` stays true until the new page renders.
+      const navigate = () => startNavigation(() => router.push(href));
       if (!enabled || reduced) {
-        router.push(href);
+        navigate();
         return;
       }
       busy.current = true;
       setShot({ x, y, w: window.innerWidth, h: window.innerHeight, key: Date.now() });
-      router.prefetch(href);
+      navigate();
       timers.current.push(
-        window.setTimeout(() => router.push(href), NAV_AT_MS),
         window.setTimeout(() => {
           setShot(null);
           busy.current = false;
@@ -185,6 +189,11 @@ export function GunshotProvider({
       {children}
       <GunshotToggle />
       {shot === null ? null : <ShotOverlay key={shot.key} shot={shot} />}
+      {navigating ? (
+        <div className="route-pending" role="status" data-testid="route-pending">
+          <span className="visually-hidden">Loading the page…</span>
+        </div>
+      ) : null}
     </GunshotContext.Provider>
   );
 }

@@ -100,9 +100,54 @@ export async function createSupabaseAuthClient<Schema extends Database = Databas
  */
 export const getRequestSupabaseClient = cache(() => createSupabaseServerClient());
 
+/**
+ * The caller's whole account as `current_account()` returns it (migration
+ * 202610170002): identity, profile, membership, restriction, latest
+ * verification request and console access, in one round trip. The account
+ * read uses it instead of querying those tables again.
+ */
+export interface CurrentAccountSnapshot extends IdentityRow {
+  public_id: string;
+  display_name: string;
+  avatar_object_key: string | null;
+  avatar_preset: number | null;
+  external_avatar_url: string | null;
+  membership: {
+    institution_id: string;
+    verification_state: Database["public"]["Enums"]["institution_verification_state"];
+    institution_name: string | null;
+  } | null;
+  restriction: { id: string; expires_at: string | null } | null;
+  latest_request: {
+    id: string;
+    state: Database["public"]["Enums"]["verification_request_state"];
+    created_at: string;
+    reviewed_at: string | null;
+    decision_reason_code: string | null;
+    evidence_delete_after: string;
+  } | null;
+  has_console_access: boolean;
+}
+
+/** The snapshot this request read, if any; one per render (React `cache`). */
+const snapshotHolder = cache((): { current: CurrentAccountSnapshot | null } => ({ current: null }));
+
+/** The account snapshot read for `userId` in this request, or null to read it afresh. */
+export function currentAccountSnapshot(userId: string): CurrentAccountSnapshot | null {
+  const snapshot = snapshotHolder().current;
+  return snapshot?.user_id === userId ? snapshot : null;
+}
+
 async function readOwnIdentity(): Promise<IdentityRow | null> {
   const client = await getRequestSupabaseClient();
-  // Untyped until the database types are regenerated (migration 202610160003).
+  // Untyped until the database types are regenerated (migrations 202610160003, 202610170002).
+  const account = await (client as unknown as UntypedRpc).rpc("current_account");
+  if (!account.error) {
+    const snapshot = (account.data ?? null) as CurrentAccountSnapshot | null;
+    snapshotHolder().current = snapshot;
+    return snapshot;
+  }
+  // Until migration 202610170002 is applied: the identity alone, as before.
   const { data, error } = await (client as unknown as UntypedRpc).rpc("current_identity");
   if (error) throw new Error("IDENTITY_UNAVAILABLE");
   const rows = (data ?? []) as IdentityRow[];

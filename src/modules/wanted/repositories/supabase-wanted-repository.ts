@@ -52,6 +52,19 @@ const present = (values: ReadonlyArray<string | null>): string[] => [
   ...new Set(values.filter((value): value is string => value !== null)),
 ];
 
+/** A row of `campus_region_totals` (numbers may arrive as strings). */
+interface CampusTotalsRow {
+  id: string;
+  name: string;
+  region_open: boolean;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  map_x: number | string | null;
+  map_y: number | string | null;
+  open_wanted_count: number | string;
+  open_bounty_sen: number | string;
+}
+
 export class SupabaseWantedRepository implements WantedRepository {
   /**
    * `client` carries the caller's session for writes and RLS-scoped reads;
@@ -315,6 +328,28 @@ export class SupabaseWantedRepository implements WantedRepository {
    * of one university when `institutionId` is given.
    */
   async listCampusRegions(institutionId: string | null = null): Promise<CampusRegion[]> {
+    // One round trip, summed in the database (migration 202610170002).
+    const totals = await (this.client as unknown as SupabaseClient).rpc("campus_region_totals", {
+      target_institution_id: institutionId,
+    });
+    if (!totals.error) {
+      return ((totals.data ?? []) as CampusTotalsRow[]).map((row) => ({
+        id: row.id,
+        name: row.name,
+        regionOpen: row.region_open,
+        latitude: row.latitude === null ? null : Number(row.latitude),
+        longitude: row.longitude === null ? null : Number(row.longitude),
+        mapX: row.map_x === null ? null : Number(row.map_x),
+        mapY: row.map_y === null ? null : Number(row.map_y),
+        openWantedCount: Number(row.open_wanted_count),
+        openBountySen: Number(row.open_bounty_sen) as Sen,
+      }));
+    }
+    // Until that migration is applied: the tables, summed here.
+    return this.listCampusRegionsFromTables(institutionId);
+  }
+
+  private async listCampusRegionsFromTables(institutionId: string | null): Promise<CampusRegion[]> {
     let campusesQuery = this.client
       .from("campuses")
       .select("id, name, region_open, latitude, longitude, map_x, map_y")

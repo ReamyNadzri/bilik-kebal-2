@@ -9941,3 +9941,36 @@ a.missing-poster:focus-visible {
     transform: none;
   }
 }
+
+/* A page still on its way after a nav click (gunshot-transition.tsx). */
+.route-pending {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 310;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.route-pending::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--accent-primary);
+  animation: vx-route-pending 1100ms ease-in-out infinite;
+}
+@keyframes vx-route-pending {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-pending::before {
+    width: 100%;
+    animation: none;
+    opacity: 0.6;
+  }
+}

@@ -22,7 +22,7 @@ vi.mock("@/modules/identity/repositories/supabase-clerk-user-sync-repository", (
   },
 }));
 
-import { getRequestSupabaseClient, getRequestUser } from "./server";
+import { currentAccountSnapshot, getRequestSupabaseClient, getRequestUser } from "./server";
 
 const user = { id: "00000000-0000-4000-8000-000000000001" };
 const getUser = vi.fn();
@@ -35,6 +35,19 @@ const identityRow = {
   email: "hunter@student.uitm.edu.my",
   email_verified_at: "2026-09-29T12:00:00.000Z",
   created_at: "2026-09-01T00:00:00.000Z",
+};
+
+/** What `current_account()` returns: the identity plus the account read. */
+const accountSnapshot = {
+  ...identityRow,
+  display_name: "Aina",
+  avatar_object_key: null,
+  avatar_preset: 2,
+  external_avatar_url: null,
+  membership: null,
+  restriction: null,
+  latest_request: null,
+  has_console_access: false,
 };
 
 function signInWithClerk(fva: unknown = [3, -1]) {
@@ -51,7 +64,13 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test-key");
   getUser.mockReset().mockResolvedValue({ data: { user }, error: null });
   createServerClient.mockReset().mockImplementation(() => ({ auth: { getUser } }));
-  rpc.mockReset().mockResolvedValue({ data: [identityRow], error: null });
+  rpc
+    .mockReset()
+    .mockImplementation(async (name: string) =>
+      name === "current_account"
+        ? { data: accountSnapshot, error: null }
+        : { data: [identityRow], error: null },
+    );
   createClient.mockReset().mockImplementation(() => ({ rpc }));
   getToken.mockReset().mockResolvedValue("clerk-session-token");
   clerk.auth.mockReset().mockResolvedValue({ userId: null });
@@ -109,13 +128,15 @@ describe("with a Clerk session", () => {
     expect(options.auth).toEqual({ autoRefreshToken: false, persistSession: false });
   });
 
-  test("reads the member through current_identity with the internal id", async () => {
+  test("reads the member and their account in one call, with the internal id", async () => {
     vi.useFakeTimers({ now: new Date("2026-09-29T12:10:00.000Z") });
     signInWithClerk([3, -1]);
 
     const result = await getRequestUser();
 
-    expect(rpc).toHaveBeenCalledWith("current_identity");
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("current_account");
+    expect(currentAccountSnapshot(identityRow.user_id)).toEqual(accountSnapshot);
+    expect(currentAccountSnapshot("someone-else")).toBeNull();
     expect(result).toEqual({
       data: {
         user: {
@@ -139,11 +160,26 @@ describe("with a Clerk session", () => {
     },
   );
 
+  test("falls back to current_identity before the account function exists", async () => {
+    signInWithClerk();
+    rpc.mockImplementation(async (name: string) =>
+      name === "current_account"
+        ? { data: null, error: { code: "PGRST202" } }
+        : { data: [identityRow], error: null },
+    );
+
+    const result = await getRequestUser();
+
+    expect(rpc).toHaveBeenCalledWith("current_identity");
+    expect(result.data.user?.id).toBe(identityRow.user_id);
+    expect(currentAccountSnapshot(identityRow.user_id)).toBeNull();
+  });
+
   test("provisions an account the webhook has not reached yet", async () => {
     signInWithClerk();
     rpc
-      .mockResolvedValueOnce({ data: [], error: null })
-      .mockResolvedValueOnce({ data: [identityRow], error: null });
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: accountSnapshot, error: null });
     clerk.currentUser.mockResolvedValue({
       raw: {
         id: "user_2Hunter",
@@ -173,7 +209,7 @@ describe("with a Clerk session", () => {
 
   test("treats a Clerk user that cannot be provisioned as signed out", async () => {
     signInWithClerk();
-    rpc.mockResolvedValue({ data: [], error: null });
+    rpc.mockResolvedValue({ data: null, error: null });
 
     expect(await getRequestUser()).toEqual({ data: { user: null }, error: null });
   });
