@@ -9942,35 +9942,117 @@ a.missing-poster:focus-visible {
   }
 }
 
-/* A page still on its way after a nav click (gunshot-transition.tsx). */
-.route-pending {
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: 310;
-  height: 3px;
-  overflow: hidden;
-  pointer-events: none;
+/* Page skeleton pieces (src/components/loading/page-skeleton.tsx). */
+.page-skeleton__body {
+  display: grid;
+  gap: var(--space-5);
 }
-.route-pending::before {
-  content: "";
-  position: absolute;
-  inset: 0;
+
+.skeleton--title {
   width: 40%;
-  background: var(--accent-primary);
-  animation: vx-route-pending 1100ms ease-in-out infinite;
+  height: 2rem;
 }
-@keyframes vx-route-pending {
-  from {
-    transform: translateX(-100%);
+
+.skeleton--block {
+  width: 100%;
+  height: 12rem;
+}
+
+.skeleton--block-tall {
+  width: 100%;
+  height: 26rem;
+}
+
+/* The "page on its way" badge (src/components/loading/loading-indicator.tsx).
+   Hidden for 150 ms so fast pages never flash it; above the phone tab bar. */
+.loading-indicator {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: var(--border-width-2, 2px) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-float);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, var(--space-2));
+  animation: loading-indicator-in 160ms ease-out 150ms forwards;
+}
+
+@media (max-width: 44.9375rem) {
+  .loading-indicator {
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-3));
   }
+}
+
+.loading-indicator__cylinder {
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  background: var(--bg-emblem);
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  animation: loading-indicator-turn 900ms steps(6) infinite;
+}
+
+.loading-indicator__chamber {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.3rem;
+  height: 0.3rem;
+  margin: -0.15rem 0 0 -0.15rem;
+  background: var(--border-strong);
+  border-radius: 50%;
+}
+
+.loading-indicator__chamber:nth-child(1) {
+  transform: rotate(0deg) translateY(-0.42rem);
+}
+.loading-indicator__chamber:nth-child(2) {
+  transform: rotate(60deg) translateY(-0.42rem);
+}
+.loading-indicator__chamber:nth-child(3) {
+  transform: rotate(120deg) translateY(-0.42rem);
+}
+.loading-indicator__chamber:nth-child(4) {
+  transform: rotate(180deg) translateY(-0.42rem);
+}
+.loading-indicator__chamber:nth-child(5) {
+  transform: rotate(240deg) translateY(-0.42rem);
+}
+.loading-indicator__chamber:nth-child(6) {
+  transform: rotate(300deg) translateY(-0.42rem);
+  background: var(--accent-brass, var(--bg-poster));
+}
+
+@keyframes loading-indicator-in {
   to {
-    transform: translateX(250%);
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }
+
+@keyframes loading-indicator-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .route-pending::before {
-    width: 100%;
+  .loading-indicator {
+    animation-duration: 1ms;
+  }
+  .loading-indicator__cylinder {
     animation: none;
-    opacity: 0.6;
   }
 }

@@ -17,6 +17,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import { LoadingIndicator } from "@/components/loading/loading-indicator";
 
 /**
  * Gunshot page transition (design_handoff_vaultix_motion, section 1).
@@ -29,8 +30,8 @@ import {
  * Timeline: flash and bloom start at 0 ms and the overlay is removed at
  * 1050 ms. The route is requested at the click, not when the bloom covers the
  * screen (390 ms in the prototype): waiting added that much to every page.
- * Until the new page has rendered, a thin bar says it is still coming, so a
- * slow page never looks like a click that did nothing.
+ * Until the new page (or its skeleton) has rendered, the loading indicator
+ * says it is still coming, so a slow page never looks like an ignored click.
  */
 
 const STORAGE_KEY = "vaultix.gunshot";
@@ -189,11 +190,7 @@ export function GunshotProvider({
       {children}
       <GunshotToggle />
       {shot === null ? null : <ShotOverlay key={shot.key} shot={shot} />}
-      {navigating ? (
-        <div className="route-pending" role="status" data-testid="route-pending">
-          <span className="visually-hidden">Loading the page…</span>
-        </div>
-      ) : null}
+      {navigating ? <LoadingIndicator /> : null}
     </GunshotContext.Provider>
   );
 }

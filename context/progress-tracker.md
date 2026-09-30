@@ -1154,3 +1154,22 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
   `/wanted/[id]` (item B); removing the transitional Supabase session refresh from the proxy.
 - Verified: typecheck, lint, `pnpm build`; full suite run hit 5 s timeouts on 10 unrelated files
   under machine load, all 10 pass when re-run. Migration not run against Postgres (no Docker).
+
+## 2026-09-30 — Loading indicator and page skeletons (`claude/perf-round-trips`)
+
+- `LoadingIndicator` (`src/components/loading/`): a small pill at the bottom of the screen (above
+  the phone tab bar) with a turning cylinder and "Loading …" text, one `role="status"`. It fades
+  in only after 150 ms (CSS delay), so fast pages never flash it, and turns for as long as the page
+  loads; reduced motion shows it still. The cylinder face is provisional: the pixel-art revolver
+  (still under review, previews in the untracked `output/`) replaces `.loading-indicator__cylinder`.
+- The gunshot transition shows it while a navigation is pending (replacing the thin bar); a page's
+  `loading.tsx` shows it with the skeleton once that renders.
+- Skeleton `loading.tsx` (`PageSkeleton`, `SkeletonPanel`, `SkeletonBlock`): new for `/` (and any
+  route without its own), `/map`, `/archive`, `/notifications`, `/u/[publicId]`, `/wanted/[id]`;
+  `/claims`, `/profile`, `/profile/institution-verification`, `/wanted/new` and `/console` moved
+  from a status box to skeletons; `/board` keeps its poster skeleton plus the indicator. Fixed
+  headings stay real; placeholders are `aria-hidden`; no focus moves.
+- Still to decide: removing the gunshot overlay and its toggle, and the revolver art itself.
+- Verified: typecheck, lint, 751 UI tests; indicator checked at desktop and 375 px in the dev
+  server. Locally `/map` and `/archive` show their "unavailable" state because `.env.local` has no
+  `SUPABASE_SERVICE_ROLE_KEY` (unrelated to this change).

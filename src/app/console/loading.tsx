@@ -1,5 +1,6 @@
 import { ConsoleNav } from "@/components/console-nav";
-import { UiStatus } from "@/components/ui-status";
+import { LoadingIndicator } from "@/components/loading/loading-indicator";
+import { SkeletonPanel } from "@/components/loading/page-skeleton";
 
 /**
  * Moves no focus: Next swaps this for the resolved page inside `main`, and
@@ -9,8 +10,12 @@ export default function ConsoleLoading() {
   return (
     <>
       <ConsoleNav current="overview" showTabs={false} />
-
-      <UiStatus kind="loading" heading="Loading the review queue" />
+      <div className="page-skeleton__body" aria-busy="true">
+        <div aria-hidden="true">
+          <SkeletonPanel lines={6} />
+        </div>
+        <LoadingIndicator label="Loading the review queue" />
+      </div>
     </>
   );
 }

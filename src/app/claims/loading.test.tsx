@@ -4,12 +4,7 @@ import ClaimsLoading from "./loading";
 test("announces the wait without taking focus from the reader", () => {
   render(<ClaimsLoading />);
 
-  const status = screen
-    .getByRole("heading", { name: "Loading hunts and claims" })
-    .closest("section");
-
-  expect(status).toHaveAttribute("aria-busy", "true");
-  expect(status).toHaveAttribute("aria-live", "polite");
+  expect(screen.getByRole("status")).toHaveTextContent("Loading hunts and claims");
   expect(document.activeElement).toBe(document.body);
 });
 
