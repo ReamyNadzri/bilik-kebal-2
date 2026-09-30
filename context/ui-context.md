@@ -59,19 +59,34 @@ No component may hardcode a final colour value. Temporary development tokens mus
 
 ## Sound
 
-- The only sound is the provisional soundtrack: three original two-minute songs in
-  `public/audio/`, synthesised with no samples and matched in loudness: the theme
-  (`vaultix-theme.mp3`, western adventure), `vaultix-boomtown.mp3` (upbeat saloon) and
-  `vaultix-campfire.mp3` (quiet night). They play in that order and then start again. The
-  handoff may replace the files in `THEME_TRACKS`; the component
-  (`src/components/theme-music.tsx`) does not change.
-- It plays behind every screen and carries on across navigation. It is on by default: if the
-  browser refuses sound at first, it starts on the visitor's first click, tap or key press, fading
-  in. The operating system's media controls show the song's name.
+- The sound is the provisional theme and three short effects. The theme is one original two-minute loop,
+  `public/audio/vaultix-theme-loop.mp3`, grown from the brag videos' spaghetti-western cue (A minor,
+  120 BPM, whistle, fingerpicked guitar, gallop drums) and synthesised with no samples. It runs on
+  without a break: the end leads straight back into the whistle hook, with no fade and no silence.
+  The handoff may replace `THEME_TRACK`; the component (`src/components/theme-music.tsx`) does not
+  change.
+- It plays through Web Audio, not an `<audio loop>` element, because an element leaves a short
+  gap at every lap. The file carries one second of the loop on each side and the player loops
+  between 1.0 s and 121.0 s (`loopStart`/`loopEnd`), so the seam lands on the same sample
+  whatever delay the MP3 decoder adds. A replacement file must keep that layout or change the
+  loop points.
+- It plays behind every screen and carries on across navigation. It is on by default: browsers
+  refuse sound until the visitor interacts, so it starts on the visitor's first click, tap or key
+  press, fading in. Web Audio does not appear in the operating system's media controls.
 - The Music toggle on the rail (`aria-pressed`, a speaker icon that is crossed out when off, a
   brass rule when on) stops and restarts it, meeting WCAG 2.1 SC 1.4.2. Turning it off is
   remembered in that browser.
 - It pauses while the tab is hidden, and the file is not downloaded until it actually plays.
+- Three effects, synthesised from the brag videos' own effects (`src/components/sound-effects.ts`):
+  `vaultix-sfx-gunshot.mp3` with the gunshot page transition (the shot and its canyon echo),
+  `vaultix-sfx-capture.mp3` with the capture poster after a claim is submitted (wind as the WANTED
+  poster drops, the paper landing, then the stamp), and `vaultix-sfx-share.mp3` with the share
+  poster (wind only). Each is timed to its animation and plays only when the animation runs, so
+  reduced motion and the gunshot toggle silence it too (the gunshot transition is off by default, so
+  the shot sounds only for visitors who turn it on). They go through the theme's
+  AudioContext, so the Music toggle is the one sound switch: with the music off, the tab hidden,
+  or before the first interaction, effects are silent. A file that arrives late starts that far
+  in, up to 0.25 s, and is dropped past that. All three are fetched once sound is allowed.
 - Sound never carries information. Nothing about payment, policy, security, status, or errors is
   conveyed by audio.
 

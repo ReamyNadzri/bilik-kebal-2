@@ -9,6 +9,7 @@ import {
   shareWantedContent,
   type ShareWantedContent,
 } from "@/features/presentation/share-wanted";
+import { playSoundEffect } from "../sound-effects";
 import { usePrefersReducedMotion } from "./gunshot-transition";
 import { useShareFit } from "./use-share-fit";
 
@@ -37,6 +38,7 @@ type ShareTarget = "whatsapp" | "telegram" | "other";
 export function SharePoster({ wanted, onClose }: SharePosterProps) {
   const still = usePrefersReducedMotion();
   const firstRef = useRef<HTMLButtonElement>(null);
+  const soundedRef = useRef(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const captionRef = useRef<HTMLDivElement>(null);
   const fit = useShareFit(sheetRef, captionRef);
@@ -49,6 +51,13 @@ export function SharePoster({ wanted, onClose }: SharePosterProps) {
   useEffect(() => {
     firstRef.current?.focus();
   }, []);
+
+  // Wind as the poster drops, in step with the animation; once per poster.
+  useEffect(() => {
+    if (still || soundedRef.current) return;
+    soundedRef.current = true;
+    playSoundEffect("share");
+  }, [still]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

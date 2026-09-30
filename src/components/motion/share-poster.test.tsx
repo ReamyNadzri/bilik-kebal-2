@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { WantedDetail } from "@/contracts/marketplace";
 import { toSen } from "@/features/marketplace/money";
 import { aWanted } from "@/features/marketplace/test-support/wanted";
+import { playSoundEffect } from "../sound-effects";
 import { SharePoster } from "./share-poster";
+
+vi.mock("../sound-effects", () => ({ playSoundEffect: vi.fn() }));
 
 const wanted: WantedDetail = {
   ...aWanted({ id: "11111111-1111-4111-8111-111111111111", grossBountySen: toSen(25) }),
@@ -26,6 +29,12 @@ const wanted: WantedDetail = {
 };
 
 describe("SharePoster", () => {
+  it("plays the wind once, and never the capture stamp", () => {
+    vi.mocked(playSoundEffect).mockClear();
+    render(<SharePoster wanted={wanted} onClose={() => {}} />);
+    expect(playSoundEffect).toHaveBeenCalledExactlyOnceWith("share");
+  });
+
   it("drops the poster without any capture stamp", () => {
     render(<SharePoster wanted={wanted} onClose={() => {}} />);
     expect(screen.getByRole("dialog", { name: /Share this Wanted/ })).toBeInTheDocument();

@@ -20,12 +20,9 @@ beforeEach(() => {
   router.prefetch.mockClear();
   router.push.mockClear();
   router.back.mockClear();
-  // jsdom has no media playback; the shell's theme music meets a browser that
-  // blocks autoplay. Its behaviour is covered in theme-music.test.tsx.
-  vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(
-    new DOMException("Blocked", "NotAllowedError"),
-  );
-  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+  // jsdom has no Web Audio and no record of an interaction, so the shell's
+  // theme music never starts here. Its behaviour is covered in
+  // theme-music.test.tsx.
 });
 
 afterEach(() => {

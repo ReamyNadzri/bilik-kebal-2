@@ -1,5 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { playSoundEffect } from "../sound-effects";
 import { CAPTURE_WORDS, CapturePoster, pickCaptureWord } from "./capture-poster";
+
+vi.mock("../sound-effects", () => ({ playSoundEffect: vi.fn() }));
+
+afterEach(() => {
+  vi.mocked(playSoundEffect).mockClear();
+  vi.unstubAllGlobals();
+});
 
 describe("pickCaptureWord", () => {
   test("always returns one of the five words, never the same word twice in a row", () => {
@@ -38,6 +46,24 @@ describe("CapturePoster", () => {
     );
     return onClose;
   }
+
+  test("plays the wind and the stamp once, with the drop", () => {
+    renderPoster();
+
+    expect(playSoundEffect).toHaveBeenCalledExactlyOnceWith("capture");
+  });
+
+  test("stays silent when the viewer prefers reduced motion, since nothing drops", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    renderPoster();
+
+    expect(playSoundEffect).not.toHaveBeenCalled();
+  });
 
   test("names the capture and the claim, and points on to Hunt", () => {
     renderPoster();

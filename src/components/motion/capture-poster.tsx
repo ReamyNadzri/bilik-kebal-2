@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, type CSSProperties, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
+import { playSoundEffect } from "../sound-effects";
 import { usePrefersReducedMotion } from "./gunshot-transition";
 
 /**
@@ -70,6 +71,15 @@ export function CapturePoster({
 }: CapturePosterProps) {
   const still = usePrefersReducedMotion();
   const huntRef = useRef<HTMLAnchorElement>(null);
+  const soundedRef = useRef(false);
+
+  // Wind as the poster drops, then the stamp, in step with the animation.
+  // Once per poster: development's double effect run must not play it twice.
+  useEffect(() => {
+    if (still || soundedRef.current) return;
+    soundedRef.current = true;
+    playSoundEffect("capture");
+  }, [still]);
 
   // React applies `autoFocus` to form controls only, so the link is focused here.
   useEffect(() => {

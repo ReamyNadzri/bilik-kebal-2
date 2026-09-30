@@ -1179,3 +1179,60 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
   `scripts/revolver-art/preview.html`, re-export with `node scripts/revolver-art/export.mjs`). It is
   now centred on a dim, lightly blurred backdrop (`--bg-loading-scrim`, clicks pass through) with
   no card and no visible text; the words remain for screen readers.
+
+## 2026-09-30 one seamless theme loop replaces the three songs (`claude/theme-loop-sfx`)
+
+Request (user, 2026-09-30, in Malay): not keen on the three songs; bring back the theme, the
+original is fine, but loop it so it sounds continuous; 2 minutes is enough. Read as: the original
+theme is the brag videos' spaghetti-western cue (`brag-output/work/audio.py`).
+
+- `public/audio/vaultix-theme-loop.mp3` (122.0 s, 128 kbps, -17.1 LUFS) replaces
+  `vaultix-theme.mp3`, `vaultix-boomtown.mp3` and `vaultix-campfire.mp3`, which are removed. It is
+  the original cue's instruments and Am-G-F-E groove at 120 BPM, arranged over 60 bars with the
+  whistle hook, bells, the long whistle call, a breakdown and the drop coming back; no gunshots or
+  stamps. Rendered circularly (tails past 120 s fold onto the start) and the last bar lifts into
+  the hook, so it has no fade and no silence. Source: `brag-output-2026-09-30-170428/work/loop.py`
+  (not committed, like the earlier cues; keep it to re-render).
+- `ThemeMusic` now plays through Web Audio (one `AudioBufferSourceNode` with `loop`,
+  `loopStart` 1 s, `loopEnd` 121 s) instead of an `<audio>` element, which leaves a gap at every
+  lap. The file carries one second of the loop on each side, so the loop is sample-exact whatever
+  delay the decoder adds. `THEME_TRACKS` becomes `THEME_TRACK`. Pause is `AudioContext.suspend()`,
+  so turning it back on carries on where it stopped. Nothing is fetched and no context is made
+  until the first gesture (or at once when `navigator.userActivation.hasBeenActive`).
+- Lost: the operating system's media controls no longer show the theme (Web Audio does not
+  register with them). iOS mutes Web Audio under the silent switch, where an element would play.
+- Verified: decoding the MP3 and splicing 121.0 s back to 1.0 s gives a sample step of 0.026
+  against a 99.9th percentile of 0.098 elsewhere in the track. 58 tests (theme music and shell),
+  typecheck, lint, prettier. In Chromium on `pnpm dev`: no request before the first click; then
+  one context and one source (loop 1-121 s, buffer 122.000 s), running across a navigation to the
+  Board, suspended and resumed by the toggle with the same source; no console errors.
+
+## 2026-09-30 sound effects for the gunshot, capture and share animations (`claude/theme-loop-sfx`)
+
+Request (user, 2026-09-30, in Malay): the claim-submitted poster should have the wind of the
+WANTED paper and the stamp, sharing should have wind only, and the gunshot should have its shot;
+"make them". The app had no sound effects before: these animations were silent, and the sounds
+existed only in the brag videos.
+
+- `public/audio/vaultix-sfx-gunshot.mp3` (2.4 s), `vaultix-sfx-capture.mp3` (2.3 s: wind 0-0.6 s,
+  paper landing 0.52 s, stamp 1.17 s, timed to `capture-poster.tsx`), `vaultix-sfx-share.mp3`
+  (1.6 s, wind only). 27-39 KB each. Synthesised in
+  `brag-output-2026-09-30-170428/work/sfx.py` from the brag cue's `gunshot`, `whoosh`,
+  `paper_slap` and `stamp_hit`, plus a new falling-paper wind.
+- `src/components/sound-effects.ts`: `playSoundEffect(name)`, played through the theme's
+  AudioContext, which `ThemeMusicProvider` attaches (and preloads the effects once sound is
+  allowed). `GunshotProvider` plays the shot when a shot runs; `CapturePoster` and `SharePoster`
+  play theirs on mount unless reduced motion, once per poster (a ref guards development's double
+  effect run). The payment walkthrough's "Play the claim animation" uses `CapturePoster`, so it
+  sounds too.
+- The gunshot transition is off by default on `main` (`a613bdd`), so the shot sounds only for
+  visitors who turn the transition on.
+- Assumed, not asked (reversible): the Music toggle is the one sound switch (its label stays
+  "Music"); effect volume 0.5 against the theme's 0.45.
+- Verified: new `sound-effects.test.ts` (8), sound tests added to the gunshot, capture, share and
+  theme-music suites; 137 tests across the touched suites, typecheck, lint, prettier. In Chromium
+  on `pnpm dev`: the effects are fetched on the first click; a nav click starts the 2.4 s gunshot
+  at offset 0; "Play the claim animation" starts the 2.3 s capture effect at 0.02 s; no console
+  errors. Not verified in a browser: the share poster, because `/wanted/[id]` returned 500 on the
+  local dev server ("Jest worker encountered 2 child process exceptions", machine load, no
+  backend data); its component test covers it.

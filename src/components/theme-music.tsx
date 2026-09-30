@@ -11,43 +11,71 @@ import {
   type ReactNode,
 } from "react";
 import { PixelIcon } from "./pixel-icon";
+import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
 
 /**
- * The VAULTIX soundtrack behind every screen: three original two-minute
- * songs played in turn (the theme, Boomtown, Campfire, then the theme again).
+ * The VAULTIX theme behind every screen: one original two-minute loop that
+ * runs on without a break.
+ *
+ * It plays through Web Audio rather than an `<audio loop>` element, because an
+ * element leaves a short gap at every lap (the MP3's padding and the seek back
+ * to the start). The file carries one second of the loop on each side, so the
+ * buffer loops between `loopStart` and `loopEnd` and lands on the same sample
+ * whatever delay the decoder added.
  *
  * Mounted once in the shell, which the root layout keeps across client-side
  * navigation, so the music carries on from page to page instead of
  * restarting.
  *
  * On by default. Browsers refuse sound until the visitor has interacted with
- * the page, so if the first attempt is refused the theme starts on the first
- * click, tap or key press anywhere, fading in. The rail's Music toggle stops
- * and restarts it (WCAG 2.1 SC 1.4.2); stopping it is remembered in this
- * browser and wins on every later visit. Remembering is a per-viewer
- * convenience only: if storage is unavailable the theme is simply on.
+ * the page, so the theme starts on the first click, tap or key press anywhere,
+ * fading in. The rail's Music toggle stops and restarts it (WCAG 2.1 SC 1.4.2);
+ * stopping it is remembered in this browser and wins on every later visit.
+ * Remembering is a per-viewer convenience only: if storage is unavailable the
+ * theme is simply on.
  *
- * A song is not fetched until it actually plays (`preload="none"`), and the
- * music pauses while the tab is hidden.
+ * The file is not fetched until the theme actually plays, and the music pauses
+ * while the tab is hidden.
  *
  * Provisional audio, like every other provisional brand asset: the designer's
- * handoff replaces the files in `THEME_TRACKS` without touching this component.
+ * handoff replaces `THEME_TRACK` without touching this component.
  *
- * The one `<audio>` element lives in `ThemeMusicProvider`; any number of
+ * The one audio graph lives in `ThemeMusicProvider`; any number of
  * `ThemeMusicToggle`s drive it. The desktop rail and the compact menu each
  * show one, and only one is ever displayed at a time.
  */
-export const THEME_TRACKS = [
-  { src: "/audio/vaultix-theme.mp3", title: "VAULTIX Theme" },
-  { src: "/audio/vaultix-boomtown.mp3", title: "Boomtown" },
-  { src: "/audio/vaultix-campfire.mp3", title: "Campfire" },
-] as const;
+export const THEME_TRACK = {
+  src: "/audio/vaultix-theme-loop.mp3",
+  title: "VAULTIX Theme",
+  /** Seconds into the file where the seamless loop begins and ends. */
+  loopStart: 1,
+  loopEnd: 121,
+} as const;
 export const THEME_PREFERENCE_KEY = "vaultix.themeMusic";
 
 const TARGET_VOLUME = 0.45;
-const FADE_MS = 1500;
+const FADE_SECONDS = 1.5;
+/** How long to wait for the browser to allow sound before treating it as refused. */
+const RESUME_TIMEOUT_MS = 400;
 /** The events a browser accepts as the gesture that unlocks sound. */
 const GESTURES = ["pointerdown", "pointerup", "touchend", "keydown", "click"] as const;
+
+type PlayResult = "playing" | "blocked" | "failed";
+
+function createAudioContext(): AudioContext | null {
+  const Context =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  return Context === undefined ? null : new Context();
+}
+
+/** Whether the visitor has already interacted with this page, where the browser says. */
+function hasBeenActive(): boolean {
+  return (
+    (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation
+      ?.hasBeenActive === true
+  );
+}
 
 function readEnabled(): boolean {
   try {
@@ -76,115 +104,140 @@ interface ThemeMusicContextValue {
 
 const ThemeMusicContext = createContext<ThemeMusicContextValue | null>(null);
 
+/** Resolves true once the context is running, or false if it is still held after `timeoutMs`. */
+function whenRunning(context: AudioContext, timeoutMs: number): Promise<boolean> {
+  if (context.state === "running") return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const settle = (running: boolean) => {
+      window.clearTimeout(timer);
+      context.removeEventListener("statechange", onChange);
+      resolve(running);
+    };
+    const onChange = () => {
+      if (context.state === "running") settle(true);
+    };
+    const timer = window.setTimeout(() => settle(context.state === "running"), timeoutMs);
+    context.addEventListener("statechange", onChange);
+  });
+}
+
 export function ThemeMusicProvider({ children }: { readonly children: ReactNode }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const contextRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const bufferRef = useRef<Promise<AudioBuffer> | null>(null);
+  const startingRef = useRef<Promise<PlayResult> | null>(null);
   const enabledRef = useRef(true);
   const resumeOnShowRef = useRef(false);
-  const fadeRef = useRef<number | null>(null);
+  const detachEffectsRef = useRef<(() => void) | null>(null);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [track, setTrack] = useState(0);
-  const startedTrackRef = useRef(0);
-  const song = THEME_TRACKS[track] ?? THEME_TRACKS[0];
 
-  const stopFade = useCallback(() => {
-    if (fadeRef.current !== null) {
-      cancelAnimationFrame(fadeRef.current);
-      fadeRef.current = null;
-    }
+  const loadBuffer = useCallback((context: AudioContext): Promise<AudioBuffer> => {
+    if (bufferRef.current !== null) return bufferRef.current;
+    const pending = fetch(THEME_TRACK.src)
+      .then((response) => {
+        if (!response.ok) throw new Error(`The theme music answered ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then((data) => context.decodeAudioData(data));
+    // A failed load is forgotten, so pressing Music tries again.
+    pending.catch(() => {
+      if (bufferRef.current === pending) bufferRef.current = null;
+    });
+    bufferRef.current = pending;
+    return pending;
   }, []);
 
-  const fadeIn = useCallback(
-    (audio: HTMLAudioElement) => {
-      stopFade();
-      if (typeof requestAnimationFrame !== "function") {
-        audio.volume = TARGET_VOLUME;
-        return;
+  const start = useCallback(
+    async (context: AudioContext, gain: GainNode): Promise<PlayResult> => {
+      if (!(await whenRunning(context, RESUME_TIMEOUT_MS))) return "blocked";
+      // The effects are small; fetch them now so the first one lands on time.
+      preloadSoundEffects();
+
+      let buffer: AudioBuffer;
+      try {
+        buffer = await loadBuffer(context);
+      } catch {
+        void context.suspend();
+        setPlaying(false);
+        setFailed(true);
+        return "failed";
       }
-      const started = performance.now();
-      const step = (now: number) => {
-        // A frame's timestamp is when the frame began, which can fall a moment
-        // before `started`; a negative volume throws and would leave it silent.
-        const progress = Math.min(1, Math.max(0, (now - started) / FADE_MS));
-        audio.volume = TARGET_VOLUME * progress;
-        fadeRef.current = progress < 1 ? requestAnimationFrame(step) : null;
-      };
-      fadeRef.current = requestAnimationFrame(step);
+      // Turned off, or the tab hidden, while the file was on its way.
+      if (!enabledRef.current || document.hidden || contextRef.current !== context) {
+        void context.suspend();
+        return "blocked";
+      }
+
+      if (sourceRef.current === null) {
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.loopStart = THEME_TRACK.loopStart;
+        source.loopEnd = Math.min(THEME_TRACK.loopEnd, buffer.duration);
+        source.connect(gain);
+        source.start(0, THEME_TRACK.loopStart);
+        sourceRef.current = source;
+      }
+      const now = context.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(TARGET_VOLUME, now + FADE_SECONDS);
+      setFailed(false);
+      setPlaying(true);
+      return "playing";
     },
-    [stopFade],
+    [loadBuffer],
   );
 
-  /** Resolves true once the theme is playing, false if the browser refused. */
-  const play = useCallback(async (): Promise<boolean> => {
-    const audio = audioRef.current;
-    if (audio === null) return false;
-    if (!audio.paused) return true;
-    audio.volume = 0;
-    try {
-      await audio.play();
-    } catch {
-      // Refused: leave it audible for a later resume from the media keys.
-      audio.volume = TARGET_VOLUME;
-      return false;
+  /** Resolves "playing" once the theme is audible, "blocked" if the browser refused. */
+  const play = useCallback((): Promise<PlayResult> => {
+    if (contextRef.current === null) {
+      const context = createAudioContext();
+      if (context === null) {
+        return Promise.resolve().then(() => {
+          setFailed(true);
+          return "failed" as const;
+        });
+      }
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      gain.connect(context.destination);
+      contextRef.current = context;
+      detachEffectsRef.current = attachSoundEffects(context);
+      gainRef.current = gain;
     }
-    setFailed(false);
-    fadeIn(audio);
-    return true;
-  }, [fadeIn]);
+    const context = contextRef.current;
+    const gain = gainRef.current;
+    if (gain === null) return Promise.resolve("failed");
+    // Asked for at once, inside the gesture, which is the only time Safari allows it.
+    // A browser that refuses leaves the request pending, so `start` stops waiting.
+    context.resume().catch(() => undefined);
+    startingRef.current ??= start(context, gain).finally(() => {
+      startingRef.current = null;
+    });
+    return startingRef.current;
+  }, [start]);
 
-  // The pressed state follows the element itself, so a pause from the
-  // operating system's media controls shows on the rail too.
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (audio === null) return;
-    const onPlay = () => setPlaying(true);
-    // A song reaching its end pauses the element on its way to the next one;
-    // the rail stays on through that handover.
-    const onPause = () => {
-      if (!audio.ended) setPlaying(false);
-    };
-    const onEnded = () => setTrack((current) => (current + 1) % THEME_TRACKS.length);
-    const onError = () => {
-      setPlaying(false);
-      setFailed(true);
-    };
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("error", onError);
-    return () => {
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("error", onError);
-    };
+  const pause = useCallback(() => {
+    const context = contextRef.current;
+    const gain = gainRef.current;
+    if (context === null || gain === null) return;
+    gain.gain.cancelScheduledValues(context.currentTime);
+    void context.suspend();
+    setPlaying(false);
   }, []);
 
-  // When one song ends, the next one starts.
-  useEffect(() => {
-    if (startedTrackRef.current === track) return;
-    startedTrackRef.current = track;
-    if (!enabledRef.current) return;
-    void play().then((started) => {
-      if (!started) setPlaying(false);
-    });
-  }, [track, play]);
-
-  // The operating system's media controls name the song that is playing.
-  useEffect(() => {
-    if (!playing || !("mediaSession" in navigator) || typeof MediaMetadata === "undefined") return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.title,
-      artist: "VAULTIX",
-    });
-  }, [playing, song]);
-
-  // Start now if the browser allows it; otherwise on the first gesture.
+  // Start now if the visitor has already interacted; otherwise on the first gesture.
   useEffect(() => {
     enabledRef.current = readEnabled();
     if (!enabledRef.current) return;
 
     let disposed = false;
+    const arm = () => {
+      for (const type of GESTURES) document.addEventListener(type, onGesture, true);
+    };
     const disarm = () => {
       for (const type of GESTURES) document.removeEventListener(type, onGesture, true);
     };
@@ -197,15 +250,18 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       // same press start the theme and then stop it again.
       if (event.target instanceof Element && event.target.closest(`[${TOGGLE_ATTRIBUTE}]`)) return;
       if (event instanceof KeyboardEvent && event.key === "Escape") return;
-      void play().then((started) => {
-        if (started) disarm();
+      void play().then((result) => {
+        if (result !== "blocked") disarm();
       });
     }
 
-    void play().then((started) => {
-      if (started || disposed) return;
-      for (const type of GESTURES) document.addEventListener(type, onGesture, true);
-    });
+    if (hasBeenActive()) {
+      void play().then((result) => {
+        if (result === "blocked" && !disposed) arm();
+      });
+    } else {
+      arm();
+    }
 
     return () => {
       disposed = true;
@@ -216,13 +272,10 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
   // Quiet while the tab is out of sight; back where it was on return.
   useEffect(() => {
     const onVisibility = () => {
-      const audio = audioRef.current;
-      if (audio === null) return;
       if (document.hidden) {
-        if (!audio.paused) {
+        if (contextRef.current?.state === "running" && sourceRef.current !== null) {
           resumeOnShowRef.current = true;
-          stopFade();
-          audio.pause();
+          pause();
         }
       } else if (resumeOnShowRef.current) {
         resumeOnShowRef.current = false;
@@ -231,25 +284,33 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [play, stopFade]);
+  }, [pause, play]);
 
-  useEffect(() => stopFade, [stopFade]);
+  // Let the audio device go when the shell goes.
+  useEffect(
+    () => () => {
+      const context = contextRef.current;
+      contextRef.current = null;
+      gainRef.current = null;
+      sourceRef.current = null;
+      detachEffectsRef.current?.();
+      detachEffectsRef.current = null;
+      void context?.close();
+    },
+    [],
+  );
 
   const toggle = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio === null) return;
-    if (audio.paused) {
-      enabledRef.current = true;
-      writeEnabled(true);
-      if (failed) audio.load();
-      void play();
-    } else {
+    if (playing) {
       enabledRef.current = false;
       writeEnabled(false);
-      stopFade();
-      audio.pause();
+      pause();
+    } else {
+      enabledRef.current = true;
+      writeEnabled(true);
+      void play();
     }
-  }, [failed, play, stopFade]);
+  }, [pause, play, playing]);
 
   const value = useMemo(() => ({ playing, toggle }), [playing, toggle]);
 
@@ -259,8 +320,6 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       <span id={STATUS_ID} className="visually-hidden" role="status">
         {failed ? "The theme music could not be loaded. Press Music to try again." : ""}
       </span>
-      {/* No captions track: the songs are instrumental, with no words to caption. */}
-      <audio ref={audioRef} src={song.src} preload="none" />
     </ThemeMusicContext.Provider>
   );
 }

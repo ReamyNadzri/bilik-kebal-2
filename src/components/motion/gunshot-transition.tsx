@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import { LoadingIndicator } from "@/components/loading/loading-indicator";
+import { playSoundEffect } from "../sound-effects";
 
 /**
  * Gunshot page transition (design_handoff_vaultix_motion, section 1).
@@ -145,6 +146,7 @@ export function GunshotProvider({
         return;
       }
       busy.current = true;
+      playSoundEffect("gunshot");
       setShot({ x, y, w: window.innerWidth, h: window.innerHeight, key: Date.now() });
       navigate();
       timers.current.push(

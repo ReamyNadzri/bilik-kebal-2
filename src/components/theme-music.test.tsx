@@ -1,37 +1,124 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { THEME_PREFERENCE_KEY, THEME_TRACKS, ThemeMusic } from "./theme-music";
+import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
+import { THEME_PREFERENCE_KEY, THEME_TRACK, ThemeMusic } from "./theme-music";
+
+const detachEffects = vi.hoisted(() => vi.fn());
+vi.mock("./sound-effects", () => ({
+  attachSoundEffects: vi.fn(() => detachEffects),
+  preloadSoundEffects: vi.fn(),
+}));
 
 /**
- * jsdom has no media playback, so the element is driven by hand: `allowed`
- * stands in for the browser's autoplay policy, and play/pause flip `paused`
- * and fire the events a real element would.
+ * jsdom has no Web Audio, so a fake context stands in: `allowed` is the
+ * browser's autoplay policy (a refused `resume()` stays pending, as it does in
+ * Chrome), `active` is whether the visitor has already interacted with the
+ * page, and `fetchOk` decides whether the file arrives.
  */
-const media = vi.hoisted(() => ({ allowed: false, paused: true }));
+const audio = vi.hoisted(() => ({
+  allowed: false,
+  active: false,
+  fetchOk: true,
+  contexts: [] as FakeAudioContext[],
+}));
+
+class FakeParam {
+  value = 0;
+  cancelScheduledValues = vi.fn();
+  setValueAtTime = vi.fn((value: number) => {
+    this.value = value;
+  });
+  linearRampToValueAtTime = vi.fn((value: number) => {
+    this.value = value;
+  });
+}
+
+class FakeSource {
+  buffer: unknown = null;
+  loop = false;
+  loopStart = 0;
+  loopEnd = 0;
+  connect = vi.fn();
+  start = vi.fn();
+}
+
+class FakeAudioContext extends EventTarget {
+  state: "suspended" | "running" | "closed" = "suspended";
+  currentTime = 10;
+  destination = {};
+  gainNode = { gain: new FakeParam(), connect: vi.fn() };
+  sources: FakeSource[] = [];
+
+  constructor() {
+    super();
+    audio.contexts.push(this);
+  }
+
+  createGain() {
+    return this.gainNode;
+  }
+
+  createBufferSource() {
+    const source = new FakeSource();
+    this.sources.push(source);
+    return source;
+  }
+
+  resume() {
+    if (!audio.allowed) return new Promise<void>(() => undefined);
+    this.setState("running");
+    return Promise.resolve();
+  }
+
+  suspend() {
+    this.setState("suspended");
+    return Promise.resolve();
+  }
+
+  close() {
+    this.setState("closed");
+    return Promise.resolve();
+  }
+
+  decodeAudioData() {
+    return Promise.resolve({ duration: 122 });
+  }
+
+  private setState(state: FakeAudioContext["state"]) {
+    if (this.state === state) return;
+    this.state = state;
+    this.dispatchEvent(new Event("statechange"));
+  }
+}
+
+const fetchMock = vi.fn(async () =>
+  audio.fetchOk
+    ? { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(8) }
+    : { ok: false, status: 500, arrayBuffer: async () => new ArrayBuffer(0) },
+);
 
 beforeEach(() => {
-  media.allowed = false;
-  media.paused = true;
+  audio.allowed = false;
+  audio.active = false;
+  audio.fetchOk = true;
+  audio.contexts = [];
+  fetchMock.mockClear();
+  detachEffects.mockClear();
+  vi.mocked(attachSoundEffects).mockClear();
+  vi.mocked(preloadSoundEffects).mockClear();
   window.localStorage.clear();
-  vi.spyOn(HTMLMediaElement.prototype, "paused", "get").mockImplementation(() => media.paused);
-  vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (
-    this: HTMLMediaElement,
-  ) {
-    if (!media.allowed) return Promise.reject(new DOMException("Blocked", "NotAllowedError"));
-    media.paused = false;
-    this.dispatchEvent(new Event("play"));
-    return Promise.resolve();
+  vi.stubGlobal("AudioContext", FakeAudioContext);
+  vi.stubGlobal("fetch", fetchMock);
+  Object.defineProperty(navigator, "userActivation", {
+    configurable: true,
+    get: () => ({ hasBeenActive: audio.active }),
   });
-  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(function (
-    this: HTMLMediaElement,
-  ) {
-    media.paused = true;
-    this.dispatchEvent(new Event("pause"));
-  });
-  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  Reflect.deleteProperty(navigator, "userActivation");
 });
 
 async function renderMusic() {
@@ -45,45 +132,59 @@ function toggle() {
   return screen.getByRole("button", { name: "Music" });
 }
 
+function context() {
+  const current = audio.contexts.at(-1);
+  if (current === undefined) throw new Error("No audio context was created");
+  return current;
+}
+
 test("offers a Music toggle and does not fetch the file until it plays", async () => {
-  const { container } = await renderMusic();
+  await renderMusic();
 
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
-  const audio = container.querySelector("audio");
-  expect(audio).toHaveAttribute("src", THEME_TRACKS[0].src);
-  expect(audio).toHaveAttribute("preload", "none");
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(audio.contexts).toHaveLength(0);
 });
 
-test("plays the three songs in turn and comes back to the theme after the last", async () => {
-  media.allowed = true;
-  const { container } = await renderMusic();
-  const audio = container.querySelector("audio");
+test("loops the one theme without a gap, between the loop points inside the file", async () => {
+  audio.active = true;
+  audio.allowed = true;
+  await renderMusic();
 
-  for (const next of [1, 2, 0]) {
-    const plays = vi.mocked(HTMLMediaElement.prototype.play).mock.calls.length;
-    await act(async () => {
-      media.paused = true;
-      audio?.dispatchEvent(new Event("ended"));
-    });
-
-    expect(audio).toHaveAttribute("src", THEME_TRACKS[next]?.src);
-    expect(vi.mocked(HTMLMediaElement.prototype.play).mock.calls.length).toBe(plays + 1);
-    expect(toggle()).toHaveAttribute("aria-pressed", "true");
-  }
+  expect(fetchMock).toHaveBeenCalledWith(THEME_TRACK.src);
+  expect(context().sources).toHaveLength(1);
+  const [source] = context().sources;
+  expect(source).toMatchObject({
+    loop: true,
+    loopStart: THEME_TRACK.loopStart,
+    loopEnd: THEME_TRACK.loopEnd,
+  });
+  expect(source?.start).toHaveBeenCalledWith(0, THEME_TRACK.loopStart);
 });
 
-test("plays straight away when the browser allows it", async () => {
-  media.allowed = true;
+test("plays straight away when the visitor has already interacted with the page", async () => {
+  audio.active = true;
+  audio.allowed = true;
   await renderMusic();
 
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
 });
 
-test("starts on the first interaction when the browser blocks autoplay", async () => {
+test("fades in from silence rather than starting at full volume", async () => {
+  audio.active = true;
+  audio.allowed = true;
+  await renderMusic();
+
+  const { gain } = context().gainNode;
+  expect(gain.setValueAtTime).toHaveBeenCalledWith(0, 10);
+  expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0.45, 11.5);
+});
+
+test("starts on the first interaction when there has been none yet", async () => {
   await renderMusic();
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
 
-  media.allowed = true;
+  audio.allowed = true;
   await act(async () => {
     fireEvent.pointerDown(document.body);
   });
@@ -91,9 +192,42 @@ test("starts on the first interaction when the browser blocks autoplay", async (
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
 });
 
+test("waits for the next interaction when the browser still refuses sound", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  audio.active = true;
+  await renderMusic();
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
+  expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  expect(fetchMock).not.toHaveBeenCalled();
+
+  audio.allowed = true;
+  await act(async () => {
+    fireEvent.pointerDown(document.body);
+  });
+
+  expect(toggle()).toHaveAttribute("aria-pressed", "true");
+});
+
+test("one press that fires several gesture events starts the theme once", async () => {
+  await renderMusic();
+  audio.allowed = true;
+
+  await act(async () => {
+    fireEvent.pointerDown(document.body);
+    fireEvent.pointerUp(document.body);
+    fireEvent.click(document.body);
+  });
+
+  expect(audio.contexts).toHaveLength(1);
+  expect(context().sources).toHaveLength(1);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
 test("does not start on Escape, which is not a gesture that unlocks sound", async () => {
   await renderMusic();
-  media.allowed = true;
+  audio.allowed = true;
 
   await act(async () => {
     fireEvent.keyDown(document.body, { key: "Escape" });
@@ -102,9 +236,9 @@ test("does not start on Escape, which is not a gesture that unlocks sound", asyn
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
 });
 
-test("pressing Music while autoplay is blocked starts the theme instead of turning it off", async () => {
+test("pressing Music before the theme has started starts it instead of turning it off", async () => {
   await renderMusic();
-  media.allowed = true;
+  audio.allowed = true;
 
   await act(async () => {
     fireEvent.pointerDown(toggle());
@@ -112,11 +246,12 @@ test("pressing Music while autoplay is blocked starts the theme instead of turni
   });
 
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
-  expect(HTMLMediaElement.prototype.pause).not.toHaveBeenCalled();
+  expect(context().state).toBe("running");
 });
 
 test("turning it off stops the theme and is remembered on the next visit", async () => {
-  media.allowed = true;
+  audio.active = true;
+  audio.allowed = true;
   const { unmount } = await renderMusic();
 
   await act(async () => {
@@ -124,22 +259,41 @@ test("turning it off stops the theme and is remembered on the next visit", async
   });
 
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  expect(context().state).toBe("suspended");
   expect(window.localStorage.getItem(THEME_PREFERENCE_KEY)).toBe("off");
 
   unmount();
-  vi.mocked(HTMLMediaElement.prototype.play).mockClear();
+  const created = audio.contexts.length;
   await renderMusic();
   await act(async () => {
     fireEvent.pointerDown(document.body);
   });
 
-  expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
+  expect(audio.contexts).toHaveLength(created);
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
+});
+
+test("turning it back on carries on from where it stopped instead of starting over", async () => {
+  audio.active = true;
+  audio.allowed = true;
+  await renderMusic();
+
+  await act(async () => {
+    fireEvent.click(toggle());
+  });
+  await act(async () => {
+    fireEvent.click(toggle());
+  });
+
+  expect(toggle()).toHaveAttribute("aria-pressed", "true");
+  expect(context().state).toBe("running");
+  expect(context().sources).toHaveLength(1);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 test("a later interaction does not restart it after the visitor turned it off", async () => {
   await renderMusic();
-  media.allowed = true;
+  audio.allowed = true;
   await act(async () => {
     fireEvent.click(toggle());
   });
@@ -157,9 +311,11 @@ test("a later interaction does not restart it after the visitor turned it off", 
 
 test("turning it back on is remembered too", async () => {
   window.localStorage.setItem(THEME_PREFERENCE_KEY, "off");
-  media.allowed = true;
+  audio.active = true;
+  audio.allowed = true;
   await renderMusic();
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  expect(audio.contexts).toHaveLength(0);
 
   await act(async () => {
     fireEvent.click(toggle());
@@ -170,7 +326,8 @@ test("turning it back on is remembered too", async () => {
 });
 
 test("pauses while the tab is hidden and resumes when it returns", async () => {
-  media.allowed = true;
+  audio.active = true;
+  audio.allowed = true;
   await renderMusic();
   const hidden = vi.spyOn(document, "hidden", "get");
 
@@ -179,34 +336,46 @@ test("pauses while the tab is hidden and resumes when it returns", async () => {
     document.dispatchEvent(new Event("visibilitychange"));
   });
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  expect(context().state).toBe("suspended");
 
   hidden.mockReturnValue(false);
   await act(async () => {
     document.dispatchEvent(new Event("visibilitychange"));
   });
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
+  expect(context().sources).toHaveLength(1);
 });
 
 test("says so when the file cannot be loaded, and pressing Music tries again", async () => {
-  media.allowed = true;
-  const { container } = await renderMusic();
-  const audio = container.querySelector("audio");
-
-  await act(async () => {
-    media.paused = true;
-    audio?.dispatchEvent(new Event("error"));
-  });
+  audio.active = true;
+  audio.allowed = true;
+  audio.fetchOk = false;
+  await renderMusic();
 
   expect(screen.getByRole("status")).toHaveTextContent("The theme music could not be loaded.");
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
+
+  audio.fetchOk = true;
+  await act(async () => {
+    fireEvent.click(toggle());
+  });
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(toggle()).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+});
+
+test("says so when the browser has no Web Audio", async () => {
+  vi.stubGlobal("AudioContext", undefined);
+  await renderMusic();
+  audio.allowed = true;
 
   await act(async () => {
     fireEvent.click(toggle());
   });
 
-  expect(HTMLMediaElement.prototype.load).toHaveBeenCalled();
-  expect(toggle()).toHaveAttribute("aria-pressed", "true");
-  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("status")).toHaveTextContent("The theme music could not be loaded.");
 });
 
 test("still works when the browser refuses storage", async () => {
@@ -216,7 +385,8 @@ test("still works when the browser refuses storage", async () => {
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
     throw new Error("denied");
   });
-  media.allowed = true;
+  audio.active = true;
+  audio.allowed = true;
   await renderMusic();
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
 
@@ -227,23 +397,34 @@ test("still works when the browser refuses storage", async () => {
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
 });
 
-test("the fade-in never sets a negative volume when a frame is stamped before the fade began", async () => {
-  // A browser stamps each animation frame with the time the frame began, which
-  // can be a moment before the fade read the clock.
-  const frames: FrameRequestCallback[] = [];
-  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-    frames.push(callback);
-    return frames.length;
+test("lets the audio device go when the shell unmounts", async () => {
+  audio.active = true;
+  audio.allowed = true;
+  const { unmount } = await renderMusic();
+
+  unmount();
+
+  expect(context().state).toBe("closed");
+});
+
+test("gives the sound effects the same context, and fetches them once sound is allowed", async () => {
+  audio.active = true;
+  audio.allowed = true;
+  const { unmount } = await renderMusic();
+
+  expect(attachSoundEffects).toHaveBeenCalledExactlyOnceWith(context());
+  expect(preloadSoundEffects).toHaveBeenCalled();
+
+  unmount();
+  expect(detachEffects).toHaveBeenCalledOnce();
+});
+
+test("does not fetch the sound effects while sound is still refused", async () => {
+  await renderMusic();
+
+  await act(async () => {
+    fireEvent.keyDown(document.body, { key: "Escape" });
   });
-  vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
-  vi.spyOn(performance, "now").mockReturnValue(1000);
-  media.allowed = true;
-  const { container } = await renderMusic();
-  const audio = container.querySelector("audio") as HTMLAudioElement;
 
-  act(() => frames.shift()?.(999));
-  expect(audio.volume).toBe(0);
-
-  act(() => frames.shift()?.(1000 + 1500));
-  expect(audio.volume).toBeCloseTo(0.45);
+  expect(preloadSoundEffects).not.toHaveBeenCalled();
 });

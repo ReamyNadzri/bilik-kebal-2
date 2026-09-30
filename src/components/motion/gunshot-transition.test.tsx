@@ -1,9 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { playSoundEffect } from "../sound-effects";
 import { GunshotProvider, ShotLink } from "./gunshot-transition";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), prefetch: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("../sound-effects", () => ({ playSoundEffect: vi.fn() }));
 
 function stubReducedMotion(reduce: boolean) {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -40,6 +42,7 @@ function clickAndReportPrevented(link: HTMLElement, init: MouseEventInit = {}) {
 beforeEach(() => {
   router.push.mockReset();
   router.prefetch.mockReset();
+  vi.mocked(playSoundEffect).mockClear();
   window.localStorage.clear();
   stubReducedMotion(false);
 });
@@ -65,6 +68,28 @@ describe("ShotLink", () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(screen.queryByTestId("gunshot-overlay")).not.toBeInTheDocument();
+  });
+
+  test("fires the gunshot sound with the shot, once per shot", () => {
+    vi.useFakeTimers();
+    const link = renderLink();
+
+    fireEvent.click(link, { button: 0 });
+    fireEvent.click(link, { button: 0 });
+
+    expect(playSoundEffect).toHaveBeenCalledExactlyOnceWith("gunshot");
+  });
+
+  test.each([
+    ["the toggle is off", () => window.localStorage.setItem("vaultix.gunshot", "off")],
+    ["the viewer prefers reduced motion", () => stubReducedMotion(true)],
+  ])("stays silent when %s, since no shot is shown", (_, arrange) => {
+    arrange();
+    const link = renderLink();
+
+    fireEvent.click(link, { button: 0 });
+
+    expect(playSoundEffect).not.toHaveBeenCalled();
   });
 
   test("ignores further clicks while a shot is running", () => {
