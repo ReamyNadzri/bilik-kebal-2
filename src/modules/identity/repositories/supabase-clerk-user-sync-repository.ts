@@ -27,5 +27,15 @@ export class SupabaseClerkUserSyncRepository implements ClerkUserSyncRepository 
     });
     // The database error can carry the email; only its code leaves this layer.
     if (error) throw new Error(`CLERK_USER_SYNC_FAILED:${error.code ?? "unknown"}`);
+
+    // After the account row exists, with the same Clerk timestamp, so a stale
+    // delivery changes nothing (migration 202610170001). Best effort: a missing
+    // photo must never stop an account from being created; the next Clerk
+    // update or session sync brings it.
+    await this.client.rpc("sync_clerk_avatar", {
+      target_clerk_user_id: input.clerkUserId,
+      target_avatar_url: input.googleAvatarUrl,
+      target_clerk_updated_at: input.clerkUpdatedAt.toISOString(),
+    });
   }
 }

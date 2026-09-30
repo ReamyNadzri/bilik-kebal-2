@@ -20,6 +20,12 @@ export interface ClerkUserPayload {
   first_name: string | null;
   last_name: string | null;
   username: string | null;
+  /** Sign-in providers linked to the account; absent in older payloads. */
+  external_accounts?: ReadonlyArray<{
+    provider: string;
+    image_url?: string | null;
+    verification?: { status: string } | null;
+  }>;
   updated_at: number;
 }
 
@@ -29,6 +35,8 @@ export interface ClerkUserSyncInput {
   email: string | null;
   emailVerified: boolean;
   displayName: string | null;
+  /** The linked Google account's photo (Clerk's copy), or null. */
+  googleAvatarUrl: string | null;
   clerkUpdatedAt: Date;
 }
 
@@ -50,6 +58,11 @@ export function toClerkUserSyncInput(user: ClerkUserPayload): ClerkUserSyncInput
     .map((part) => part?.trim())
     .filter(Boolean)
     .join(" ");
+  // Only a verified Google account's photo: an email-only member keeps the
+  // drawn avatars, and a Google link still being verified is not theirs yet.
+  const google = (user.external_accounts ?? []).find(
+    (account) => account.provider === "oauth_google" && account.verification?.status === "verified",
+  );
 
   return {
     clerkUserId: user.id,
@@ -57,6 +70,7 @@ export function toClerkUserSyncInput(user: ClerkUserPayload): ClerkUserSyncInput
     email: primary?.email_address ?? null,
     emailVerified: primary?.verification?.status === "verified",
     displayName: fullName || user.username?.trim() || null,
+    googleAvatarUrl: google?.image_url?.trim() || null,
     clerkUpdatedAt: new Date(user.updated_at),
   };
 }

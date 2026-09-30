@@ -1458,6 +1458,8 @@ export type Database = {
           bio: string | null;
           created_at: string;
           display_name: string;
+          external_avatar_enabled: boolean;
+          external_avatar_url: string | null;
           public_id: string;
           updated_at: string;
           user_id: string;
@@ -1469,6 +1471,8 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name: string;
+          external_avatar_enabled?: boolean;
+          external_avatar_url?: string | null;
           public_id?: string;
           updated_at?: string;
           user_id: string;
@@ -1480,6 +1484,8 @@ export type Database = {
           bio?: string | null;
           created_at?: string;
           display_name?: string;
+          external_avatar_enabled?: boolean;
+          external_avatar_url?: string | null;
           public_id?: string;
           updated_at?: string;
           user_id?: string;

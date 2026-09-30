@@ -13,6 +13,8 @@ import {
   toClerkError,
 } from "@/features/presentation/auth/clerk-messages";
 import {
+  GOOGLE_START_TIMEOUT_MS,
+  leavesPageWithin,
   markGoogleSignInStarted,
   syncClerkAccount,
   useFinalizeNavigation,
@@ -72,8 +74,24 @@ export function SignUpForm() {
 
   async function handleGoogleSignUp() {
     if (!signUp) return;
+    setErrors([]);
     setOutcome({ kind: "submitting" });
     markGoogleSignInStarted();
+    // Clerk continues a sign-up already open in its client rather than
+    // starting a new one; if that ever resolves without leaving for Google,
+    // the form must not wait on "Creating your account…" forever.
+    void leavesPageWithin(GOOGLE_START_TIMEOUT_MS).then((left) => {
+      if (left) return;
+      setOutcome((current) =>
+        current.kind === "submitting"
+          ? {
+              kind: "refused",
+              message:
+                "Google sign-up did not start. Try again, or create your account with your email.",
+            }
+          : current,
+      );
+    });
     await attempt(async () => {
       const { error } = await signUp.sso({
         strategy: "oauth_google",

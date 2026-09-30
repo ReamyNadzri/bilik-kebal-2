@@ -11,7 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useClerk } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import type { AccountViewModel } from "@/contracts";
 import { callOperation, readOperation } from "@/features/presentation/call-operation";
 import { IDENTITY_MESSAGE } from "@/features/presentation/identity-messages";
@@ -22,6 +22,7 @@ import {
   type AccountCapability,
   type AuthState,
 } from "./auth-state";
+import { googlePhotoUrl, syncGooglePhotoOnce } from "./google-photo";
 import { isGuestPath, signInPathFor } from "./redirect-target";
 import { onSessionExpired } from "./session-expiry";
 import { IdleSessionGuard } from "@/components/idle-session-guard";
@@ -111,6 +112,20 @@ export function AuthProvider({ children, initialAccount }: AuthProviderProps) {
           },
     );
   }, []);
+
+  /**
+   * A Google member still on the default drawing gets their Google photo:
+   * their account is copied from Clerk once per browser session, then re-read.
+   * A photo or drawn avatar they chose is never replaced (the server resolves
+   * that order); this only fills the gap for accounts synced before.
+   */
+  const { user: clerkUser } = useUser();
+  const hasGooglePhoto = googlePhotoUrl(clerkUser) !== null;
+  const onDefaultAvatar = state.status === "authenticated" && state.account?.avatarUrl === null;
+  useEffect(() => {
+    if (!hasGooglePhoto || !onDefaultAvatar) return;
+    void syncGooglePhotoOnce().then((sent) => (sent ? refreshAccount() : undefined));
+  }, [hasGooglePhoto, onDefaultAvatar, refreshAccount]);
 
   /**
    * Reacts to an operation that was refused because the session ended.

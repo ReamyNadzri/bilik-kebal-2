@@ -103,6 +103,34 @@ describe("signed in", () => {
     expect(screen.getByRole("link", { name: "Edit profile" })).toHaveAttribute("href", "/profile");
   });
 
+  test("shows the drawn default, not Clerk's placeholder, for an email-only member", () => {
+    clerkHooks.user = { imageUrl: "https://img.clerk.com/placeholder", externalAccounts: [] };
+    const { container } = renderMenu(anAccountViewModel({ displayName: "Aina", avatarUrl: null }));
+
+    const pictures = Array.from(container.querySelectorAll("img"), (img) => img.src);
+    expect(pictures.some((src) => src.includes("placeholder"))).toBe(false);
+    expect(pictures.some((src) => src.includes("/brand/avatar-1.webp"))).toBe(true);
+  });
+
+  test("copies a Google member's account once so their Google photo arrives", async () => {
+    window.sessionStorage.clear();
+    clerkHooks.user = {
+      externalAccounts: [
+        {
+          provider: "google",
+          imageUrl: "https://img.clerk.com/g",
+          verification: { status: "verified" },
+        },
+      ],
+    };
+    respondWith({ ok: true, data: anAccountViewModel({ avatarUrl: "https://img.clerk.com/g" }) });
+    renderMenu(anAccountViewModel({ displayName: "Aina", avatarUrl: null }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith("/api/identity/clerk-sync", { method: "POST" }),
+    );
+  });
+
   test("opens and closes the menu from the keyboard", () => {
     renderMenu(anAccountViewModel({ displayName: "Aina" }));
     const trigger = screen.getByRole("button", { name: /Aina/ });

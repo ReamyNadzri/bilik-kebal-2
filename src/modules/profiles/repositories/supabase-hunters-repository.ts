@@ -19,6 +19,8 @@ interface HunterRow {
   displayName: string;
   avatarObjectKey: string | null;
   avatarPreset: number | null;
+  /** Absent until migration 202610170001 is applied. */
+  externalAvatarUrl?: string | null;
   institutionName: string;
   joinedAt: string;
 }
@@ -56,7 +58,12 @@ export class SupabaseHuntersRepository implements HuntersRepository {
       items: (body?.items ?? []).map((row) => ({
         publicId: row.publicId,
         displayName: row.displayName,
-        avatarUrl: resolveAvatarUrl(this.client, row.avatarObjectKey, row.avatarPreset),
+        avatarUrl: resolveAvatarUrl(
+          this.client,
+          row.avatarObjectKey,
+          row.avatarPreset,
+          row.externalAvatarUrl,
+        ),
         institutionName: row.institutionName,
         joinedAt: new Date(row.joinedAt).toISOString(),
       })),

@@ -1095,3 +1095,34 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
   the same 14 fail on an unmodified build of HEAD (the `/verify-email` specs predate the Clerk
   screen, the 360 px shell test expects a header Sign in that the phone row moved into the menu,
   and the recovery spec times out) — not caused by this change, still to be updated.
+
+## 2026-09-30 — Google sign-in hang fixed; Google photo as the default avatar (`claude/google-signin-and-avatar`)
+
+- **Hang:** "Continue with Google" stayed on "Signing in… / Checking your details" in a browser that
+  still held an unfinished Clerk sign-in (incognito worked). Clerk's `signIn.sso()` (clerk-js v6)
+  only creates a Google attempt when no sign-in is open; otherwise it reuses the old one, which has
+  no Google redirect, so it neither leaves nor errors, and no request is sent. The form now calls
+  `signIn.reset()` first and starts Google from the fresh sign-in on the next render (the `signIn`
+  in hand still points at the old attempt). Both Google buttons (sign-in and sign-up) also stop
+  waiting after 10 s (`leavesPageWithin`) and say Google did not start.
+- **Google photo (decided with the user):** a member who signs in with Google starts with their
+  Google photo; an email-only member keeps the drawn avatars. Order shown: uploaded photo, chosen
+  drawn avatar, Google photo, default drawing. Choosing a photo or drawn avatar replaces the Google
+  photo; "Use my Google photo" on `/profile` brings it back. Only the link is kept (Clerk's copy,
+  from a verified Google external account in the Clerk webhook or the member's session sync),
+  never the image; it is visible to other members like any avatar.
+- Migration `202610170001_google_profile_photo.sql`: `private.user_identities.clerk_avatar_url`
+  (raw), `profiles.external_avatar_url` + `external_avatar_enabled`, `sync_clerk_avatar`
+  (service role, stale-delivery safe), `use_own_external_avatar` (own account),
+  `console_reset_member_avatar` now also turns the Google photo off, and both Hunters wall RPCs
+  return `externalAvatarUrl`. Links are limited to `https://img.clerk.com/` and
+  `https://lh3.googleusercontent.com/` in the database and in `resolveAvatarUrl`.
+  `database.types.ts` was hand-edited for the two profile columns (no local Docker to regenerate).
+- The account menu no longer falls back to Clerk's `imageUrl` (a generated placeholder for
+  email-only members); a Google member still on the default drawing gets one Clerk sync per
+  browser session so accounts synced earlier pick up their photo.
+- **Deploy order:** the migration must be applied to Supabase Cloud **before** this code ships —
+  profile, Wanted and account reads select `external_avatar_url`. Not yet applied.
+- Verified: unit suite 1597 passed, typecheck, lint and `pnpm build` clean. Not verified: the
+  migration against Postgres (no local Docker) and a real Google round trip with a leftover
+  sign-in.

@@ -36,8 +36,41 @@ describe("toClerkUserSyncInput", () => {
       email: "hunter@student.uitm.edu.my",
       emailVerified: true,
       displayName: "Aina Rahman",
+      googleAvatarUrl: null,
       clerkUpdatedAt: new Date(Date.UTC(2026, 8, 29, 12)),
     });
+  });
+
+  it("takes the photo of a verified Google account only", () => {
+    const google = (status: string, image_url: string | null = "https://img.clerk.com/abc") => ({
+      provider: "oauth_google",
+      image_url,
+      verification: { status },
+    });
+    expect(
+      toClerkUserSyncInput(clerkUser({ external_accounts: [google("verified")] })).googleAvatarUrl,
+    ).toBe("https://img.clerk.com/abc");
+    expect(
+      toClerkUserSyncInput(clerkUser({ external_accounts: [google("unverified")] }))
+        .googleAvatarUrl,
+    ).toBeNull();
+    expect(
+      toClerkUserSyncInput(clerkUser({ external_accounts: [google("verified", " ")] }))
+        .googleAvatarUrl,
+    ).toBeNull();
+    expect(
+      toClerkUserSyncInput(
+        clerkUser({
+          external_accounts: [
+            {
+              provider: "oauth_github",
+              image_url: "https://img.clerk.com/gh",
+              verification: { status: "verified" },
+            },
+          ],
+        }),
+      ).googleAvatarUrl,
+    ).toBeNull();
   });
 
   it("treats an unverified or missing primary email as unverified", () => {

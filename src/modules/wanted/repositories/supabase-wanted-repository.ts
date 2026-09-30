@@ -64,8 +64,12 @@ export class SupabaseWantedRepository implements WantedRepository {
   ) {}
 
   /** Public URL of an avatar (photo or drawn character), or null. */
-  avatarUrl(objectKey: string | null, preset: number | null = null): string | null {
-    return resolveAvatarUrl(this.client, objectKey, preset);
+  avatarUrl(
+    objectKey: string | null,
+    preset: number | null = null,
+    externalUrl: string | null = null,
+  ): string | null {
+    return resolveAvatarUrl(this.client, objectKey, preset, externalUrl);
   }
 
   /**
@@ -165,7 +169,9 @@ export class SupabaseWantedRepository implements WantedRepository {
           .limit(20),
         this.client
           .from("profiles")
-          .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
+          .select(
+            "display_name, public_id, avatar_object_key, avatar_preset, external_avatar_url, created_at",
+          )
           .eq("user_id", row.commissioner_user_id)
           .maybeSingle(),
         this.client
@@ -204,6 +210,7 @@ export class SupabaseWantedRepository implements WantedRepository {
         avatarUrl: this.avatarUrl(
           profile.data?.avatar_object_key ?? null,
           profile.data?.avatar_preset ?? null,
+          profile.data?.external_avatar_url ?? null,
         ),
         joinedAt: profile.data?.created_at ?? null,
         emailVerified: true,
@@ -373,7 +380,9 @@ export class SupabaseWantedRepository implements WantedRepository {
     const authors = authorIds.length
       ? await this.client
           .from("profiles")
-          .select("user_id, public_id, display_name, avatar_object_key, avatar_preset")
+          .select(
+            "user_id, public_id, display_name, avatar_object_key, avatar_preset, external_avatar_url",
+          )
           .in("user_id", authorIds)
       : { data: [], error: null };
     if (authors.error) throw authors.error;
@@ -404,6 +413,7 @@ export class SupabaseWantedRepository implements WantedRepository {
           avatarUrl: this.avatarUrl(
             author?.avatar_object_key ?? null,
             author?.avatar_preset ?? null,
+            author?.external_avatar_url ?? null,
           ),
           badge: badgeByUser.get(row.author_user_id) ?? null,
         },
@@ -534,7 +544,9 @@ export class SupabaseWantedRepository implements WantedRepository {
         .in("id", wantedIds),
       this.readClient
         .from("profiles")
-        .select("user_id, public_id, display_name, avatar_object_key, avatar_preset")
+        .select(
+          "user_id, public_id, display_name, avatar_object_key, avatar_preset, external_avatar_url",
+        )
         .in("user_id", userIds),
       this.readClient
         .from("contributions")
@@ -551,7 +563,11 @@ export class SupabaseWantedRepository implements WantedRepository {
       return {
         publicId: person?.public_id ?? "",
         displayName: person?.display_name ?? "VAULTIX member",
-        avatarUrl: this.avatarUrl(person?.avatar_object_key ?? null, person?.avatar_preset ?? null),
+        avatarUrl: this.avatarUrl(
+          person?.avatar_object_key ?? null,
+          person?.avatar_preset ?? null,
+          person?.external_avatar_url ?? null,
+        ),
       };
     };
     return requests.data.flatMap((row) => {

@@ -30,7 +30,9 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       await Promise.all([
         this.client
           .from("profiles")
-          .select("display_name, public_id, avatar_object_key, avatar_preset, created_at")
+          .select(
+            "display_name, public_id, avatar_object_key, avatar_preset, external_avatar_url, created_at",
+          )
           .eq("user_id", user.id)
           .maybeSingle(),
         this.client
@@ -113,6 +115,7 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
         this.client,
         profile.data.avatar_object_key,
         profile.data.avatar_preset,
+        profile.data.external_avatar_url,
       ),
       avatarPreset: profile.data.avatar_preset,
       email: user.email ?? null,

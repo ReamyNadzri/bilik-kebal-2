@@ -15,6 +15,7 @@ type Status = "needs_first_factor" | "needs_client_trust" | "needs_second_factor
 /** A Clerk `SignInFuture` whose outcome each test scripts. */
 function fakeSignIn(afterPassword: Status = "complete") {
   const signIn = {
+    id: undefined as string | undefined,
     status: "needs_first_factor" as Status,
     firstFactorVerification: null as null | {
       strategy: string;
@@ -27,6 +28,7 @@ function fakeSignIn(afterPassword: Status = "complete") {
       return clerkResult();
     }),
     sso: vi.fn(async () => clerkResult()),
+    reset: vi.fn(async () => clerkResult()),
     finalize: vi.fn(
       async ({ navigate }: { navigate: (p: { decorateUrl: (u: string) => string }) => void }) => {
         navigate({ decorateUrl: (url) => url });
@@ -168,6 +170,60 @@ test("starts Google sign-in through the SSO callback and marks the round trip", 
     }),
   );
   expect(Number(window.sessionStorage.getItem("vaultix_google_sign_in"))).toBeGreaterThan(0);
+});
+
+test("clears a leftover sign-in before starting Google, from the fresh attempt", async () => {
+  const stale = fakeSignIn();
+  stale.id = "sia_leftover";
+  const fresh = fakeSignIn();
+  clerkHooks.signIn = stale;
+  // Clerk swaps in a new sign-in; the old object still holds the old attempt.
+  stale.reset.mockImplementation(async () => {
+    clerkHooks.signIn = fresh;
+    return clerkResult();
+  });
+  render(<SignInForm next="/board" />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
+
+  await waitFor(() => expect(fresh.sso).toHaveBeenCalledOnce());
+  expect(stale.reset).toHaveBeenCalledOnce();
+  expect(stale.sso).not.toHaveBeenCalled();
+});
+
+test("leaves 'Signing in…' when Google never starts", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    fakeSignIn();
+    render(<SignInForm />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
+    expect(await screen.findByRole("button", { name: "Signing in…" })).toBeDisabled();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(await screen.findByText(/Google sign-in did not start/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Sign in$/ })).toBeEnabled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("says nothing once the page has left for Google", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    fakeSignIn();
+    render(<SignInForm />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
+    await screen.findByRole("button", { name: "Signing in…" });
+    fireEvent(window, new Event("pagehide"));
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(screen.queryByText(/Google sign-in did not start/)).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("reads the code Clerk nests inside its API error, so the wording stays neutral", async () => {
