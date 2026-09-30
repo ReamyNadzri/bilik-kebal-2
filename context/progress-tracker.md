@@ -1236,3 +1236,26 @@ existed only in the brag videos.
   errors. Not verified in a browser: the share poster, because `/wanted/[id]` returned 500 on the
   local dev server ("Jest worker encountered 2 child process exceptions", machine load, no
   backend data); its component test covers it.
+
+## 2026-09-30 Share on every Board card, and a Share button that can be found (`claude/theme-loop-sfx`)
+
+Report (user, 2026-09-30, in Malay): "there is no Share button, have we not implemented it?", then
+"fix what is wrong". Found: Share existed only on the Wanted detail page, as a quiet compact button
+beside the status stamp, and its pixel icon had no size (`PixelIcon` without a class renders a
+zero-size SVG), so it read as a stray word. Guests never see it: the detail page asks them to sign
+in first. The 500 seen earlier on `/wanted/[id]` did not reproduce on `main` (it was the old dev
+server's worker crashing under machine load); `main` answers 200.
+
+- `WantedShareButton` (`src/components/wanted-share-button.tsx`): the button and its share poster,
+  returning focus to the button on close. The detail page uses it as a bordered secondary button;
+  every Board card (Board, home, profile grids) now has Share beside View Wanted, named
+  "Share this Wanted: <title>" so a list of cards stays navigable by name.
+- `shareWantedContent` and `SharePoster` take a `WantedSummary` instead of a `WantedDetail`: they
+  only ever read id, title, kind, course, campus, resource type and bounty, all on the card. No new
+  data reaches the card.
+- Verified: new `wanted-share-button.test.tsx` (3), two card tests; 341 tests across the share,
+  card, board, detail and presentation suites; typecheck, lint, prettier. In Chromium on
+  `pnpm dev` (a throwaway fixture page, not committed): at 360 px and 1280 px the card shows View
+  Wanted with Share below it, full width, 49 px tall with a 16 px icon; the detail masthead shows a
+  bordered Share with its icon; Share opens the poster, Esc closes it and focus returns; no
+  horizontal scroll.

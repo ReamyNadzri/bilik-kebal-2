@@ -1,5 +1,6 @@
 import { ShotLink } from "./motion/gunshot-transition";
 import { WantedPoster } from "./wanted-poster";
+import { WantedShareButton } from "./wanted-share-button";
 import type { WantedSummary } from "@/features/marketplace/types";
 
 export interface WantedCardProps {
@@ -19,7 +20,9 @@ export interface WantedCardProps {
  *
  * The poster is not one large link. The title and the action both point at the
  * same Wanted, which keeps each accessible name meaningful when a reader lists
- * the links on a Board of twelve posters.
+ * the links on a Board of twelve posters. Share sits beside the action, named
+ * for its request for the same reason, so a request can be passed on from the
+ * Board without opening it.
  *
  * Neither link is prefetched. A Wanted is rendered per request with no loading
  * state of its own, so a prefetch would fetch only its route shape — one
@@ -46,14 +49,21 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
           </h3>
         }
         footer={
-          <ShotLink
-            className="button button--ink wanted-card__action"
-            href={href}
-            prefetch={false}
-            aria-label={`View this Wanted: ${wanted.title}`}
-          >
-            View Wanted
-          </ShotLink>
+          <div className="wanted-card__actions">
+            <ShotLink
+              className="button button--ink wanted-card__action"
+              href={href}
+              prefetch={false}
+              aria-label={`View this Wanted: ${wanted.title}`}
+            >
+              View Wanted
+            </ShotLink>
+            <WantedShareButton
+              wanted={wanted}
+              className="button button--secondary wanted-card__share"
+              label={`Share this Wanted: ${wanted.title}`}
+            />
+          </div>
         }
       />
     </li>

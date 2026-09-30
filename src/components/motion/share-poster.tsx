@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
-import type { WantedDetail } from "@/features/marketplace/types";
+import type { WantedSummary } from "@/features/marketplace/types";
 import {
   chatShareUrl,
   renderSharePoster,
@@ -14,7 +14,7 @@ import { usePrefersReducedMotion } from "./gunshot-transition";
 import { useShareFit } from "./use-share-fit";
 
 export interface SharePosterProps {
-  readonly wanted: WantedDetail;
+  readonly wanted: WantedSummary;
   readonly onClose: () => void;
 }
 

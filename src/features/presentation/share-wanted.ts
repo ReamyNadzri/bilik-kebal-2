@@ -1,11 +1,12 @@
-import type { WantedDetail } from "@/features/marketplace/types";
+import type { WantedSummary } from "@/features/marketplace/types";
 import { formatRinggit } from "@/features/marketplace/money";
 
 /**
  * What a shared Wanted says, in the picture and in the chat caption.
  *
  * Only what the public detail already shows anyone signed in: title, course,
- * campus and bounty. Never the poster's name, a claim, or anything a Hunter
+ * campus and bounty, all on the Board card too, so a card can share without
+ * loading the detail. Never the poster's name, a claim, or anything a Hunter
  * supplied. The link opens the Wanted, which still asks for a verified email
  * before it shows the request.
  */
@@ -20,7 +21,7 @@ export interface ShareWantedContent {
   readonly url: string;
 }
 
-export function shareWantedContent(wanted: WantedDetail, origin: string): ShareWantedContent {
+export function shareWantedContent(wanted: WantedSummary, origin: string): ShareWantedContent {
   const academic = wanted.kind === "academic";
   const paid = !wanted.isFree && wanted.grossBountySen > 0;
   const code = academic ? wanted.courseCode : wanted.resourceType;

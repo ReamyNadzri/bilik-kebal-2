@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { WantedCard } from "./wanted-card";
 import { aWanted } from "@/features/marketplace/test-support/wanted";
 
@@ -98,6 +98,22 @@ test("names the action distinctly so a list of cards is navigable by link alone"
   expect(
     screen.getByRole("link", { name: "View this Wanted: Final exam notes" }),
   ).toBeInTheDocument();
+});
+
+test("offers Share beside the action, named for its request", () => {
+  renderCard({ title: "Final exam notes" });
+
+  const share = screen.getByRole("button", { name: "Share this Wanted: Final exam notes" });
+  expect(share).toHaveTextContent("Share");
+  expect(share).toHaveAttribute("aria-haspopup", "dialog");
+});
+
+test("shares straight from the Board without opening the Wanted", () => {
+  renderCard({ title: "Final exam notes" });
+
+  fireEvent.click(screen.getByRole("button", { name: "Share this Wanted: Final exam notes" }));
+
+  expect(screen.getByRole("dialog", { name: /Share this Wanted/ })).toBeInTheDocument();
 });
 
 test("links the title to the same Wanted", () => {

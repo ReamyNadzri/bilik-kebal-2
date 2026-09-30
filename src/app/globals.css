@@ -3168,6 +3168,27 @@ textarea.form-field__input {
   width: 100%;
 }
 
+/*
+ * View Wanted and Share share a row when the card is wide enough; on a narrow
+ * card Share drops below, full width, rather than squeezing View Wanted onto
+ * two lines.
+ */
+.wanted-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.wanted-card__actions > .wanted-card__action {
+  flex: 1 0 10.5rem;
+  width: auto;
+}
+
+.wanted-card__share {
+  flex: 1 1 auto;
+  gap: var(--space-2);
+}
+
 /* --------------------------------------------------------------------------
    Page heading panel
    -------------------------------------------------------------------------- */

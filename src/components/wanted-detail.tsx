@@ -10,9 +10,8 @@ import { WantedReplies } from "./wanted-replies";
 import { Avatar } from "./avatar";
 import { BackWantedModal } from "./back-wanted-modal";
 import { ClaimSubmissionForm } from "./claim-submission-form";
-import { SharePoster } from "./motion/share-poster";
-import { PixelIcon } from "./pixel-icon";
 import { WantedPosterControls } from "./wanted-poster-controls";
+import { WantedShareButton } from "./wanted-share-button";
 import type { AccountViewModel } from "@/contracts/identity";
 import type { WantedChangeWindow } from "@/contracts/marketplace";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
@@ -62,7 +61,6 @@ export function WantedDetail({
   otherUniversity = null,
 }: WantedDetailProps) {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
   const academic = wanted.kind === "academic";
   const isOpen =
     wanted.status === "open" || wanted.status === "ending-soon" || wanted.status === "well-funded";
@@ -84,14 +82,10 @@ export function WantedDetail({
           <time className="wanted-detail__posted" dateTime={wanted.postedAt}>
             {formatPostedAge(wanted.postedAt, now)}
           </time>
-          <button
-            type="button"
-            className="button button--quiet button--compact wanted-detail__share"
-            onClick={() => setIsShareOpen(true)}
-            aria-haspopup="dialog"
-          >
-            <PixelIcon name="share" /> Share
-          </button>
+          <WantedShareButton
+            wanted={wanted}
+            className="button button--secondary button--compact wanted-detail__share"
+          />
         </p>
 
         <h1 className="wanted-detail__title" id="wanted-title">
@@ -394,8 +388,6 @@ export function WantedDetail({
       {isBackModalOpen ? (
         <BackWantedModal wanted={wanted} onClose={() => setIsBackModalOpen(false)} />
       ) : null}
-
-      {isShareOpen ? <SharePoster wanted={wanted} onClose={() => setIsShareOpen(false)} /> : null}
 
       {isClaimModalOpen ? (
         <ClaimSubmissionForm wanted={wanted} onClose={() => setIsClaimModalOpen(false)} />

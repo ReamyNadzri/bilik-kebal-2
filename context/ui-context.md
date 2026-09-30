@@ -108,8 +108,8 @@ No component may hardcode a final colour value. Temporary development tokens mus
   one-time swipe hint, poster rails, the Gunshot switch inside the menu, no footer, and helper
   paragraphs trimmed (`.mobile-hide`). Swipes are a shortcut only; every page stays reachable by
   tab bar, menu and keyboard.
-- Wanted Board: searchable filter area plus cards showing course, institution/campus, resource type, academic period, gross bounty, Backer count, age, and safe status.
-- Wanted detail: lifecycle/status, metadata, bounty breakdown, contribution action, claim action, and policy notice without unverified file preview.
+- Wanted Board: searchable filter area plus cards showing course, institution/campus, resource type, academic period, gross bounty, Backer count, age, and safe status, a View Wanted action and a Share button beside it (named "Share this Wanted: <title>"; it drops below, full width, on a narrow card). Share opens the share poster from the card, using only what the card already shows.
+- Wanted detail: lifecycle/status, metadata, bounty breakdown, contribution action, claim action, and policy notice without unverified file preview, and a bordered Share button at the right of the status line.
 - Create Wanted: multi-step or sectioned form with duplicate suggestions before payment.
 - Submit Claim: metadata, file upload, rights declaration, takedown/payout disclosure, and access-basis selection.
 - Sheriff Console: desktop-efficient queues and detail panels, while urgent triage remains functional from 360 px width.
