@@ -18,6 +18,9 @@
   /* Ground — dark timber around everything, rails above and below. */
   --bg-base: #160d08;
   --bg-rail: #1b1109;
+  /* Dims the page behind the loading revolver, lighter than --bg-scrim so the
+     skeleton still shows through. */
+  --bg-loading-scrim: rgb(27 17 9 / 0.5);
   --bg-rail-raised: #2e1d10;
   /* A rail control while it is pressed or its panel is open. */
   --bg-rail-pressed: #3a2412;
@@ -9963,88 +9966,146 @@ a.missing-poster:focus-visible {
   height: 26rem;
 }
 
-/* The "page on its way" badge (src/components/loading/loading-indicator.tsx).
-   Hidden for 150 ms so fast pages never flash it; above the phone tab bar. */
+/* The "page on its way" loader (src/components/loading/loading-indicator.tsx):
+   a dim, lightly blurred backdrop with the reloading revolver in the middle. Hidden for 150 ms so fast pages never flash it. Clicks pass through,
+   so the header and tab bar still work while a page loads. */
 .loading-indicator {
   position: fixed;
-  left: 50%;
-  bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+  inset: 0;
   z-index: 60;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  color: var(--text-primary);
-  background: var(--bg-surface);
-  border: var(--border-width-2, 2px) solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-float);
-  font-weight: 600;
-  white-space: nowrap;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--bg-loading-scrim);
+  backdrop-filter: blur(2px);
   pointer-events: none;
   opacity: 0;
-  transform: translate(-50%, var(--space-2));
-  animation: loading-indicator-in 160ms ease-out 150ms forwards;
+  animation: loading-indicator-in 180ms ease-out 150ms forwards;
 }
 
-@media (max-width: 44.9375rem) {
-  .loading-indicator {
-    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-3));
-  }
-}
-
-.loading-indicator__cylinder {
-  position: relative;
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: none;
-  background: var(--bg-emblem);
-  border: 2px solid var(--border-strong);
-  border-radius: 50%;
-  animation: loading-indicator-turn 900ms steps(6) infinite;
-}
-
-.loading-indicator__chamber {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.3rem;
-  height: 0.3rem;
-  margin: -0.15rem 0 0 -0.15rem;
-  background: var(--border-strong);
-  border-radius: 50%;
-}
-
-.loading-indicator__chamber:nth-child(1) {
-  transform: rotate(0deg) translateY(-0.42rem);
-}
-.loading-indicator__chamber:nth-child(2) {
-  transform: rotate(60deg) translateY(-0.42rem);
-}
-.loading-indicator__chamber:nth-child(3) {
-  transform: rotate(120deg) translateY(-0.42rem);
-}
-.loading-indicator__chamber:nth-child(4) {
-  transform: rotate(180deg) translateY(-0.42rem);
-}
-.loading-indicator__chamber:nth-child(5) {
-  transform: rotate(240deg) translateY(-0.42rem);
-}
-.loading-indicator__chamber:nth-child(6) {
-  transform: rotate(300deg) translateY(-0.42rem);
-  background: var(--accent-brass, var(--bg-poster));
+/* The revolver reload (public/brand/revolver-reload.png): 33 frames of
+   72 x 48 px original pixel art, shown x2, 2390 ms a loop. Frame timings
+   are uneven, so each frame is its own keyframe, held until the next
+   (step-end). Drawn in scripts/revolver-art/preview.html; export.mjs
+   re-exports the sheet. */
+.loading-indicator__revolver {
+  --revolver-width: 144px;
+  width: var(--revolver-width);
+  height: 96px;
+  background: url("/brand/revolver-reload.png") 0 0 / auto 100% no-repeat;
+  image-rendering: pixelated;
+  transform: rotate(-12deg);
+  animation: loading-indicator-reload 2390ms step-end infinite;
 }
 
 @keyframes loading-indicator-in {
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
   }
 }
 
-@keyframes loading-indicator-turn {
-  to {
-    transform: rotate(360deg);
+@keyframes loading-indicator-reload {
+  0.000% {
+    background-position-x: calc(var(--revolver-width) * 0);
+  }
+  6.695% {
+    background-position-x: calc(var(--revolver-width) * -1);
+  }
+  12.552% {
+    background-position-x: calc(var(--revolver-width) * -2);
+  }
+  15.063% {
+    background-position-x: calc(var(--revolver-width) * -3);
+  }
+  17.573% {
+    background-position-x: calc(var(--revolver-width) * -4);
+  }
+  21.339% {
+    background-position-x: calc(var(--revolver-width) * -5);
+  }
+  23.849% {
+    background-position-x: calc(var(--revolver-width) * -6);
+  }
+  25.941% {
+    background-position-x: calc(var(--revolver-width) * -7);
+  }
+  28.033% {
+    background-position-x: calc(var(--revolver-width) * -8);
+  }
+  30.962% {
+    background-position-x: calc(var(--revolver-width) * -9);
+  }
+  34.310% {
+    background-position-x: calc(var(--revolver-width) * -10);
+  }
+  36.820% {
+    background-position-x: calc(var(--revolver-width) * -11);
+  }
+  38.912% {
+    background-position-x: calc(var(--revolver-width) * -12);
+  }
+  41.004% {
+    background-position-x: calc(var(--revolver-width) * -13);
+  }
+  43.933% {
+    background-position-x: calc(var(--revolver-width) * -14);
+  }
+  47.280% {
+    background-position-x: calc(var(--revolver-width) * -15);
+  }
+  49.791% {
+    background-position-x: calc(var(--revolver-width) * -16);
+  }
+  51.883% {
+    background-position-x: calc(var(--revolver-width) * -17);
+  }
+  53.975% {
+    background-position-x: calc(var(--revolver-width) * -18);
+  }
+  56.904% {
+    background-position-x: calc(var(--revolver-width) * -19);
+  }
+  60.251% {
+    background-position-x: calc(var(--revolver-width) * -20);
+  }
+  62.762% {
+    background-position-x: calc(var(--revolver-width) * -21);
+  }
+  64.854% {
+    background-position-x: calc(var(--revolver-width) * -22);
+  }
+  66.946% {
+    background-position-x: calc(var(--revolver-width) * -23);
+  }
+  69.874% {
+    background-position-x: calc(var(--revolver-width) * -24);
+  }
+  73.222% {
+    background-position-x: calc(var(--revolver-width) * -25);
+  }
+  75.732% {
+    background-position-x: calc(var(--revolver-width) * -26);
+  }
+  77.824% {
+    background-position-x: calc(var(--revolver-width) * -27);
+  }
+  79.916% {
+    background-position-x: calc(var(--revolver-width) * -28);
+  }
+  84.100% {
+    background-position-x: calc(var(--revolver-width) * -29);
+  }
+  86.611% {
+    background-position-x: calc(var(--revolver-width) * -30);
+  }
+  89.540% {
+    background-position-x: calc(var(--revolver-width) * -31);
+  }
+  93.305% {
+    background-position-x: calc(var(--revolver-width) * -32);
+  }
+  100% {
+    background-position-x: calc(var(--revolver-width) * -32);
   }
 }
 
@@ -10052,7 +10113,7 @@ a.missing-poster:focus-visible {
   .loading-indicator {
     animation-duration: 1ms;
   }
-  .loading-indicator__cylinder {
+  .loading-indicator__revolver {
     animation: none;
   }
 }

@@ -1173,3 +1173,9 @@ then (2026-09-30) "just complete implement all", so section 2 (share poster fit)
 - Verified: typecheck, lint, 751 UI tests; indicator checked at desktop and 375 px in the dev
   server. Locally `/map` and `/archive` show their "unavailable" state because `.env.local` has no
   `SUPABASE_SERVICE_ROLE_KEY` (unrelated to this change).
+- Follow-up (same day, user decisions): the gunshot overlay stays but is **off by default** (a saved
+  "on" still wins). The loader uses Claude's original pixel-art revolver
+  (`public/brand/revolver-reload.png`, 33 frames of 72 x 48, shown x2, 2.39 s loop, drawn in
+  `scripts/revolver-art/preview.html`, re-export with `node scripts/revolver-art/export.mjs`). It is
+  now centred on a dim, lightly blurred backdrop (`--bg-loading-scrim`, clicks pass through) with
+  no card and no visible text; the words remain for screen readers.

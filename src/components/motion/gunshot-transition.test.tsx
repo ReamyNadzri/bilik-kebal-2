@@ -50,6 +50,8 @@ afterEach(() => {
 });
 
 describe("ShotLink", () => {
+  beforeEach(() => window.localStorage.setItem("vaultix.gunshot", "on"));
+
   test("plays the shot, asks for the route at once and clears the overlay at 1050 ms", () => {
     vi.useFakeTimers();
     const link = renderLink();
@@ -119,30 +121,39 @@ describe("ShotLink", () => {
 });
 
 describe("GunshotToggle", () => {
-  test("is on by default, and flips aria-pressed and the saved choice", () => {
+  test("is off by default, and flips aria-pressed and the saved choice", () => {
     renderLink();
     const toggle = screen.getByRole("button", { name: "Gunshot page transition" });
 
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("Gunshot Off");
+
+    fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     expect(toggle).toHaveTextContent("Gunshot On");
+    expect(window.localStorage.getItem("vaultix.gunshot")).toBe("on");
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle).toHaveTextContent("Gunshot Off");
     expect(window.localStorage.getItem("vaultix.gunshot")).toBe("off");
+  });
 
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(window.localStorage.getItem("vaultix.gunshot")).toBe("on");
+  test("navigates at once, with no effect, for a visitor who never turned it on", () => {
+    const link = renderLink();
+
+    fireEvent.click(link, { button: 0 });
+
+    expect(router.push).toHaveBeenCalledExactlyOnceWith("/board");
+    expect(screen.queryByTestId("gunshot-overlay")).not.toBeInTheDocument();
   });
 
   test("starts from the saved choice", () => {
-    window.localStorage.setItem("vaultix.gunshot", "off");
+    window.localStorage.setItem("vaultix.gunshot", "on");
     renderLink();
 
     expect(screen.getByRole("button", { name: "Gunshot page transition" })).toHaveAttribute(
       "aria-pressed",
-      "false",
+      "true",
     );
   });
 });

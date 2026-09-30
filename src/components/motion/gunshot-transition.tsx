@@ -104,7 +104,7 @@ function savePreference(next: Preference): void {
 
 export function GunshotProvider({
   children,
-  defaultEnabled = true,
+  defaultEnabled = false,
 }: {
   readonly children: ReactNode;
   readonly defaultEnabled?: boolean;

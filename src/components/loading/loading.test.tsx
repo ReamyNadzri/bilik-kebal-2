@@ -6,7 +6,7 @@ test("the indicator is one polite status with words, the drawing hidden", () => 
   const { container } = render(<LoadingIndicator label="Loading the Archive" />);
 
   expect(screen.getByRole("status")).toHaveTextContent("Loading the Archive…");
-  expect(container.querySelector(".loading-indicator__cylinder")).toHaveAttribute(
+  expect(container.querySelector(".loading-indicator__revolver")).toHaveAttribute(
     "aria-hidden",
     "true",
   );
