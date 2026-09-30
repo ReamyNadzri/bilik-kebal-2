@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { useUser } from "@clerk/nextjs";
 import { Avatar } from "./avatar";
 import { AvatarEditor } from "./avatar-editor";
 import type { AccountViewModel } from "@/contracts";
 import type { FreeRequestAllowance } from "@/contracts/marketplace";
 import { REWARD_CODE_MESSAGES, type RewardCodeOutcome } from "@/contracts/rewards";
 import { TAXONOMY_CATEGORY_LABEL, type TaxonomyRequestView } from "@/contracts/taxonomy-requests";
-import { presetAvatarPath, AVATAR_PRESET_COUNT } from "@/lib/avatars";
+import { isExternalAvatarUrl, presetAvatarPath, AVATAR_PRESET_COUNT } from "@/lib/avatars";
 import { useAuth } from "@/features/presentation/auth/auth-provider";
 import { callOperation } from "@/features/presentation/call-operation";
+import { googlePhotoUrl } from "@/features/presentation/auth/google-photo";
 
 export interface ProfileSettingsProps {
   readonly account: AccountViewModel;
@@ -51,6 +53,8 @@ function NoticeLine({ notice }: { readonly notice: Notice }) {
 export function ProfileSettings({ account, bio, allowance, entryRequests }: ProfileSettingsProps) {
   const router = useRouter();
   const { refreshAccount } = useAuth();
+  const { user: clerkUser } = useUser();
+  const googlePhoto = googlePhotoUrl(clerkUser);
   const [avatarUrl, setAvatarUrl] = useState(account.avatarUrl);
   const [preset, setPreset] = useState<number | null>(account.avatarPreset ?? null);
   const [pictureOpen, setPictureOpen] = useState(false);
@@ -84,6 +88,26 @@ export function ProfileSettings({ account, bio, allowance, entryRequests }: Prof
     setAvatarUrl(result.data.avatarUrl);
     setPictureNotice({ kind: "ok", text: "Avatar saved." });
     await refreshAccount();
+  }
+
+  async function chooseGooglePhoto() {
+    setBusy("picture");
+    setPictureNotice(null);
+    const result = await callOperation<{ avatarUrl: string | null }, string>(
+      "/api/profile/avatar/google",
+      {},
+      "PROFILE_UNAVAILABLE",
+    );
+    setBusy(null);
+    if (!result.ok) {
+      setPictureNotice({ kind: "error", text: result.message || "Your picture was not saved." });
+      return;
+    }
+    setPreset(null);
+    setAvatarUrl(result.data.avatarUrl);
+    setPictureNotice({ kind: "ok", text: "Your Google photo is your picture again." });
+    await refreshAccount();
+    router.refresh();
   }
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
@@ -169,6 +193,17 @@ export function ProfileSettings({ account, bio, allowance, entryRequests }: Prof
             </li>
           ))}
         </ul>
+        {/* Only for a member signed in with Google, and only while another picture is shown. */}
+        {googlePhoto && !isExternalAvatarUrl(avatarUrl) ? (
+          <button
+            type="button"
+            className="button button--secondary button--compact hunter-card__upload"
+            onClick={() => void chooseGooglePhoto()}
+            disabled={busy !== null}
+          >
+            Use my Google photo
+          </button>
+        ) : null}
         <button
           type="button"
           className="button button--secondary button--compact hunter-card__upload"

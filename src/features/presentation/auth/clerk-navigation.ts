@@ -65,3 +65,27 @@ export function takeGoogleSignInReturn(): boolean {
     return false;
   }
 }
+
+/** How long a Google start may take before the form says it did not happen. */
+export const GOOGLE_START_TIMEOUT_MS = 10_000;
+
+/**
+ * Resolves true if this page is left (for Google) within `ms`, else false.
+ *
+ * Clerk's `sso()` can finish without an error and without leaving: it reuses
+ * a sign-in already open in the Clerk client instead of starting a Google one.
+ * Nothing else would ever take the form off "Signing in…".
+ */
+export function leavesPageWithin(ms: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const onLeave = () => {
+      window.clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = window.setTimeout(() => {
+      window.removeEventListener("pagehide", onLeave);
+      resolve(false);
+    }, ms);
+    window.addEventListener("pagehide", onLeave, { once: true });
+  });
+}

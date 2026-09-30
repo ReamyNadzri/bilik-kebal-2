@@ -52,6 +52,15 @@ export async function setOwnAvatarPreset(input: unknown): Promise<SetAvatarResul
   }
 }
 
+export async function chooseOwnExternalAvatar(): Promise<SetAvatarResult> {
+  try {
+    const loaded = await context();
+    return loaded.service.chooseExternalAvatar(loaded.actor);
+  } catch {
+    return unavailable();
+  }
+}
+
 export async function readPublicProfile(publicId: string): Promise<ReadPublicProfileResult> {
   try {
     const loaded = await context();

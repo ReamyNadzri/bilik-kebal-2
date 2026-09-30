@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ProfileSettings } from "./profile-settings";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
 import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
+import { clerkHooks } from "@/features/presentation/test-support/clerk-hooks";
 
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -14,6 +15,7 @@ const account = anAccountViewModel({
   email: "2023456789@student.uitm.edu.my",
   publicId: "11111111-1111-4111-8111-111111111111",
   avatarPreset: 1,
+  avatarUrl: "/brand/avatar-1.webp",
   trust: { email: "verified", institution: "verified", restricted: false },
   institution: { id: "i", name: "UiTM Shah Alam" },
 });
@@ -139,4 +141,49 @@ test("lists the entries the member asked a Sheriff to add, with the decision", (
 
   expect(screen.getByText("CSC508 Data Structures")).toBeInTheDocument();
   expect(screen.getByText("Added")).toBeInTheDocument();
+});
+
+describe("Google photo", () => {
+  const googleUser = {
+    externalAccounts: [
+      {
+        provider: "google",
+        imageUrl: "https://img.clerk.com/google-photo",
+        verification: { status: "verified" },
+      },
+    ],
+  };
+
+  test("is offered to a Google member on another picture, and saved", async () => {
+    clerkHooks.user = googleUser;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        respond({ ok: true, data: { avatarUrl: "https://img.clerk.com/google-photo" } }),
+      )
+      .mockResolvedValue(respond({ ok: true, data: account }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Use my Google photo" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Your Google photo is your picture again.",
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledWith("/api/profile/avatar/google", expect.anything());
+    expect(screen.queryByRole("button", { name: "Use my Google photo" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Drawn avatar 2" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  test("is not offered to a member who signed in with email only", () => {
+    clerkHooks.user = { externalAccounts: [] };
+    renderSettings();
+
+    expect(screen.queryByRole("button", { name: "Use my Google photo" })).not.toBeInTheDocument();
+  });
 });

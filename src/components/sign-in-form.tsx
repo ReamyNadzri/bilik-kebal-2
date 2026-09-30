@@ -14,6 +14,8 @@ import {
   toClerkError,
 } from "@/features/presentation/auth/clerk-messages";
 import {
+  GOOGLE_START_TIMEOUT_MS,
+  leavesPageWithin,
   markGoogleSignInStarted,
   takeGoogleSignInReturn,
   useFinalizeNavigation,
@@ -158,10 +160,26 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
     });
   }
 
-  async function handleGoogleSignIn() {
+  /**
+   * Clerk only starts a Google sign-in when no other sign-in is open in its
+   * client. With one left over (an unfinished password or device-code attempt)
+   * `sso()` reuses it, does not leave for Google and reports nothing. So a
+   * leftover attempt is cleared first, and Google starts on the next render,
+   * from the fresh sign-in the hook then returns: the `signIn` in hand still
+   * points at the old attempt.
+   */
+  const googleAfterReset = useRef(false);
+  const [resets, setResets] = useState(0);
+  useEffect(() => {
+    if (!googleAfterReset.current || !signIn || signIn.id) return;
+    googleAfterReset.current = false;
+    void startGoogle();
+    // `startGoogle` reads the `signIn` of this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resets, signIn]);
+
+  async function startGoogle() {
     if (!signIn) return;
-    setOutcome({ kind: "submitting" });
-    markGoogleSignInStarted();
     await attempt(async () => {
       const { error } = await signIn.sso({
         strategy: "oauth_google",
@@ -170,6 +188,33 @@ export function SignInForm({ next = DEFAULT_SIGNED_IN_PATH }: SignInFormProps) {
       });
       if (error) refuse(error);
     });
+  }
+
+  async function handleGoogleSignIn() {
+    if (!signIn) return;
+    setErrors([]);
+    setOutcome({ kind: "submitting" });
+    markGoogleSignInStarted();
+    void leavesPageWithin(GOOGLE_START_TIMEOUT_MS).then((left) => {
+      if (left) return;
+      setOutcome((current) =>
+        current.kind === "submitting"
+          ? {
+              kind: "refused",
+              message: "Google sign-in did not start. Try again, or sign in with your password.",
+            }
+          : current,
+      );
+    });
+    if (signIn.id) {
+      await attempt(async () => {
+        await signIn.reset();
+        googleAfterReset.current = true;
+        setResets((count) => count + 1);
+      });
+      return;
+    }
+    await startGoogle();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

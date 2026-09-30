@@ -13,8 +13,13 @@ export interface ProfileRepository {
   createAvatarUpload(objectKey: string): Promise<{ signedUrl: string; token: string }>;
   updateOwnProfile(displayName: string, bio: string | null): Promise<void>;
   setOwnAvatar(objectKey: string | null): Promise<void>;
-  avatarUrl(objectKey: string | null, preset?: number | null): string | null;
+  avatarUrl(
+    objectKey: string | null,
+    preset?: number | null,
+    externalUrl?: string | null,
+  ): string | null;
   setOwnAvatarPreset(preset: number | null): Promise<void>;
+  chooseOwnExternalAvatar(): Promise<string>;
   readPublicProfile(publicId: string): Promise<PublicProfile | null>;
 }
 
@@ -67,8 +72,25 @@ export class SupabaseProfileRepository implements ProfileRepository {
     if (error) throw error;
   }
 
-  avatarUrl(objectKey: string | null, preset: number | null = null): string | null {
-    return resolveAvatarUrl(this.readClient, objectKey, preset);
+  avatarUrl(
+    objectKey: string | null,
+    preset: number | null = null,
+    externalUrl: string | null = null,
+  ): string | null {
+    return resolveAvatarUrl(this.readClient, objectKey, preset, externalUrl);
+  }
+
+  /**
+   * Back to the Google photo (`use_own_external_avatar`, migration
+   * 202610170001): clears the member's photo and drawn avatar. Untyped until
+   * the database types are regenerated.
+   */
+  async chooseOwnExternalAvatar(): Promise<string> {
+    const { data, error } = await (this.writeClient as unknown as SupabaseClient).rpc(
+      "use_own_external_avatar",
+    );
+    if (error) throw error;
+    return data as string;
   }
 
   async setOwnAvatarPreset(preset: number | null): Promise<void> {
@@ -79,7 +101,9 @@ export class SupabaseProfileRepository implements ProfileRepository {
   async readPublicProfile(publicId: string): Promise<PublicProfile | null> {
     const profile = await this.readClient
       .from("profiles")
-      .select("user_id, public_id, display_name, avatar_object_key, avatar_preset, bio, created_at")
+      .select(
+        "user_id, public_id, display_name, avatar_object_key, avatar_preset, external_avatar_url, bio, created_at",
+      )
       .eq("public_id", publicId)
       .maybeSingle();
     if (profile.error) throw profile.error;
@@ -115,7 +139,11 @@ export class SupabaseProfileRepository implements ProfileRepository {
     return {
       publicId: profile.data.public_id,
       displayName: profile.data.display_name,
-      avatarUrl: this.avatarUrl(profile.data.avatar_object_key, profile.data.avatar_preset),
+      avatarUrl: this.avatarUrl(
+        profile.data.avatar_object_key,
+        profile.data.avatar_preset,
+        profile.data.external_avatar_url,
+      ),
       bio: profile.data.bio,
       joinedAt: profile.data.created_at,
       institutionName: institution.data?.name ?? null,

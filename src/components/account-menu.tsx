@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { Avatar } from "./avatar";
 import { useAuth } from "@/features/presentation/auth/auth-provider";
+import { googlePhotoUrl } from "@/features/presentation/auth/google-photo";
 import { signInPathFor } from "@/features/presentation/auth/redirect-target";
 
 /**
@@ -76,7 +77,7 @@ export function AccountMenu() {
     user?.username ??
     user?.primaryEmailAddress?.emailAddress ??
     "Member";
-  const avatarUrl = account?.avatarUrl ?? user?.imageUrl ?? null;
+  const avatarUrl = account ? account.avatarUrl : googlePhotoUrl(user);
   const email = account?.email ?? user?.primaryEmailAddress?.emailAddress ?? null;
   const institutionVerified = account?.trust.institution === "verified";
   const status = institutionVerified
@@ -222,7 +223,7 @@ function useCompactViewer() {
       user?.username ??
       user?.primaryEmailAddress?.emailAddress ??
       "Member",
-    avatarUrl: account?.avatarUrl ?? user?.imageUrl ?? null,
+    avatarUrl: account ? account.avatarUrl : googlePhotoUrl(user),
     institutionVerified,
     status: institutionVerified
       ? "Institution verified"

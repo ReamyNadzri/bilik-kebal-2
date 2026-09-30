@@ -14,6 +14,7 @@ function repository(overrides: Partial<ProfileRepository> = {}): ProfileReposito
     setOwnAvatarPreset: vi.fn().mockResolvedValue(undefined),
     avatarUrl: vi.fn((key: string | null) => (key ? `https://cdn.test/${key}` : null)),
     readPublicProfile: vi.fn().mockResolvedValue(null),
+    chooseOwnExternalAvatar: vi.fn().mockResolvedValue("https://img.clerk.com/photo"),
     ownPublicId: vi.fn().mockResolvedValue(publicId),
     createAvatarUpload: vi
       .fn()
@@ -23,6 +24,32 @@ function repository(overrides: Partial<ProfileRepository> = {}): ProfileReposito
 }
 
 describe("ProfileService", () => {
+  it("goes back to the Google photo, and says when there is none", async () => {
+    const repo = repository({
+      avatarUrl: vi.fn(
+        (_key: string | null, _preset?: number | null, external?: string | null) =>
+          external ?? null,
+      ),
+    });
+    await expect(new ProfileService(repo).chooseExternalAvatar(actor)).resolves.toEqual({
+      ok: true,
+      data: { avatarUrl: "https://img.clerk.com/photo" },
+    });
+
+    const none = new ProfileService(
+      repository({
+        chooseOwnExternalAvatar: vi.fn().mockRejectedValue({ message: "external_avatar_missing" }),
+      }),
+    );
+    await expect(none.chooseExternalAvatar(actor)).resolves.toMatchObject({
+      ok: false,
+      code: "VALIDATION_ERROR",
+    });
+    await expect(
+      new ProfileService(repository()).chooseExternalAvatar(null),
+    ).resolves.toMatchObject({ ok: false, code: "AUTH_REQUIRED" });
+  });
+
   it("saves a trimmed display name and treats an empty bio as none", async () => {
     const repo = repository();
     const result = await new ProfileService(repo).update(actor, {

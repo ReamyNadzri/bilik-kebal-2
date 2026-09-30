@@ -95,6 +95,24 @@ export class ProfileService {
     }
   }
 
+  /** Back to the Google photo the member signed in with, replacing their photo or drawn avatar. */
+  async chooseExternalAvatar(actor: ProfileActor | null): Promise<SetAvatarResult> {
+    if (!actor) return failure("AUTH_REQUIRED", "Sign in to change your picture.");
+    if (!actor.emailVerified) return failure("EMAIL_NOT_VERIFIED", "Verify your email first.");
+    try {
+      const url = await this.repository.chooseOwnExternalAvatar();
+      return success({ avatarUrl: this.repository.avatarUrl(null, null, url) });
+    } catch (error) {
+      if (message(error).includes("external_avatar_missing")) {
+        return failure(
+          "VALIDATION_ERROR",
+          "No Google photo was found for your account. Sign in with Google and try again.",
+        );
+      }
+      return failure("PROFILE_UNAVAILABLE", "Your picture could not be saved. Try again.");
+    }
+  }
+
   async readPublic(actor: ProfileActor | null, publicId: string): Promise<ReadPublicProfileResult> {
     if (!actor) return failure("AUTH_REQUIRED", "Sign in to view member profiles.");
     if (!actor.emailVerified) return failure("EMAIL_NOT_VERIFIED", "Verify your email first.");

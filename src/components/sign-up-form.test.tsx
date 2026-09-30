@@ -159,3 +159,21 @@ test("never stays on 'Creating your account…' when Clerk throws", async () => 
   expect(await screen.findByText("No account was created")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Create account" })).toBeEnabled();
 });
+
+test("leaves 'Creating your account…' when Google never starts", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    fakeSignUp();
+    render(<SignUpForm />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
+    expect(await screen.findByRole("button", { name: "Creating your account…" })).toBeDisabled();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(await screen.findByText(/Google sign-up did not start/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account" })).toBeEnabled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
