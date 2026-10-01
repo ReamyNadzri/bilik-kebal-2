@@ -1415,3 +1415,10 @@ on a bounty; "banner" means the Owner-awarded badge (Owner, 1st, Developer…); 
   is `UPLOAD_UNAVAILABLE`, worded as a failure to retry.
 - Not verified: an end-to-end upload from the deployed site (needs this branch deployed and the
   variable live in that deployment). Screening still needs the scanner worker.
+- Follow-up (same day): uploads still failed with "The upload could not start". The database log
+  showed `claims_file_name_check` refusing the names: written in `202609200001` as
+  `file_name !~ '[\/\x00]'`, it forbade the letter x and the digit 0 (so any dated file name
+  and every .docx/.xlsx) instead of NUL. Migration `202610190007_claim_file_name_rule.sql`
+  (applied after a rolled-back dry run: the user's two file names, notes.docx and a name with a
+  space and brackets pass; slash, backslash, a tab and an empty name are refused; every existing
+  row passes) checks slash and backslash as plain characters and control characters by class.
