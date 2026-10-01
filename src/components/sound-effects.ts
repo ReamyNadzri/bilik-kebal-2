@@ -3,9 +3,10 @@
  * the capture poster (a claim submitted) and the share poster.
  *
  * They play through the theme music's AudioContext, which
- * `ThemeMusicProvider` attaches here, so the Music toggle is the one sound
- * switch: with the music off, the tab hidden, or before the visitor has let
- * the page make sound, the context is not running and effects stay silent.
+ * `ThemeMusicProvider` attaches here. The Music toggle mutes the theme only:
+ * the context keeps running for the effects. With the tab hidden, or before
+ * the visitor has let the page make sound, it is not running and effects stay
+ * silent.
  * Callers play an effect only when its animation actually runs, so reduced
  * motion and the gunshot toggle silence them too.
  *

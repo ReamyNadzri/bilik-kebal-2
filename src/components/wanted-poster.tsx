@@ -43,9 +43,10 @@ export function describeBackers(count: number): string {
 }
 
 /**
- * One Wanted as a pinned poster: masthead and time left, the course, the
- * title, the bounty with its backers and age, the request details, the status
- * stamp and one action. The Board card and the detail page's ledger share this
+ * One Wanted as a posted notice: the status stamp beside the masthead, the
+ * time left as its highlight, the course, the title (two lines at most on a
+ * card), the bounty with its backers and age, the request details and one
+ * action. The Board card and the detail page's ledger share this
  * body so a request looks the same wherever it is pinned.
  *
  * The "Wanted" masthead is decoration and hidden from assistive technology,
@@ -70,10 +71,16 @@ export function WantedPoster({
       className={`wanted-poster poster-paper pin ${className}`.trim()}
       aria-labelledby={labelledBy}
     >
-      <p className="poster-masthead">
-        <span className="poster-masthead__word" aria-hidden="true">
-          Wanted
-        </span>
+      <div className="poster-masthead">
+        {/* The status is stamped beside the masthead, where it is seen first. */}
+        <p className="poster-masthead__row">
+          <span className="poster-masthead__stamp">
+            <StatusStamp presentation={wantedStatusPresentation(wanted.status)} context="Wanted" />
+          </span>
+          <span className="poster-masthead__word" aria-hidden="true">
+            Wanted
+          </span>
+        </p>
         {isClosed && !academic && wanted.thread?.vanishesAt ? (
           <time className="poster-masthead__timing" dateTime={wanted.thread.vanishesAt}>
             Leaves the Board {formatVanishesIn(wanted.thread.vanishesAt, now)}
@@ -83,14 +90,15 @@ export function WantedPoster({
             {formatPostedAge(wanted.postedAt, now)}
           </time>
         ) : (
+          // Time left is the poster's highlight: how long there is to hunt it.
           <time
-            className={`poster-masthead__timing${closing.urgent ? " poster-masthead__timing--urgent" : ""}`}
+            className={`poster-masthead__timing poster-masthead__timing--left${closing.urgent ? " poster-masthead__timing--urgent" : ""}`}
             dateTime={wanted.closesAt}
           >
             {closing.label}
           </time>
         )}
-      </p>
+      </div>
 
       {withEmblem ? (
         <ResourceEmblem
@@ -149,10 +157,6 @@ export function WantedPoster({
           </>
         ) : null}
       </dl>
-
-      <p className="stamp-row wanted-poster__stamp">
-        <StatusStamp presentation={wantedStatusPresentation(wanted.status)} context="Wanted" />
-      </p>
 
       {footer === undefined ? null : <div className="wanted-card__foot">{footer}</div>}
     </article>

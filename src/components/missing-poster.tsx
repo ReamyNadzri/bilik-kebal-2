@@ -50,7 +50,9 @@ export function MissingPoster({ hunter, variant = "wall" }: MissingPosterProps) 
           className="missing-poster__photo"
         />
       </span>
-      <span className="missing-poster__name">{hunter.displayName}</span>
+      <span className="missing-poster__name" title={hunter.displayName}>
+        {hunter.displayName}
+      </span>
       <span className="missing-poster__institution">{hunter.institutionName}</span>
       <span className="missing-poster__since">
         Since <time dateTime={hunter.joinedAt}>{SINCE.format(new Date(hunter.joinedAt))}</time>

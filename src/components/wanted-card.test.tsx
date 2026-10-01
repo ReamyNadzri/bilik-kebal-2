@@ -100,11 +100,11 @@ test("names the action distinctly so a list of cards is navigable by link alone"
   ).toBeInTheDocument();
 });
 
-test("offers Share beside the action, named for its request", () => {
+test("offers an icon-only Share beside the action, named for its request", () => {
   renderCard({ title: "Final exam notes" });
 
   const share = screen.getByRole("button", { name: "Share this Wanted: Final exam notes" });
-  expect(share).toHaveTextContent("Share");
+  expect(share).toHaveTextContent("");
   expect(share).toHaveAttribute("aria-haspopup", "dialog");
 });
 

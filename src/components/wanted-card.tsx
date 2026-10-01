@@ -43,7 +43,8 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
         withEmblem
         title={
           <h3 className="wanted-card__title" id={titleId}>
-            <ShotLink href={href} prefetch={false}>
+            {/* Two lines at most (CSS); the full title is the tooltip and the action's name. */}
+            <ShotLink href={href} prefetch={false} title={wanted.title}>
               {wanted.title}
             </ShotLink>
           </h3>

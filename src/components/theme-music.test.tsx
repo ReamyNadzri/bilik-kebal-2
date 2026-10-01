@@ -249,7 +249,7 @@ test("pressing Music before the theme has started starts it instead of turning i
   expect(context().state).toBe("running");
 });
 
-test("turning it off stops the theme and is remembered on the next visit", async () => {
+test("turning it off mutes the theme only, and is remembered on the next visit", async () => {
   audio.active = true;
   audio.allowed = true;
   const { unmount } = await renderMusic();
@@ -259,18 +259,38 @@ test("turning it off stops the theme and is remembered on the next visit", async
   });
 
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
-  expect(context().state).toBe("suspended");
+  // The sound effects share the context, so it keeps running; the theme fades to silence.
+  expect(context().state).toBe("running");
+  expect(context().gainNode.gain.value).toBe(0);
   expect(window.localStorage.getItem(THEME_PREFERENCE_KEY)).toBe("off");
 
   unmount();
-  const created = audio.contexts.length;
+  fetchMock.mockClear();
   await renderMusic();
   await act(async () => {
     fireEvent.pointerDown(document.body);
   });
 
-  expect(audio.contexts).toHaveLength(created);
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  // Sound is unlocked for the effects, but the theme is neither fetched nor started.
+  expect(context().state).toBe("running");
+  expect(context().sources).toHaveLength(0);
+  expect(fetchMock).not.toHaveBeenCalledWith(THEME_TRACK.src);
+});
+
+test("with the music muted, sound effects still have a running context", async () => {
+  window.localStorage.setItem(THEME_PREFERENCE_KEY, "off");
+  audio.allowed = true;
+  await renderMusic();
+
+  await act(async () => {
+    fireEvent.pointerDown(document.body);
+  });
+
+  expect(attachSoundEffects).toHaveBeenCalledWith(context());
+  expect(context().state).toBe("running");
+  expect(preloadSoundEffects).toHaveBeenCalled();
+  expect(context().sources).toHaveLength(0);
 });
 
 test("turning it back on carries on from where it stopped instead of starting over", async () => {
@@ -315,7 +335,7 @@ test("turning it back on is remembered too", async () => {
   audio.allowed = true;
   await renderMusic();
   expect(toggle()).toHaveAttribute("aria-pressed", "false");
-  expect(audio.contexts).toHaveLength(0);
+  expect(audio.contexts.every((made) => made.sources.length === 0)).toBe(true);
 
   await act(async () => {
     fireEvent.click(toggle());
@@ -335,7 +355,8 @@ test("pauses while the tab is hidden and resumes when it returns", async () => {
   await act(async () => {
     document.dispatchEvent(new Event("visibilitychange"));
   });
-  expect(toggle()).toHaveAttribute("aria-pressed", "false");
+  // Silent while hidden, but still switched on.
+  expect(toggle()).toHaveAttribute("aria-pressed", "true");
   expect(context().state).toBe("suspended");
 
   hidden.mockReturnValue(false);
@@ -343,6 +364,7 @@ test("pauses while the tab is hidden and resumes when it returns", async () => {
     document.dispatchEvent(new Event("visibilitychange"));
   });
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
+  expect(context().state).toBe("running");
   expect(context().sources).toHaveLength(1);
 });
 

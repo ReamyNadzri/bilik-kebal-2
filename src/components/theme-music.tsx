@@ -29,8 +29,13 @@ import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
  *
  * On by default. Browsers refuse sound until the visitor has interacted with
  * the page, so the theme starts on the first click, tap or key press anywhere,
- * fading in. The rail's Music toggle stops and restarts it (WCAG 2.1 SC 1.4.2);
- * stopping it is remembered in this browser and wins on every later visit.
+ * fading in. The rail's Music toggle mutes and unmutes it (WCAG 2.1 SC 1.4.2);
+ * muting is remembered in this browser and wins on every later visit.
+ *
+ * Music mutes the theme only. The sound effects share this AudioContext, so
+ * it is unlocked on the first gesture and kept running whether the theme is
+ * on or not; muting fades the theme's own gain to silence instead of
+ * suspending the context.
  * Remembering is a per-viewer convenience only: if storage is unavailable the
  * theme is simply on.
  *
@@ -55,6 +60,7 @@ export const THEME_PREFERENCE_KEY = "vaultix.themeMusic";
 
 const TARGET_VOLUME = 0.45;
 const FADE_SECONDS = 1.5;
+const MUTE_FADE_SECONDS = 0.3;
 /** How long to wait for the browser to allow sound before treating it as refused. */
 const RESUME_TIMEOUT_MS = 400;
 /** The events a browser accepts as the gesture that unlocks sound. */
@@ -159,14 +165,13 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       try {
         buffer = await loadBuffer(context);
       } catch {
-        void context.suspend();
         setPlaying(false);
         setFailed(true);
         return "failed";
       }
-      // Turned off, or the tab hidden, while the file was on its way.
+      // Muted, or the tab hidden, while the file was on its way. The context
+      // stays as it is: the sound effects still use it.
       if (!enabledRef.current || document.hidden || contextRef.current !== context) {
-        void context.suspend();
         return "blocked";
       }
 
@@ -191,16 +196,11 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
     [loadBuffer],
   );
 
-  /** Resolves "playing" once the theme is audible, "blocked" if the browser refused. */
-  const play = useCallback((): Promise<PlayResult> => {
+  /** The one AudioContext, created on first use, with the effects routed through it. */
+  const ensureContext = useCallback((): { context: AudioContext; gain: GainNode } | null => {
     if (contextRef.current === null) {
       const context = createAudioContext();
-      if (context === null) {
-        return Promise.resolve().then(() => {
-          setFailed(true);
-          return "failed" as const;
-        });
-      }
+      if (context === null) return null;
       const gain = context.createGain();
       gain.gain.value = 0;
       gain.connect(context.destination);
@@ -208,9 +208,33 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       detachEffectsRef.current = attachSoundEffects(context);
       gainRef.current = gain;
     }
-    const context = contextRef.current;
     const gain = gainRef.current;
-    if (gain === null) return Promise.resolve("failed");
+    return gain === null ? null : { context: contextRef.current, gain };
+  }, []);
+
+  /**
+   * Lets the page make sound without starting the theme, for the effects of a
+   * visitor who muted the music. Resolves whether the browser allowed it.
+   */
+  const unlock = useCallback(async (): Promise<boolean> => {
+    const made = ensureContext();
+    if (made === null) return false;
+    made.context.resume().catch(() => undefined);
+    const running = await whenRunning(made.context, RESUME_TIMEOUT_MS);
+    if (running) preloadSoundEffects();
+    return running;
+  }, [ensureContext]);
+
+  /** Resolves "playing" once the theme is audible, "blocked" if the browser refused. */
+  const play = useCallback((): Promise<PlayResult> => {
+    const made = ensureContext();
+    if (made === null) {
+      return Promise.resolve().then(() => {
+        setFailed(true);
+        return "failed" as const;
+      });
+    }
+    const { context, gain } = made;
     // Asked for at once, inside the gesture, which is the only time Safari allows it.
     // A browser that refuses leaves the request pending, so `start` stops waiting.
     context.resume().catch(() => undefined);
@@ -218,21 +242,25 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       startingRef.current = null;
     });
     return startingRef.current;
-  }, [start]);
+  }, [ensureContext, start]);
 
-  const pause = useCallback(() => {
+  /** Fades the theme out; the context keeps running for the sound effects. */
+  const mute = useCallback(() => {
     const context = contextRef.current;
     const gain = gainRef.current;
-    if (context === null || gain === null) return;
-    gain.gain.cancelScheduledValues(context.currentTime);
-    void context.suspend();
     setPlaying(false);
+    if (context === null || gain === null) return;
+    const now = context.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0, now + MUTE_FADE_SECONDS);
   }, []);
 
-  // Start now if the visitor has already interacted; otherwise on the first gesture.
+  // Start now if the visitor has already interacted; otherwise on the first
+  // gesture. With the music muted, the gesture still unlocks sound for the
+  // effects.
   useEffect(() => {
     enabledRef.current = readEnabled();
-    if (!enabledRef.current) return;
 
     let disposed = false;
     const arm = () => {
@@ -241,23 +269,21 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
     const disarm = () => {
       for (const type of GESTURES) document.removeEventListener(type, onGesture, true);
     };
+    const begin = (): Promise<boolean> =>
+      enabledRef.current ? play().then((result) => result !== "blocked") : unlock();
     function onGesture(event: Event) {
-      if (!enabledRef.current) {
-        disarm();
-        return;
-      }
       // The toggle decides for itself; starting here as well would have the
       // same press start the theme and then stop it again.
       if (event.target instanceof Element && event.target.closest(`[${TOGGLE_ATTRIBUTE}]`)) return;
       if (event instanceof KeyboardEvent && event.key === "Escape") return;
-      void play().then((result) => {
-        if (result !== "blocked") disarm();
+      void begin().then((settled) => {
+        if (settled) disarm();
       });
     }
 
     if (hasBeenActive()) {
-      void play().then((result) => {
-        if (result === "blocked" && !disposed) arm();
+      void begin().then((settled) => {
+        if (!settled && !disposed) arm();
       });
     } else {
       arm();
@@ -267,24 +293,27 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       disposed = true;
       disarm();
     };
-  }, [play]);
+  }, [play, unlock]);
 
   // Quiet while the tab is out of sight; back where it was on return.
   useEffect(() => {
     const onVisibility = () => {
+      const context = contextRef.current;
+      if (context === null) return;
       if (document.hidden) {
-        if (contextRef.current?.state === "running" && sourceRef.current !== null) {
+        if (context.state === "running") {
           resumeOnShowRef.current = true;
-          pause();
+          void context.suspend();
         }
       } else if (resumeOnShowRef.current) {
         resumeOnShowRef.current = false;
         if (enabledRef.current) void play();
+        else void unlock();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [pause, play]);
+  }, [play, unlock]);
 
   // Let the audio device go when the shell goes.
   useEffect(
@@ -304,13 +333,13 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
     if (playing) {
       enabledRef.current = false;
       writeEnabled(false);
-      pause();
+      mute();
     } else {
       enabledRef.current = true;
       writeEnabled(true);
       void play();
     }
-  }, [pause, play, playing]);
+  }, [mute, play, playing]);
 
   const value = useMemo(() => ({ playing, toggle }), [playing, toggle]);
 
