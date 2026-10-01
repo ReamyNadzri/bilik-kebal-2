@@ -1422,3 +1422,11 @@ on a bounty; "banner" means the Owner-awarded badge (Owner, 1st, Developer…); 
   (applied after a rolled-back dry run: the user's two file names, notes.docx and a name with a
   space and brackets pass; slash, backslash, a tab and an empty name are refused; every existing
   row passes) checks slash and backslash as plain characters and control characters by class.
+- Follow-up (same day): with the file names accepted, the file reached quarantine but the claim
+  stayed `uploading` and never appeared in Claim reviews. Two defects: the client
+  (`submitClaimFile`) never called `/api/claims/confirm-upload` after the PUT, and
+  `complete_claim_upload_session` failed with 42702 (its OUT parameters share names with the
+  columns it reads). Migration `202610190008_complete_claim_upload_fix.sql` adds
+  `#variable_conflict use_column`, body otherwise unchanged (applied after a rolled-back dry run:
+  completes to `screening`, a second call is harmless, grants unchanged). The client now confirms
+  the upload and reports failure instead of success when confirmation fails.
