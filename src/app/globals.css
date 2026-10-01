@@ -9590,6 +9590,13 @@ a.missing-poster:focus-visible {
   color: var(--text-poster);
 }
 
+/* The Owner-awarded badge, centred under the institution. */
+.missing-poster__badge {
+  display: flex;
+  justify-content: center;
+  margin-top: -0.25rem;
+}
+
 .missing-poster__since {
   display: block;
   margin-top: auto;

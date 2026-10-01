@@ -97,6 +97,8 @@ export interface PublicHunter {
   avatarUrl: string | null;
   institutionName: string;
   joinedAt: string;
+  /** The Owner-awarded badge (Owner, Developer, 1st…), shown on the poster. */
+  badge?: MemberBadge | null;
 }
 
 export interface PublicHuntersPage {

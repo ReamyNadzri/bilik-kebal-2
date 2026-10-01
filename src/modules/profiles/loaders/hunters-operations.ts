@@ -1,6 +1,7 @@
 import { failure } from "@/contracts/operation-result";
 import type { ListHuntersResult, SampleHuntersResult } from "@/contracts/profiles";
 import { scopedInstitutionId } from "@/contracts/universities";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { loadUniversityChoice } from "@/modules/identity";
 import { SupabaseHuntersRepository } from "../repositories/supabase-hunters-repository";
@@ -17,7 +18,12 @@ async function context(): Promise<{ actor: ProfileActor | null; service: Hunters
   } = await getRequestUser();
   const actor = user ? { emailVerified: Boolean(user.email_confirmed_at), userId: user.id } : null;
   // The wall of the university the reader chose, or every university under All.
-  const repository = new SupabaseHuntersRepository(client, scopedInstitutionId(university));
+  // Badges are looked up only for a viewer who may see the wall at all.
+  const repository = new SupabaseHuntersRepository(
+    client,
+    scopedInstitutionId(university),
+    actor?.emailVerified ? createSupabaseAdminClient() : null,
+  );
   return { actor, service: new HuntersService(repository) };
 }
 

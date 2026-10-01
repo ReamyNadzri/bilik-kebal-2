@@ -55,3 +55,15 @@ describe("MissingPoster", () => {
     expect(fixing).toMatch(/missing-poster--(pin|tape)/);
   });
 });
+
+test("wears the badge the Owner awarded, named in words", () => {
+  render(
+    <MissingPoster
+      hunter={aHunter(1, { badge: { name: "Developer", imageUrl: null } })}
+      variant="flat"
+    />,
+  );
+
+  expect(screen.getByText("Developer")).toBeInTheDocument();
+  expect(screen.getByTitle("Badge awarded by the Owner: Developer")).toBeInTheDocument();
+});

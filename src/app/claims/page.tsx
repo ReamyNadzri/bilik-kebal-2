@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HuntWorkspace } from "@/components/hunt-workspace";
 import { HunterOffice } from "@/components/hunter-office";
+import { ProfileHeader } from "@/components/profile-header";
 import { UiStatus } from "@/components/ui-status";
 import { readAccount } from "@/features/presentation/auth/require-account";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { fixtureNow, readPreviewState } from "@/features/marketplace/fixture-preview";
 import { listClaims, listHunts } from "@/features/marketplace/hunt-source";
-import { listWanted } from "@/features/marketplace/wanted-source";
-import type { ClaimSummary, HuntOpportunity } from "@/features/marketplace/types";
+import type { ClaimSummary } from "@/features/marketplace/types";
+import { readPublicProfile } from "@/modules/profiles/loaders/profile-operations";
 import { HunterClaimsReadService } from "@/modules/claims/services/hunter-claims-read-service";
 
 export const metadata: Metadata = {
@@ -61,50 +62,69 @@ export default async function ClaimsPage({ searchParams }: ClaimsPageProps) {
             action={<Link href="/claims">Try again</Link>}
           />
         ) : (
-          <HuntWorkspace hunts={hunts.data} claims={claims.data} now={fixtureNow()} />
+          <HuntWorkspace myPosts={hunts.data} claims={claims.data} now={fixtureNow()} />
         )}
       </div>
     );
   }
 
-  // Real authenticated session. The three reads are independent and share the
-  // request's one Auth check, so they run together rather than in turn.
-  // Open hunts are the Board's academic requests, read through the same
-  // published operation (bounty totals from the ledger, never defaults).
-  const [outcome, board, ownClaims] = await Promise.all([
-    readAccount(),
-    listWanted({ kind: "academic", sort: "newest" }),
-    readOwnClaims(),
-  ]);
+  // Real authenticated session. The reads share the request's one Auth check,
+  // so they run together rather than in turn.
+  const [outcome, ownClaims] = await Promise.all([readAccount(), readOwnClaims()]);
   const account = outcome.kind === "account" ? outcome.account : null;
-  const hunts: HuntOpportunity[] =
-    board.status === "ready"
-      ? board.data.map((wanted) => ({
-          ...wanted,
-          activeClaimCount: 0,
-          eligibility: "institution-verified" as const,
-        }))
-      : [];
+  // The member's own card: the same read their public profile uses, so the
+  // picture, badge and posted requests here match the profile exactly.
+  const profile =
+    account?.publicId != null
+      ? await readPublicProfile(account.publicId).then((result) => (result.ok ? result.data : null))
+      : null;
 
   // Live claims are shown only beside a loaded account, as before.
   const claims: ClaimSummary[] = account ? ownClaims : [];
+  const inReview = claims.filter((claim) =>
+    ["screening", "needs-information", "under-review"].includes(claim.status),
+  ).length;
 
   return (
     <div className="page-bare">
-      <HunterOffice claims={account ? claims : null} account={account} />
+      {account ? (
+        <ProfileHeader
+          displayName={profile?.displayName ?? account.displayName}
+          avatarUrl={profile?.avatarUrl ?? account.avatarUrl}
+          bio={profile?.bio ?? null}
+          joinedAt={profile?.joinedAt ?? account.joinedAt}
+          institutionName={profile?.institutionName ?? account.institution?.name ?? null}
+          institutionVerified={account.trust.institution === "verified"}
+          badge={profile?.badge ?? null}
+          stats={[
+            { label: "Claims", value: String(claims.length) },
+            { label: "In review", value: String(inReview) },
+            {
+              label: "Approved",
+              value: String(claims.filter((claim) => claim.status === "approved").length),
+            },
+            { label: "Requests", value: String(profile?.wanted.length ?? 0) },
+          ]}
+        />
+      ) : (
+        <>
+          <HunterOffice claims={null} account={null} />
+          <div className="panel">
+            <UiStatus
+              kind="restricted"
+              heading="Sign in to submit and track claims"
+              message="Your requests and claims appear here once you sign in with your student account."
+              action={<Link href="/sign-in?next=/claims">Sign in</Link>}
+            />
+          </div>
+        </>
+      )}
 
-      {!account ? (
-        <div className="panel">
-          <UiStatus
-            kind="restricted"
-            heading="Sign in to submit and track claims"
-            message="You can browse active bounties below. To claim a bounty and earn the reward, please sign in with your student account."
-            action={<Link href="/sign-in?next=/claims">Sign in</Link>}
-          />
-        </div>
-      ) : null}
-
-      <HuntWorkspace hunts={hunts} claims={claims} now={nowInstant} />
+      <HuntWorkspace
+        myPosts={account ? (profile?.wanted ?? []) : null}
+        claims={claims}
+        now={nowInstant}
+      />
     </div>
   );
 }
