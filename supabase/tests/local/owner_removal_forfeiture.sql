@@ -42,6 +42,8 @@ declare
 begin
   w_public := pg_temp.mk('Notes the poster had no right to share', 'open');
   select id into w_id from public.wanted_requests where public_id = w_public;
+  -- Published under the terms that state the forfeiture.
+  update public.wanted_requests set policy_version_snapshot = '2026-10-02' where id = w_id;
   insert into public.institution_memberships (user_id, institution_id, verification_state)
   select u::uuid, '10000000-0000-0000-0000-000000000001', 'verified'
   from unnest(array[poster, backer, hunter]) u

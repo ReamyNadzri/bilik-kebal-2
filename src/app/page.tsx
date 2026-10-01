@@ -4,6 +4,7 @@ import Link from "next/link";
 import { HomeHunters } from "@/components/home-hunters";
 import { UiStatus } from "@/components/ui-status";
 import { WantedCard } from "@/components/wanted-card";
+import { HomeFaq } from "@/components/home-faq";
 import { UniversitySwitch } from "@/components/university-switch";
 import { listFeaturedWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
 import { loadUniversityChoice } from "@/modules/identity";
@@ -299,6 +300,8 @@ export default async function HomePage() {
           </p>
         </div>
       </section>
+
+      <HomeFaq />
     </div>
   );
 }

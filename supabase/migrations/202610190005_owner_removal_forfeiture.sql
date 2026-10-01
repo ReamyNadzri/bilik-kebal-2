@@ -9,6 +9,10 @@
 -- takes a written reason, is recorded on the Wanted and in its public activity
 -- (without the reason), and pending reports on it are marked actioned.
 --
+-- Forfeiture applies only to a Wanted published under the terms that state it
+-- (policy version 2026-10-02 or later). A poster who published under earlier
+-- terms never agreed to it, so they are refunded in full like every Backer.
+--
 -- Verified on Supabase Cloud in a rolled-back transaction (2026-10-02): Owner
 -- only, reason required, a Backer's RM 20 queued for a RM 22 refund, reports
 -- actioned, a second removal refused. The forfeiture branch (the poster's own
@@ -49,6 +53,7 @@ declare
   refunds integer := 0;
   forfeited integer := 0;
   reason text := trim(coalesce(target_reason, ''));
+  forfeits boolean;
 begin
   if actor_id is null or not private.current_user_has_platform_role('owner') then
     raise exception using errcode = '42501', message = 'owner_removal_owner_only';
@@ -71,12 +76,14 @@ begin
     raise exception using errcode = 'P0001', message = 'owner_removal_paid_out';
   end if;
 
+  forfeits := coalesce(target.policy_version_snapshot, '') >= '2026-10-02';
+
   for item in
     select c.* from public.contributions c
     where c.wanted_request_id = target.id
     order by c.created_at
   loop
-    if item.contributor_user_id = target.commissioner_user_id then
+    if forfeits and item.contributor_user_id = target.commissioner_user_id then
       -- The breacher's own money: escrow and held fee become forfeit revenue.
       if not exists (
         select 1 from public.ledger_transactions lt
