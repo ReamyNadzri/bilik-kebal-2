@@ -43,7 +43,7 @@ export function describeBackers(count: number): string {
 }
 
 /**
- * One Wanted as a posted notice: the status stamp beside the masthead, the
+ * One Wanted as a posted notice: the status stamp on the picture's corner, the
  * time left as its highlight, the course, the title (two lines at most on a
  * card), the bounty with its backers and age, the request details and one
  * action. The Board card and the detail page's ledger share this
@@ -65,22 +65,19 @@ export function WantedPoster({
   const closing = formatClosing(wanted.closesAt, now, { phrasing: "left" });
   const academic = wanted.kind === "academic";
   const isClosed = wanted.status === "closed";
+  const stamp = (
+    <StatusStamp presentation={wantedStatusPresentation(wanted.status)} context="Wanted" />
+  );
 
   return (
     <article
       className={`wanted-poster poster-paper pin ${className}`.trim()}
       aria-labelledby={labelledBy}
     >
-      <div className="poster-masthead">
-        {/* The status is stamped beside the masthead, where it is seen first. */}
-        <p className="poster-masthead__row">
-          <span className="poster-masthead__stamp">
-            <StatusStamp presentation={wantedStatusPresentation(wanted.status)} context="Wanted" />
-          </span>
-          <span className="poster-masthead__word" aria-hidden="true">
-            Wanted
-          </span>
-        </p>
+      <p className="poster-masthead">
+        <span className="poster-masthead__word" aria-hidden="true">
+          Wanted
+        </span>
         {isClosed && !academic && wanted.thread?.vanishesAt ? (
           <time className="poster-masthead__timing" dateTime={wanted.thread.vanishesAt}>
             Leaves the Board {formatVanishesIn(wanted.thread.vanishesAt, now)}
@@ -98,15 +95,22 @@ export function WantedPoster({
             {closing.label}
           </time>
         )}
-      </div>
+      </p>
 
+      {/* The status is stamped on the picture's top-left corner, so the
+          WANTED word stays centred; without a picture it leads the poster. */}
       {withEmblem ? (
-        <ResourceEmblem
-          resourceType={wanted.resourceType}
-          kind={wanted.kind}
-          picture={wanted.picture ?? null}
-        />
-      ) : null}
+        <div className="wanted-poster__picture">
+          <ResourceEmblem
+            resourceType={wanted.resourceType}
+            kind={wanted.kind}
+            picture={wanted.picture ?? null}
+          />
+          <p className="wanted-poster__stamp">{stamp}</p>
+        </div>
+      ) : (
+        <p className="wanted-poster__stamp wanted-poster__stamp--plain">{stamp}</p>
+      )}
 
       <div className="wanted-poster__head">
         {academic ? (

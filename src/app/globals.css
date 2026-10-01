@@ -126,12 +126,6 @@
   --pin-selected: #1f4d34;
   --pin-edge: #f3e6c8;
 
-  /* The chains a Board poster hangs from (provisional). */
-  --chain-metal: #8a8577;
-  --chain-shine: #d9d3c2;
-  --chain-shade: #3b372f;
-  --nail-head: #5b5447;
-
   /* Textures — original pixel-art assets from the handoff, in public/brand. */
   --texture-ground: url("/brand/dark-timber.webp");
   --texture-paper: url("/brand/paper.webp");
@@ -3025,8 +3019,28 @@ textarea.form-field__input {
   font-weight: 700;
 }
 
+/* The status stamp, struck on the top-left corner of the picture. */
+.wanted-poster__picture {
+  position: relative;
+}
+
 .wanted-poster__stamp {
-  margin-top: auto;
+  position: absolute;
+  top: -0.375rem;
+  left: -0.375rem;
+  z-index: 1;
+  margin: 0;
+  max-width: none;
+  transform: rotate(-6deg);
+}
+
+.wanted-poster__stamp .status-stamp {
+  box-shadow: 1px 2px 0 rgb(58 36 18 / 0.3);
+}
+
+.wanted-poster__stamp--plain {
+  position: static;
+  align-self: flex-start;
 }
 
 .wanted-card__frame {
@@ -3057,70 +3071,12 @@ textarea.form-field__input {
   --poster-tilt: var(--poster-tilt-d);
 }
 
-/*
- * On the Board a poster hangs from two chains on nails instead of a pin. The
- * chain links are drawn with gradients (no image), above the poster's top
- * edge, inside the row gap. Decoration only.
- */
-.wanted-grid {
-  row-gap: 3rem;
-  padding-top: 2rem;
-}
-
-.wanted-grid > li > .wanted-card__frame.pin::before,
-.wanted-grid > li > .wanted-card__frame.pin::after {
-  content: "";
-  position: absolute;
-  top: -2.125rem;
-  z-index: 1;
-  width: 10px;
-  height: 2.375rem;
-  border: 0;
-  border-radius: 0;
-  background:
-    radial-gradient(circle at 50% 5px, var(--nail-head) 4px, transparent 4.5px) top / 10px 10px
-      no-repeat,
-    repeating-linear-gradient(
-        to bottom,
-        var(--chain-shade) 0 1px,
-        var(--chain-metal) 1px 3px,
-        var(--chain-shine) 3px 4px,
-        var(--chain-metal) 4px 6px,
-        var(--chain-shade) 6px 7px,
-        transparent 7px 8px
-      )
-      center 10px / 4px calc(100% - 10px) no-repeat,
-    repeating-linear-gradient(
-        to bottom,
-        transparent 0 4px,
-        var(--chain-shade) 4px 5px,
-        var(--chain-metal) 5px 7px,
-        var(--chain-shine) 7px 8px,
-        var(--chain-shade) 8px 8px
-      )
-      center 10px / 10px calc(100% - 10px) no-repeat;
-  box-shadow: none;
-  filter: drop-shadow(1px 2px 1px rgb(0 0 0 / 0.45));
-  transform: none;
-  pointer-events: none;
-}
-
-.wanted-grid > li > .wanted-card__frame.pin::before {
-  left: 18%;
-}
-
-.wanted-grid > li > .wanted-card__frame.pin::after {
-  right: 18%;
-  left: auto;
-}
-
 .wanted-card__frame:hover,
 .wanted-card__frame:focus-within {
   transform: translateY(-4px) rotate(0deg);
 }
 
 .poster-masthead {
-  container-type: inline-size;
   margin: 0;
   padding-bottom: 0.375rem;
   border-bottom: 3px double var(--border-strong);
@@ -3128,34 +3084,10 @@ textarea.form-field__input {
   max-width: none;
 }
 
-/* The status stamp on the left of the WANTED word, the word centred in the rest. */
-.poster-masthead__row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  max-width: none;
-}
-
-.poster-masthead__stamp {
-  display: flex;
-  max-width: 5.5rem;
-}
-
-.poster-masthead__stamp .status-stamp {
-  padding: 0.25rem 0.375rem;
-  font-size: 0.5625rem;
-  white-space: normal;
-  text-align: center;
-  transform: rotate(-6deg);
-}
-
 .poster-masthead__word {
   display: block;
   font-family: var(--font-display);
-  /* Sized to the poster, so the stamp and the word share any card width. */
-  font-size: clamp(1.125rem, 12cqi, 2.375rem);
+  font-size: clamp(1.75rem, 3vw, 2.375rem);
   line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -4094,12 +4026,14 @@ textarea.form-field__input {
    the case file back on the left at desktop, so the tab order never disagrees
    with what is on screen. The header and case file then read as one panel. */
 @media (min-width: 62rem) {
-  /* The ledger spans both rows. Without an explicit row template its height
-     is shared between them and the header row grows, opening a gap between the
-     title and the case file; `auto 1fr` gives the surplus to the case file. */
+  /* The ledger spans the header, case file and comments rows plus a spare
+     one. Without an explicit row template its height is shared between the
+     left-hand rows, opening gaps between the title, the case file and the
+     comments; `auto auto auto 1fr` stacks the left column tightly and gives
+     any surplus to the empty fourth row. */
   .wanted-detail {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     column-gap: var(--space-4);
     row-gap: 0;
     align-items: start;
@@ -4131,11 +4065,12 @@ textarea.form-field__input {
 
   .wanted-detail__ledger {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 4;
   }
 
   .wanted-detail__similar {
     grid-column: 1 / -1;
+    grid-row: 5;
     margin-top: var(--space-5);
   }
 }
@@ -7167,6 +7102,8 @@ textarea.form-field__input {
 @media (min-width: 62rem) {
   .wanted-detail__replies {
     grid-column: 1;
+    grid-row: 3;
+    margin-top: var(--space-4);
   }
 }
 

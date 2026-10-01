@@ -49,9 +49,9 @@ type Load =
 
 /**
  * The chat thread of a Wanted: sightings on a missing item, replies on a
- * discussion, questions on an academic bounty. Text only: no files, no money.
+ * discussion, comments on an academic bounty. Text only: no files, no money.
  * Messages are public to verified members, so the form reminds people not to
- * post phone numbers or addresses; academic questions also refuse links, so a
+ * post phone numbers or addresses; academic comments also refuse links, so a
  * resource cannot change hands outside a reviewed Claim (enforced in the
  * database, not here).
  *
@@ -202,7 +202,7 @@ export function WantedReplies({
 
   const academic = kind === "academic";
   const heading =
-    kind === "missing_item" ? "Sightings and replies" : academic ? "Questions" : "Replies";
+    kind === "missing_item" ? "Sightings and replies" : academic ? "Comments" : "Replies";
   const canReopen =
     isPoster &&
     resolved &&
@@ -289,7 +289,7 @@ export function WantedReplies({
       ) : load.state === "failed" ? (
         <UiStatus
           kind="offline"
-          heading={academic ? "Questions could not be loaded" : "Replies could not be loaded"}
+          heading={academic ? "Comments could not be loaded" : "Replies could not be loaded"}
           message={load.message}
           action={
             <button
@@ -309,7 +309,7 @@ export function WantedReplies({
           {kind === "missing_item"
             ? "No sightings yet."
             : academic
-              ? "No questions yet."
+              ? "No comments yet."
               : "No replies yet. Start the discussion."}
         </p>
       ) : (
@@ -411,13 +411,13 @@ export function WantedReplies({
                 ? "Seen it? Tell the owner"
                 : academic
                   ? isPoster
-                    ? "Reply to a question"
-                    : "Ask the poster a question"
+                    ? "Reply to a comment"
+                    : "Comment or ask the poster"
                   : "Your reply"}
             </label>
             <p className="form-field__hint" id="reply-hint">
               {academic
-                ? "Questions are visible to verified members. Links, email addresses and chat handles are not allowed: send files through a Claim so a Sheriff can review them and the bounty is paid fairly."
+                ? "Comments are visible to verified members. Links, email addresses and chat handles are not allowed: send files through a Claim so a Sheriff can review them and the bounty is paid fairly."
                 : "Replies are visible to verified members. Do not post phone numbers or home addresses; arrange any handover in a public place."}
             </p>
             {error ? (
@@ -450,14 +450,14 @@ export function WantedReplies({
           </div>
           <div>
             <button type="submit" className="button button--primary" disabled={busy}>
-              {busy ? "Posting…" : academic ? "Post question" : "Post reply"}
+              {busy ? "Posting…" : academic ? "Post comment" : "Post reply"}
             </button>
           </div>
         </form>
       ) : !resolved ? (
         <p className="replies__empty">
           <Link href="/profile/institution-verification">Verify your institution</Link> to{" "}
-          {academic ? "ask a question" : "reply"}.
+          {academic ? "comment" : "reply"}.
         </p>
       ) : null}
     </section>
@@ -484,10 +484,10 @@ function retentionNotice({
 }): string | null {
   if (thread?.clearedAt) return null;
   if (academic) {
-    if (!resolved) return "Questions are deleted 7 days after this bounty closes.";
+    if (!resolved) return "Comments are deleted 7 days after this bounty closes.";
     return thread?.vanishesAt
-      ? `These questions are deleted ${formatVanishesIn(thread.vanishesAt, now)} at the earliest.`
-      : "These questions are deleted 7 days after this bounty closes.";
+      ? `These comments are deleted ${formatVanishesIn(thread.vanishesAt, now)} at the earliest.`
+      : "These comments are deleted 7 days after this bounty closes.";
   }
   if (!resolved) {
     return kind === "missing_item"
