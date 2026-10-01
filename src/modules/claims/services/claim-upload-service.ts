@@ -73,7 +73,7 @@ export class ClaimUploadService {
     if (eligibility) return failure(eligibility, this.message(eligibility));
     if (!actor) return failure("AUTH_REQUIRED", "Sign in before submitting a claim.");
     if (!this.config.uploadsEnabled)
-      return failure("UPLOAD_UNAVAILABLE", "Claim uploads are not enabled in this environment.");
+      return failure("UPLOADS_DISABLED", "Claim uploads are not enabled in this environment.");
 
     const now = this.config.now();
     const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString();

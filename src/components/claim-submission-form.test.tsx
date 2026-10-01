@@ -169,10 +169,10 @@ describe("ClaimSubmissionForm", () => {
     expect(input).toHaveFocus();
   });
 
-  it("displays launch gate notice when uploads are disabled (UPLOAD_UNAVAILABLE)", async () => {
+  it("displays launch gate notice when uploads are disabled (UPLOADS_DISABLED)", async () => {
     vi.spyOn(claimOps, "submitClaimFile").mockResolvedValueOnce({
       ok: false,
-      code: "UPLOAD_UNAVAILABLE",
+      code: "UPLOADS_DISABLED",
       message: "Public uploads are currently disabled.",
     });
 
@@ -189,6 +189,24 @@ describe("ClaimSubmissionForm", () => {
 
     expect(await screen.findByText("Uploads are switched off")).toBeInTheDocument();
     expect(screen.getByText(/Claim uploads are not open yet/i)).toBeInTheDocument();
+  });
+
+  it("says the upload failed, not that uploads are off, when it cannot start", async () => {
+    vi.spyOn(claimOps, "submitClaimFile").mockResolvedValueOnce({
+      ok: false,
+      code: "UPLOAD_UNAVAILABLE",
+      message: "Claim upload is temporarily unavailable. Try again.",
+    });
+    renderForm(<ClaimSubmissionForm wanted={createWantedDetail()} onClose={vi.fn()} />);
+
+    const file = new File(["valid notes"], "notes.pdf", { type: "application/pdf" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.click(screen.getByLabelText(/I confirm I hold the rights/i));
+    fireEvent.click(screen.getByRole("button", { name: "Submit Claim" }));
+
+    expect(await screen.findByText("The upload could not start")).toBeInTheDocument();
+    expect(screen.queryByText("Uploads are switched off")).toBeNull();
   });
 
   it("sends a Hunter without bank details to their profile", async () => {
@@ -249,7 +267,7 @@ describe("ClaimSubmissionForm", () => {
     it("never appears when uploads are switched off", async () => {
       vi.spyOn(claimOps, "submitClaimFile").mockResolvedValueOnce({
         ok: false,
-        code: "UPLOAD_UNAVAILABLE",
+        code: "UPLOADS_DISABLED",
         message: "Public uploads are currently disabled.",
       });
       renderForm(<ClaimSubmissionForm wanted={createWantedDetail()} onClose={vi.fn()} />);

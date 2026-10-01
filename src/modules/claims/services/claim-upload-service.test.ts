@@ -58,7 +58,7 @@ describe("ClaimUploadService", () => {
       "open",
       input,
     );
-    expect(result).toMatchObject({ ok: false, code: "UPLOAD_UNAVAILABLE" });
+    expect(result).toMatchObject({ ok: false, code: "UPLOADS_DISABLED" });
     expect(repository.createClaim).not.toHaveBeenCalled();
   });
 
