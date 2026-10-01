@@ -126,7 +126,7 @@ describe("claim-operations", () => {
   });
 
   describe("submitClaimFile", () => {
-    it("orchestrates full submission: hash -> auth -> quarantine PUT -> complete", async () => {
+    it("orchestrates full submission: hash -> auth -> quarantine PUT -> confirm -> complete", async () => {
       const mockSession: ClaimUploadSession = {
         claimId: "claim-abc",
         objectPath: "quarantine/claim-abc.pdf",
@@ -149,6 +149,17 @@ describe("claim-operations", () => {
       // 2. Direct PUT to quarantine bucket
       vi.mocked(global.fetch).mockResolvedValueOnce(new Response(null, { status: 200 }));
 
+      // 3. Confirmation: the claim moves to screening and the review queue
+      vi.mocked(global.fetch).mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ ok: true, data: { claimId: "claim-abc", status: "screening" } }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
+
       const steps: string[] = [];
       const file = new File(["content"], "notes.pdf", { type: "application/pdf" });
 
@@ -162,6 +173,60 @@ describe("claim-operations", () => {
 
       expect(steps).toEqual(["hashing", "authorizing", "uploading", "complete"]);
       expect(result).toEqual({ ok: true, data: { claimId: "claim-abc" } });
+      expect(vi.mocked(global.fetch).mock.calls.at(-1)?.[0]).toBe("/api/claims/confirm-upload");
+      expect(vi.mocked(global.fetch).mock.calls.at(-1)?.[1]).toMatchObject({
+        method: "POST",
+        body: JSON.stringify({ claimId: "claim-abc" }),
+      });
+    });
+
+    it("does not report success when the confirmation fails", async () => {
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              data: {
+                claimId: "claim-abc",
+                objectPath: "quarantine/claim-abc.pdf",
+                bucket: "quarantine",
+                signedUrl: "https://storage.example.com/upload",
+                token: "tok-1",
+                expiresAt: new Date(Date.now() + 3600000).toISOString(),
+                maxBytes: 52428800,
+                mimeType: "application/pdf",
+              },
+            }),
+            { status: 201, headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 200 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              ok: false,
+              code: "CLAIM_NOT_EDITABLE",
+              message: "Upload session has expired.",
+            }),
+            { status: 409, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      const steps: string[] = [];
+
+      const result = await submitClaimFile({
+        wantedId: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+        file: new File(["content"], "notes.pdf", { type: "application/pdf" }),
+        rightsConfirmed: true,
+        freeReleaseOptIn: false,
+        onProgress: (step) => steps.push(step),
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        code: "CLAIM_NOT_EDITABLE",
+        message: "Upload session has expired.",
+      });
+      expect(steps).not.toContain("complete");
     });
 
     it("handles launch-gate refusal UPLOADS_DISABLED", async () => {

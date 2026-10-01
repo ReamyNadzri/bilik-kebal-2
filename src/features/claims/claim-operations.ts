@@ -96,6 +96,23 @@ export async function uploadFileToQuarantine(
   }
 }
 
+/**
+ * Tells the server the file is in quarantine. The server checks the upload
+ * session and moves the claim from uploading to screening, which is what puts
+ * it in front of a Sheriff. Without this call the file sits in storage and the
+ * claim never reaches the review queue.
+ * Target route: POST /api/claims/confirm-upload
+ */
+export async function confirmClaimUpload(
+  claimId: string,
+): Promise<OperationResult<unknown, ClaimsOperationCode>> {
+  return callOperation<unknown, ClaimsOperationCode>(
+    "/api/claims/confirm-upload",
+    { claimId },
+    "CLAIMS_UNAVAILABLE",
+  );
+}
+
 export type ClaimSubmissionStep = "hashing" | "authorizing" | "uploading" | "complete";
 
 export interface SubmitClaimOptions {
@@ -114,7 +131,8 @@ export type SubmitClaimResult = OperationResult<{ claimId: string }, ClaimsOpera
  * 2. Computes client-side SHA-256 digest via Web Crypto API.
  * 3. Obtains short-lived signed upload session from /api/claims/upload-url.
  * 4. Uploads file directly to private quarantine bucket via signed PUT.
- * 5. Reports progress across states: hashing -> authorizing -> uploading -> complete.
+ * 5. Confirms the upload, which moves the claim to screening and the review queue.
+ * 6. Reports progress across states: hashing -> authorizing -> uploading -> complete.
  */
 export async function submitClaimFile({
   wantedId,
@@ -169,7 +187,19 @@ export async function submitClaimFile({
     };
   }
 
-  // Step 4: Completed
+  // Step 4: Confirm, so the claim leaves "uploading" for screening and review.
+  const confirmed = await confirmClaimUpload(sessionResult.data.claimId);
+  if (!confirmed.ok) {
+    return {
+      ok: false,
+      code: confirmed.code,
+      message:
+        confirmed.message ||
+        "Your file was uploaded but the claim could not be submitted. Try again.",
+    };
+  }
+
+  // Step 5: Completed
   onProgress?.("complete");
   return {
     ok: true,
