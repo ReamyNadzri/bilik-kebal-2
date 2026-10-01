@@ -126,8 +126,8 @@
   --pin-selected: #1f4d34;
   --pin-edge: #f3e6c8;
 
-  /* Every notice on the Board (WANTED and MISSING) is at least this tall, so
-     posters side by side match from top to bottom; longer content grows it. */
+  /* A WANTED card is at least this tall, so cards side by side match from top
+     to bottom; longer content grows it. */
   --poster-min-height: 33rem;
 
   /* Textures — original pixel-art assets from the handoff, in public/brand. */
@@ -9582,6 +9582,7 @@ button.capture-poster__hunt {
   /* The same paper, padding and pin as a WANTED poster (request, 2026-10-02):
      every notice on the Board is one family. */
   position: relative;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
@@ -9599,36 +9600,12 @@ button.capture-poster__hunt {
   transition: transform 140ms var(--motion-ease);
 }
 
-/* As tall as a WANTED card on the wall and the homepage; the picture frame
-   takes the extra height. The profile's own large copy keeps its size. On a
-   phone the wall's columns are narrow, so there it keeps WANTED's proportion
-   instead of a height made for a 15rem column. */
-.missing-poster--wall,
-.missing-poster--flat {
-  min-height: var(--poster-min-height);
-}
-
-@media (max-width: 40rem) {
-  .missing-poster--wall {
-    min-height: 0;
-    aspect-ratio: 12 / 25;
-  }
-}
-
-.missing-poster--wall .missing-poster__frame,
-.missing-poster--flat .missing-poster__frame {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
+/* The picture is square, 1:1 as the member uploaded it, and the poster is
+   only as tall as its contents (request, 2026-10-02: shorter posters). */
 .missing-poster--wall .missing-poster__photo,
 .missing-poster--flat .missing-poster__photo {
-  flex: 1 1 auto;
-  min-height: 0;
+  aspect-ratio: 1;
   height: auto;
-  aspect-ratio: auto;
-  object-position: 50% 20%;
 }
 
 /* On the wall the slot carries the tilt, so it can move the poster as a whole. */
@@ -9668,7 +9645,8 @@ a.missing-poster:focus-visible {
   padding-bottom: 0.375rem;
   border-bottom: 3px double var(--border-strong);
   font-family: var(--font-display);
-  font-size: clamp(1.75rem, 3vw, 2.375rem);
+  /* Sized to the poster, so the word fits a narrow homepage poster too. */
+  font-size: clamp(1.125rem, 16cqi, 2.375rem);
   line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -10104,12 +10082,10 @@ a.missing-poster:focus-visible {
 
 .home-hunters__grid {
   display: grid;
-  /* The same columns, gaps and padding as the Wanted cards above, so the
-     posters come out the same size. */
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-  gap: 1.75rem 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  gap: 26px 18px;
   margin: 0;
-  padding: var(--space-3) 0 0;
+  padding: 10px 12px;
   list-style: none;
 }
 
