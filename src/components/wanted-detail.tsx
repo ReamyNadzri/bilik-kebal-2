@@ -11,6 +11,8 @@ import { Avatar } from "./avatar";
 import { BackWantedModal } from "./back-wanted-modal";
 import { ClaimSubmissionForm } from "./claim-submission-form";
 import { WantedPosterControls } from "./wanted-poster-controls";
+import { OwnerRemoveWanted } from "./owner-remove-wanted";
+import { WantedReportButton } from "./wanted-report-button";
 import { WantedShareButton } from "./wanted-share-button";
 import type { AccountViewModel } from "@/contracts/identity";
 import type { WantedChangeWindow } from "@/contracts/marketplace";
@@ -30,6 +32,8 @@ export interface WantedDetailProps {
    * page is then read-only, since only its own members can take part.
    */
   readonly otherUniversity?: string | null;
+  /** The viewer is the Owner: the master switch to remove this Wanted is shown. */
+  readonly isOwner?: boolean;
 }
 
 /**
@@ -58,6 +62,7 @@ export function WantedDetail({
   account,
   changeWindow = null,
   otherUniversity = null,
+  isOwner = false,
 }: WantedDetailProps) {
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const academic = wanted.kind === "academic";
@@ -81,10 +86,16 @@ export function WantedDetail({
           <time className="wanted-detail__posted" dateTime={wanted.postedAt}>
             {formatPostedAge(wanted.postedAt, now)}
           </time>
-          <WantedShareButton
-            wanted={wanted}
-            className="button button--secondary button--compact wanted-detail__share"
-          />
+          <span className="wanted-detail__tools">
+            <WantedShareButton
+              wanted={wanted}
+              className="button button--secondary button--compact wanted-detail__share"
+            />
+            {/* Report: verified members who did not post it. The database decides. */}
+            {account?.trust.institution === "verified" && !isPoster ? (
+              <WantedReportButton wantedId={wanted.id} title={wanted.title} />
+            ) : null}
+          </span>
         </p>
 
         <h1 className="wanted-detail__title" id="wanted-title">
@@ -123,6 +134,8 @@ export function WantedDetail({
             now={now}
           />
         ) : null}
+
+        {isOwner ? <OwnerRemoveWanted wantedId={wanted.id} /> : null}
 
         {otherUniversity !== null ? (
           <div className="ledger-panel">

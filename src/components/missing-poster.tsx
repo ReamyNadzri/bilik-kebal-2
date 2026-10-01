@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Avatar } from "./avatar";
+import { MemberBadgeMark } from "./member-badge-mark";
 import type { PublicHunter } from "@/contracts/profiles";
 import { posterKey, posterLook } from "@/features/presentation/hunters-wall-layout";
 
@@ -26,8 +27,9 @@ export function hunterProfileHref(publicId: string): string {
 }
 
 /**
- * A member as an aged "MISSING" poster: their picture, name, verified
- * institution and the month they joined. The tilt, crease, stain and pin come
+ * A member as a "MISSING" poster: their picture, name, verified institution,
+ * the badge the Owner awarded them (Owner, Developer, 1st…) and the month they
+ * joined. The tilt, crease, stain and pin come
  * from the member's public id, so a poster looks the same on every visit.
  */
 export function MissingPoster({ hunter, variant = "wall" }: MissingPosterProps) {
@@ -50,8 +52,15 @@ export function MissingPoster({ hunter, variant = "wall" }: MissingPosterProps) 
           className="missing-poster__photo"
         />
       </span>
-      <span className="missing-poster__name">{hunter.displayName}</span>
+      <span className="missing-poster__name" title={hunter.displayName}>
+        {hunter.displayName}
+      </span>
       <span className="missing-poster__institution">{hunter.institutionName}</span>
+      {hunter.badge ? (
+        <span className="missing-poster__badge">
+          <MemberBadgeMark badge={hunter.badge} />
+        </span>
+      ) : null}
       <span className="missing-poster__since">
         Since <time dateTime={hunter.joinedAt}>{SINCE.format(new Date(hunter.joinedAt))}</time>
       </span>

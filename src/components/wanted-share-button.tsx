@@ -10,13 +10,14 @@ export interface WantedShareButtonProps {
   readonly className?: string;
   /**
    * The accessible name. On the Board, where a dozen cards each carry one, it
-   * names the request ("Share this Wanted: …"); the visible word stays "Share".
+   * names the request ("Share this Wanted: …"). The button shows only its
+   * icon, so this defaults to "Share".
    */
   readonly label?: string;
 }
 
 /**
- * Share on a Wanted: opens the share poster (picture, caption, WhatsApp,
+ * Share on a Wanted, an icon-only button: opens the share poster (picture, caption, WhatsApp,
  * Telegram, the system share sheet). Used on the detail page's masthead and on
  * every Board card, so a request can be passed on without opening it first.
  *
@@ -25,7 +26,7 @@ export interface WantedShareButtonProps {
 export function WantedShareButton({
   wanted,
   className = "button button--secondary button--compact",
-  label,
+  label = "Share",
 }: WantedShareButtonProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -39,8 +40,9 @@ export function WantedShareButton({
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={label}
+        title="Share"
       >
-        <PixelIcon name="share" className="shell-nav__icon" /> Share
+        <PixelIcon name="share" className="shell-nav__icon" />
       </button>
       {open ? (
         <SharePoster

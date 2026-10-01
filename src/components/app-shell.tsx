@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { COOKIE_SUMMARY, CookieNotice } from "./cookie-notice";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { ShotLink } from "./motion/gunshot-transition";
 import { PageSwipe } from "./page-swipe";
@@ -146,6 +147,9 @@ export function AppShell({
                 VAULTIX is an academic resource bounty marketplace for Malaysian university
                 students. A Sheriff reviews every claim before anyone gains access or is paid.
               </p>
+              <p className="app-shell__footer-cookies">
+                <strong>Cookies.</strong> {COOKIE_SUMMARY}
+              </p>
               {process.env.NODE_ENV === "production" ? null : (
                 <p className="app-shell__dev-marker">
                   Development build. Screens marked &ldquo;Development only&rdquo; show fixture
@@ -155,6 +159,7 @@ export function AppShell({
             </div>
           </footer>
 
+          <CookieNotice />
           <MobileTabBar currentNavId={currentNavId} />
           <PageSwipe />
         </div>

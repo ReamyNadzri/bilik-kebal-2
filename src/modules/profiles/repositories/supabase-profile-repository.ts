@@ -1,7 +1,7 @@
 import { resolveAvatarUrl } from "@/lib/avatars";
 import { readMemberBadges } from "@/lib/badges";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PublicProfile } from "@/contracts/profiles";
+import type { DisplayNameAllowance, PublicProfile } from "@/contracts/profiles";
 import type { Database } from "@/lib/supabase/database.types";
 import { SupabaseWantedRepository } from "@/modules/wanted/repositories/supabase-wanted-repository";
 
@@ -12,6 +12,10 @@ export interface ProfileRepository {
   ownPublicId(): Promise<string | null>;
   createAvatarUpload(objectKey: string): Promise<{ signedUrl: string; token: string }>;
   updateOwnProfile(displayName: string, bio: string | null): Promise<void>;
+  /** Display name changes left; null when it could not be read. */
+  ownDisplayNameAllowance(): Promise<DisplayNameAllowance | null>;
+  /** Anonymises and restricts the member's own profile (`delete_own_account`). */
+  deleteOwnAccount(): Promise<void>;
   setOwnAvatar(objectKey: string | null): Promise<void>;
   avatarUrl(
     objectKey: string | null,
@@ -64,6 +68,29 @@ export class SupabaseProfileRepository implements ProfileRepository {
       new_bio: bio,
       new_display_name: displayName,
     });
+    if (error) throw error;
+  }
+
+  async ownDisplayNameAllowance(): Promise<DisplayNameAllowance | null> {
+    const { data, error } = await (this.writeClient as unknown as SupabaseClient).rpc(
+      "my_display_name_allowance",
+    );
+    if (error) return null;
+    const row = (Array.isArray(data) ? data[0] : data) as DisplayNameAllowance | undefined;
+    return row
+      ? {
+          base: Number(row.base),
+          bonus: Number(row.bonus),
+          used: Number(row.used),
+          remaining: Number(row.remaining),
+        }
+      : null;
+  }
+
+  async deleteOwnAccount(): Promise<void> {
+    const { error } = await (this.writeClient as unknown as SupabaseClient).rpc(
+      "delete_own_account",
+    );
     if (error) throw error;
   }
 

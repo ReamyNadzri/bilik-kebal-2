@@ -30,7 +30,8 @@ function renderSettings(overrides: Partial<Parameters<typeof ProfileSettings>[0]
       <ProfileSettings
         account={account}
         bio="Final year CS."
-        allowance={{ base: 3, bonus: 0, used: 1, remaining: 2 }}
+        nameAllowance={{ base: 2, bonus: 0, used: 0, remaining: 2 }}
+        now="2026-10-02T00:00:00.000Z"
         entryRequests={[]}
         {...overrides}
       />
@@ -108,11 +109,12 @@ test("redeems a reward code and says why a code was refused", async () => {
   vi.stubGlobal("fetch", fetchMock);
   renderSettings();
 
-  expect(screen.getByText(/You have 2 free requests left/)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Redeem Code" })).toBeInTheDocument();
+  expect(screen.queryByText(/free requests/)).toBeNull();
   fireEvent.change(screen.getByLabelText("Reward code"), { target: { value: "RAYA2026" } });
   fireEvent.click(screen.getByRole("button", { name: "Redeem" }));
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Code redeemed."));
-  expect(screen.getByText(/You have 4 free requests left/)).toBeInTheDocument();
+  expect(refresh).toHaveBeenCalled();
 
   fireEvent.change(screen.getByLabelText("Reward code"), { target: { value: "RAYA2026" } });
   fireEvent.click(screen.getByRole("button", { name: "Redeem" }));
@@ -185,5 +187,77 @@ describe("Google photo", () => {
     renderSettings();
 
     expect(screen.queryByRole("button", { name: "Use my Google photo" })).not.toBeInTheDocument();
+  });
+});
+
+test("says how many name changes are left, and locks the name when none are", () => {
+  const { unmount } = renderSettings();
+  expect(screen.getByText("You can change it 2 more times.")).toBeInTheDocument();
+  expect(screen.getByLabelText("Display name")).not.toHaveAttribute("readonly");
+  unmount();
+
+  renderSettings({ nameAllowance: { base: 2, bonus: 0, used: 2, remaining: 0 } });
+  expect(screen.getByText(/You have used your name changes/)).toBeInTheDocument();
+  expect(screen.getByLabelText("Display name")).toHaveAttribute("readonly");
+});
+
+describe("deleting the account", () => {
+  const young = anAccountViewModel({ ...account, joinedAt: "2026-09-20T00:00:00.000Z" });
+  const old = anAccountViewModel({ ...account, joinedAt: "2026-08-01T00:00:00.000Z" });
+
+  test("before 30 days, says when it opens only once Delete is pressed", () => {
+    renderSettings({ account: young });
+
+    expect(screen.queryByText(/can be deleted from/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Delete account" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Your account can be deleted from 20 Oct 2026, 30 days after it was created.",
+    );
+    expect(screen.queryByLabelText(/Type DELETE to confirm/)).toBeNull();
+  });
+
+  test("after 30 days, asks for DELETE and calls the deletion", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respond({ ok: true, data: { deleted: true } }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderSettings({ account: old });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete account" }));
+    const confirm = screen.getByRole("button", { name: "Delete my account" });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/Type DELETE to confirm/), {
+      target: { value: "delete" },
+    });
+    fireEvent.click(confirm);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/profile/account",
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+  });
+
+  test("shows the server's refusal and keeps the account", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        respond({
+          ok: false,
+          code: "ACCOUNT_HAS_OPEN_ITEMS",
+          message: "Your account cannot be deleted yet: a claim of yours is being reviewed.",
+        }),
+      ),
+    );
+    renderSettings({ account: old });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete account" }));
+    fireEvent.change(screen.getByLabelText(/Type DELETE to confirm/), {
+      target: { value: "DELETE" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Delete my account" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("cannot be deleted yet");
+    expect(screen.getByRole("button", { name: "Keep my account" })).toBeInTheDocument();
   });
 });

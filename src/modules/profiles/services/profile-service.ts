@@ -4,6 +4,7 @@ import {
   setAvatarPresetInputSchema,
   updateProfileInputSchema,
   type AvatarUploadResult,
+  type DeleteAccountResult,
   type ReadPublicProfileResult,
   type SetAvatarResult,
   type UpdateProfileResult,
@@ -43,8 +44,42 @@ export class ProfileService {
     try {
       await this.repository.updateOwnProfile(parsed.data.displayName, bio);
       return success({ bio, displayName: parsed.data.displayName });
-    } catch {
+    } catch (error) {
+      if (message(error).includes("display_name_change_limit")) {
+        return failure(
+          "DISPLAY_NAME_LIMIT",
+          "You have used all your display name changes. Redeem a name change code to change it again.",
+        );
+      }
       return failure("PROFILE_UNAVAILABLE", "Your profile could not be saved. Try again.");
+    }
+  }
+
+  /**
+   * Deletes the member's own account: the database anonymises and restricts
+   * the profile, keeping ledger and audit rows. Refused before the account is
+   * 30 days old, and while their money or claims are still in motion.
+   */
+  async deleteAccount(actor: ProfileActor | null): Promise<DeleteAccountResult> {
+    if (!actor) return failure("AUTH_REQUIRED", "Sign in to delete your account.");
+    try {
+      await this.repository.deleteOwnAccount();
+      return success({ deleted: true as const });
+    } catch (error) {
+      const reason = message(error);
+      if (reason.includes("account_too_new")) {
+        return failure(
+          "ACCOUNT_TOO_NEW",
+          "Your account can be deleted 30 days after it was created.",
+        );
+      }
+      if (reason.includes("account_has_open_items")) {
+        return failure(
+          "ACCOUNT_HAS_OPEN_ITEMS",
+          "Your account cannot be deleted yet: a paid Wanted you posted is still open or under review, a claim of yours is being reviewed, or a payout or refund to you is not finished.",
+        );
+      }
+      return failure("PROFILE_UNAVAILABLE", "Your account could not be deleted. Try again.");
     }
   }
 

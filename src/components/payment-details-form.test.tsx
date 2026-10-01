@@ -68,7 +68,7 @@ describe("PaymentDetailsForm", () => {
       accountHolderName: "Aminah Binti Ali",
       accountNumber: "1122 3344 6789",
       bankCode: "maybank",
-      phone: "012-345 6789",
+      phone: "0123456789",
     });
     const list = screen.getByLabelText("Saved payment details");
     expect(within(list).getByText("6789")).toBeInTheDocument();
@@ -94,13 +94,23 @@ describe("PaymentDetailsForm", () => {
     expect(screen.getByText(/Enter a Malaysian mobile number/)).toBeInTheDocument();
   });
 
+  it("takes digits only in the mobile number", () => {
+    render(<PaymentDetailsForm details={null} />);
+    const phone = screen.getByLabelText("Mobile number");
+
+    fireEvent.change(phone, { target: { value: "+60 12-abc 345 6789" } });
+
+    expect(phone).toHaveValue("60123456789");
+    expect(phone).toHaveAttribute("inputmode", "numeric");
+  });
+
   it("shows saved details and lets the member change them", () => {
     render(<PaymentDetailsForm details={saved} />);
 
     expect(screen.getByText("012-345 6789")).toBeInTheDocument();
     expect(screen.getByText("Maybank")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Change payment details" }));
-    expect(screen.getByLabelText("Mobile number")).toHaveValue("012-345 6789");
+    expect(screen.getByLabelText("Mobile number")).toHaveValue("0123456789");
     expect(screen.getByLabelText("Account number")).toHaveValue("");
     expect(screen.getByText(/saved one ends in 6789/)).toBeInTheDocument();
   });

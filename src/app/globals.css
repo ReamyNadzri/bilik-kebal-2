@@ -126,6 +126,10 @@
   --pin-selected: #1f4d34;
   --pin-edge: #f3e6c8;
 
+  /* Every notice on the Board (WANTED and MISSING) is at least this tall, so
+     posters side by side match from top to bottom; longer content grows it. */
+  --poster-min-height: 33rem;
+
   /* Textures — original pixel-art assets from the handoff, in public/brand. */
   --texture-ground: url("/brand/dark-timber.webp");
   --texture-paper: url("/brand/paper.webp");
@@ -1024,6 +1028,14 @@ textarea {
   margin-top: -2px;
 }
 
+/* Phones and tablets only: the desktop rail has no back control. Repeated
+   after the declaration above, which would otherwise win on source order. */
+@media (min-width: 75rem) {
+  .shell-compact__back {
+    display: none;
+  }
+}
+
 .shell-compact__control {
   display: inline-flex;
   align-items: center;
@@ -1046,7 +1058,8 @@ textarea {
 }
 
 .shell-compact__inbox {
-  padding: 0 var(--space-2) 0 0.625rem;
+  min-width: 2.75rem;
+  padding: 0 var(--space-2);
   font-size: var(--text-sm);
 }
 
@@ -1781,6 +1794,77 @@ textarea {
   margin: 0;
   max-width: 60ch;
   color: var(--text-on-dark);
+}
+
+.app-shell__footer-cookies {
+  flex: 1 1 100%;
+  margin: 0;
+  max-width: 90ch;
+  font-size: var(--text-sm);
+  color: var(--text-on-dark);
+}
+
+/* The cookie information at the bottom of the screen, above the phone tab
+   bar, until the visitor presses OK. */
+.cookie-notice {
+  position: fixed;
+  inset-inline: var(--page-gutter);
+  bottom: var(--space-3);
+  z-index: 44;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  max-width: 60rem;
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-rail);
+  border: var(--border-width-2) solid var(--accent-brass);
+  box-shadow: var(--shadow-panel);
+  color: var(--text-on-dark);
+}
+
+.cookie-notice__text {
+  flex: 1 1 22rem;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 44.9375rem) {
+  .cookie-notice {
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  }
+}
+
+/* Questions and answers on the homepage. */
+.home-faq__list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.home-faq__item {
+  border: var(--border-width-1) solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.home-faq__question {
+  min-height: 2.75rem;
+  padding: var(--space-3) var(--space-4);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.home-faq__question:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.home-faq__answer {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  max-width: 70ch;
 }
 
 /* Quiet, and absent from a production build. Not product content. */
@@ -3010,13 +3094,34 @@ textarea.form-field__input {
   font-weight: 700;
 }
 
+/* The status stamp, struck on the top-left corner of the picture. */
+.wanted-poster__picture {
+  position: relative;
+}
+
 .wanted-poster__stamp {
-  margin-top: auto;
+  position: absolute;
+  top: -0.375rem;
+  left: -0.375rem;
+  z-index: 1;
+  margin: 0;
+  max-width: none;
+  transform: rotate(-6deg);
+}
+
+.wanted-poster__stamp .status-stamp {
+  box-shadow: 1px 2px 0 rgb(58 36 18 / 0.3);
+}
+
+.wanted-poster__stamp--plain {
+  position: static;
+  align-self: flex-start;
 }
 
 .wanted-card__frame {
   --poster-tilt: 0deg;
 
+  min-height: var(--poster-min-height);
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
@@ -3072,8 +3177,23 @@ textarea.form-field__input {
   color: var(--text-poster);
 }
 
+/* Time left is the poster's highlight: an inked band the eye finds first. */
+.poster-masthead__timing--left {
+  display: inline-block;
+  padding: 0.125rem 0.625rem;
+  background: var(--text-poster-heading);
+  color: var(--pin-edge);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
 .poster-masthead__timing--urgent {
   font-weight: 800;
+}
+
+.poster-masthead__timing--left.poster-masthead__timing--urgent {
+  background: var(--money-ink);
+  color: var(--pin-edge);
 }
 
 .wanted-card__head {
@@ -3101,10 +3221,16 @@ textarea.form-field__input {
 }
 
 .wanted-card__title {
+  /* Two lines at most, then an ellipsis; the full title is the link's tooltip. */
+  display: -webkit-box;
   margin: var(--space-2) 0 0;
+  overflow: hidden;
   font-size: 1rem;
   line-height: 1.25;
   overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .wanted-card__title a {
@@ -3168,25 +3294,54 @@ textarea.form-field__input {
   width: 100%;
 }
 
-/*
- * View Wanted and Share share a row when the card is wide enough; on a narrow
- * card Share drops below, full width, rather than squeezing View Wanted onto
- * two lines.
- */
+/* Another university's request, for a member verified elsewhere: greyed out,
+   still readable and openable, and labelled in words, not by colour alone. */
+.wanted-card--view-only > .wanted-card__frame {
+  filter: grayscale(1);
+  opacity: 0.72;
+}
+
+.wanted-card--view-only > .wanted-card__frame:hover,
+.wanted-card--view-only > .wanted-card__frame:focus-within {
+  opacity: 1;
+}
+
+.wanted-card__view-only {
+  margin: 0 0 var(--space-2);
+  max-width: none;
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--text-poster);
+}
+
+/* View Wanted fills the row; Share is a square icon button beside it. */
 .wanted-card__actions {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .wanted-card__actions > .wanted-card__action {
-  flex: 1 0 10.5rem;
+  flex: 1 1 auto;
   width: auto;
 }
 
-.wanted-card__share {
-  flex: 1 1 auto;
-  gap: var(--space-2);
+/* Icon-only Share (and Report beside it on the detail page): a 44 px square. */
+.wanted-share,
+.wanted-report {
+  flex: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding-inline: 0;
+  justify-content: center;
+}
+
+.wanted-share .shell-nav__icon,
+.wanted-report .shell-nav__icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* --------------------------------------------------------------------------
@@ -3970,12 +4125,14 @@ textarea.form-field__input {
    the case file back on the left at desktop, so the tab order never disagrees
    with what is on screen. The header and case file then read as one panel. */
 @media (min-width: 62rem) {
-  /* The ledger spans both rows. Without an explicit row template its height
-     is shared between them and the header row grows, opening a gap between the
-     title and the case file; `auto 1fr` gives the surplus to the case file. */
+  /* The ledger spans the header, case file and comments rows plus a spare
+     one. Without an explicit row template its height is shared between the
+     left-hand rows, opening gaps between the title, the case file and the
+     comments; `auto auto auto 1fr` stacks the left column tightly and gives
+     any surplus to the empty fourth row. */
   .wanted-detail {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto auto 1fr;
     column-gap: var(--space-4);
     row-gap: 0;
     align-items: start;
@@ -4007,11 +4164,12 @@ textarea.form-field__input {
 
   .wanted-detail__ledger {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 4;
   }
 
   .wanted-detail__similar {
     grid-column: 1 / -1;
+    grid-row: 5;
     margin-top: var(--space-5);
   }
 }
@@ -4034,9 +4192,67 @@ textarea.form-field__input {
   color: var(--text-soft);
 }
 
-.wanted-detail__share {
-  margin-left: auto;
+/* The fifty pixel drawings, offered as a profile picture. */
+.avatar-drawings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
   gap: var(--space-2);
+  max-height: min(60vh, 26rem);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.avatar-drawings__choice {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: var(--space-1);
+  background: var(--bg-emblem);
+  border: var(--border-width-2) solid var(--border-strong);
+  cursor: pointer;
+}
+
+.avatar-drawings__choice:hover,
+.avatar-drawings__choice:focus-visible {
+  border-color: var(--accent-primary);
+}
+
+.avatar-drawings__choice:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.avatar-drawings__choice .resource-emblem {
+  width: 100%;
+  max-width: none;
+}
+
+/* Share and Report, side by side at the end of the masthead. */
+.wanted-detail__tools {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.report-dialog,
+.owner-remove__form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.report-dialog__choices {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.report-dialog__done {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
 }
 
 /* The poster's own edit-or-withdraw panel, open for the first hour. */
@@ -5138,6 +5354,25 @@ textarea.form-field__input {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+/* A member's own tag: a text box and Add, side by side from phone width up. */
+.draft-form__new-tag {
+  margin-top: var(--space-4);
+}
+
+.draft-form__new-tag-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.draft-form__new-tag-row .form-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.draft-form__new-tag-row .button {
+  flex: none;
 }
 
 /* Each choice is its own hit area at least 44 px tall, so a thumb on a narrow
@@ -7044,6 +7279,8 @@ textarea.form-field__input {
 @media (min-width: 62rem) {
   .wanted-detail__replies {
     grid-column: 1;
+    grid-row: 3;
+    margin-top: var(--space-4);
   }
 }
 
@@ -7791,11 +8028,6 @@ textarea.form-field__input {
   color: var(--text-primary);
 }
 
-.university-switch--locked {
-  padding-bottom: var(--space-2);
-  font-size: var(--text-sm);
-}
-
 .university-switch__legend {
   float: left;
   width: 100%;
@@ -7825,7 +8057,7 @@ textarea.form-field__input {
   cursor: pointer;
 }
 
-.university-switch__option span {
+.university-switch__option > span {
   display: inline-block;
   min-width: 5.5rem;
   min-height: 2.75rem;
@@ -7846,6 +8078,19 @@ textarea.form-field__input {
 .university-switch__option input:focus-visible + span {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* Another university than the member's own: readable, not actionable. */
+.university-switch__option--view-only > span {
+  border-style: dashed;
+  background: var(--stamp-neutral-bg);
+  color: var(--text-muted);
+}
+
+.university-switch__option--view-only input:checked + span {
+  border-color: var(--text-muted);
+  background: var(--text-muted);
+  color: var(--bg-surface);
 }
 
 .university-switch__hint {
@@ -9334,30 +9579,56 @@ button.capture-poster__hunt {
    -------------------------------------------------------------------------- */
 
 .missing-poster {
+  /* The same paper, padding and pin as a WANTED poster (request, 2026-10-02):
+     every notice on the Board is one family. */
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 0.625rem;
   width: 100%;
-  padding: 12px;
+  padding: 0.875rem 0.875rem 0.75rem;
   text-align: center;
   text-decoration: none;
   background:
-    linear-gradient(
-      var(--poster-crease),
-      rgb(0 0 0 / 0) 46%,
-      var(--poster-aged-crease-dark) 49.5%,
-      var(--poster-aged-crease-light) 50.5%,
-      rgb(0 0 0 / 0) 54%
-    ),
-    radial-gradient(ellipse at var(--poster-stain), var(--poster-aged-stain), rgb(0 0 0 / 0) 42%),
-    radial-gradient(ellipse at 50% 40%, var(--poster-aged-glow), rgb(0 0 0 / 0) 70%),
-    linear-gradient(var(--poster-aged-wash), var(--poster-aged-wash)),
-    var(--texture-paper) center / cover,
-    var(--poster-aged-paper);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--poster-aged-shadow);
-  color: var(--poster-aged-ink);
+    linear-gradient(var(--paper-wash), var(--paper-wash)),
+    var(--texture-paper) center / cover no-repeat,
+    var(--bg-poster);
+  border: var(--border-width-1) solid var(--border-poster);
+  box-shadow: var(--shadow-poster);
+  color: var(--text-poster);
   transition: transform 140ms var(--motion-ease);
+}
+
+/* As tall as a WANTED card on the wall and the homepage; the picture frame
+   takes the extra height. The profile's own large copy keeps its size. On a
+   phone the wall's columns are narrow, so there it keeps WANTED's proportion
+   instead of a height made for a 15rem column. */
+.missing-poster--wall,
+.missing-poster--flat {
+  min-height: var(--poster-min-height);
+}
+
+@media (max-width: 40rem) {
+  .missing-poster--wall {
+    min-height: 0;
+    aspect-ratio: 12 / 25;
+  }
+}
+
+.missing-poster--wall .missing-poster__frame,
+.missing-poster--flat .missing-poster__frame {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.missing-poster--wall .missing-poster__photo,
+.missing-poster--flat .missing-poster__photo {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: auto;
+  object-position: 50% 20%;
 }
 
 /* On the wall the slot carries the tilt, so it can move the poster as a whole. */
@@ -9368,7 +9639,7 @@ button.capture-poster__hunt {
 
 a.missing-poster:hover,
 a.missing-poster:focus-visible {
-  color: var(--poster-aged-ink);
+  color: var(--text-poster);
   transform: translateY(-6px) scale(1.05);
 }
 
@@ -9377,43 +9648,39 @@ a.missing-poster:focus-visible {
   left: 50%;
 }
 
-.missing-poster--pin .missing-poster__fixing {
-  top: -7px;
-  width: 14px;
-  height: 14px;
-  margin-left: -7px;
-  background: var(--pin);
-  border: var(--border-width-2) solid var(--pin-edge);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--poster-pin-shadow);
-}
-
+/* One pin for every poster, as on a WANTED poster. */
+.missing-poster--pin .missing-poster__fixing,
 .missing-poster--tape .missing-poster__fixing {
   top: -9px;
-  width: 62px;
-  height: 20px;
-  margin-left: -31px;
-  background: var(--poster-tape);
-  box-shadow: var(--poster-tape-shadow);
-  transform: rotate(-4deg);
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  background: var(--accent-primary);
+  border: var(--border-width-2) solid var(--pin-edge);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pin);
 }
 
 .missing-poster__heading {
+  /* The WANTED masthead: the same size, weight and double rule. */
   display: block;
+  padding-bottom: 0.375rem;
+  border-bottom: 3px double var(--border-strong);
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2vw, 1.625rem);
+  font-size: clamp(1.75rem, 3vw, 2.375rem);
   line-height: 1;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--poster-aged-heading);
+  color: var(--text-poster);
 }
 
 .missing-poster__frame {
+  /* Framed like a WANTED poster's picture. */
   display: block;
-  margin-top: 8px;
   padding: 3px;
-  background: var(--poster-photo-frame);
-  border: var(--border-width-1) solid var(--poster-photo-edge);
+  background: var(--bg-emblem);
+  border: var(--border-width-2) solid var(--border-strong);
 }
 
 .missing-poster .missing-poster__photo {
@@ -9429,9 +9696,14 @@ a.missing-poster:focus-visible {
 }
 
 .missing-poster__name {
-  display: block;
-  margin-top: 8px;
-  font-size: var(--text-sm);
+  /* Two lines at most, then an ellipsis; the full name is its tooltip. */
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 800;
   line-height: var(--leading-tight);
   letter-spacing: 0.02em;
@@ -9442,15 +9714,22 @@ a.missing-poster:focus-visible {
 
 .missing-poster__institution {
   display: block;
-  margin-top: 3px;
-  font-size: var(--text-xs);
+  margin-top: -0.375rem;
+  font-size: 0.8125rem;
   line-height: 1.3;
-  color: var(--poster-aged-muted);
+  color: var(--text-poster);
+}
+
+/* The Owner-awarded badge, centred under the institution. */
+.missing-poster__badge {
+  display: flex;
+  justify-content: center;
+  margin-top: -0.25rem;
 }
 
 .missing-poster__since {
   display: block;
-  margin-top: 6px;
+  margin-top: auto;
   padding-top: 5px;
   border-top: var(--border-width-1) dashed var(--border-poster);
   font-family: var(--font-pixel);
@@ -9825,10 +10104,12 @@ a.missing-poster:focus-visible {
 
 .home-hunters__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
-  gap: 26px 18px;
+  /* The same columns, gaps and padding as the Wanted cards above, so the
+     posters come out the same size. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 1.75rem 1.25rem;
   margin: 0;
-  padding: 10px 12px;
+  padding: var(--space-3) 0 0;
   list-style: none;
 }
 

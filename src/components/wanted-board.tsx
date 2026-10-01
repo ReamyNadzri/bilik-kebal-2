@@ -12,6 +12,8 @@ export interface WantedBoardProps {
   readonly items: readonly WantedSummary[];
   readonly taxonomy: MarketplaceTaxonomy | null;
   readonly now: string;
+  /** Universities whose requests are view-only for this reader, by institution id. */
+  readonly viewOnly?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -41,7 +43,7 @@ function describeCount(shown: number, narrowed: boolean): string {
  * and neither is a failure — an empty result from a successful read is still a
  * successful read.
  */
-export function WantedBoard({ filters, items, taxonomy, now }: WantedBoardProps) {
+export function WantedBoard({ filters, items, taxonomy, now, viewOnly = {} }: WantedBoardProps) {
   const searched = filters.query !== "";
   const narrowed = isNarrowed(filters);
 
@@ -133,7 +135,12 @@ export function WantedBoard({ filters, items, taxonomy, now }: WantedBoardProps)
         ) : (
           <ul className="wanted-grid" aria-label="Wanted requests">
             {items.map((wanted) => (
-              <WantedCard key={wanted.id} wanted={wanted} now={now} />
+              <WantedCard
+                key={wanted.id}
+                wanted={wanted}
+                now={now}
+                viewOnlyAt={viewOnly[wanted.institutionId ?? ""] ?? null}
+              />
             ))}
           </ul>
         )}

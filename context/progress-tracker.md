@@ -1333,3 +1333,63 @@ inside it. Worktree `.worktrees/payment-flow`, branch `claude/payment-flow` from
 - **Deploy order:** migration applied first (done). The Vercel variable `PAYMENT_MODE=mock` is set
   by the user (this session was not allowed to read or change Production env); the mock gateway's
   signing secret derives from `MARKETPLACE_TOKEN_SECRET`, which Production must have.
+
+## 2026-10-02 QA round: shell, posters, universities, profile, moderation, terms (`claude/qa-round-board`)
+
+Request (user, 2026-10-02, English and Malay): a list of bugs and features. Worktree
+`.worktrees/qa-round`, branch `claude/qa-round-board` from `gitlab/main` (8a3980a). Answers to
+questions asked during the session: the Board stays pinned (chains were tried and removed at the
+user's word); the Owner's removal forfeits the breacher's money; the "highlight" is the time left
+on a bounty; "banner" means the Owner-awarded badge (Owner, 1st, Developer…); the user flips
+`PUBLIC_UPLOADS_ENABLED` themselves; migrations are written and applied.
+
+- **Shell:** bell icon only (rail and compact header); the back control is hidden from 1200 px
+  again (its later `display` rule beat the media query); Music mutes the theme only, the
+  AudioContext keeps running for the sound effects; Share is an icon button.
+- **Posters:** titles and MISSING names clamp to two lines; the status stamp sits on the picture's
+  top-left corner with WANTED centred; time left is an inked highlight band. MISSING posters share
+  WANTED's paper, pin, masthead and double rule, and every poster is at least 33rem tall
+  (`--poster-min-height`), so the two match; MISSING posters carry the member's badge.
+- **Wanted page:** the activity shows backings (migration `202610190001`, trigger + backfill; the
+  test backing now reads "A Backer added RM 20.00"); no gap before the comments (grid rows);
+  Questions renamed Comments; a Report flag beside Share; the Owner's removal panel.
+- **Universities:** UiTM lists Kuala Terengganu, Dungun, Bukit Besi, Shah Alam and Puncak Alam
+  (migration `202610190002`, others switched off, none had a Wanted). The switch offers All plus
+  each university for everyone; a verified member starts on All with other universities greyed out
+  and marked view only (switch and posters). Faculty is a search like Programme.
+- **Profile:** two display name changes plus `name_change` reward codes; "Free requests" is
+  "Redeem Code" with no description; Delete account (30 days, anonymise, keep records); mobile
+  number digits only; pixel art from a photo or one of the fifty drawings as the picture (migration
+  `202610190003` for names, codes, open tags and deletion).
+- **Hunt:** the member's own profile header (real picture, star, badge, counts) replaces the fixed
+  drawing; "Open hunts" is replaced by "My hunt" (the member's own requests).
+- **Post a Wanted:** "Add your own tag" (`ensure_tag`, case-insensitive, Sheriff can switch a tag
+  off).
+- **Moderation:** `wanted_reports` with `report_wanted`, `list_wanted_reports`,
+  `dismiss_wanted_report` (migration `202610190004`); console "Reports & hidden messages".
+- **Owner removal:** `owner_remove_wanted` (migration `202610190005`), see architecture.md, Money
+  §9.
+- **Terms:** final, effective 2 October 2026, policy version `2026-10-02`; adds open tags,
+  reporting, removal with forfeiture, name changes and account deletion. Forfeiture applies only to
+  Wanteds published under these terms.
+- **Home:** "Questions, answered" (eight disclosures); cookie information as a bottom bar until OK,
+  and in the footer (essential and preference storage only, so informational, not consent).
+- **Music:** the theme re-rendered with the same instruments: guitar 48% → 15% of the energy,
+  whistle melody 5% → 19% with an answer phrase, new bass 22%, pad 3% → 10%; same loudness and
+  seamless loop (`brag-output-2026-09-30-170428/work/loop_balanced.py`, not committed).
+- **Applied to Supabase Cloud:** `202610190001` to `202610190004`, each after a dry run in a
+  rolled-back transaction on Cloud (Docker was not running) and `supabase db push --linked`.
+- **Not applied: `202610190005_owner_removal_forfeiture.sql`.** Its refund path was verified on
+  Cloud in a rolled-back transaction (Owner only, reason required, RM 20 backing → RM 22 refund
+  task, reports actioned, second removal refused); the forfeiture branch was not, because a
+  further Cloud dry run was refused by the session's permission check. It is covered by
+  `supabase/tests/local/owner_removal_forfeiture.sql` (run on a throwaway Postgres with the other
+  local tests). Until it is applied, the Owner's Remove button answers "could not be removed.
+  Nothing changed."
+- **Assumed, not asked (reversible):** account deletion anonymises and keeps ledger/audit rows,
+  and leaves the member's free requests up under "Deleted hunter"; reports are limited to 10 a
+  day; tags are 2–30 letters, digits, spaces and . + # & -; a verified member starts on All.
+- **Open:** run `owner_removal_forfeiture.sql` locally, then apply `202610190005`; whether removal
+  needs an appeal path (the terms do not promise one); whether reviewers should be notified of new
+  reports; with `PUBLIC_UPLOADS_ENABLED=true` but no scanner worker deployed, claims are expected
+  to wait in Screening.

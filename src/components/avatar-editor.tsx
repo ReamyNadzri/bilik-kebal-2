@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { AVATAR_MAX_BYTES, AVATAR_SIZE_PX } from "@/contracts/profiles";
+import { AVATAR_SIZE_PX } from "@/contracts/profiles";
+import { uploadAvatarCanvas } from "@/features/presentation/avatar-upload";
 
 export interface AvatarEditorProps {
   /** Called with the saved picture's public URL. */
@@ -12,7 +13,6 @@ export interface AvatarEditorProps {
 const STAGE_PX = 280;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
-const QUALITIES = [0.9, 0.8, 0.7, 0.6, 0.5];
 
 interface Transform {
   readonly zoom: number;
@@ -53,10 +53,6 @@ function draw(
   context.scale(scale, scale);
   context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
   context.restore();
-}
-
-function toBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
-  return new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
 }
 
 type Step = "choose" | "frame" | "saving" | "failed";
@@ -152,38 +148,7 @@ export function AvatarEditor({ onSaved, onClose }: AvatarEditorProps) {
       if (!context) throw new Error("no canvas");
       draw(context, image, transform, AVATAR_SIZE_PX);
 
-      let blob: Blob | null = null;
-      for (const quality of QUALITIES) {
-        blob = await toBlob(canvas, quality);
-        if (blob && blob.size <= AVATAR_MAX_BYTES) break;
-      }
-      if (!blob || blob.size > AVATAR_MAX_BYTES || blob.type !== "image/webp") {
-        throw new Error("encode");
-      }
-
-      const slot = await fetch("/api/profile/avatar/upload-url", { method: "POST" });
-      const slotBody = (await slot.json()) as
-        | { ok: true; data: { objectKey: string; signedUrl: string } }
-        | { ok: false; message: string };
-      if (!slotBody.ok) throw new Error(slotBody.message);
-
-      const stored = await fetch(slotBody.data.signedUrl, {
-        method: "PUT",
-        body: blob,
-        headers: { "Content-Type": "image/webp" },
-      });
-      if (!stored.ok) throw new Error("upload");
-
-      const saved = await fetch("/api/profile/avatar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objectKey: slotBody.data.objectKey }),
-      });
-      const savedBody = (await saved.json()) as
-        { ok: true; data: { avatarUrl: string | null } } | { ok: false; message: string };
-      if (!savedBody.ok) throw new Error(savedBody.message);
-
-      onSaved(savedBody.data.avatarUrl);
+      onSaved(await uploadAvatarCanvas(canvas));
     } catch {
       setStep("failed");
       setError("Your picture was not saved. Check your connection and try again.");

@@ -19,8 +19,19 @@ const DATE = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "
 
 /** +60123456789 as 012-345 6789, the way it is usually written. */
 function localPhone(e164: string): string {
-  const local = `0${e164.slice(3)}`;
+  const local = localDigits(e164);
   return `${local.slice(0, 3)}-${local.slice(3, 6)} ${local.slice(6)}`;
+}
+
+/** +60123456789 as 0123456789: what the digits-only field holds. */
+function localDigits(e164: string): string {
+  return `0${e164.slice(3)}`;
+}
+
+/** A mobile number field takes digits only; anything else typed or pasted is dropped. */
+const MOBILE_MAX_DIGITS = 11;
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "").slice(0, MOBILE_MAX_DIGITS);
 }
 
 /**
@@ -32,7 +43,7 @@ export function PaymentDetailsForm({ details }: PaymentDetailsFormProps) {
   const initial = details === "unavailable" ? null : details;
   const [saved, setSaved] = useState<OwnPaymentDetails | null>(initial);
   const [editing, setEditing] = useState(initial === null);
-  const [phone, setPhone] = useState(initial ? localPhone(initial.phone) : "");
+  const [phone, setPhone] = useState(initial ? localDigits(initial.phone) : "");
   const [bankCode, setBankCode] = useState<string>(initial?.bankCode ?? "");
   const [holder, setHolder] = useState(initial?.accountHolderName ?? "");
   const [accountNumber, setAccountNumber] = useState("");
@@ -150,7 +161,7 @@ export function PaymentDetailsForm({ details }: PaymentDetailsFormProps) {
               Mobile number
             </label>
             <p className="form-field__hint" id="payment-phone-hint">
-              A Malaysian mobile number, for example 012-345 6789.
+              Numbers only: a Malaysian mobile number, for example 0123456789.
             </p>
             {errors.phone ? (
               <p className="form-field__error" id="payment-phone-error">
@@ -161,12 +172,13 @@ export function PaymentDetailsForm({ details }: PaymentDetailsFormProps) {
               className="form-field__input"
               id="payment-phone"
               type="tel"
-              inputMode="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
               autoComplete="tel-national"
-              maxLength={20}
+              maxLength={MOBILE_MAX_DIGITS}
               required
               value={phone}
-              onChange={(event) => setPhone(event.target.value)}
+              onChange={(event) => setPhone(onlyDigits(event.target.value))}
               {...field("phone")}
             />
           </div>

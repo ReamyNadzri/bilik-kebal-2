@@ -27,7 +27,13 @@ function id(group: string, index: number): string {
   return `0e11${group}-0000-4000-8000-${String(index).padStart(12, "0")}`;
 }
 
-const CAMPUSES = ["UiTM Shah Alam", "UiTM Puncak Alam", "UiTM Machang", "UiTM Samarahan"];
+const CAMPUSES = [
+  "UiTM Kuala Terengganu",
+  "UiTM Dungun",
+  "UiTM Bukit Besi",
+  "UiTM Shah Alam",
+  "UiTM Puncak Alam",
+];
 
 const FACULTIES = [
   "Faculty of Computer and Mathematical Sciences",

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import PostWantedPage from "./page";
 import type { AccountViewModel } from "@/contracts";
 import { anAccountViewModel } from "@/features/presentation/test-support/account-view-model";
@@ -184,6 +184,9 @@ describe("an eligible Commissioner", () => {
     await renderPage();
 
     expect(loadMarketplaceTaxonomy).toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("combobox", { name: /^Faculty or college/ }), {
+      target: { value: "computing" },
+    });
     expect(screen.getByRole("option", { name: "Faculty of Computing" })).toBeInTheDocument();
   });
 

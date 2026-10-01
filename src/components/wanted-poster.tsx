@@ -43,9 +43,10 @@ export function describeBackers(count: number): string {
 }
 
 /**
- * One Wanted as a pinned poster: masthead and time left, the course, the
- * title, the bounty with its backers and age, the request details, the status
- * stamp and one action. The Board card and the detail page's ledger share this
+ * One Wanted as a posted notice: the status stamp on the picture's corner, the
+ * time left as its highlight, the course, the title (two lines at most on a
+ * card), the bounty with its backers and age, the request details and one
+ * action. The Board card and the detail page's ledger share this
  * body so a request looks the same wherever it is pinned.
  *
  * The "Wanted" masthead is decoration and hidden from assistive technology,
@@ -64,6 +65,9 @@ export function WantedPoster({
   const closing = formatClosing(wanted.closesAt, now, { phrasing: "left" });
   const academic = wanted.kind === "academic";
   const isClosed = wanted.status === "closed";
+  const stamp = (
+    <StatusStamp presentation={wantedStatusPresentation(wanted.status)} context="Wanted" />
+  );
 
   return (
     <article
@@ -83,8 +87,9 @@ export function WantedPoster({
             {formatPostedAge(wanted.postedAt, now)}
           </time>
         ) : (
+          // Time left is the poster's highlight: how long there is to hunt it.
           <time
-            className={`poster-masthead__timing${closing.urgent ? " poster-masthead__timing--urgent" : ""}`}
+            className={`poster-masthead__timing poster-masthead__timing--left${closing.urgent ? " poster-masthead__timing--urgent" : ""}`}
             dateTime={wanted.closesAt}
           >
             {closing.label}
@@ -92,13 +97,20 @@ export function WantedPoster({
         )}
       </p>
 
+      {/* The status is stamped on the picture's top-left corner, so the
+          WANTED word stays centred; without a picture it leads the poster. */}
       {withEmblem ? (
-        <ResourceEmblem
-          resourceType={wanted.resourceType}
-          kind={wanted.kind}
-          picture={wanted.picture ?? null}
-        />
-      ) : null}
+        <div className="wanted-poster__picture">
+          <ResourceEmblem
+            resourceType={wanted.resourceType}
+            kind={wanted.kind}
+            picture={wanted.picture ?? null}
+          />
+          <p className="wanted-poster__stamp">{stamp}</p>
+        </div>
+      ) : (
+        <p className="wanted-poster__stamp wanted-poster__stamp--plain">{stamp}</p>
+      )}
 
       <div className="wanted-poster__head">
         {academic ? (
@@ -149,10 +161,6 @@ export function WantedPoster({
           </>
         ) : null}
       </dl>
-
-      <p className="stamp-row wanted-poster__stamp">
-        <StatusStamp presentation={wantedStatusPresentation(wanted.status)} context="Wanted" />
-      </p>
 
       {footer === undefined ? null : <div className="wanted-card__foot">{footer}</div>}
     </article>

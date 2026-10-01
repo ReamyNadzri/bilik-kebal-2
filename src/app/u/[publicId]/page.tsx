@@ -105,6 +105,7 @@ export default async function MemberPage({ params, searchParams }: MemberPagePro
                 avatarUrl: profile.avatarUrl,
                 institutionName: profile.institutionName,
                 joinedAt: profile.joinedAt,
+                badge: profile.badge ?? null,
               }}
             />
           </div>

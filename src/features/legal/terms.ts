@@ -3,15 +3,18 @@ import { CURRENT_POLICY_VERSION } from "@/contracts/marketplace";
 /**
  * The Terms a member accepts when posting a Wanted.
  *
- * DRAFT pending legal review. Written in plain English from the accepted
- * product rules in `context/project-overview.md` and
- * `context/architecture.md`; it adds no obligation those files do not state.
- * The version is snapshotted on every published Wanted
- * (`policy_version_snapshot`), so a later revision never rewrites what an
- * earlier poster agreed to.
+ * Final, effective 2 October 2026 (made final at the user's request,
+ * 2026-10-02). Written in plain English from the accepted product rules in
+ * `context/project-overview.md` and `context/architecture.md` and the
+ * decisions recorded in `context/progress-tracker.md`. The version is
+ * snapshotted on every published Wanted (`policy_version_snapshot`), so a
+ * later revision never rewrites what an earlier poster agreed to; the
+ * forfeiture rule applies only to Wanteds published under this version or a
+ * later one.
  */
 export const TERMS_VERSION = CURRENT_POLICY_VERSION;
-export const TERMS_STATUS = "Draft — pending legal review";
+export const TERMS_EFFECTIVE_DATE = "2 October 2026";
+export const TERMS_STATUS = `Effective ${TERMS_EFFECTIVE_DATE}`;
 
 export interface TermsSection {
   readonly heading: string;
@@ -26,6 +29,8 @@ export const POSTING_TERMS: readonly TermsSection[] = [
       "Do not ask for publisher textbooks, paid tutorial material, leaked or unreleased exam papers, or documents your institution restricts.",
       "Missing-item requests describe something you lost. Do not post other people's personal details, and arrange any handover in a safe, public place.",
       "Discussions must stay respectful and on topic. Sheriffs may hide replies that break these terms.",
+      "Tags are open: you may add any tag that describes your request. A Sheriff may switch off a tag that is offensive or misleading.",
+      "Any verified member may report a request that breaks these terms. Reports go privately to the Sheriffs and the Owner.",
     ],
   },
   {
@@ -39,6 +44,7 @@ export const POSTING_TERMS: readonly TermsSection[] = [
       "The platform fee is never taken out of the bounty: the winning Hunter, or the member named on a released bounty, receives the whole bounty.",
       "If a request with a bounty expires without an approved claim, or is withdrawn, every confirmed contribution and the fee paid with it are refunded in full.",
       "Refunds and payouts are paid by bank transfer to the account on your profile. Add your phone number and bank account before you pay or claim a bounty.",
+      "If a request breaks these terms, the Owner may remove it even when it holds a bounty. You then forfeit the money you put into it, platform fee included; every other Backer is refunded in full. The Owner records the reason.",
     ],
   },
   {
@@ -57,6 +63,8 @@ export const POSTING_TERMS: readonly TermsSection[] = [
       "Posting, funding and claiming need institution verification. Email verification alone lets you browse.",
       "Your public profile shows your display name, picture, bio, joined date, verification badges and the requests you posted. It never shows your email, your verification evidence, your claims or what you funded.",
       "Files submitted as claims stay private and quarantined until a Sheriff decides.",
+      "Your display name can be changed twice. A name change code adds more changes.",
+      "You may delete your account from 30 days after you created it, once no payment, payout, refund or claim of yours is still in progress. Deleting removes your name, picture, bio and bank details for good. Payment and audit records are kept, without your name, as the law requires.",
       "Accounts that break these terms may be restricted. Restrictions are recorded and can be appealed.",
     ],
   },

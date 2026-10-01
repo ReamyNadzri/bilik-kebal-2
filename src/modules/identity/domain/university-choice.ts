@@ -1,12 +1,13 @@
-import type { University, UniversityChoice } from "@/contracts/universities";
+import { ALL_UNIVERSITIES, type University, type UniversityChoice } from "@/contracts/universities";
 
 /**
  * Which university a reader is shown, from the universities on offer.
  *
- * A member verified at a university is shown that one and cannot switch.
- * Anyone else is shown the one they picked, or the first on offer when they
- * have not picked or picked one that is no longer offered. Null only when no
- * university is offered, and then nothing is filtered.
+ * A pick is honoured for everyone, including "All". Without one, a member
+ * verified at a university sees all of them at once (their own actionable,
+ * the others greyed out); anyone else sees the first on offer. A pick that is
+ * no longer offered counts as none. Null only when no university is offered,
+ * and then nothing is filtered.
  */
 export function chooseUniversity(
   options: readonly University[],
@@ -15,8 +16,12 @@ export function chooseUniversity(
 ): UniversityChoice | null {
   const first = options[0];
   if (first === undefined) return null;
-  const verified = options.find((option) => option.id === verifiedInstitutionId);
-  if (verified !== undefined) return { current: verified, options, locked: true };
-  const picked = options.find((option) => option.slug === pickedSlug) ?? first;
-  return { current: picked, options, locked: false };
+  const own = options.find((option) => option.id === verifiedInstitutionId) ?? null;
+  const home = own ?? first;
+  if (pickedSlug === ALL_UNIVERSITIES) return { current: home, options, all: true, own };
+  const picked = options.find((option) => option.slug === pickedSlug);
+  if (picked !== undefined) return { current: picked, options, all: false, own };
+  return own !== null
+    ? { current: own, options, all: true, own }
+    : { current: first, options, all: false, own: null };
 }

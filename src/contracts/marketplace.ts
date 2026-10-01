@@ -19,7 +19,7 @@ export const wantedKinds = ["academic", "missing_item", "discussion"] as const;
  * The posting terms version every new Wanted snapshots. Bumped whenever the
  * terms text in `src/features/legal/terms.ts` changes.
  */
-export const CURRENT_POLICY_VERSION = "2026-09-24.2";
+export const CURRENT_POLICY_VERSION = "2026-10-02";
 export type WantedLifecycle = "draft" | "awaiting_payment" | "open" | "reviewing" | "expired";
 
 export type MarketplaceOperationCode =

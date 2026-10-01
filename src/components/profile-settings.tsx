@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { Avatar } from "./avatar";
 import { AvatarEditor } from "./avatar-editor";
+import { AvatarPixelArt } from "./avatar-pixel-art";
 import type { AccountViewModel } from "@/contracts";
-import type { FreeRequestAllowance } from "@/contracts/marketplace";
+import { ACCOUNT_DELETION_MIN_AGE_DAYS, type DisplayNameAllowance } from "@/contracts/profiles";
 import type { OwnPaymentDetails } from "@/contracts/payment-details";
 import { PaymentDetailsForm } from "./payment-details-form";
 import { REWARD_CODE_MESSAGES, type RewardCodeOutcome } from "@/contracts/rewards";
@@ -20,10 +21,22 @@ import { googlePhotoUrl } from "@/features/presentation/auth/google-photo";
 export interface ProfileSettingsProps {
   readonly account: AccountViewModel;
   readonly bio: string | null;
-  readonly allowance: FreeRequestAllowance | null;
   readonly entryRequests: readonly TaxonomyRequestView[] | null;
   /** Phone and bank for refunds and payouts; "unavailable" when it could not be read. */
   readonly paymentDetails?: OwnPaymentDetails | null | "unavailable";
+  /** Display name changes left; null when it could not be read. */
+  readonly nameAllowance?: DisplayNameAllowance | null;
+  /** The reference instant for the account's age. Defaults to the clock. */
+  readonly now?: string;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** When account deletion opens: 30 days after joining. Null if the join date is unknown. */
+export function deletionOpensAt(joinedAt: string | null): Date | null {
+  if (joinedAt === null) return null;
+  const joined = new Date(joinedAt).getTime();
+  return Number.isNaN(joined) ? null : new Date(joined + ACCOUNT_DELETION_MIN_AGE_DAYS * DAY_MS);
 }
 
 const PRESETS = Array.from({ length: AVATAR_PRESET_COUNT }, (_, index) => index);
@@ -57,11 +70,13 @@ function NoticeLine({ notice }: { readonly notice: Notice }) {
 export function ProfileSettings({
   account,
   bio,
-  allowance,
   entryRequests,
   paymentDetails = null,
+  nameAllowance = null,
+  now,
 }: ProfileSettingsProps) {
   const router = useRouter();
+  const { signOut } = useClerk();
   const { refreshAccount } = useAuth();
   const { user: clerkUser } = useUser();
   const googlePhoto = googlePhotoUrl(clerkUser);
@@ -74,8 +89,12 @@ export function ProfileSettings({
   const [profileNotice, setProfileNotice] = useState<Notice>(null);
   const [code, setCode] = useState("");
   const [codeNotice, setCodeNotice] = useState<Notice>(null);
-  const [remaining, setRemaining] = useState(allowance?.remaining ?? null);
-  const [busy, setBusy] = useState<"picture" | "profile" | "code" | null>(null);
+  const [namesLeft, setNamesLeft] = useState(nameAllowance?.remaining ?? null);
+  const [busy, setBusy] = useState<"picture" | "profile" | "code" | "delete" | null>(null);
+  const [deletion, setDeletion] = useState<"closed" | "too-new" | "confirm">("closed");
+  const [deleteWord, setDeleteWord] = useState("");
+  const [deleteNotice, setDeleteNotice] = useState<Notice>(null);
+  const nameLocked = namesLeft === 0;
 
   const dirty = displayName.trim() !== account.displayName || draftBio.trim() !== (bio ?? "");
   const institutionVerified = account.trust.institution === "verified";
@@ -122,6 +141,7 @@ export function ProfileSettings({
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const renaming = displayName.trim() !== account.displayName;
     setBusy("profile");
     setProfileNotice(null);
     const result = await callOperation<{ displayName: string; bio: string | null }, string>(
@@ -137,6 +157,7 @@ export function ProfileSettings({
     }
     setDisplayName(result.data.displayName);
     setDraftBio(result.data.bio ?? "");
+    if (renaming && namesLeft !== null) setNamesLeft(Math.max(0, namesLeft - 1));
     setProfileNotice({ kind: "ok", text: "Profile saved." });
     await refreshAccount();
     router.refresh();
@@ -156,12 +177,44 @@ export function ProfileSettings({
       setCodeNotice({ kind: "error", text: result.message || "That code could not be checked." });
       return;
     }
-    setRemaining(result.data.remaining);
     setCodeNotice({
       kind: result.data.outcome === "redeemed" ? "ok" : "error",
       text: REWARD_CODE_MESSAGES[result.data.outcome],
     });
-    if (result.data.outcome === "redeemed") setCode("");
+    if (result.data.outcome === "redeemed") {
+      setCode("");
+      // A code may add name changes; the page reads the allowance again.
+      router.refresh();
+    }
+  }
+
+  function askToDelete() {
+    setDeleteNotice(null);
+    const opens = deletionOpensAt(account.joinedAt);
+    const at = now ? new Date(now).getTime() : Date.now();
+    setDeletion(opens !== null && opens.getTime() > at ? "too-new" : "confirm");
+  }
+
+  async function deleteAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (deleteWord.trim().toUpperCase() !== "DELETE") return;
+    setBusy("delete");
+    setDeleteNotice(null);
+    const result = await callOperation<{ deleted: true }, string>(
+      "/api/profile/account",
+      {},
+      "PROFILE_UNAVAILABLE",
+      "DELETE",
+    );
+    if (!result.ok) {
+      setBusy(null);
+      setDeleteNotice({
+        kind: "error",
+        text: result.message || "Your account could not be deleted. Try again.",
+      });
+      return;
+    }
+    await signOut({ redirectUrl: "/" }).catch(() => router.replace("/"));
   }
 
   return (
@@ -222,6 +275,17 @@ export function ProfileSettings({
         >
           Upload your own photo
         </button>
+        <AvatarPixelArt
+          disabled={busy !== null}
+          onError={(text) => setPictureNotice({ kind: "error", text })}
+          onSaved={async (url) => {
+            setAvatarUrl(url);
+            setPreset(null);
+            setPictureNotice({ kind: "ok", text: "Pixel picture saved." });
+            await refreshAccount();
+            router.refresh();
+          }}
+        />
         {account.publicId ? (
           <Link className="hunter-card__public" href={`/u/${account.publicId}`}>
             View your public profile
@@ -238,12 +302,22 @@ export function ProfileSettings({
               <label className="form-field__label" htmlFor="profile-display-name">
                 Display name
               </label>
+              {namesLeft === null ? null : (
+                <p className="form-field__hint" id="profile-display-name-hint">
+                  {nameLocked
+                    ? "You have used your name changes. A name change code adds more."
+                    : `You can change it ${namesLeft} more time${namesLeft === 1 ? "" : "s"}.`}
+                </p>
+              )}
               <input
                 className="form-field__input"
                 id="profile-display-name"
                 type="text"
                 maxLength={40}
                 value={displayName}
+                readOnly={nameLocked}
+                aria-readonly={nameLocked || undefined}
+                aria-describedby={namesLeft === null ? undefined : "profile-display-name-hint"}
                 onChange={(event) => setDisplayName(event.target.value)}
               />
             </div>
@@ -347,13 +421,7 @@ export function ProfileSettings({
           aria-labelledby="reward-code-heading"
           noValidate
         >
-          <h2 id="reward-code-heading">Free requests</h2>
-          <p className="profile-card__hint">
-            {remaining === null
-              ? "Every member can post 3 free requests."
-              : `You have ${remaining} free request${remaining === 1 ? "" : "s"} left.`}{" "}
-            A reward code adds more. Each code works once per member.
-          </p>
+          <h2 id="reward-code-heading">Redeem Code</h2>
           <NoticeLine notice={codeNotice} />
           <div className="reward-code">
             <div className="form-field">
@@ -433,11 +501,68 @@ export function ProfileSettings({
                 Delete account
               </h2>
               <p className="trust-row__body">
-                Not available yet. Ledger and audit records must be kept as the law requires, so
-                account deletion is waiting on a retention decision.
+                Removes your name, picture, bio and bank details for good and signs you out. Payment
+                and audit records are kept, without your name, as the law requires.
               </p>
             </div>
+            {deletion === "closed" ? (
+              <button
+                type="button"
+                className="button button--danger-outline button--compact"
+                onClick={askToDelete}
+              >
+                Delete account
+              </button>
+            ) : null}
           </div>
+
+          {deletion === "too-new" ? (
+            <p className="ops-alert ops-alert--error" role="alert">
+              Your account can be deleted from{" "}
+              {DATE.format(deletionOpensAt(account.joinedAt) ?? new Date())}, 30 days after it was
+              created.
+            </p>
+          ) : null}
+
+          {deletion === "confirm" ? (
+            <form className="delete-account" onSubmit={deleteAccount} noValidate>
+              <NoticeLine notice={deleteNotice} />
+              <div className="form-field">
+                <label className="form-field__label" htmlFor="delete-account-word">
+                  Type DELETE to confirm. This cannot be undone.
+                </label>
+                <input
+                  className="form-field__input"
+                  id="delete-account-word"
+                  type="text"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  value={deleteWord}
+                  onChange={(event) => setDeleteWord(event.target.value)}
+                />
+              </div>
+              <div className="profile-form__actions">
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => {
+                    setDeletion("closed");
+                    setDeleteWord("");
+                  }}
+                  disabled={busy === "delete"}
+                >
+                  Keep my account
+                </button>
+                <button
+                  type="submit"
+                  className="button button--danger-outline"
+                  disabled={busy !== null || deleteWord.trim().toUpperCase() !== "DELETE"}
+                >
+                  {busy === "delete" ? "Deleting…" : "Delete my account"}
+                </button>
+              </div>
+            </form>
+          ) : null}
         </section>
       </div>
 

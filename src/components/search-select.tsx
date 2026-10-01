@@ -19,6 +19,8 @@ interface SearchSelectProps {
   readonly onChange: (value: string) => void;
   /** One option, for the result count and the empty message: "programme". */
   readonly noun: string;
+  /** Its plural, when adding "s" is wrong: "faculties". */
+  readonly nounPlural?: string;
 }
 
 /** Every word typed appears somewhere in the label, in any order, any case. */
@@ -51,6 +53,7 @@ export function SearchSelect({
   error,
   onChange,
   noun,
+  nounPlural = `${noun}s`,
 }: SearchSelectProps) {
   const listId = useId();
   /** What the reader has typed since the last choice; null shows the choice. */
@@ -125,7 +128,7 @@ export function SearchSelect({
     setQuery(null);
   }
 
-  const count = `${matches.length} ${noun}${matches.length === 1 ? "" : "s"} found.`;
+  const count = `${matches.length} ${matches.length === 1 ? noun : nounPlural} found.`;
 
   return (
     <div className="form-field search-select">
@@ -181,7 +184,7 @@ export function SearchSelect({
         className="search-select__list"
         id={listId}
         role="listbox"
-        aria-label={`Matching ${noun}s`}
+        aria-label={`Matching ${nounPlural}`}
         hidden={!open}
       >
         {matches.length === 0 ? (

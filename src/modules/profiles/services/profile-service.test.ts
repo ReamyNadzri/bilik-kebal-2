@@ -10,6 +10,8 @@ const objectKey = `${publicId}/avatar-1790266488000.webp`;
 function repository(overrides: Partial<ProfileRepository> = {}): ProfileRepository {
   return {
     updateOwnProfile: vi.fn().mockResolvedValue(undefined),
+    ownDisplayNameAllowance: vi.fn().mockResolvedValue(null),
+    deleteOwnAccount: vi.fn().mockResolvedValue(undefined),
     setOwnAvatar: vi.fn().mockResolvedValue(undefined),
     setOwnAvatarPreset: vi.fn().mockResolvedValue(undefined),
     avatarUrl: vi.fn((key: string | null) => (key ? `https://cdn.test/${key}` : null)),
@@ -24,6 +26,39 @@ function repository(overrides: Partial<ProfileRepository> = {}): ProfileReposito
 }
 
 describe("ProfileService", () => {
+  it("says when the display name changes are used up", async () => {
+    const repo = repository({
+      updateOwnProfile: vi.fn().mockRejectedValue({ message: "display_name_change_limit" }),
+    });
+    await expect(
+      new ProfileService(repo).update(actor, { displayName: "New name" }),
+    ).resolves.toMatchObject({ ok: false, code: "DISPLAY_NAME_LIMIT" });
+  });
+
+  it("deletes the account, and words each refusal", async () => {
+    await expect(new ProfileService(repository()).deleteAccount(actor)).resolves.toEqual({
+      ok: true,
+      data: { deleted: true },
+    });
+    await expect(new ProfileService(repository()).deleteAccount(null)).resolves.toMatchObject({
+      ok: false,
+      code: "AUTH_REQUIRED",
+    });
+    for (const [raised, code] of [
+      ["account_too_new", "ACCOUNT_TOO_NEW"],
+      ["account_has_open_items", "ACCOUNT_HAS_OPEN_ITEMS"],
+      ["connection reset", "PROFILE_UNAVAILABLE"],
+    ] as const) {
+      const repo = repository({
+        deleteOwnAccount: vi.fn().mockRejectedValue({ message: raised }),
+      });
+      await expect(new ProfileService(repo).deleteAccount(actor)).resolves.toMatchObject({
+        ok: false,
+        code,
+      });
+    }
+  });
+
   it("goes back to the Google photo, and says when there is none", async () => {
     const repo = repository({
       avatarUrl: vi.fn(

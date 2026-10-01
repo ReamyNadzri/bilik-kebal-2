@@ -1,27 +1,22 @@
 import Link from "next/link";
-import { BountyPlate } from "./bounty-plate";
 import { StatusStamp } from "./status-stamp";
 import { Tabs } from "./tabs";
 import { UiStatus } from "./ui-status";
 import {
   claimStages,
   claimStatusPresentation,
-  wantedStatusPresentation,
   type ClaimStageState,
 } from "@/features/marketplace/status";
-import { formatClosing, formatSubmittedAge } from "@/features/marketplace/time";
-import type { ClaimSummary, HuntOpportunity } from "@/features/marketplace/types";
+import { formatSubmittedAge } from "@/features/marketplace/time";
+import type { ClaimSummary, WantedSummary } from "@/features/marketplace/types";
+import { WantedCard } from "./wanted-card";
 
 export interface HuntWorkspaceProps {
-  readonly hunts: readonly HuntOpportunity[];
+  /** The viewer's own Wanted requests, or null when signed out. */
+  readonly myPosts: readonly WantedSummary[] | null;
   readonly claims: readonly ClaimSummary[];
   readonly now: string;
 }
-
-const ELIGIBILITY = {
-  "institution-verified": "Institution verified students",
-  "faculty-match-preferred": "Institution verified; faculty match preferred",
-} as const;
 
 /** Spoken beside each station, so the track reads without its colours. */
 const STAGE_STATE_WORDS: Record<ClaimStageState, string> = {
@@ -31,64 +26,6 @@ const STAGE_STATE_WORDS: Record<ClaimStageState, string> = {
   stopped: "stopped here",
   ahead: "not reached",
 };
-
-function competition(count: number): string {
-  return `${count} active ${count === 1 ? "claim" : "claims"} competing`;
-}
-
-/**
- * The per-card links are not prefetched. Each claim link carries its own
- * `wantedId`, so every card on sight was a distinct server request for a route
- * with no loading state to show — dozens at once on a full Hunt.
- */
-function HuntCard({ hunt, now }: { readonly hunt: HuntOpportunity; readonly now: string }) {
-  const closing = formatClosing(hunt.closesAt, now);
-
-  return (
-    <li className="hunt-card">
-      <article aria-labelledby={`hunt-${hunt.id}`}>
-        <div className="hunt-card__head">
-          <StatusStamp presentation={wantedStatusPresentation(hunt.status)} context="Hunt" />
-          <span className="hunt-card__resource">{hunt.resourceType}</span>
-        </div>
-        <p className="hunt-card__course">
-          <strong>{hunt.courseCode}</strong>
-          <span>{hunt.courseName}</span>
-        </p>
-        <h3 id={`hunt-${hunt.id}`}>{hunt.title}</h3>
-        <BountyPlate amountSen={hunt.grossBountySen} />
-        <dl className="index-grid hunt-card__facts" role="group" aria-label="Hunt details">
-          <dt>Deadline</dt>
-          <dd>
-            <time dateTime={hunt.closesAt}>{closing.label}</time>
-          </dd>
-          <dt>Competition</dt>
-          <dd>{competition(hunt.activeClaimCount)}</dd>
-          <dt>Eligibility</dt>
-          <dd>{ELIGIBILITY[hunt.eligibility]}</dd>
-        </dl>
-        <div className="card-actions">
-          <Link
-            className="button button--primary button--block"
-            href={`/claims/new?wantedId=${encodeURIComponent(hunt.id)}&from=hunt`}
-            prefetch={false}
-            aria-label={`Fulfill bounty: ${hunt.title}`}
-          >
-            Fulfill Bounty <span aria-hidden="true">→</span>
-          </Link>
-          <Link
-            className="button button--secondary button--block"
-            href={`/wanted/${encodeURIComponent(hunt.id)}`}
-            prefetch={false}
-            aria-label={`View hunt details: ${hunt.title}`}
-          >
-            View Wanted Details
-          </Link>
-        </div>
-      </article>
-    </li>
-  );
-}
 
 function StageTrack({ claim }: { readonly claim: ClaimSummary }) {
   return (
@@ -151,27 +88,30 @@ function ClaimCard({ claim, now }: { readonly claim: ClaimSummary; readonly now:
   );
 }
 
-export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
-  const openHunts = (
-    <section className="board-surface hunt-section" aria-labelledby="open-hunts-title">
+export function HuntWorkspace({ myPosts, claims, now }: HuntWorkspaceProps) {
+  const myHunt = (
+    <section className="board-surface hunt-section" aria-labelledby="my-hunt-title">
       <div className="hunt-section__head">
-        <h2 id="open-hunts-title">Open hunts</h2>
-        <p>
-          One winning claim per Wanted. Files stay in quarantine until a Sheriff decides, and
-          submission opens only after identity checks.
-        </p>
+        <h2 id="my-hunt-title">My hunt</h2>
+        <p>The requests you posted, as they hang on the Board.</p>
       </div>
-      {hunts.length === 0 ? (
+      {myPosts === null ? (
+        <UiStatus
+          kind="restricted"
+          heading="Sign in to see your requests"
+          message="Your own Wanted requests appear here once you are signed in."
+        />
+      ) : myPosts.length === 0 ? (
         <UiStatus
           kind="empty"
-          heading="No open hunts right now"
-          message="New opportunities begin as students post and fund requests."
-          action={<Link href="/board">Browse the Wanted Board</Link>}
+          heading="You have not posted a request yet"
+          message="Ask for a resource, report a missing item or start a discussion."
+          action={<Link href="/wanted/new">Post a Wanted</Link>}
         />
       ) : (
-        <ul className="hunt-grid" aria-label="Open hunt opportunities">
-          {hunts.map((hunt) => (
-            <HuntCard key={hunt.id} hunt={hunt} now={now} />
+        <ul className="wanted-grid" aria-label="Your Wanted requests">
+          {myPosts.map((wanted) => (
+            <WantedCard key={wanted.id} wanted={wanted} now={now} />
           ))}
         </ul>
       )}
@@ -210,7 +150,11 @@ export function HuntWorkspace({ hunts, claims, now }: HuntWorkspaceProps) {
       <Tabs
         label="Hunt sections"
         items={[
-          { id: "open-hunts", label: `Open hunts (${hunts.length})`, panel: openHunts },
+          {
+            id: "my-hunt",
+            label: myPosts === null ? "My hunt" : `My hunt (${myPosts.length})`,
+            panel: myHunt,
+          },
           { id: "my-claims", label: `My claims (${claims.length})`, panel: myClaims },
         ]}
       />

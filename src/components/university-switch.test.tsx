@@ -21,7 +21,7 @@ const UMPSA = {
 };
 
 function choice(overrides: Partial<UniversityChoice> = {}): UniversityChoice {
-  return { current: UITM, options: [UITM, UMPSA], locked: false, ...overrides };
+  return { current: UITM, options: [UITM, UMPSA], all: false, own: null, ...overrides };
 }
 
 beforeEach(() => {
@@ -31,13 +31,24 @@ beforeEach(() => {
 });
 
 describe("UniversitySwitch", () => {
-  test("offers every university to a reader not yet verified, the shown one chosen", () => {
+  test("offers All and every university, the shown one chosen", () => {
     render(<UniversitySwitch choice={choice()} resetHref="/board" />);
 
     const group = screen.getByRole("group", { name: "University" });
     expect(group).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "All" })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: "UiTM" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "UMPSA" })).not.toBeChecked();
+  });
+
+  test("chooses All when every university is shown, and remembers picking it", () => {
+    render(<UniversitySwitch choice={choice({ all: true })} resetHref="/board" />);
+    expect(screen.getByRole("radio", { name: "All" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("radio", { name: "UMPSA" }));
+    fireEvent.click(screen.getByRole("radio", { name: "All" }));
+
+    expect(document.cookie).toContain("vaultix_university=all");
   });
 
   test("remembers the pick and reloads the unfiltered page", () => {
@@ -51,15 +62,20 @@ describe("UniversitySwitch", () => {
     expect(refresh).toHaveBeenCalled();
   });
 
-  test("only states the university to a member verified there", () => {
+  test("lets a verified member switch too, marking other universities view only", () => {
     render(
-      <UniversitySwitch choice={choice({ current: UMPSA, locked: true })} resetHref="/board" />,
+      <UniversitySwitch
+        choice={choice({ current: UMPSA, all: true, own: UMPSA })}
+        resetHref="/board"
+      />,
     );
 
-    expect(screen.queryByRole("radio")).toBeNull();
-    expect(screen.getByText(/the university you verified with/)).toHaveTextContent(
-      "Showing UMPSA, the university you verified with.",
-    );
+    expect(screen.getByRole("radio", { name: "All" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^UiTM\s*\(view only\)$/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "UMPSA" })).toBeInTheDocument();
+    expect(
+      screen.getByText("You can back, claim and reply at UMPSA. Other universities are view only."),
+    ).toBeInTheDocument();
   });
 
   test("shows nothing when there is only one university to show", () => {

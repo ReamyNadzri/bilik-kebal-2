@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { Avatar } from "./avatar";
+import { PixelIcon } from "./pixel-icon";
 import { useAuth } from "@/features/presentation/auth/auth-provider";
 import { googlePhotoUrl } from "@/features/presentation/auth/google-photo";
 import { signInPathFor } from "@/features/presentation/auth/redirect-target";
@@ -258,7 +259,8 @@ export function CompactAccount({ unreadCount = null }: { readonly unreadCount?: 
   return (
     <>
       <Link className="shell-compact__control shell-compact__inbox" href="/notifications">
-        Inbox
+        <PixelIcon name="bell" className="shell-nav__icon" />
+        <span className="visually-hidden">Notifications</span>
         {unread > 0 ? (
           <span className="shell-compact__badge">
             <span aria-hidden="true">{unread > 99 ? "99+" : unread}</span>

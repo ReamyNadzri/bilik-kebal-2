@@ -203,7 +203,7 @@ export function NotificationMenu({
         onClick={toggle}
       >
         <PixelIcon name="bell" className="shell-nav__icon" />
-        <span className="shell-nav__link-text--secondary">Notifications</span>
+        <span className="visually-hidden">Notifications</span>
         {count > 0 ? (
           <span className="shell-nav__badge">
             <span aria-hidden="true">{count > 99 ? "99+" : count}</span>

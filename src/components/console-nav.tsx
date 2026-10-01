@@ -17,7 +17,7 @@ const SECTIONS: readonly { id: ConsoleSection; label: string; href: string }[] =
   { id: "requests", label: "Entries & releases", href: "/console/requests" },
   { id: "operations", label: "Payouts & refunds", href: "/console/operations" },
   { id: "people", label: "People", href: "/console/people" },
-  { id: "moderation", label: "Hidden messages", href: "/console/moderation" },
+  { id: "moderation", label: "Reports & hidden messages", href: "/console/moderation" },
   { id: "badges", label: "Badges", href: "/console/badges" },
 ];
 

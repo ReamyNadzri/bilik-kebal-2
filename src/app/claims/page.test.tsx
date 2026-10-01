@@ -18,7 +18,8 @@ test("renders the Hunter's Office masthead", async () => {
   expect(
     screen.getByRole("heading", { name: "Take a hunt, claim the bounty" }),
   ).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Open hunts" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "My hunt" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Open hunts" })).toBeNull();
 });
 
 test("keeps its own development preview states, which the connected routes no longer need", async () => {

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { aWanted } from "@/features/marketplace/test-support/wanted";
 import { WantedShareButton } from "./wanted-share-button";
 
-test("reads Share and says it opens a dialog", () => {
+test("is an icon named Share that says it opens a dialog", () => {
   render(<WantedShareButton wanted={aWanted()} />);
 
   const share = screen.getByRole("button", { name: "Share" });

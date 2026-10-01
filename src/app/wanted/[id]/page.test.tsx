@@ -301,7 +301,12 @@ describe("a request from another university", () => {
   }
 
   beforeEach(() => {
-    loadUniversityChoice.mockResolvedValue({ current: UITM, options: [UITM, UMPSA], locked: true });
+    loadUniversityChoice.mockResolvedValue({
+      current: UITM,
+      options: [UITM, UMPSA],
+      all: true,
+      own: UITM,
+    });
   });
 
   test("opens read-only, naming its university, for a member verified elsewhere", async () => {

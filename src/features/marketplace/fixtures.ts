@@ -152,7 +152,7 @@ const WANTED: readonly WantedSummary[] = [
     courseCode: "BEL422",
     courseName: "English for Academic Purposes",
     courseId: "bel422",
-    campus: "UiTM Kota Samarahan",
+    campus: "UiTM Dungun",
     campusId: "samarahan",
     resourceType: "Study pack",
     resourceTypeId: "study-pack",

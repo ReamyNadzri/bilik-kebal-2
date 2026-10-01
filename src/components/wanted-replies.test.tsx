@@ -221,18 +221,18 @@ describe("retention and live updates", () => {
     }
   });
 
-  test("an academic bounty takes questions, warns against links, and has no found button", async () => {
+  test("an academic bounty takes comments, warns against links, and has no found button", async () => {
     respond({ ok: true, data: [] });
     renderThread({ kind: "academic", isPoster: true, bountySen: 1000 });
 
-    expect(await screen.findByText("No questions yet.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Questions" })).toBeInTheDocument();
+    expect(await screen.findByText("No comments yet.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Comments" })).toBeInTheDocument();
     expect(
       screen.getByText(/Links, email addresses and chat handles are not allowed/),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Mark as/ })).not.toBeInTheDocument();
     expect(screen.queryByText("Release the bounty")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Post question" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Post comment" })).toBeInTheDocument();
   });
 });
 

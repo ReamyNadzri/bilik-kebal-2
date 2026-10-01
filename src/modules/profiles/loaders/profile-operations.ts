@@ -1,8 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { failure } from "@/contracts/operation-result";
 import type { OwnPaymentDetails, SavePaymentDetailsResult } from "@/contracts/payment-details";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import type {
   AvatarUploadResult,
+  DeleteAccountResult,
+  DisplayNameAllowance,
   ReadPublicProfileResult,
   SetAvatarResult,
   UpdateProfileResult,
@@ -33,6 +36,36 @@ export async function updateOwnProfile(input: unknown): Promise<UpdateProfileRes
   try {
     const loaded = await context();
     return loaded.service.update(loaded.actor, input);
+  } catch {
+    return unavailable();
+  }
+}
+
+/** The signed-in member's display name changes left, or null if unreadable. */
+export async function readOwnDisplayNameAllowance(): Promise<DisplayNameAllowance | null> {
+  try {
+    const client = await getRequestSupabaseClient();
+    return await new SupabaseProfileRepository(client).ownDisplayNameAllowance();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Deletes the signed-in member's account. The database anonymises and
+ * restricts the profile first; only then is the Clerk user removed, so a
+ * refusal leaves the member signed in and able to read why. A Clerk failure
+ * after the database step leaves an anonymised, restricted profile behind a
+ * login that can no longer do anything, which a retry finishes.
+ */
+export async function deleteOwnAccount(): Promise<DeleteAccountResult> {
+  try {
+    const loaded = await context();
+    const result = await loaded.service.deleteAccount(loaded.actor);
+    if (!result.ok) return result;
+    const { userId } = await auth();
+    if (userId) await (await clerkClient()).users.deleteUser(userId);
+    return result;
   } catch {
     return unavailable();
   }
