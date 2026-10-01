@@ -5,6 +5,7 @@ import { UiStatus } from "@/components/ui-status";
 import { WantedDetail } from "@/components/wanted-detail";
 import { readAccount } from "@/features/presentation/auth/require-account";
 import { loadUniversityChoice } from "@/modules/identity";
+import { viewerIsOwner } from "@/modules/wanted/loaders/wanted-report-operations";
 import {
   marketplaceNow,
   readOwnChangeWindow,
@@ -45,10 +46,11 @@ interface WantedDetailPageProps {
 export default async function WantedDetailPage({ params }: WantedDetailPageProps) {
   const { id } = await params;
   // Independent reads sharing the request's one Auth check: run together.
-  const [result, accountOutcome, university] = await Promise.all([
+  const [result, accountOutcome, university, isOwner] = await Promise.all([
     readWanted(id),
     readAccount(),
     loadUniversityChoice(),
+    viewerIsOwner(),
   ]);
 
   if (result.status === "not-found") {
@@ -115,6 +117,7 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
           account={account}
           changeWindow={changeWindow}
           otherUniversity={otherUniversity}
+          isOwner={isOwner}
         />
       )}
     </div>

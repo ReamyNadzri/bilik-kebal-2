@@ -4121,8 +4121,29 @@ textarea.form-field__input {
   color: var(--text-soft);
 }
 
-.wanted-detail__share {
+/* Share and Report, side by side at the end of the masthead. */
+.wanted-detail__tools {
+  display: inline-flex;
+  gap: var(--space-2);
   margin-left: auto;
+}
+
+.report-dialog,
+.owner-remove__form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.report-dialog__choices {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.report-dialog__done {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
 }
 
 /* The poster's own edit-or-withdraw panel, open for the first hour. */
