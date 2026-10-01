@@ -6,11 +6,11 @@ import { UiStatus } from "@/components/ui-status";
 import { marketplaceNow } from "@/features/marketplace/wanted-source";
 import { requireAccount } from "@/features/presentation/auth/require-account";
 import {
+  readOwnDisplayNameAllowance,
   readOwnPaymentDetails,
   readPublicProfile,
 } from "@/modules/profiles/loaders/profile-operations";
 import { listOwnTaxonomyRequests } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
-import { readFreeAllowance } from "@/modules/wanted/loaders/wanted-operations";
 
 export const metadata: Metadata = {
   title: "Profile | VAULTIX",
@@ -54,9 +54,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const account = outcome.account;
   // The member's own public card (bio, posted requests) comes from the same
   // read anyone else sees, so what they edit is exactly what others see.
-  const [publicProfile, allowance, entryRequests, paymentDetails] = await Promise.all([
+  const [publicProfile, nameAllowance, entryRequests, paymentDetails] = await Promise.all([
     account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
-    readFreeAllowance(),
+    readOwnDisplayNameAllowance(),
     listOwnTaxonomyRequests(),
     readOwnPaymentDetails().catch(() => "unavailable" as const),
   ]);
@@ -68,7 +68,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <div>
           <h1>Profile</h1>
           <p className="page-heading__lede mobile-hide">
-            Your requests first, then your details, verification and free requests.
+            Your requests first, then your details, verification and codes.
           </p>
         </div>
         <Link className="button button--primary" href="/wanted/new">
@@ -104,7 +104,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       <ProfileSettings
         account={account}
         bio={profile?.bio ?? null}
-        allowance={allowance.ok ? allowance.data : null}
+        nameAllowance={nameAllowance}
         entryRequests={entryRequests.ok ? entryRequests.data : null}
         paymentDetails={paymentDetails}
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { ErrorSummary } from "./error-summary";
 import { SearchSelect } from "./search-select";
@@ -28,6 +28,7 @@ import {
   saveWantedDraft,
 } from "@/features/marketplace/draft-operations";
 import { POSTING_TERMS, TERMS_STATUS, TERMS_VERSION } from "@/features/legal/terms";
+import { callOperation } from "@/features/presentation/call-operation";
 import {
   messageFor,
   toDraftFieldErrors,
@@ -340,7 +341,22 @@ function SummaryRow({ term, children }: { readonly term: string; readonly childr
  * Values live in state and are never cleared by a failure, so a refusal from
  * any step returns the reader to a form they do not have to fill in again.
  */
-export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWorkspaceProps) {
+export function WantedDraftWorkspace({
+  taxonomy: givenTaxonomy,
+  mode = "live",
+}: WantedDraftWorkspaceProps) {
+  // Tags are open: a member may add their own, which joins the list at once.
+  const [addedTags, setAddedTags] = useState<readonly TaxonomyItem[]>([]);
+  const taxonomy = useMemo(
+    () =>
+      addedTags.length === 0
+        ? givenTaxonomy
+        : { ...givenTaxonomy, tags: [...givenTaxonomy.tags, ...addedTags] },
+    [givenTaxonomy, addedTags],
+  );
+  const [newTag, setNewTag] = useState("");
+  const [tagNotice, setTagNotice] = useState<string | null>(null);
+  const [addingTag, setAddingTag] = useState(false);
   const [values, setValues] = useState<WantedDraftValues>(emptyDraft);
   const [feedback, setFeedback] = useState<Feedback>({ kind: "none" });
   const [review, setReview] = useState<ReviewState | null>(null);
@@ -406,6 +422,59 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   function chooseProgramme(programmeId: string) {
     const programme = taxonomy.programmes.find((option) => option.id === programmeId);
     update({ programmeId, facultyId: programme?.facultyId ?? values.facultyId });
+  }
+
+  /** Adds the typed tag (or finds it, whatever its case) and ticks it. */
+  async function addOwnTag() {
+    const name = newTag.trim().replace(/\s+/g, " ");
+    if (name === "" || addingTag) return;
+    setTagNotice(null);
+    const known = taxonomy.tags.find((tag) => tag.label.toLowerCase() === name.toLowerCase());
+    if (known) {
+      if (!values.tagIds.includes(known.id) && values.tagIds.length < 5) toggleTag(known.id, true);
+      setNewTag("");
+      return;
+    }
+    if (values.tagIds.length >= 5) {
+      setTagNotice("A request can have up to five tags.");
+      return;
+    }
+    if (mode === "preview") {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const tag = { id: `preview-tag-${slug}`, slug, label: name };
+      setAddedTags((current) => [...current, tag]);
+      toggleTag(tag.id, true);
+      setNewTag("");
+      return;
+    }
+    setAddingTag(true);
+    const result = await callOperation<TaxonomyItem, string>(
+      "/api/marketplace/tags",
+      { name },
+      "TAXONOMY_UNAVAILABLE",
+    );
+    setAddingTag(false);
+    if (!result.ok) {
+      setTagNotice(result.message || "The tag could not be added. Try again.");
+      return;
+    }
+    const tag = result.data;
+    setAddedTags((current) =>
+      current.some((item) => item.id === tag.id) ||
+      givenTaxonomy.tags.some((item) => item.id === tag.id)
+        ? current
+        : [...current, tag],
+    );
+    toggleTag(tag.id, true);
+    setNewTag("");
+  }
+
+  function onNewTagKey(event: KeyboardEvent<HTMLInputElement>) {
+    // Enter adds the tag rather than submitting the whole request.
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void addOwnTag();
+    }
   }
 
   function toggleTag(tagId: string, checked: boolean) {
@@ -1307,7 +1376,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
               </p>
             )}
             {taxonomy.tags.length === 0 ? (
-              <p className="form-field__hint">No tags have been added yet.</p>
+              <p className="form-field__hint">No tags yet. Add the first one below.</p>
             ) : (
               <div className="draft-form__choices">
                 {taxonomy.tags.map((tag: TaxonomyItem) => (
@@ -1323,6 +1392,44 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                 ))}
               </div>
             )}
+            <div className="form-field draft-form__new-tag">
+              <label className="form-field__label" htmlFor="wanted-new-tag">
+                Add your own tag
+              </label>
+              <p className="form-field__hint" id="wanted-new-tag-hint">
+                Any word that helps classmates find it, for example Past Year or Calculus.
+              </p>
+              {tagNotice === null ? null : (
+                <p className="form-field__error" id="wanted-new-tag-error" role="alert">
+                  {tagNotice}
+                </p>
+              )}
+              <div className="draft-form__new-tag-row">
+                <input
+                  className="form-field__input"
+                  id="wanted-new-tag"
+                  type="text"
+                  maxLength={30}
+                  autoComplete="off"
+                  value={newTag}
+                  aria-describedby={
+                    tagNotice === null
+                      ? "wanted-new-tag-hint"
+                      : "wanted-new-tag-hint wanted-new-tag-error"
+                  }
+                  onChange={(event) => setNewTag(event.target.value)}
+                  onKeyDown={onNewTagKey}
+                />
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => void addOwnTag()}
+                  disabled={addingTag || newTag.trim().length < 2 || values.tagIds.length >= 5}
+                >
+                  {addingTag ? "Adding…" : "Add tag"}
+                </button>
+              </div>
+            </div>
           </fieldset>
         ) : null}
       </section>

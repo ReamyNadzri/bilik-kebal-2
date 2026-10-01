@@ -126,6 +126,10 @@
   --pin-selected: #1f4d34;
   --pin-edge: #f3e6c8;
 
+  /* Every notice on the Board (WANTED and MISSING) is at least this tall, so
+     posters side by side match from top to bottom; longer content grows it. */
+  --poster-min-height: 33rem;
+
   /* Textures — original pixel-art assets from the handoff, in public/brand. */
   --texture-ground: url("/brand/dark-timber.webp");
   --texture-paper: url("/brand/paper.webp");
@@ -3046,6 +3050,7 @@ textarea.form-field__input {
 .wanted-card__frame {
   --poster-tilt: 0deg;
 
+  min-height: var(--poster-min-height);
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
@@ -5219,6 +5224,25 @@ textarea.form-field__input {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+/* A member's own tag: a text box and Add, side by side from phone width up. */
+.draft-form__new-tag {
+  margin-top: var(--space-4);
+}
+
+.draft-form__new-tag-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.draft-form__new-tag-row .form-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.draft-form__new-tag-row .button {
+  flex: none;
 }
 
 /* Each choice is its own hit area at least 44 px tall, so a thumb on a narrow
@@ -9425,30 +9449,56 @@ button.capture-poster__hunt {
    -------------------------------------------------------------------------- */
 
 .missing-poster {
+  /* The same paper, padding and pin as a WANTED poster (request, 2026-10-02):
+     every notice on the Board is one family. */
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 0.625rem;
   width: 100%;
-  padding: 12px;
+  padding: 0.875rem 0.875rem 0.75rem;
   text-align: center;
   text-decoration: none;
   background:
-    linear-gradient(
-      var(--poster-crease),
-      rgb(0 0 0 / 0) 46%,
-      var(--poster-aged-crease-dark) 49.5%,
-      var(--poster-aged-crease-light) 50.5%,
-      rgb(0 0 0 / 0) 54%
-    ),
-    radial-gradient(ellipse at var(--poster-stain), var(--poster-aged-stain), rgb(0 0 0 / 0) 42%),
-    radial-gradient(ellipse at 50% 40%, var(--poster-aged-glow), rgb(0 0 0 / 0) 70%),
-    linear-gradient(var(--poster-aged-wash), var(--poster-aged-wash)),
-    var(--texture-paper) center / cover,
-    var(--poster-aged-paper);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--poster-aged-shadow);
-  color: var(--poster-aged-ink);
+    linear-gradient(var(--paper-wash), var(--paper-wash)),
+    var(--texture-paper) center / cover no-repeat,
+    var(--bg-poster);
+  border: var(--border-width-1) solid var(--border-poster);
+  box-shadow: var(--shadow-poster);
+  color: var(--text-poster);
   transition: transform 140ms var(--motion-ease);
+}
+
+/* As tall as a WANTED card on the wall and the homepage; the picture frame
+   takes the extra height. The profile's own large copy keeps its size. On a
+   phone the wall's columns are narrow, so there it keeps WANTED's proportion
+   instead of a height made for a 15rem column. */
+.missing-poster--wall,
+.missing-poster--flat {
+  min-height: var(--poster-min-height);
+}
+
+@media (max-width: 40rem) {
+  .missing-poster--wall {
+    min-height: 0;
+    aspect-ratio: 12 / 25;
+  }
+}
+
+.missing-poster--wall .missing-poster__frame,
+.missing-poster--flat .missing-poster__frame {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.missing-poster--wall .missing-poster__photo,
+.missing-poster--flat .missing-poster__photo {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: auto;
+  object-position: 50% 20%;
 }
 
 /* On the wall the slot carries the tilt, so it can move the poster as a whole. */
@@ -9459,7 +9509,7 @@ button.capture-poster__hunt {
 
 a.missing-poster:hover,
 a.missing-poster:focus-visible {
-  color: var(--poster-aged-ink);
+  color: var(--text-poster);
   transform: translateY(-6px) scale(1.05);
 }
 
@@ -9468,43 +9518,39 @@ a.missing-poster:focus-visible {
   left: 50%;
 }
 
-.missing-poster--pin .missing-poster__fixing {
-  top: -7px;
-  width: 14px;
-  height: 14px;
-  margin-left: -7px;
-  background: var(--pin);
-  border: var(--border-width-2) solid var(--pin-edge);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--poster-pin-shadow);
-}
-
+/* One pin for every poster, as on a WANTED poster. */
+.missing-poster--pin .missing-poster__fixing,
 .missing-poster--tape .missing-poster__fixing {
   top: -9px;
-  width: 62px;
-  height: 20px;
-  margin-left: -31px;
-  background: var(--poster-tape);
-  box-shadow: var(--poster-tape-shadow);
-  transform: rotate(-4deg);
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  background: var(--accent-primary);
+  border: var(--border-width-2) solid var(--pin-edge);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-pin);
 }
 
 .missing-poster__heading {
+  /* The WANTED masthead: the same size, weight and double rule. */
   display: block;
+  padding-bottom: 0.375rem;
+  border-bottom: 3px double var(--border-strong);
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2vw, 1.625rem);
+  font-size: clamp(1.75rem, 3vw, 2.375rem);
   line-height: 1;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--poster-aged-heading);
+  color: var(--text-poster);
 }
 
 .missing-poster__frame {
+  /* Framed like a WANTED poster's picture. */
   display: block;
-  margin-top: 8px;
   padding: 3px;
-  background: var(--poster-photo-frame);
-  border: var(--border-width-1) solid var(--poster-photo-edge);
+  background: var(--bg-emblem);
+  border: var(--border-width-2) solid var(--border-strong);
 }
 
 .missing-poster .missing-poster__photo {
@@ -9526,8 +9572,8 @@ a.missing-poster:focus-visible {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  margin-top: 8px;
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 800;
   line-height: var(--leading-tight);
   letter-spacing: 0.02em;
@@ -9538,15 +9584,15 @@ a.missing-poster:focus-visible {
 
 .missing-poster__institution {
   display: block;
-  margin-top: 3px;
-  font-size: var(--text-xs);
+  margin-top: -0.375rem;
+  font-size: 0.8125rem;
   line-height: 1.3;
-  color: var(--poster-aged-muted);
+  color: var(--text-poster);
 }
 
 .missing-poster__since {
   display: block;
-  margin-top: 6px;
+  margin-top: auto;
   padding-top: 5px;
   border-top: var(--border-width-1) dashed var(--border-poster);
   font-family: var(--font-pixel);
@@ -9921,10 +9967,12 @@ a.missing-poster:focus-visible {
 
 .home-hunters__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
-  gap: 26px 18px;
+  /* The same columns, gaps and padding as the Wanted cards above, so the
+     posters come out the same size. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 1.75rem 1.25rem;
   margin: 0;
-  padding: 10px 12px;
+  padding: var(--space-3) 0 0;
   list-style: none;
 }
 

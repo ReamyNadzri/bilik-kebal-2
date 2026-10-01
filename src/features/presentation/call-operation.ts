@@ -24,7 +24,7 @@ export async function callOperation<TData, TCode extends string>(
   body: unknown,
   unavailableCode: TCode,
   /** Select an explicit write method; defaults to `POST` for create actions. */
-  method: "POST" | "PUT" | "PATCH" = "POST",
+  method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST",
 ): Promise<OperationResult<TData, TCode>> {
   return requestOperation<TData, TCode>(
     path,

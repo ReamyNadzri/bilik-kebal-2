@@ -123,6 +123,46 @@ async function reachReview() {
 }
 
 describe("the intake form", () => {
+  test("adds a member's own tag and ticks it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        ok: true,
+        data: {
+          id: "99999999-9999-4999-8999-999999999999",
+          slug: "kalkulus-lanjutan-ab12cd",
+          label: "Kalkulus Lanjutan",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWorkspace();
+
+    fireEvent.change(screen.getByLabelText(/^Add your own tag/), {
+      target: { value: "  Kalkulus   Lanjutan " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add tag" }));
+
+    expect(await screen.findByRole("checkbox", { name: "Kalkulus Lanjutan" })).toBeChecked();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/marketplace/tags",
+      expect.objectContaining({ body: JSON.stringify({ name: "Kalkulus Lanjutan" }) }),
+    );
+    expect(screen.getByLabelText(/^Add your own tag/)).toHaveValue("");
+    vi.unstubAllGlobals();
+  });
+
+  test("ticks an existing tag typed in any case, without adding a new one", () => {
+    renderWorkspace();
+
+    fireEvent.change(screen.getByLabelText(/^Add your own tag/), {
+      target: { value: "past YEAR" },
+    });
+    fireEvent.keyDown(screen.getByLabelText(/^Add your own tag/), { key: "Enter" });
+
+    expect(screen.getByRole("checkbox", { name: "Past year" })).toBeChecked();
+    expect(screen.getAllByRole("checkbox", { name: /past year/i })).toHaveLength(1);
+  });
+
   test("asks for every part of the request", () => {
     renderWorkspace();
 

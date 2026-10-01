@@ -9,7 +9,21 @@ export type ProfileOperationCode =
   | "VALIDATION_ERROR"
   | "PROFILE_NOT_FOUND"
   | "AVATAR_NOT_UPLOADED"
+  | "DISPLAY_NAME_LIMIT"
+  | "ACCOUNT_TOO_NEW"
+  | "ACCOUNT_HAS_OPEN_ITEMS"
   | "PROFILE_UNAVAILABLE";
+
+/** Display name changes: 2 for every member, plus any a reward code adds. */
+export interface DisplayNameAllowance {
+  base: number;
+  bonus: number;
+  used: number;
+  remaining: number;
+}
+
+/** Account deletion opens this many days after the account was created. */
+export const ACCOUNT_DELETION_MIN_AGE_DAYS = 30;
 
 /** Avatar object keys live in the public `avatars` bucket under the owner's public id. */
 export const AVATAR_OBJECT_KEY =
@@ -55,6 +69,7 @@ export type UpdateProfileResult = OperationResult<
   { displayName: string; bio: string | null },
   ProfileOperationCode
 >;
+export type DeleteAccountResult = OperationResult<{ deleted: true }, ProfileOperationCode>;
 export type AvatarUploadResult = OperationResult<
   { objectKey: string; signedUrl: string; token: string },
   ProfileOperationCode
