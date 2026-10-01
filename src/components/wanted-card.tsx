@@ -7,6 +7,12 @@ export interface WantedCardProps {
   readonly wanted: WantedSummary;
   /** Reference instant for relative times. Never read from the clock here. */
   readonly now: string;
+  /**
+   * The university this request belongs to, when it is not the reader's own:
+   * the poster is greyed out and says it is view-only. Null or absent for an
+   * actionable request.
+   */
+  readonly viewOnlyAt?: string | null;
 }
 
 /**
@@ -29,12 +35,12 @@ export interface WantedCardProps {
  * server request per poster on sight, for a Board of dozens — and the click
  * would still wait for the page.
  */
-export function WantedCard({ wanted, now }: WantedCardProps) {
+export function WantedCard({ wanted, now, viewOnlyAt = null }: WantedCardProps) {
   const href = `/wanted/${wanted.id}`;
   const titleId = `wanted-${wanted.id}-title`;
 
   return (
-    <li className="wanted-card">
+    <li className={`wanted-card${viewOnlyAt === null ? "" : " wanted-card--view-only"}`}>
       <WantedPoster
         wanted={wanted}
         now={now}
@@ -50,21 +56,26 @@ export function WantedCard({ wanted, now }: WantedCardProps) {
           </h3>
         }
         footer={
-          <div className="wanted-card__actions">
-            <ShotLink
-              className="button button--ink wanted-card__action"
-              href={href}
-              prefetch={false}
-              aria-label={`View this Wanted: ${wanted.title}`}
-            >
-              View Wanted
-            </ShotLink>
-            <WantedShareButton
-              wanted={wanted}
-              className="button button--secondary wanted-card__share"
-              label={`Share this Wanted: ${wanted.title}`}
-            />
-          </div>
+          <>
+            {viewOnlyAt === null ? null : (
+              <p className="wanted-card__view-only">{viewOnlyAt} request · view only</p>
+            )}
+            <div className="wanted-card__actions">
+              <ShotLink
+                className="button button--ink wanted-card__action"
+                href={href}
+                prefetch={false}
+                aria-label={`View this Wanted: ${wanted.title}`}
+              >
+                View Wanted
+              </ShotLink>
+              <WantedShareButton
+                wanted={wanted}
+                className="button button--secondary wanted-card__share"
+                label={`Share this Wanted: ${wanted.title}`}
+              />
+            </div>
+          </>
         }
       />
     </li>

@@ -11,6 +11,7 @@ import { listWanted, marketplaceNow } from "@/features/marketplace/wanted-source
 import { huntersHref, parseHuntersParams } from "@/features/presentation/hunters-params";
 import { listPublicHunters } from "@/modules/profiles/loaders/hunters-operations";
 import { loadUniversityChoice } from "@/modules/identity";
+import { universityLabel, viewOnlyUniversities } from "@/contracts/universities";
 import { loadMarketplaceTaxonomy } from "@/modules/taxonomy/loaders/taxonomy-read";
 
 export const metadata: Metadata = {
@@ -85,7 +86,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
             Browse open academic requests
             {university === null
               ? " across Malaysian campuses"
-              : ` at ${university.current.shortName}`}
+              : ` at ${universityLabel(university)}`}
             . Back a request or submit a claim.
           </p>
         </div>
@@ -121,6 +122,7 @@ export default async function BoardPage({ searchParams }: BoardPageProps) {
           items={board.data}
           taxonomy={taxonomy}
           now={marketplaceNow()}
+          viewOnly={viewOnlyUniversities(university)}
         />
       )}
     </div>
@@ -149,7 +151,7 @@ async function huntersView(params: Record<string, string | string[] | undefined>
         <HuntersWall
           key={`${hunters.data.pageSize}:${hunters.data.page}`}
           initial={hunters.data}
-          {...(university === null ? {} : { universityLabel: university.current.shortName })}
+          {...(university === null ? {} : { universityLabel: universityLabel(university) })}
         />
       ) : (
         <>

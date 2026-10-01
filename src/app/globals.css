@@ -3218,6 +3218,29 @@ textarea.form-field__input {
   width: 100%;
 }
 
+/* Another university's request, for a member verified elsewhere: greyed out,
+   still readable and openable, and labelled in words, not by colour alone. */
+.wanted-card--view-only > .wanted-card__frame {
+  filter: grayscale(1);
+  opacity: 0.72;
+}
+
+.wanted-card--view-only > .wanted-card__frame:hover,
+.wanted-card--view-only > .wanted-card__frame:focus-within {
+  opacity: 1;
+}
+
+.wanted-card__view-only {
+  margin: 0 0 var(--space-2);
+  max-width: none;
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--text-poster);
+}
+
 /* View Wanted fills the row; Share is a square icon button beside it. */
 .wanted-card__actions {
   display: flex;
@@ -7851,11 +7874,6 @@ textarea.form-field__input {
   color: var(--text-primary);
 }
 
-.university-switch--locked {
-  padding-bottom: var(--space-2);
-  font-size: var(--text-sm);
-}
-
 .university-switch__legend {
   float: left;
   width: 100%;
@@ -7885,7 +7903,7 @@ textarea.form-field__input {
   cursor: pointer;
 }
 
-.university-switch__option span {
+.university-switch__option > span {
   display: inline-block;
   min-width: 5.5rem;
   min-height: 2.75rem;
@@ -7906,6 +7924,19 @@ textarea.form-field__input {
 .university-switch__option input:focus-visible + span {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* Another university than the member's own: readable, not actionable. */
+.university-switch__option--view-only > span {
+  border-style: dashed;
+  background: var(--stamp-neutral-bg);
+  color: var(--text-muted);
+}
+
+.university-switch__option--view-only input:checked + span {
+  border-color: var(--text-muted);
+  background: var(--text-muted);
+  color: var(--bg-surface);
 }
 
 .university-switch__hint {

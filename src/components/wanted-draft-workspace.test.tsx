@@ -85,6 +85,14 @@ function chooseProgramme(typed: string, option: string) {
   fireEvent.click(screen.getByRole("option", { name: option }));
 }
 
+/** Types into the faculty search and chooses the option it offers. */
+function chooseFaculty(typed: string, option: string) {
+  fireEvent.change(screen.getByRole("combobox", { name: /^Faculty or college/ }), {
+    target: { value: typed },
+  });
+  fireEvent.click(screen.getByRole("option", { name: option }));
+}
+
 function review() {
   fireEvent.click(screen.getByRole("button", { name: /^Review request/ }));
 }
@@ -93,7 +101,7 @@ function review() {
 function fillValidDraft() {
   set(/^Title/, "Final exam notes for the whole syllabus");
   set(/^Campus/, TAXONOMY_ID.campus);
-  set(/^Faculty or college/, TAXONOMY_ID.faculty);
+  chooseFaculty("computing", "Faculty of Computing");
   chooseProgramme("computer", "Bachelor of Computer Science");
   set(/^Course code/, "csc510");
   set(/^Academic session/, TAXONOMY_ID.session);
@@ -251,7 +259,7 @@ describe("the intake form", () => {
     fireEvent.change(search, { target: { value: "bachelor" } });
     expect(screen.getAllByRole("option", { name: /^Bachelor/ })).toHaveLength(2);
 
-    set(/^Faculty or college/, TAXONOMY_ID.otherFaculty);
+    chooseFaculty("law", "Faculty of Law");
     fireEvent.change(search, { target: { value: "bachelor" } });
     expect(screen.getAllByRole("option", { name: /^Bachelor/ })).toHaveLength(1);
     expect(screen.getByRole("option", { name: "Bachelor of Legal Studies" })).toBeInTheDocument();
@@ -262,7 +270,9 @@ describe("the intake form", () => {
 
     chooseProgramme("legal", "Bachelor of Legal Studies");
 
-    expect(screen.getByLabelText(/^Faculty or college/)).toHaveValue(TAXONOMY_ID.otherFaculty);
+    expect(screen.getByRole("combobox", { name: /^Faculty or college/ })).toHaveValue(
+      "Faculty of Law",
+    );
     expect(screen.getByRole("combobox", { name: /^Programme/ })).toHaveValue(
       "Bachelor of Legal Studies",
     );
@@ -273,7 +283,7 @@ describe("the intake form", () => {
 
     chooseProgramme("computer", "Bachelor of Computer Science");
     set(/^Course code/, "CSC510");
-    set(/^Faculty or college/, TAXONOMY_ID.otherFaculty);
+    chooseFaculty("law", "Faculty of Law");
 
     expect(screen.getByRole("combobox", { name: /^Programme/ })).toHaveValue("");
     expect(screen.getByLabelText(/^Course code/)).toHaveValue("CSC510");

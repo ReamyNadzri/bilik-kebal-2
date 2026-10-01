@@ -7,6 +7,7 @@ import { WantedCard } from "@/components/wanted-card";
 import { UniversitySwitch } from "@/components/university-switch";
 import { listFeaturedWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
 import { loadUniversityChoice } from "@/modules/identity";
+import { viewOnlyUniversities } from "@/contracts/universities";
 import { sampleHunters } from "@/modules/profiles/loaders/hunters-operations";
 
 export const metadata: Metadata = {
@@ -83,6 +84,7 @@ export default async function HomePage() {
     sampleHunters(6),
     loadUniversityChoice(),
   ]);
+  const viewOnly = viewOnlyUniversities(university);
   const now = marketplaceNow();
 
   return (
@@ -252,7 +254,12 @@ export default async function HomePage() {
           <div className="board-surface">
             <ul className="wanted-grid wanted-grid--rail" aria-label="Open Wanted requests">
               {featured.data.map((wanted) => (
-                <WantedCard key={wanted.id} wanted={wanted} now={now} />
+                <WantedCard
+                  key={wanted.id}
+                  wanted={wanted}
+                  now={now}
+                  viewOnlyAt={viewOnly[wanted.institutionId ?? ""] ?? null}
+                />
               ))}
             </ul>
           </div>

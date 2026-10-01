@@ -24,6 +24,7 @@ import type {
 } from "@/contracts/marketplace";
 import type { ListWantedQuery, ListWantedResult, ReadWantedResult } from "@/contracts/marketplace";
 import { failure, success } from "@/contracts/operation-result";
+import { scopedInstitutionId } from "@/contracts/universities";
 import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -153,15 +154,16 @@ async function readContext() {
 }
 
 /**
- * The Board of the reader's university: a verified member's own, anyone
- * else's choice. The university is the server's, never the query string's.
+ * The Board of the university the reader chose, or of every university under
+ * "All". The university is the server's, never the query string's.
  */
 export async function listPublicWanted(query: ListWantedQuery): Promise<ListWantedResult> {
   try {
     const [loaded, university] = await Promise.all([readContext(), loadUniversityChoice()]);
     const scoped: ListWantedQuery = { ...query };
     delete scoped.institutionId;
-    if (university !== null) scoped.institutionId = university.current.id;
+    const institutionId = scopedInstitutionId(university);
+    if (institutionId !== null) scoped.institutionId = institutionId;
     return loaded.service.list(loaded.actor, scoped);
   } catch {
     return failure(
@@ -343,7 +345,7 @@ export async function listCampusRegions(): Promise<ListCampusRegionsResult> {
     const [loaded, university] = await Promise.all([readContext(), loadUniversityChoice()]);
     const regions = await new SupabaseWantedRepository(
       createSupabaseAdminClient(),
-    ).listCampusRegions(university?.current.id ?? null);
+    ).listCampusRegions(scopedInstitutionId(university));
     const canSeeCounts = loaded.actor?.emailVerified === true;
     return success(
       regions.map((region): CampusRegion =>

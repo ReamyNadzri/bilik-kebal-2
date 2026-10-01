@@ -1201,13 +1201,15 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
           ) : null}
           {isAcademic ? (
             <>
-              <SelectField
+              <SearchSelect
                 id="wanted-faculty"
                 label="Faculty or college"
-                hint="Filled in when you choose a programme. Choose one first to narrow the programmes."
+                hint="Type part of its name, for example Sains Komputer. Filled in when you choose a programme; choose one first to narrow the programmes."
                 value={values.facultyId}
                 options={taxonomy.faculties}
-                placeholder="Choose a faculty"
+                placeholder="Search faculties and colleges"
+                noun="faculty"
+                nounPlural="faculties"
                 error={errorFor("wanted-faculty")}
                 onChange={chooseFaculty}
               />
