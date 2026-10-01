@@ -164,12 +164,12 @@ describe("claim-operations", () => {
       expect(result).toEqual({ ok: true, data: { claimId: "claim-abc" } });
     });
 
-    it("handles launch-gate refusal UPLOAD_UNAVAILABLE", async () => {
+    it("handles launch-gate refusal UPLOADS_DISABLED", async () => {
       vi.mocked(global.fetch).mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             ok: false,
-            code: "UPLOAD_UNAVAILABLE",
+            code: "UPLOADS_DISABLED",
             message: "Public uploads are currently disabled.",
           }),
           {
@@ -190,7 +190,7 @@ describe("claim-operations", () => {
 
       expect(result).toEqual({
         ok: false,
-        code: "UPLOAD_UNAVAILABLE",
+        code: "UPLOADS_DISABLED",
         message: "Public uploads are currently disabled.",
       });
     });

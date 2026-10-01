@@ -28,7 +28,9 @@ export interface ClaimSubmissionFormProps {
  * - Client-side validation before any network request.
  * - Explicit rights confirmation and optional free-release opt-in checkboxes.
  * - Direct upload to quarantine storage without streaming bytes through Next.js server.
- * - Launch-gate awareness: informative notice when uploads are disabled (UPLOAD_UNAVAILABLE).
+ * - Launch-gate awareness: informative notice when uploads are disabled (UPLOADS_DISABLED).
+ *   Any other failure to start the upload (UPLOAD_UNAVAILABLE) is said as a failure, never as
+ *   the switch being off.
  */
 export function ClaimSubmissionForm({
   wanted,
@@ -129,10 +131,15 @@ export function ClaimSubmissionForm({
       setErrorMessage(
         "The bounty is paid by bank transfer to the account on your profile, so add your phone number and bank account before claiming. No file was uploaded.",
       );
-    } else if (result.code === "UPLOAD_UNAVAILABLE") {
+    } else if (result.code === "UPLOADS_DISABLED") {
       setErrorHeading("Uploads are switched off");
       setErrorMessage(
         "Claim uploads are not open yet while file screening is being set up. No file was uploaded.",
+      );
+    } else if (result.code === "UPLOAD_UNAVAILABLE") {
+      setErrorHeading("The upload could not start");
+      setErrorMessage(
+        "No file was uploaded and nothing was submitted. Check your connection and try again.",
       );
     } else {
       setErrorHeading("Submission failed");

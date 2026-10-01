@@ -1393,3 +1393,25 @@ on a bounty; "banner" means the Owner-awarded badge (Owner, 1st, Developer…); 
   needs an appeal path (the terms do not promise one); whether reviewers should be notified of new
   reports; with `PUBLIC_UPLOADS_ENABLED=true` but no scanner worker deployed, claims are expected
   to wait in Screening.
+
+### 2026-10-02 follow-up: forfeiture applied; claim uploads fixed
+
+- `202610190005_owner_removal_forfeiture.sql` **applied** to Supabase Cloud at the user's word
+  ("migrate it"); checked afterwards: function present, not executable by `anon`, `forfeiture`
+  ledger kind and its unique index present. The forfeiture branch is still covered only by
+  `supabase/tests/local/owner_removal_forfeiture.sql`, not yet run.
+- Report (user): `PUBLIC_UPLOADS_ENABLED=true` but the claim form still said "Uploads are switched
+  off". Cause: the private `quarantine` bucket had no storage policy, so signing a claim upload
+  with the member's session always failed, and that failure used the same `UPLOAD_UNAVAILABLE`
+  code the form words as "switched off". The failed attempt also left its claim in `uploading`,
+  which blocked a retry of the same file (claims are unique per Wanted and checksum).
+- Migration `202610190006_claim_upload_storage.sql` (applied after a rolled-back dry run on
+  Cloud): `quarantine_insert_own_upload_slot` lets a member insert only the object their own open,
+  unexpired upload session names (no read, update or delete); a before-insert trigger withdraws
+  the member's own abandoned `uploading` claim of the same file on the same Wanted. Dry run: the
+  stuck claim's member could start a new session for the same file, the old claim became
+  `withdrawn`, the new slot was open for its object only, and not for another member.
+- The gate now answers `UPLOADS_DISABLED` ("Uploads are switched off"); any other failure to start
+  is `UPLOAD_UNAVAILABLE`, worded as a failure to retry.
+- Not verified: an end-to-end upload from the deployed site (needs this branch deployed and the
+  variable live in that deployment). Screening still needs the scanner worker.
