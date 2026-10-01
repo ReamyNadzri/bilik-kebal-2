@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { Avatar } from "./avatar";
 import { AvatarEditor } from "./avatar-editor";
+import { AvatarPixelArt } from "./avatar-pixel-art";
 import type { AccountViewModel } from "@/contracts";
 import { ACCOUNT_DELETION_MIN_AGE_DAYS, type DisplayNameAllowance } from "@/contracts/profiles";
 import type { OwnPaymentDetails } from "@/contracts/payment-details";
@@ -274,6 +275,17 @@ export function ProfileSettings({
         >
           Upload your own photo
         </button>
+        <AvatarPixelArt
+          disabled={busy !== null}
+          onError={(text) => setPictureNotice({ kind: "error", text })}
+          onSaved={async (url) => {
+            setAvatarUrl(url);
+            setPreset(null);
+            setPictureNotice({ kind: "ok", text: "Pixel picture saved." });
+            await refreshAccount();
+            router.refresh();
+          }}
+        />
         {account.publicId ? (
           <Link className="hunter-card__public" href={`/u/${account.publicId}`}>
             View your public profile

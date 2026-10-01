@@ -4192,6 +4192,44 @@ textarea.form-field__input {
   color: var(--text-soft);
 }
 
+/* The fifty pixel drawings, offered as a profile picture. */
+.avatar-drawings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
+  gap: var(--space-2);
+  max-height: min(60vh, 26rem);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.avatar-drawings__choice {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: var(--space-1);
+  background: var(--bg-emblem);
+  border: var(--border-width-2) solid var(--border-strong);
+  cursor: pointer;
+}
+
+.avatar-drawings__choice:hover,
+.avatar-drawings__choice:focus-visible {
+  border-color: var(--accent-primary);
+}
+
+.avatar-drawings__choice:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.avatar-drawings__choice .resource-emblem {
+  width: 100%;
+  max-width: none;
+}
+
 /* Share and Report, side by side at the end of the masthead. */
 .wanted-detail__tools {
   display: inline-flex;

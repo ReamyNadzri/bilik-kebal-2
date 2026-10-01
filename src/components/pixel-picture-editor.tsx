@@ -16,6 +16,10 @@ export interface PixelPictureEditorProps {
   /** Called with the pixelated PNG, ready to upload once the Wanted exists. */
   readonly onDone: (picture: { blob: Blob; previewUrl: string }) => void;
   readonly onClose: () => void;
+  /** The dialog's title; the profile picture uses its own words. */
+  readonly heading?: string;
+  /** The sentence under the title. */
+  readonly lede?: string;
 }
 
 const STAGE_PX = 240;
@@ -36,7 +40,12 @@ function backdropColour(): string {
  * Everything happens in the browser; only the small pixelated PNG leaves the
  * device, without the original's camera metadata.
  */
-export function PixelPictureEditor({ onDone, onClose }: PixelPictureEditorProps) {
+export function PixelPictureEditor({
+  onDone,
+  onClose,
+  heading = "Upload your own picture",
+  lede = "It is turned into pixel art and shown small on your poster, where everyone can see it. Use a picture you have the right to share. A Sheriff can remove it.",
+}: PixelPictureEditorProps) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [framing, setFraming] = useState<Framing>(START_FRAMING);
   const [cells, setCells] = useState<PixelGrid>(24);
@@ -159,7 +168,7 @@ export function PixelPictureEditor({ onDone, onClose }: PixelPictureEditorProps)
       <div className="dialog pixel-editor">
         <div className="dialog__head">
           <h2 id="pixel-editor-title" className="dialog__title">
-            Upload your own picture
+            {heading}
           </h2>
           <button
             type="button"
@@ -172,10 +181,7 @@ export function PixelPictureEditor({ onDone, onClose }: PixelPictureEditorProps)
           </button>
         </div>
 
-        <p className="dialog__lede">
-          It is turned into pixel art and shown small on your poster, where everyone can see it. Use
-          a picture you have the right to share. A Sheriff can remove it.
-        </p>
+        <p className="dialog__lede">{lede}</p>
 
         {error ? (
           <p className="ops-alert ops-alert--error" role="alert">
