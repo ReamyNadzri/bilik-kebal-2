@@ -8,6 +8,8 @@ import { Avatar } from "./avatar";
 import { AvatarEditor } from "./avatar-editor";
 import type { AccountViewModel } from "@/contracts";
 import type { FreeRequestAllowance } from "@/contracts/marketplace";
+import type { OwnPaymentDetails } from "@/contracts/payment-details";
+import { PaymentDetailsForm } from "./payment-details-form";
 import { REWARD_CODE_MESSAGES, type RewardCodeOutcome } from "@/contracts/rewards";
 import { TAXONOMY_CATEGORY_LABEL, type TaxonomyRequestView } from "@/contracts/taxonomy-requests";
 import { isExternalAvatarUrl, presetAvatarPath, AVATAR_PRESET_COUNT } from "@/lib/avatars";
@@ -20,6 +22,8 @@ export interface ProfileSettingsProps {
   readonly bio: string | null;
   readonly allowance: FreeRequestAllowance | null;
   readonly entryRequests: readonly TaxonomyRequestView[] | null;
+  /** Phone and bank for refunds and payouts; "unavailable" when it could not be read. */
+  readonly paymentDetails?: OwnPaymentDetails | null | "unavailable";
 }
 
 const PRESETS = Array.from({ length: AVATAR_PRESET_COUNT }, (_, index) => index);
@@ -50,7 +54,13 @@ function NoticeLine({ notice }: { readonly notice: Notice }) {
  * codes and the list entries they asked a Sheriff to add. The email address is
  * shown to the member only and cannot be changed here.
  */
-export function ProfileSettings({ account, bio, allowance, entryRequests }: ProfileSettingsProps) {
+export function ProfileSettings({
+  account,
+  bio,
+  allowance,
+  entryRequests,
+  paymentDetails = null,
+}: ProfileSettingsProps) {
   const router = useRouter();
   const { refreshAccount } = useAuth();
   const { user: clerkUser } = useUser();
@@ -327,6 +337,8 @@ export function ProfileSettings({ account, bio, allowance, entryRequests }: Prof
             quality.
           </p>
         </section>
+
+        <PaymentDetailsForm details={paymentDetails} />
 
         <form
           className="panel profile-card"

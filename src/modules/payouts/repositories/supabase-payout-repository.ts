@@ -6,7 +6,16 @@ import type {
   RefundTaskStatus,
   RefundTaskView,
 } from "@/contracts/payouts";
+import { bankName, type PaymentRecipient } from "@/contracts/payment-details";
 import type { PayoutRepository } from "./payout-repository";
+
+interface RecipientRow {
+  user_id: string;
+  phone_e164: string;
+  bank_code: string;
+  account_holder_name: string;
+  account_number: string;
+}
 
 interface PayoutTaskRow {
   id: string;
@@ -17,6 +26,7 @@ interface PayoutTaskRow {
   fee_rate_basis_points: number;
   platform_fee_sen: number;
   net_payout_sen: number;
+  test_money?: boolean;
   status: Database["public"]["Enums"]["payout_task_status"];
   external_reference: string | null;
   payout_method: string | null;
@@ -33,6 +43,8 @@ interface RefundTaskRow {
   contribution_id: string;
   contributor_user_id: string;
   amount_sen: number;
+  fee_sen?: number;
+  test_money?: boolean;
   status: Database["public"]["Enums"]["refund_task_status"];
   external_reference: string | null;
   refund_method: string | null;
@@ -46,13 +58,37 @@ interface RefundTaskRow {
 export class SupabasePayoutRepository implements PayoutRepository {
   constructor(private readonly client: SupabaseClient<Database>) {}
 
+  /**
+   * Bank details for members with a pending task (migration 202610180001).
+   * The database answers only the Owner; anyone else gets an empty map, so a
+   * Platform Sheriff sees the queue without the account numbers.
+   */
+  private async recipients(userIds: readonly string[]): Promise<Map<string, PaymentRecipient>> {
+    const found = new Map<string, PaymentRecipient>();
+    if (userIds.length === 0) return found;
+    const { data, error } = await (this.client as unknown as SupabaseClient).rpc(
+      "owner_payment_recipients",
+      { target_user_ids: [...new Set(userIds)] },
+    );
+    if (error) return found;
+    for (const row of (data ?? []) as RecipientRow[]) {
+      found.set(row.user_id, {
+        accountHolderName: row.account_holder_name,
+        accountNumber: row.account_number,
+        bankName: bankName(row.bank_code),
+        phone: row.phone_e164,
+      });
+    }
+    return found;
+  }
+
   async listPayoutTasks(status?: string): Promise<PayoutTaskView[]> {
     let query = this.client
       .from("payout_tasks")
       .select(
         `
         id, wanted_request_id, claim_id, hunter_user_id,
-        gross_bounty_sen, fee_rate_basis_points, platform_fee_sen, net_payout_sen,
+        gross_bounty_sen, fee_rate_basis_points, platform_fee_sen, net_payout_sen, test_money,
         status, external_reference, payout_method, evidence_notes,
         completed_at, owner_user_id, created_at,
         hunter_profile:profiles!payout_tasks_hunter_user_id_fkey(display_name)
@@ -68,6 +104,9 @@ export class SupabasePayoutRepository implements PayoutRepository {
     if (error) throw error;
 
     const rows = (data ?? []) as unknown as PayoutTaskRow[];
+    const recipients = await this.recipients(
+      rows.filter((row) => row.status === "pending").map((row) => row.hunter_user_id),
+    );
 
     return rows.map((row) => ({
       id: row.id,
@@ -81,6 +120,8 @@ export class SupabasePayoutRepository implements PayoutRepository {
       feeRateBasisPoints: Number(row.fee_rate_basis_points),
       platformFeeSen: Number(row.platform_fee_sen),
       netPayoutSen: Number(row.net_payout_sen),
+      testMoney: row.test_money === true,
+      recipient: row.status === "pending" ? (recipients.get(row.hunter_user_id) ?? null) : null,
       status: row.status as PayoutTaskStatus,
       externalReference: row.external_reference,
       payoutMethod: row.payout_method,
@@ -115,7 +156,7 @@ export class SupabasePayoutRepository implements PayoutRepository {
       .select(
         `
         id, wanted_request_id, contribution_id, contributor_user_id,
-        amount_sen, status, external_reference, refund_method, evidence_notes,
+        amount_sen, fee_sen, test_money, status, external_reference, refund_method, evidence_notes,
         completed_at, owner_user_id, created_at,
         contributor_profile:profiles!refund_tasks_contributor_user_id_fkey(display_name)
       `,
@@ -130,6 +171,9 @@ export class SupabasePayoutRepository implements PayoutRepository {
     if (error) throw error;
 
     const rows = (data ?? []) as unknown as RefundTaskRow[];
+    const recipients = await this.recipients(
+      rows.filter((row) => row.status === "pending").map((row) => row.contributor_user_id),
+    );
 
     return rows.map((row) => ({
       id: row.id,
@@ -140,6 +184,10 @@ export class SupabasePayoutRepository implements PayoutRepository {
         ? { contributorDisplayName: row.contributor_profile.display_name }
         : {}),
       amountSen: Number(row.amount_sen),
+      feeSen: Number(row.fee_sen ?? 0),
+      testMoney: row.test_money === true,
+      recipient:
+        row.status === "pending" ? (recipients.get(row.contributor_user_id) ?? null) : null,
       status: row.status as RefundTaskStatus,
       externalReference: row.external_reference,
       refundMethod: row.refund_method,

@@ -145,15 +145,15 @@ Database records store `storage_provider`, `bucket`, `object_key`, checksum, siz
 
 ## Money and Provider Flow
 
-1. The server creates a ToyyibPay bill with an unguessable internal reference and a snapshotted expected amount.
+1. The server creates a bill with the configured gateway (ToyyibPay, or the `mock` test gateway) for the contribution plus the platform fee on top, with an unguessable internal reference; the database recomputes the fee from the snapshotted rate and refuses a bill whose fee differs. A payer must have a phone number and bank account on file.
 2. A signed/verified provider callback is treated as a delivery attempt, not as unquestioned truth.
 3. The callback is stored, deduplicated by provider identifiers, validated against the expected bill, and reconciled through a provider status lookup where necessary.
-4. A successful contribution creates balanced, immutable ledger entries in one database transaction and publishes an outbox event.
+4. A successful contribution creates balanced, immutable ledger entries in one database transaction (debit `platform_cash` contribution + fee, credit `wanted_escrow` contribution, credit `platform_fee_held` fee) and publishes an outbox event. The provider must report the full billed total.
 5. Original financial entries are never edited or deleted. Refunds, fees, chargebacks, and corrections use compensating entries.
-6. Claim approval calculates the 10% fee from the bounty snapshot and creates one manual payout task.
-7. The Owner records the external payout or refund reference and evidence. Marking a task paid/refunded creates ledger entries and notifications.
+6. Claim approval (or an approved community payout) creates one manual payout task for the whole bounty; its fee is the sum of the fees paid on top of the contributions, never deducted.
+7. The Owner records the external payout or refund reference and evidence. Marking a payout paid moves the bounty from escrow to `payout_disbursement` and the held fees to `platform_fee_revenue`; a refund returns contribution + fee from escrow and `platform_fee_held`. Payout and refund tasks funded through the test gateway are flagged `test_money`: no real money is sent.
 
-Payment mode is one of `disabled`, `sandbox`, or `live_limited`. Sandbox and live secrets are separate. Live mode requires configured callbacks, provider health checks, a tester allowlist, recent Owner authentication, and an audit event. A kill switch must disable new bills without corrupting pending callbacks.
+Payment mode is one of `disabled`, `mock`, `sandbox`, or `live_limited`. `mock` replaces the gateway only: bills and provider events are real rows, events are HMAC-signed with a server-derived secret and verified exactly like ToyyibPay callbacks, and the checkout is VAULTIX's own `/payment/checkout/[bill]`. Connecting ToyyibPay changes only the provider chosen in `money-operations.ts`. `mock` must not be enabled where real users could mistake test money for real money without the Owner's decision. Sandbox and live secrets are separate. Live mode requires configured callbacks, provider health checks, a tester allowlist, recent Owner authentication, and an audit event. A kill switch must disable new bills without corrupting pending callbacks.
 
 ## Claim and File Flow
 

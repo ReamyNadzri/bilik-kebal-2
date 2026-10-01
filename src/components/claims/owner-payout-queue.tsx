@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { PayoutMethod, PayoutTaskView } from "@/contracts/payouts";
+import { PaymentRecipientDetails } from "./payment-recipient";
 
 export interface OwnerPayoutQueueProps {
   tasks: readonly PayoutTaskView[];
@@ -133,8 +134,9 @@ export function OwnerPayoutQueue({
             Payout queue
           </h2>
           <p className="ops-panel__lede">
-            One task per approved winning claim. Pay the Hunter outside VAULTIX, then record it
-            here. The platform fee is the rate fixed when each Wanted was published.
+            One task per approved winning claim. Pay the Hunter the whole bounty outside VAULTIX,
+            then record it here. The platform fee was paid by the Backers on top of their
+            contributions, so nothing is deducted from the bounty.
           </p>
         </div>
         <div className="ops-panel__tools">
@@ -177,9 +179,9 @@ export function OwnerPayoutQueue({
             <thead>
               <tr>
                 <th scope="col">Hunter</th>
-                <th scope="col">Gross bounty</th>
-                <th scope="col">Platform fee</th>
-                <th scope="col">Net payout</th>
+                <th scope="col">Bounty</th>
+                <th scope="col">Fee kept by VAULTIX</th>
+                <th scope="col">Pay the Hunter</th>
                 <th scope="col">Status</th>
                 <th scope="col">Created</th>
                 <th scope="col" className="ops-table__end">
@@ -197,10 +199,15 @@ export function OwnerPayoutQueue({
                     </td>
                     <td className="numeric">{formatSenToRm(task.grossBountySen)}</td>
                     <td className="ops-table__meta">
-                      <span className="numeric">- {formatSenToRm(task.platformFeeSen)}</span>{" "}
-                      <span>({formatFeeRate(task.feeRateBasisPoints)})</span>
+                      <span className="numeric">{formatSenToRm(task.platformFeeSen)}</span>{" "}
+                      <span>({formatFeeRate(task.feeRateBasisPoints)}, paid on top)</span>
                     </td>
-                    <td className="ops-table__money">{formatSenToRm(task.netPayoutSen)}</td>
+                    <td className="ops-table__money">
+                      {formatSenToRm(task.netPayoutSen)}
+                      {task.testMoney ? (
+                        <span className="ops-table__meta"> (test money)</span>
+                      ) : null}
+                    </td>
                     <td>
                       <span
                         className={`status-stamp ${isPending ? "status-stamp--warning" : "status-stamp--success"}`}
@@ -250,10 +257,16 @@ export function OwnerPayoutQueue({
             <p className="ops-summary">
               Hunter: <strong>{selectedTask.hunterDisplayName ?? selectedTask.hunterUserId}</strong>
               <br />
-              Net payout:{" "}
-              <strong className="numeric">{formatSenToRm(selectedTask.netPayoutSen)}</strong> (after
-              the {formatFeeRate(selectedTask.feeRateBasisPoints)} platform fee)
+              Pay the Hunter:{" "}
+              <strong className="numeric">{formatSenToRm(selectedTask.netPayoutSen)}</strong> (the
+              whole bounty; the {formatFeeRate(selectedTask.feeRateBasisPoints)} fee of{" "}
+              {formatSenToRm(selectedTask.platformFeeSen)} was paid on top by the Backers)
             </p>
+            <PaymentRecipientDetails
+              recipient={selectedTask.recipient}
+              role="Hunter"
+              testMoney={selectedTask.testMoney === true}
+            />
 
             {formError && (
               <p role="alert" className="ops-alert ops-alert--error dialog__lede">

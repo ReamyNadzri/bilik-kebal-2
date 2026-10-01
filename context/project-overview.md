@@ -85,10 +85,19 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 
 ### Contributions, Fees, Payouts, and Refunds
 
-- ToyyibPay payment collection with `Disabled`, `Sandbox`, and allowlisted `Live Limited` modes.
+- ToyyibPay payment collection with `Disabled`, `Sandbox`, and allowlisted `Live Limited` modes, plus
+  a `Mock` mode: a test gateway inside VAULTIX that runs the real bill, verified-event, ledger,
+  refund and payout path with no money moving, until the ToyyibPay integration is finished.
 - RM1 minimum and RM50 maximum for each contribution, with no platform-wide daily collection cap.
 - Gateway fee paid by the Commissioner or Backer on top of the contribution.
-- Default 10% platform fee, snapshotted when a Wanted request is published and applied to the gross bounty.
+- Default 10% platform fee, snapshotted when a Wanted request is published and **charged on top of
+  each contribution** (rounded down to the sen). The payer is billed contribution + fee; the whole
+  contribution goes to the bounty and the winning Hunter (or named finder) is paid the whole bounty.
+  The fee is held until payout, and a refund returns the contribution and its fee in full.
+- Every payer and Hunter keeps a Malaysian mobile number and one bank account (bank, holder name,
+  account number) on their profile. Paying for a Wanted requires them; refunds and payouts go there.
+  The member reads the account number back masked to its last four digits; only the Owner sees it
+  whole, and only for a pending payout or refund task.
 - Integer-sen money calculations and an immutable financial ledger.
 - Manual Owner payout and refund workflows with reference, timestamp, method, evidence, and audit records.
 - Provider adapters for later automated payout, refund, or alternative payment integrations.

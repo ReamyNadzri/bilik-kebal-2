@@ -14,7 +14,14 @@ describe("OwnerPayoutQueue", () => {
       grossBountySen: 5000,
       feeRateBasisPoints: 1000,
       platformFeeSen: 500,
-      netPayoutSen: 4500,
+      netPayoutSen: 5000,
+      testMoney: true,
+      recipient: {
+        accountHolderName: "Ahmad Albab",
+        accountNumber: "5550001111",
+        bankName: "RHB Bank",
+        phone: "+60198765432",
+      },
       status: "pending",
       externalReference: null,
       payoutMethod: null,
@@ -32,7 +39,7 @@ describe("OwnerPayoutQueue", () => {
       grossBountySen: 10000,
       feeRateBasisPoints: 1000,
       platformFeeSen: 1000,
-      netPayoutSen: 9000,
+      netPayoutSen: 10000,
       status: "completed",
       externalReference: "DUITNOW-PAID-001",
       payoutMethod: "duitnow",
@@ -52,16 +59,16 @@ describe("OwnerPayoutQueue", () => {
     render(<OwnerPayoutQueue tasks={mockTasks} />);
 
     expect(screen.getByText("Ahmad Albab")).toBeInTheDocument();
-    expect(screen.getByText("RM 50.00")).toBeInTheDocument();
-    expect(screen.getByText("- RM 5.00")).toBeInTheDocument();
+    // The Hunter is paid the whole bounty; the fee was paid on top by the Backers.
+    expect(screen.getAllByText("RM 50.00")).toHaveLength(2);
+    expect(screen.getByText("RM 5.00")).toBeInTheDocument();
     // The fee rate shown is the one snapshotted on the task, never a constant.
-    expect(screen.getAllByText("(10%)").length).toBeGreaterThan(0);
-    expect(screen.getByText("RM 45.00")).toBeInTheDocument();
+    expect(screen.getAllByText("(10%, paid on top)").length).toBeGreaterThan(0);
 
     expect(screen.getByText("Siti Hunter")).toBeInTheDocument();
     expect(screen.getByText("Ref: DUITNOW-PAID-001")).toBeInTheDocument();
 
-    expect(screen.getByTestId("payout-summary-badge")).toHaveTextContent("Pending: 1 (RM 45.00)");
+    expect(screen.getByTestId("payout-summary-badge")).toHaveTextContent("Pending: 1 (RM 50.00)");
   });
 
   it("opens modal and submits payout completion successfully", async () => {
@@ -69,11 +76,14 @@ describe("OwnerPayoutQueue", () => {
     render(<OwnerPayoutQueue tasks={mockTasks} onCompletePayout={onCompletePayout} />);
 
     const disburseBtn = screen.getByRole("button", {
-      name: /complete payout for rm 45\.00/i,
+      name: /complete payout for rm 50\.00/i,
     });
     fireEvent.click(disburseBtn);
 
     expect(screen.getByTestId("payout-completion-modal")).toBeInTheDocument();
+    expect(screen.getByText("5550001111")).toBeInTheDocument();
+    expect(screen.getByText("RHB Bank")).toBeInTheDocument();
+    expect(screen.getByText(/do not send real money/i)).toBeInTheDocument();
 
     const refInput = screen.getByLabelText(/bank \/ gateway reference/i);
     fireEvent.change(refInput, { target: { value: "DUITNOW-20260925-9988" } });
@@ -91,7 +101,7 @@ describe("OwnerPayoutQueue", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("payout-success-alert")).toHaveTextContent(
-        /payout recorded successfully for rm 45\.00/i,
+        /payout recorded successfully for rm 50\.00/i,
       );
     });
   });
@@ -100,7 +110,7 @@ describe("OwnerPayoutQueue", () => {
     render(<OwnerPayoutQueue tasks={mockTasks} />);
 
     const disburseBtn = screen.getByRole("button", {
-      name: /complete payout for rm 45\.00/i,
+      name: /complete payout for rm 50\.00/i,
     });
     fireEvent.click(disburseBtn);
 

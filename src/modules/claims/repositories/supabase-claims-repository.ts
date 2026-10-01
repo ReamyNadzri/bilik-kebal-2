@@ -19,6 +19,8 @@ export class SupabaseClaimsRepository implements ClaimRepository {
       target_wanted_id: input.submission.wantedId,
     });
     const row = data?.[0];
+    if (error?.message.includes("payment_details_required"))
+      throw new Error("payment_details_required");
     if (error || !row) throw new Error("Claim upload session creation failed");
     return { claimId: row.claim_id, objectKey: row.object_key };
   }

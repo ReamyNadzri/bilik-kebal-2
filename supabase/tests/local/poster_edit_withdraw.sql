@@ -11,6 +11,9 @@ insert into public.profiles (user_id, display_name) values
 insert into public.institutions (id, slug, name) values ('10000000-0000-0000-0000-000000000001','uitm','UiTM');
 insert into public.campuses (id, institution_id, slug, name) values ('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','shah-alam','UiTM Shah Alam');
 alter table public.wanted_requests drop constraint wanted_requests_kind_fields_check;
+-- Claiming a Wanted with a bounty needs payment details (migration 202610180001).
+insert into private.member_payment_details (user_id, phone_e164, bank_code, account_holder_name, account_number)
+values ('00000000-0000-0000-0000-00000000000b', '+60123456789', 'maybank', 'Backer Test', '1234567890');
 create or replace function private.current_user_can_transact_at(target_institution_id uuid) returns boolean language sql as $$ select auth.uid() is not null $$;
 create function pg_temp.mk(p_title text, p_kind public.wanted_kind, p_published timestamptz) returns uuid language sql as $$
   insert into public.wanted_requests (public_id, commissioner_user_id, institution_id, campus_id, kind, is_free, title, description,

@@ -12,6 +12,7 @@ describe("OwnerRefundQueue", () => {
       contributorUserId: "u-contrib-1",
       contributorDisplayName: "Farid Contributor",
       amountSen: 2000,
+      feeSen: 200,
       status: "pending",
       externalReference: null,
       refundMethod: null,
@@ -46,13 +47,14 @@ describe("OwnerRefundQueue", () => {
     render(<OwnerRefundQueue tasks={mockTasks} />);
 
     expect(screen.getByText("Farid Contributor")).toBeInTheDocument();
-    expect(screen.getByText("RM 20.00")).toBeInTheDocument();
+    // A refund returns the contribution and the fee paid on top of it.
+    expect(screen.getByText("RM 22.00")).toBeInTheDocument();
 
     expect(screen.getByText("Zul Contributor")).toBeInTheDocument();
     expect(screen.getByText("RM 30.00")).toBeInTheDocument();
     expect(screen.getByText("Ref: REV-TOYYIB-001")).toBeInTheDocument();
 
-    expect(screen.getByTestId("refund-summary-badge")).toHaveTextContent("Pending: 1 (RM 20.00)");
+    expect(screen.getByTestId("refund-summary-badge")).toHaveTextContent("Pending: 1 (RM 22.00)");
   });
 
   it("opens modal and submits refund completion successfully", async () => {
@@ -60,7 +62,7 @@ describe("OwnerRefundQueue", () => {
     render(<OwnerRefundQueue tasks={mockTasks} onCompleteRefund={onCompleteRefund} />);
 
     const refundBtn = screen.getByRole("button", {
-      name: /process refund of rm 20\.00/i,
+      name: /process refund of rm 22\.00/i,
     });
     fireEvent.click(refundBtn);
 
@@ -82,7 +84,7 @@ describe("OwnerRefundQueue", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("refund-success-alert")).toHaveTextContent(
-        /refund of rm 20\.00 recorded successfully/i,
+        /refund of rm 22\.00 recorded successfully/i,
       );
     });
   });
@@ -91,7 +93,7 @@ describe("OwnerRefundQueue", () => {
     render(<OwnerRefundQueue tasks={mockTasks} />);
 
     const refundBtn = screen.getByRole("button", {
-      name: /process refund of rm 20\.00/i,
+      name: /process refund of rm 22\.00/i,
     });
     fireEvent.click(refundBtn);
 

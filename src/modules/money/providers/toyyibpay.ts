@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import type { PaymentProvider } from "./payment-provider";
 import type {
   ProviderBill,
   ProviderCallback,
@@ -26,7 +27,8 @@ function parseAmountSen(amount: string): number | null {
   return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : null;
 }
 
-export class ToyyibPayAdapter {
+export class ToyyibPayAdapter implements PaymentProvider {
+  readonly name = "toyyibpay" as const;
   private readonly now: () => Date;
   constructor(
     private readonly gateway: ToyyibPayGateway,
@@ -57,6 +59,7 @@ export class ToyyibPayAdapter {
     const amountSen = parseAmountSen(callback.amount);
     if (amountSen === null) return { ok: false, reason: "amount" };
     const normalized: ProviderCallback = {
+      provider: "toyyibpay",
       amountSen,
       merchantCode: this.config.merchantCode,
       providerBillId: callback.billcode,

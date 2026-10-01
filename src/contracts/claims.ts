@@ -38,6 +38,7 @@ export type ClaimsOperationCode =
   | "UPLOAD_UNAVAILABLE"
   | "CLAIM_NOT_FOUND"
   | "CLAIM_NOT_EDITABLE"
+  | "PAYMENT_DETAILS_REQUIRED"
   | "CLAIMS_UNAVAILABLE";
 
 const uuid = z.uuid();

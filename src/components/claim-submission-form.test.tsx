@@ -191,6 +191,27 @@ describe("ClaimSubmissionForm", () => {
     expect(screen.getByText(/Claim uploads are not open yet/i)).toBeInTheDocument();
   });
 
+  it("sends a Hunter without bank details to their profile", async () => {
+    vi.spyOn(claimOps, "submitClaimFile").mockResolvedValueOnce({
+      ok: false,
+      code: "PAYMENT_DETAILS_REQUIRED",
+      message: "Add your phone number and bank account.",
+    });
+    renderForm(<ClaimSubmissionForm wanted={createWantedDetail()} onClose={vi.fn()} />);
+
+    const file = new File(["valid notes"], "notes.pdf", { type: "application/pdf" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.click(screen.getByLabelText(/I confirm I hold the rights/i));
+    fireEvent.click(screen.getByRole("button", { name: "Submit Claim" }));
+
+    expect(await screen.findByText("Add your bank details first")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Add payment details" })).toHaveAttribute(
+      "href",
+      "/profile#payment-details",
+    );
+  });
+
   describe("capture poster", () => {
     it("drops the poster, signed by the Hunter, once the server confirms the claim", async () => {
       vi.spyOn(claimOps, "submitClaimFile").mockResolvedValueOnce({

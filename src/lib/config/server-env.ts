@@ -1,6 +1,11 @@
+import { createHmac } from "node:crypto";
 import { z } from "zod";
 
-export const paymentModes = ["disabled", "sandbox", "live_limited"] as const;
+/**
+ * `mock` runs the whole payment path against the test gateway inside VAULTIX
+ * (no money moves); `sandbox` and `live_limited` use ToyyibPay.
+ */
+export const paymentModes = ["disabled", "mock", "sandbox", "live_limited"] as const;
 export type PaymentMode = (typeof paymentModes)[number];
 
 const booleanEnv = z.preprocess((value: unknown) => {
@@ -58,6 +63,16 @@ export function getMarketplaceTokenSecret(input: Record<string, unknown>): strin
   if (env.MARKETPLACE_TOKEN_SECRET) return env.MARKETPLACE_TOKEN_SECRET;
   if (env.NODE_ENV !== "production") return "vaultix-local-marketplace-token-secret";
   throw new Error("MARKETPLACE_TOKEN_SECRET is required in production");
+}
+
+/**
+ * Signs the test gateway's provider events. Derived from the marketplace
+ * token secret so no new secret is needed, and never equal to it.
+ */
+export function getMockGatewaySecret(input: Record<string, unknown>): string {
+  return createHmac("sha256", getMarketplaceTokenSecret(input))
+    .update("vaultix-mock-payment-gateway")
+    .digest("hex");
 }
 
 export function getToyyibPayCallbackSecret(input: Record<string, unknown>): string {

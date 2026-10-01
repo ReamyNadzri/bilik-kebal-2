@@ -86,6 +86,19 @@ describe("ClaimUploadService", () => {
     expect(JSON.stringify(result)).not.toContain("objectKey");
   });
 
+  it("asks a Hunter without bank details to add them before claiming", async () => {
+    const createSignedUpload = vi.fn();
+    const result = await service({
+      repository: {
+        createClaim: vi.fn().mockRejectedValue(new Error("payment_details_required")),
+        completeClaim: vi.fn(),
+      },
+      gateway: { createSignedUpload },
+    }).create(actor, "open", input);
+    expect(result).toMatchObject({ ok: false, code: "PAYMENT_DETAILS_REQUIRED" });
+    expect(createSignedUpload).not.toHaveBeenCalled();
+  });
+
   it("completes a valid upload session", async () => {
     const completeClaim = vi.fn().mockResolvedValue({
       claimId: "83000000-0000-4000-8000-000000000001",

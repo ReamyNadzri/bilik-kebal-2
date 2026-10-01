@@ -591,8 +591,21 @@ code and the installed Next.js 16.3.5 sources. Record:
 
 - Should the writer of a hidden chat message see the reason code (needs notification context or
   author read access to their own hidden message)?
-- With the platform fee shown only to the poster, should Hunters see the net payout before
-  claiming?
+- Resolved 2026-09-30: the fee is now charged on top of each contribution, so a Hunter is paid the
+  whole bounty and there is no separate net figure to show.
+- Decided (user, 2026-09-30): `PAYMENT_MODE=mock` on the live site too, to hunt for weaknesses.
+  Test payments appear on the live Board as real-looking bounties; the payout and refund queues
+  flag them as test money. Before real payments open, those test Wanteds and their tasks need a
+  clean-up plan (the ledger cannot be deleted; they close through refunds recorded as TEST).
+- Decided (user, 2026-09-30): a Hunter needs bank details before submitting a claim on a Wanted
+  with a bounty (trigger `claims_require_hunter_payment_details`).
+- Paid missing-item and discussion posts still stop at "payments not available": their draft has
+  no duplicate-check token, which `create_contribution_intent` requires. Needs its own slice.
+- A failed or cancelled first payment returns the Wanted to a private draft, but the app has no
+  "my drafts" list to resume it; the poster posts it again.
+- The Owner's payout and refund dialogs show the full account number (the JSON reaches the Owner's
+  browser at runtime). Read as allowed by invariant 12, which forbids bank details in client
+  bundles and logs; confirm.
 
 - Account deletion and retention: what is deleted, anonymised or kept, and when.
 - Performance (Owner): move Vercel functions to `sin1` beside the Supabase project (check regional
@@ -1259,3 +1272,64 @@ server's worker crashing under machine load); `main` answers 200.
   Wanted with Share below it, full width, 49 px tall with a 16 px icon; the detail masthead shows a
   bordered Share with its icon; Share opens the poster, Esc closes it and focus returns; no
   horizontal scroll.
+
+## 2026-09-30 real payment flow with a test gateway; fee on top; bank details on the profile
+
+Request (user, 2026-09-30, in Malay): remove the payment simulation and put the real flow in its
+place without a gateway, correct end to end so only the gateway API is left to code, faking the
+gateway for now; the profile must hold a phone number, a bank account and the bank's name for
+refunds and payouts; the payer pays bounty + fee, with the fee separate from the bounty, not
+inside it. Worktree `.worktrees/payment-flow`, branch `claude/payment-flow` from `gitlab/main`.
+
+- **Decision (user):** the platform fee is charged on top. A contribution of RM20 at 10% bills
+  RM22: RM20 to the bounty, RM2 fee. The Hunter is paid the whole bounty. Assumed, not asked
+  (reversible, recorded here): the fee is per contribution, rounded down to the sen (as the old
+  payout rounding did); it is held until payout; a refund (expiry, withdrawal, late payment) returns
+  contribution + fee in full, consistent with "refunded in full, no fee taken".
+- **Migration `202610180001_fee_on_top_and_payment_details`** (not yet applied to Supabase
+  Cloud): `fee_sen` on intents, contributions and refund tasks; `test_money` on payout and refund
+  tasks; provider `mock` allowed; provider event amounts up to RM100. `create_contribution_intent`
+  takes `fee_sen` (the old signature is dropped) and `create_backing_intent` is new; both require
+  payment details and recompute the fee. `record_verified_contribution` requires the provider to
+  report contribution + fee, posts `platform_fee_held`, and a failed first payment hands the Wanted
+  back to draft. `cancel_own_payment`, `my_payment_bill`, `backing_fee_rate`. Payout tasks get their
+  fee and net from a before-insert trigger (so claim approval and community payout needed no
+  rewrite); payout completion moves held fees to revenue; refund completion refunds amount + fee. A
+  contribution confirmed after its Wanted closed, or on a Wanted back in draft, is queued for
+  refund. `private.member_payment_details` with `set_own_payment_details`, `my_payment_details`
+  (account number masked to 4 digits) and `owner_payment_recipients` (Owner only, pending tasks
+  only). Supabase Cloud had no contribution, intent, event, payout, refund or ledger row (checked
+  read-only before writing it), so nothing priced under the old rule is re-priced.
+- **Test gateway:** `PAYMENT_MODE=mock` (new mode). `MockPaymentGateway` implements the same
+  `PaymentProvider` interface as `ToyyibPayAdapter`; bills point at `/payment/checkout/[bill]`,
+  whose Pay/Cancel buttons call `/api/payments/mock/[bill]`. Paying signs a provider event
+  (HMAC-SHA256, secret derived from `MARKETPLACE_TOKEN_SECRET`) and runs it through the privileged
+  `record_verified_contribution` path, exactly once. `/payment/return` now reads the payer's own
+  bill from the database and says paid / not paid / waiting; the redirect's query is still never
+  trusted. ToyyibPay callbacks are verified whatever the mode.
+- **Backing works now:** `POST /api/marketplace/wanted/[id]/contribution` (the Back modal called a
+  route that did not exist). The Back modal, the draft review and the Wanted page show
+  contribution + fee = total; refusals for missing bank details link to `/profile#payment-details`.
+- **Profile:** "Payment details" section (mobile number normalised to +60, bank from 23 Malaysian
+  banks, holder name, account number) via `PUT /api/profile/payment-details`.
+- **Owner queues:** payout shows bounty, fee kept (paid on top) and the whole bounty to pay; refund
+  shows contribution + fee; both show the recipient's bank details to the Owner and warn on test
+  money.
+- **Removed:** `/payment/walkthrough`, `PaymentWalkthrough` and its styles; the links to it.
+- Posting terms (draft, pending legal review) updated to the fee-on-top rule without a version bump.
+- Follow-up the same day (user): claiming a Wanted with a bounty also needs payment details
+  (trigger on `claims`, `PAYMENT_DETAILS_REQUIRED` in the claim form with a link to the profile).
+  Migration `202610180001` re-validated on Postgres 16 and **applied to Supabase Cloud**
+  (`supabase db push --linked`, only this migration pending); checked afterwards: last migration
+  `202610180001`, the 8 functions and 3 triggers present, `authenticated` cannot read
+  `private.member_payment_details`.
+- Verified: all migrations plus the new `supabase/tests/local/fee_on_top_payments.sql` on a
+  throwaway Postgres 16 container (Docker): fee mismatch refused, details required, contribution
+  split, ledger balanced after contribution, payout and refund, owner-only bank reads, late payment
+  refunds, draft hand-back. `clerk_identity_bridge.sql` and `list_public_hunters.sql` fail the same
+  way without this migration. Unit and component: 1634 tests pass; typecheck, lint; prettier on
+  touched files. Not verified: the flow in a browser against a database with the migration (it is
+  not applied), and Playwright.
+- **Deploy order:** migration applied first (done). The Vercel variable `PAYMENT_MODE=mock` is set
+  by the user (this session was not allowed to read or change Production env); the mock gateway's
+  signing secret derives from `MARKETPLACE_TOKEN_SECRET`, which Production must have.

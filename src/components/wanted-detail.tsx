@@ -46,11 +46,10 @@ export interface WantedDetailProps {
  * on integer sen is unspecified; the snapshotted fee rate is stated instead
  * (docs/superpowers/specs/2026-09-16-vaultix-frontier-visual-handoff.md §6).
  *
- * The two protected actions link to institution verification rather than to a
- * form. Contributing and claiming both require institution verification, and
- * payment is disabled in this build; a control that looked live and did
- * nothing would be worse than one that says what it needs. The rule itself is
- * enforced server-side and by RLS — this is signposting, not a gate.
+ * Without institution verification the two protected actions link to it
+ * rather than to a form: a control that looked live and did nothing would be
+ * worse than one that says what it needs. The rule itself is enforced
+ * server-side and by RLS — this is signposting, not a gate.
  */
 export function WantedDetail({
   wanted,
@@ -176,24 +175,20 @@ export function WantedDetail({
               {!academic
                 ? wanted.isFree
                   ? "Replies need institution verification. This is a free request: no bounty, no payment and no file."
-                  : "Backing and replying need institution verification. The poster names who helped, and a Sheriff approves before the bounty is paid. Payment is disabled in this build until the launch gate passes."
+                  : `Backing and replying need institution verification. The poster names who helped, and a Sheriff approves before the bounty is paid. Each contribution is RM1 to RM50, plus a ${feePercent}% platform fee on top.`
                 : wanted.isFree
                   ? "This is a free request: no bounty and no payment. Submitting a claim needs institution verification."
-                  : "Both actions need institution verification. Contributions are RM1 to RM50 per Backer, and payment is disabled in this build until the launch gate passes."}
+                  : `Both actions need institution verification. Contributions are RM1 to RM50 per Backer, plus a ${feePercent}% platform fee on top.`}
             </p>
           </div>
         )}
 
-        {/*
-          The platform fee is shown to the poster, who pays it from their
-          bounty. Everyone else sees only the provider charge that applies to
-          a Backer's own checkout.
-        */}
         <div className="ledger-panel" hidden={wanted.isFree || isPoster}>
           <h2 className="ledger-panel__heading">Checkout</h2>
           <p className="ledger-panel__body">
-            The payment provider adds its own charge to a Backer&rsquo;s checkout total. It is paid
-            on top of the contribution, so the bounty rises by the full amount contributed.
+            A {feePercent}% platform fee is added on top of a Backer&rsquo;s contribution at
+            checkout. The whole contribution goes to the bounty, and if no claim wins, the
+            contribution and the fee are refunded in full.
           </p>
         </div>
 
@@ -204,13 +199,11 @@ export function WantedDetail({
             <span className="numeric">{feePercent}%</span>
           </p>
           <p className="ledger-panel__body">
-            A {feePercent}% platform fee is taken from the bounty when{" "}
-            {academic ? "a claim is approved" : "a Sheriff approves its release"}. The rate was
-            fixed when this Wanted was published and does not change afterwards.
-          </p>
-          <p className="ledger-panel__body">
-            The payment provider adds its own charge to a Backer&rsquo;s checkout total. It is paid
-            on top of the contribution, so the bounty rises by the full amount contributed.
+            A {feePercent}% platform fee is paid on top of every contribution, yours included. It is
+            never taken from the bounty: when{" "}
+            {academic ? "a claim is approved" : "a Sheriff approves its release"}, the whole bounty
+            is paid out. The rate was fixed when this Wanted was published and does not change
+            afterwards.
           </p>
         </div>
 

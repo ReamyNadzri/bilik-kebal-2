@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { MoneyOperationCode } from "@/contracts/money";
+import { chargeBreakdown, type MoneyOperationCode } from "@/contracts/money";
 import type { WantedDetail } from "@/features/marketplace/types";
 import { formatRinggit, sen, type Sen } from "@/features/marketplace/money";
 import { callOperation } from "@/features/presentation/call-operation";
@@ -38,18 +38,26 @@ const NO_CHARGE = "No charge was made and the bounty is unchanged.";
  * nothing was charged, because the one misreading with a real cost is a
  * student believing they paid when they did not, or the reverse.
  */
-function describeRefusal(code: MoneyOperationCode, wantedId: string, amountSen: Sen): Refusal {
+function describeRefusal(code: MoneyOperationCode): Refusal {
   switch (code) {
     case "PAYMENT_DISABLED":
+      return {
+        kind: "offline",
+        heading: "Payments are switched off",
+        message: `Backing a Wanted is not available right now. ${NO_CHARGE}`,
+      };
     case "PAYMENT_UNAVAILABLE":
       return {
         kind: "offline",
-        heading: "Online payment is not open yet",
-        message: `The payment gateway is still being connected, so backing a Wanted is not available in this build. ${NO_CHARGE}`,
-        action: {
-          href: `/payment/walkthrough?wanted=${encodeURIComponent(wantedId)}&amountSen=${amountSen}`,
-          label: "See how it will work",
-        },
+        heading: "Payment could not be prepared",
+        message: `The payment gateway did not answer. ${NO_CHARGE} Try again shortly.`,
+      };
+    case "PAYMENT_DETAILS_REQUIRED":
+      return {
+        kind: "restricted",
+        heading: "Add your bank details first",
+        message: `Refunds are paid to the bank account on your profile, so VAULTIX needs your phone number and bank account before you pay. ${NO_CHARGE}`,
+        action: { href: "/profile#payment-details", label: "Add payment details" },
       };
     case "AUTH_REQUIRED":
       return {
@@ -105,10 +113,11 @@ function describeRefusal(code: MoneyOperationCode, wantedId: string, amountSen: 
  * contribution to an open Wanted request.
  *
  * - Money stays integer sen (100–5,000) end to end.
+ * - The platform fee is charged on top: the whole contribution goes to the
+ *   bounty, and the checkout total is contribution + fee.
  * - Nothing here confirms a payment. Success is a redirect to the provider;
  *   only a verified provider callback ever changes the bounty.
- * - Until the gateway is connected, the dialog says so before the Backer
- *   chooses an amount, and every refusal says no charge was made.
+ * - Every refusal says no charge was made.
  */
 export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
   const [selectedSen, setSelectedSen] = useState<Sen>(sen(500));
@@ -144,12 +153,11 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
     }
 
     setStatus("idle");
-    setRefusal(
-      describeRefusal(result.ok ? "PAYMENT_UNAVAILABLE" : result.code, wanted.id, selectedSen),
-    );
+    setRefusal(describeRefusal(result.ok ? "PAYMENT_UNAVAILABLE" : result.code));
   }
 
   const projectedTotalSen = sen(wanted.grossBountySen + selectedSen);
+  const charge = chargeBreakdown(selectedSen, wanted.feeRateBasisPoints);
   const submitting = status === "submitting";
 
   return (
@@ -260,9 +268,25 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
               </div>
             </dl>
 
+            <dl className="money-breakdown" aria-label="What you pay">
+              <div className="money-breakdown__row">
+                <dt>Contribution to the bounty</dt>
+                <dd>{formatRinggit(charge.amountSen)}</dd>
+              </div>
+              <div className="money-breakdown__row">
+                <dt>Platform fee ({wanted.feeRateBasisPoints / 100}%, on top)</dt>
+                <dd>+{formatRinggit(charge.feeSen)}</dd>
+              </div>
+              <div className="money-breakdown__row money-breakdown__row--total">
+                <dt>You pay</dt>
+                <dd>{formatRinggit(charge.totalSen)}</dd>
+              </div>
+            </dl>
+
             <p className="dialog__note">
-              The payment provider adds its own charge on top of your contribution. The bounty only
-              changes after the provider confirms your payment.
+              The fee is not taken from the bounty: the Hunter receives the whole bounty. If the
+              Wanted closes without a winner you are refunded {formatRinggit(charge.totalSen)} in
+              full. The bounty only changes after the payment is confirmed.
             </p>
 
             <div className="dialog__actions">
@@ -277,7 +301,7 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
               <button type="submit" className="button button--primary" disabled={submitting}>
                 {submitting
                   ? "Connecting to payment…"
-                  : `Proceed to payment of ${formatRinggit(selectedSen)}`}
+                  : `Proceed to payment of ${formatRinggit(charge.totalSen)}`}
               </button>
             </div>
           </form>

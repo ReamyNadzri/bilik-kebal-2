@@ -43,6 +43,7 @@ export function ClaimSubmissionForm({
   const [step, setStep] = useState<ClaimSubmissionStep | "idle" | "error">("idle");
   const [errorHeading, setErrorHeading] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [needsPaymentDetails, setNeedsPaymentDetails] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   // Picked once, when the server confirms the claim; a re-render never re-rolls it.
   const [captureWord, setCaptureWord] = useState<CaptureWord | null>(null);
@@ -122,7 +123,13 @@ export function ClaimSubmissionForm({
     }
 
     setStep("error");
-    if (result.code === "UPLOAD_UNAVAILABLE") {
+    setNeedsPaymentDetails(result.code === "PAYMENT_DETAILS_REQUIRED");
+    if (result.code === "PAYMENT_DETAILS_REQUIRED") {
+      setErrorHeading("Add your bank details first");
+      setErrorMessage(
+        "The bounty is paid by bank transfer to the account on your profile, so add your phone number and bank account before claiming. No file was uploaded.",
+      );
+    } else if (result.code === "UPLOAD_UNAVAILABLE") {
       setErrorHeading("Uploads are switched off");
       setErrorMessage(
         "Claim uploads are not open yet while file screening is being set up. No file was uploaded.",
@@ -185,17 +192,24 @@ export function ClaimSubmissionForm({
               heading={errorHeading}
               message={errorMessage}
               action={
-                <button
-                  type="button"
-                  className="button button--primary"
-                  onClick={() => {
-                    setStep("idle");
-                    setErrorHeading("");
-                    setErrorMessage("");
-                  }}
-                >
-                  Try again
-                </button>
+                <span className="dialog__actions">
+                  {needsPaymentDetails ? (
+                    <Link className="button button--secondary" href="/profile#payment-details">
+                      Add payment details
+                    </Link>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => {
+                      setStep("idle");
+                      setErrorHeading("");
+                      setErrorMessage("");
+                    }}
+                  >
+                    Try again
+                  </button>
+                </span>
               }
             />
           ) : isWorking ? (

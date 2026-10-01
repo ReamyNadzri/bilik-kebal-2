@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { RefundMethod, RefundTaskView } from "@/contracts/payouts";
+import { PaymentRecipientDetails } from "./payment-recipient";
 
 export interface OwnerRefundQueueProps {
   tasks: readonly RefundTaskView[];
@@ -19,6 +20,11 @@ export interface OwnerRefundQueueProps {
 
 function formatSenToRm(sen: number): string {
   return `RM ${(sen / 100).toFixed(2)}`;
+}
+
+/** A refund returns the contribution and the fee paid on top of it. */
+function refundTotalSen(task: RefundTaskView): number {
+  return task.amountSen + (task.feeSen ?? 0);
 }
 
 function formatDate(iso: string): string {
@@ -46,7 +52,7 @@ export function OwnerRefundQueue({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const pendingTasks = tasks.filter((t) => t.status === "pending");
-  const totalPendingSen = pendingTasks.reduce((sum, t) => sum + t.amountSen, 0);
+  const totalPendingSen = pendingTasks.reduce((sum, t) => sum + refundTotalSen(t), 0);
 
   const handleOpenCompleteModal = (task: RefundTaskView) => {
     setSelectedTask(task);
@@ -106,7 +112,7 @@ export function OwnerRefundQueue({
       }
 
       setSuccessMessage(
-        `Refund of ${formatSenToRm(selectedTask.amountSen)} recorded successfully.`,
+        `Refund of ${formatSenToRm(refundTotalSen(selectedTask))} recorded successfully.`,
       );
       setSelectedTask(null);
       onRefresh?.();
@@ -127,8 +133,9 @@ export function OwnerRefundQueue({
             Refund queue
           </h2>
           <p className="ops-panel__lede">
-            One task per contribution to a bounty that expired unfulfilled. Record each refund after
-            you have sent it outside VAULTIX.
+            One task per contribution to a bounty that expired, was withdrawn or was paid after it
+            closed. Refund the contribution and the fee paid on top of it, in full, outside VAULTIX,
+            then record it here.
           </p>
         </div>
         <div className="ops-panel__tools">
@@ -172,7 +179,7 @@ export function OwnerRefundQueue({
             <thead>
               <tr>
                 <th scope="col">Contributor</th>
-                <th scope="col">Refund amount</th>
+                <th scope="col">Refund (contribution + fee)</th>
                 <th scope="col">Status</th>
                 <th scope="col">Created</th>
                 <th scope="col" className="ops-table__end">
@@ -189,7 +196,14 @@ export function OwnerRefundQueue({
                       {task.contributorDisplayName ??
                         `Contributor (${task.contributorUserId.slice(0, 8)})`}
                     </td>
-                    <td className="ops-table__money">{formatSenToRm(task.amountSen)}</td>
+                    <td className="ops-table__money">
+                      {formatSenToRm(refundTotalSen(task))}
+                      <span className="ops-table__meta">
+                        {" "}
+                        ({formatSenToRm(task.amountSen)} + {formatSenToRm(task.feeSen ?? 0)})
+                        {task.testMoney ? " (test money)" : ""}
+                      </span>
+                    </td>
                     <td>
                       <span
                         className={`status-stamp ${isPending ? "status-stamp--warning" : "status-stamp--success"}`}
@@ -204,7 +218,7 @@ export function OwnerRefundQueue({
                           type="button"
                           onClick={() => handleOpenCompleteModal(task)}
                           className="button button--secondary button--compact"
-                          aria-label={`Process refund of ${formatSenToRm(task.amountSen)}`}
+                          aria-label={`Process refund of ${formatSenToRm(refundTotalSen(task))}`}
                         >
                           Process refund
                         </button>
@@ -242,9 +256,16 @@ export function OwnerRefundQueue({
                 {selectedTask.contributorDisplayName ?? selectedTask.contributorUserId}
               </strong>
               <br />
-              Refund amount:{" "}
-              <strong className="numeric">{formatSenToRm(selectedTask.amountSen)}</strong>
+              Refund:{" "}
+              <strong className="numeric">{formatSenToRm(refundTotalSen(selectedTask))}</strong> (
+              {formatSenToRm(selectedTask.amountSen)} contribution +{" "}
+              {formatSenToRm(selectedTask.feeSen ?? 0)} fee)
             </p>
+            <PaymentRecipientDetails
+              recipient={selectedTask.recipient}
+              role="Backer"
+              testMoney={selectedTask.testMoney === true}
+            />
 
             {formError && (
               <p role="alert" className="ops-alert ops-alert--error dialog__lede">

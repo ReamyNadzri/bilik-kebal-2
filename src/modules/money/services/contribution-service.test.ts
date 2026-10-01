@@ -31,7 +31,12 @@ const token = `nonce.${createHmac("sha256", "money-test-secret-32-characters-lon
 function repository(overrides: Partial<MoneyRepository> = {}): MoneyRepository {
   return {
     findDraftForContribution: vi.fn().mockResolvedValue(draft),
+    hasOwnPaymentDetails: vi.fn().mockResolvedValue(true),
+    readBackingFeeRate: vi.fn().mockResolvedValue(1000),
     createContributionIntent: vi.fn().mockResolvedValue({ intentId: "intent-1" }),
+    createBackingIntent: vi.fn().mockResolvedValue({ intentId: "intent-2" }),
+    readOwnBill: vi.fn().mockResolvedValue(null),
+    cancelOwnBill: vi.fn().mockResolvedValue(undefined),
     recordVerifiedContribution: vi.fn().mockResolvedValue("accepted"),
     ...overrides,
   };
@@ -39,6 +44,7 @@ function repository(overrides: Partial<MoneyRepository> = {}): MoneyRepository {
 
 function adapter(): ToyyibPayAdapter {
   return {
+    name: "toyyibpay",
     createBill: vi.fn().mockResolvedValue(bill),
     verifyCallback: vi.fn(),
   } as unknown as ToyyibPayAdapter;
@@ -77,13 +83,104 @@ describe("ContributionService", () => {
       data: {
         id: "intent-1",
         amountSen: 1250,
+        feeSen: 125,
+        totalSen: 1375,
         provider: "toyyibpay",
         status: "pending",
       },
     });
     expect(repo.createContributionIntent).toHaveBeenCalledWith(
-      expect.objectContaining({ amountSen: 1250, draftId: draft.id }),
+      expect.objectContaining({ amountSen: 1250, feeSen: 125, draftId: draft.id }),
     );
+  });
+
+  it("bills the fee on top of the contribution, rounded down to the sen", async () => {
+    const provider = adapter();
+    const repo = repository();
+    await new ContributionService(repo, provider, {
+      paymentMode: "sandbox",
+      tokenSecret: "money-test-secret-32-characters-long",
+    }).createIntent(actor, { amountSen: 1255, draftId: draft.id, duplicateCheckToken: token });
+    expect(provider.createBill).toHaveBeenCalledWith({ amountSen: 1380, reference: draft.id });
+    expect(repo.createContributionIntent).toHaveBeenCalledWith(
+      expect.objectContaining({ amountSen: 1255, feeSen: 125 }),
+    );
+  });
+
+  it("asks for payment details before creating any bill", async () => {
+    const provider = adapter();
+    const repo = repository({ hasOwnPaymentDetails: vi.fn().mockResolvedValue(false) });
+    const service = new ContributionService(repo, provider, {
+      paymentMode: "mock",
+      tokenSecret: "money-test-secret-32-characters-long",
+    });
+    expect(
+      await service.createIntent(actor, {
+        amountSen: 1000,
+        draftId: draft.id,
+        duplicateCheckToken: token,
+      }),
+    ).toMatchObject({ ok: false, code: "PAYMENT_DETAILS_REQUIRED" });
+    expect(
+      await service.createBackingIntent(actor, {
+        amountSen: 1000,
+        wantedId: "00000000-0000-4000-8000-000000000009",
+      }),
+    ).toMatchObject({ ok: false, code: "PAYMENT_DETAILS_REQUIRED" });
+    expect(provider.createBill).not.toHaveBeenCalled();
+  });
+
+  it("bills a Backer at the fee rate snapshotted on the Wanted", async () => {
+    const provider = adapter();
+    const repo = repository({ readBackingFeeRate: vi.fn().mockResolvedValue(500) });
+    const result = await new ContributionService(repo, provider, {
+      paymentMode: "mock",
+      tokenSecret: "money-test-secret-32-characters-long",
+    }).createBackingIntent(actor, {
+      amountSen: 2000,
+      wantedId: "00000000-0000-4000-8000-000000000009",
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      data: { amountSen: 2000, feeSen: 100, totalSen: 2100 },
+    });
+    expect(provider.createBill).toHaveBeenCalledWith({
+      amountSen: 2100,
+      reference: "00000000-0000-4000-8000-000000000009",
+    });
+    expect(repo.createBackingIntent).toHaveBeenCalledWith(
+      expect.objectContaining({ amountSen: 2000, feeSen: 100, provider: "toyyibpay" }),
+    );
+  });
+
+  it("refuses to back a Wanted that is not open", async () => {
+    const provider = adapter();
+    const repo = repository({ readBackingFeeRate: vi.fn().mockResolvedValue(null) });
+    expect(
+      await new ContributionService(repo, provider, {
+        paymentMode: "mock",
+        tokenSecret: "money-test-secret-32-characters-long",
+      }).createBackingIntent(actor, {
+        amountSen: 2000,
+        wantedId: "00000000-0000-4000-8000-000000000009",
+      }),
+    ).toMatchObject({ ok: false, code: "WANTED_NOT_FOUND" });
+    expect(provider.createBill).not.toHaveBeenCalled();
+  });
+
+  it("turns a database refusal into a code the payer can act on", async () => {
+    const repo = repository({
+      createBackingIntent: vi.fn().mockRejectedValue({ message: "wanted_not_open" }),
+    });
+    expect(
+      await new ContributionService(repo, adapter(), {
+        paymentMode: "mock",
+        tokenSecret: "money-test-secret-32-characters-long",
+      }).createBackingIntent(actor, {
+        amountSen: 2000,
+        wantedId: "00000000-0000-4000-8000-000000000009",
+      }),
+    ).toMatchObject({ ok: false, code: "WANTED_NOT_FOUND" });
   });
 
   it("refuses a forged duplicate token before creating a provider bill", async () => {

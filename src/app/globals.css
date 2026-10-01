@@ -9256,16 +9256,21 @@ button.capture-poster__hunt {
 }
 
 /* --------------------------------------------------------------------------
-   Payment walkthrough: a simulation of the money path that writes nothing.
+   Checkout: the test gateway's payment page (PAYMENT_MODE=mock)
    -------------------------------------------------------------------------- */
 
-.walkthrough {
+.checkout {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  max-width: 36rem;
 }
 
-.walkthrough__banner {
+.checkout h2 {
+  margin: 0;
+}
+
+.checkout__banner {
   margin: 0;
   max-width: none;
   padding: var(--space-3) var(--space-4);
@@ -9275,94 +9280,23 @@ button.capture-poster__hunt {
   font-size: var(--text-sm);
 }
 
-.walkthrough__steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.walkthrough__step {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background: var(--bg-canvas);
-  border: var(--border-width-1) solid var(--border-subtle);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-.walkthrough__step[data-done] {
-  color: var(--text-primary);
-}
-
-.walkthrough__step[aria-current="step"] {
-  border-color: var(--accent-primary);
-  border-width: var(--border-width-2);
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-.walkthrough__step-number {
-  font-weight: 700;
-}
-
-.walkthrough__panel h2:focus {
-  outline: none;
-}
-
-.walkthrough__checkout {
-  margin: var(--space-4) 0;
-  padding: var(--space-4);
-  background: var(--bg-surface);
-  border: var(--border-width-2) solid var(--border-default);
-}
-
-.walkthrough__checkout-provider {
-  margin: 0 0 var(--space-3);
-  font-weight: 700;
-}
-
-.walkthrough__choices,
-.walkthrough__nav {
+.checkout__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.walkthrough__nav {
-  justify-content: space-between;
-  margin-top: var(--space-5);
+/* --------------------------------------------------------------------------
+   Payment details on the profile: phone and bank for refunds and payouts
+   -------------------------------------------------------------------------- */
+
+.payment-details__form {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 32rem;
 }
 
-.walkthrough__ledger {
-  width: 100%;
-  margin: var(--space-4) 0;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
-
-.walkthrough__ledger caption {
-  margin-bottom: var(--space-2);
-  text-align: left;
-  font-weight: 700;
-}
-
-.walkthrough__ledger th,
-.walkthrough__ledger td {
-  padding: var(--space-2);
-  border-bottom: var(--border-width-1) solid var(--border-subtle);
-  text-align: left;
-}
-
-.walkthrough__ledger td {
-  text-align: right;
-}
-
-.walkthrough__exit {
+.payment-details__saved {
   margin: 0;
 }
 

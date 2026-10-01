@@ -663,6 +663,19 @@ describe("asking to publish", () => {
     expect(within(summary).getByText(/between RM1 and RM50/)).toBeInTheDocument();
   });
 
+  test("shows the platform fee on top of the first contribution", async () => {
+    renderWorkspace();
+    await reachReview();
+
+    const pay = screen.getByLabelText("What you pay");
+    expect(within(pay).getByText("RM 12")).toBeInTheDocument();
+    expect(within(pay).getByText("+RM 1.20")).toBeInTheDocument();
+    expect(within(pay).getByText("RM 13.20")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue to payment of RM 13.20" }),
+    ).toBeInTheDocument();
+  });
+
   test("never presents an awaiting-payment draft as an open Wanted", async () => {
     createDraftContributionBill.mockResolvedValue({
       ok: true,
@@ -670,6 +683,8 @@ describe("asking to publish", () => {
         id: "intent-1",
         provider: "toyyibpay",
         amountSen: 1200,
+        feeSen: 120,
+        totalSen: 1320,
         status: "pending",
         paymentUrl: "https://dev.toyyibpay.com/bill-123",
         expiresAt: "2026-09-15T10:00:00.000Z",
@@ -681,7 +696,7 @@ describe("asking to publish", () => {
     fireEvent.click(screen.getByRole("button", { name: /Continue to payment/ }));
 
     expect(await screen.findByText(/no payment has been taken/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Proceed to ToyyibPay/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Proceed to checkout/i })).toHaveAttribute(
       "href",
       "https://dev.toyyibpay.com/bill-123",
     );

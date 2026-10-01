@@ -15,7 +15,11 @@ import type {
   TaxonomyItem,
   WantedDuplicateSuggestion,
 } from "@/contracts/marketplace";
-import type { MoneyOperationCode } from "@/contracts/money";
+import {
+  chargeBreakdown,
+  PLATFORM_FEE_BASIS_POINTS,
+  type MoneyOperationCode,
+} from "@/contracts/money";
 import {
   checkWantedDuplicates,
   createDraftContributionBill,
@@ -65,10 +69,10 @@ export interface WantedDraftWorkspaceProps {
 
 /**
  * The platform fee rate the backend snapshots at publication, in basis points.
- * Shown so a Commissioner knows what is deducted before they part with money;
- * the authoritative rate travels with the published Wanted.
+ * Shown so a Commissioner knows what is added on top before they part with
+ * money; the database recomputes the fee and refuses a bill that differs.
  */
-const FEE_RATE_BASIS_POINTS = 1000;
+const FEE_RATE_BASIS_POINTS = PLATFORM_FEE_BASIS_POINTS;
 
 const DUPLICATE_REASON: Record<WantedDuplicateSuggestion["reasons"][number], string> = {
   same_course: "Same course",
@@ -101,7 +105,12 @@ interface ReviewState {
 /** What came back from asking to publish. None of these is a payment. */
 type Outcome =
   | { readonly kind: "none" }
-  | { readonly kind: "refused"; readonly heading: string; readonly message: string }
+  | {
+      readonly kind: "refused";
+      readonly heading: string;
+      readonly message: string;
+      readonly needsPaymentDetails?: boolean;
+    }
   | { readonly kind: "recheck"; readonly message: string }
   | { readonly kind: "awaiting-payment"; readonly paymentUrl?: string }
   | { readonly kind: "published"; readonly wantedId: string; readonly free: boolean };
@@ -690,6 +699,16 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
         return;
       }
 
+      if (result.code === "PAYMENT_DETAILS_REQUIRED") {
+        setOutcome({
+          kind: "refused",
+          heading: "Add your bank details first",
+          message: messageFor(result.code, result.message),
+          needsPaymentDetails: true,
+        });
+        return;
+      }
+
       if (result.code === "DUPLICATE_CHECK_REQUIRED" || result.code === "DUPLICATE_CHECK_EXPIRED") {
         setOutcome({ kind: "recheck", message: messageFor(result.code, result.message) });
         return;
@@ -765,6 +784,10 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
   if (review !== null) {
     const { draft } = review;
     const isFree = draft.contributionSen === null;
+    const charge =
+      draft.contributionSen === null
+        ? null
+        : chargeBreakdown(draft.contributionSen, FEE_RATE_BASIS_POINTS);
 
     return (
       <div className="draft-review">
@@ -820,6 +843,22 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                     size="large"
                   />
                   <p className="ledger-panel__backers">Starts the bounty</p>
+                  {charge === null ? null : (
+                    <dl className="money-breakdown" aria-label="What you pay">
+                      <div className="money-breakdown__row">
+                        <dt>Contribution to the bounty</dt>
+                        <dd className="numeric">{formatRinggit(charge.amountSen)}</dd>
+                      </div>
+                      <div className="money-breakdown__row">
+                        <dt>Platform fee ({FEE_RATE_BASIS_POINTS / 100}%, on top)</dt>
+                        <dd className="numeric">+{formatRinggit(charge.feeSen)}</dd>
+                      </div>
+                      <div className="money-breakdown__row money-breakdown__row--total">
+                        <dt>You pay</dt>
+                        <dd className="numeric">{formatRinggit(charge.totalSen)}</dd>
+                      </div>
+                    </dl>
+                  )}
                 </>
               )}
             </div>
@@ -827,13 +866,15 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             <div className="ledger-panel" hidden={isFree}>
               <h3 className="ledger-panel__heading">Fee and access</h3>
               <p className="ledger-panel__body">
-                A {FEE_RATE_BASIS_POINTS / 100}% platform fee is taken from the bounty when a claim
-                is approved. The rate, the duration and the content policy version are all
-                snapshotted when the request is published, and do not change afterwards.
+                A {FEE_RATE_BASIS_POINTS / 100}% platform fee is added on top of every contribution,
+                yours and each Backer&rsquo;s. It is never taken out of the bounty: the Hunter
+                receives the whole bounty. The rate, the duration and the content policy version are
+                all snapshotted when the request is published, and do not change afterwards.
               </p>
               <p className="ledger-panel__body">
-                The payment provider adds its own charge to your checkout total. You cover it on top
-                of your contribution, so the bounty rises by the full amount you contribute.
+                If the request closes without a winner, or you withdraw it in the first hour, every
+                contribution and its fee is refunded in full to the bank account on the
+                payer&rsquo;s profile.
               </p>
               <p className="ledger-panel__body">
                 Access basis: contributors only. Everyone whose contribution is confirmed by the
@@ -902,17 +943,13 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                     You have not been charged, no payment was started, and no Wanted has been
                     opened. Your draft is saved and still editable.
                   </p>
-                  <p className="ui-status__action">
-                    <Link
-                      className="button button--secondary"
-                      href={`/payment/walkthrough?${new URLSearchParams({
-                        title: draft.title,
-                        amountSen: String(draft.contributionSen ?? 0),
-                      }).toString()}`}
-                    >
-                      See how payment will work (no money moves)
-                    </Link>
-                  </p>
+                  {outcome.needsPaymentDetails ? (
+                    <p className="ui-status__action">
+                      <Link className="button button--secondary" href="/profile#payment-details">
+                        Add payment details
+                      </Link>
+                    </p>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -954,7 +991,7 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                         href={outcome.paymentUrl}
                         rel="noopener noreferrer"
                       >
-                        Proceed to ToyyibPay
+                        Proceed to checkout
                       </a>
                     </p>
                   ) : null}
@@ -981,7 +1018,9 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
                         : "Continue to payment (working…)"
                       : isFree || draft.contributionSen === null
                         ? "Post free request"
-                        : `Continue to payment of ${formatRinggit(draft.contributionSen)}`}
+                        : `Continue to payment of ${formatRinggit(
+                            chargeBreakdown(draft.contributionSen, FEE_RATE_BASIS_POINTS).totalSen,
+                          )}`}
                   </button>
                 )}
                 <button className="button button--quiet" type="button" onClick={backToEdit}>
@@ -1382,7 +1421,8 @@ export function WantedDraftWorkspace({ taxonomy, mode = "live" }: WantedDraftWor
             </label>
             <p className="form-field__hint" id="wanted-contribution-hint">
               RM{MIN_CONTRIBUTION_SEN / 100} to RM{MAX_CONTRIBUTION_SEN / 100}. Yours starts the
-              bounty; classmates add to it. The payment provider adds its own charge on top.
+              bounty; classmates add to it. A {FEE_RATE_BASIS_POINTS / 100}% platform fee is added
+              on top when you pay, never taken from the bounty.
               {isAcademic
                 ? null
                 : " You release it by naming the member who helped; a Sheriff approves before anyone is paid."}

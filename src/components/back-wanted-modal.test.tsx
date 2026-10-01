@@ -107,6 +107,41 @@ describe("BackWantedModal", () => {
     expect(onClose).toHaveBeenCalledTimes(3);
   });
 
+  it("shows the platform fee on top and the total charged", () => {
+    render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByRole("slider", { name: "Your contribution" }), {
+      target: { value: "20" },
+    });
+
+    const pay = screen.getByLabelText("What you pay");
+    expect(within(pay).getByText("RM 20")).toBeInTheDocument();
+    expect(within(pay).getByText("+RM 2")).toBeInTheDocument();
+    expect(within(pay).getByText("RM 22")).toBeInTheDocument();
+    // The bounty rises by the whole contribution, not by the contribution less a fee.
+    expect(
+      within(screen.getByLabelText("Bounty after your contribution")).getByText("RM 70"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Proceed to payment of RM 22" })).toBeInTheDocument();
+  });
+
+  it("sends a Backer without bank details to their profile first", async () => {
+    vi.mocked(global.fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: false, code: "PAYMENT_DETAILS_REQUIRED", message: "" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
+
+    expect(await screen.findByText("Add your bank details first")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Add payment details" })).toHaveAttribute(
+      "href",
+      "/profile#payment-details",
+    );
+    expect(screen.getByText(/No charge was made/)).toBeInTheDocument();
+  });
+
   it("handles launch-gate refusal with informative notice", async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ ok: false, code: "PAYMENT_DISABLED" }), {
@@ -120,11 +155,11 @@ describe("BackWantedModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
 
-    expect(await screen.findByText("Online payment is not open yet")).toBeInTheDocument();
+    expect(await screen.findByText("Payments are switched off")).toBeInTheDocument();
     expect(screen.getByText(/No charge was made and the bounty is unchanged/i)).toBeInTheDocument();
   });
 
-  it("treats a missing contribution endpoint as payment not open, not as a charge", async () => {
+  it("treats an unreachable contribution endpoint as not prepared, not as a charge", async () => {
     vi.mocked(global.fetch).mockResolvedValueOnce(
       new Response("<html>Not found</html>", { status: 404 }),
     );
@@ -132,7 +167,8 @@ describe("BackWantedModal", () => {
     render(<BackWantedModal wanted={createWantedDetail()} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
 
-    expect(await screen.findByText("Online payment is not open yet")).toBeInTheDocument();
+    expect(await screen.findByText("Payment could not be prepared")).toBeInTheDocument();
+    expect(screen.getByText(/No charge was made/)).toBeInTheDocument();
   });
 
   it("sends a Backer who needs institution verification to verify, and says nothing was charged", async () => {
@@ -168,7 +204,7 @@ describe("BackWantedModal", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Proceed to payment/ }));
 
-    await screen.findByText("Online payment is not open yet");
+    await screen.findByText("Payments are switched off");
     const [, init] = vi.mocked(global.fetch).mock.calls[0]!;
     expect(JSON.parse(String(init?.body))).toEqual({ amountSen: 2000 });
   });

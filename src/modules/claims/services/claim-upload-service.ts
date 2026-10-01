@@ -100,7 +100,12 @@ export class ClaimUploadService {
         maxBytes: CLAIM_MAX_BYTES,
         mimeType: submission.mimeType,
       });
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes("payment_details_required"))
+        return failure(
+          "PAYMENT_DETAILS_REQUIRED",
+          "Add your phone number and bank account to your profile before claiming this bounty. The bounty is paid there.",
+        );
       return failure("UPLOAD_UNAVAILABLE", "Claim upload is temporarily unavailable. Try again.");
     }
   }

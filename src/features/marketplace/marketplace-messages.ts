@@ -40,6 +40,10 @@ export const MARKETPLACE_MESSAGE: Record<MarketplaceOperationCode | MoneyOperati
   PAYMENT_PROVIDER_REJECTED: "The payment provider rejected this bill request.",
   PAYMENT_CALLBACK_INVALID: "The payment callback payload was invalid.",
   PAYMENT_CALLBACK_REPLAY: "This payment event has already been processed.",
+  PAYMENT_DETAILS_REQUIRED:
+    "Add your phone number and bank account to your profile before paying. Refunds are paid there. You have not been charged.",
+  PAYMENT_BILL_NOT_FOUND: "This payment was not found on your account.",
+  PAYMENT_BILL_CLOSED: "This bill is closed. Nothing more can be paid on it.",
   FREE_LIMIT_REACHED:
     "You have used all your free requests. Redeem a reward code on your profile, or add a bounty.",
   REGION_CLOSED:

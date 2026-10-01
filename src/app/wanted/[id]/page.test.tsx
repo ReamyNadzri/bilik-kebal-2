@@ -133,9 +133,11 @@ describe("reading one request", () => {
     });
     await renderPage();
 
-    // The platform fee is for the poster; a visitor sees only the checkout charge.
-    expect(screen.getByText(/7\.5% platform fee/)).not.toBeVisible();
-    expect(screen.getByRole("heading", { name: "Checkout" })).toBeVisible();
+    // A visitor pays the fee on top of a contribution, so the Checkout panel names it.
+    const checkout = screen.getByRole("heading", { name: "Checkout" }).parentElement!;
+    expect(checkout).toBeVisible();
+    expect(within(checkout).getByText(/7\.5% platform fee is added on top/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Fees", hidden: true })).not.toBeVisible();
     expect(screen.getByText(/2026-09-15\.1/)).toBeInTheDocument();
   });
 

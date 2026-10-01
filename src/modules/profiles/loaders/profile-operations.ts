@@ -1,4 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { failure } from "@/contracts/operation-result";
+import type { OwnPaymentDetails, SavePaymentDetailsResult } from "@/contracts/payment-details";
 import type {
   AvatarUploadResult,
   ReadPublicProfileResult,
@@ -9,6 +11,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { SupabaseProfileRepository } from "../repositories/supabase-profile-repository";
 import { ProfileService, type ProfileActor } from "../services/profile-service";
+import { SupabasePaymentDetailsRepository } from "../repositories/supabase-payment-details-repository";
+import { PaymentDetailsService } from "../services/payment-details-service";
 
 async function context(): Promise<{ actor: ProfileActor | null; service: ProfileService }> {
   const client = await getRequestSupabaseClient();
@@ -76,5 +80,36 @@ export async function requestAvatarUpload(): Promise<AvatarUploadResult> {
     return loaded.service.requestAvatarUpload(loaded.actor);
   } catch {
     return unavailable();
+  }
+}
+
+async function paymentDetailsContext() {
+  const client = await getRequestSupabaseClient();
+  const {
+    data: { user },
+  } = await getRequestUser();
+  return {
+    actor: user ? { userId: user.id } : null,
+    service: new PaymentDetailsService(
+      new SupabasePaymentDetailsRepository(client as unknown as SupabaseClient),
+    ),
+  };
+}
+
+/** The signed-in member's phone and bank, account number masked; null when none is on file. */
+export async function readOwnPaymentDetails(): Promise<OwnPaymentDetails | null> {
+  const loaded = await paymentDetailsContext();
+  return loaded.service.readOwn(loaded.actor);
+}
+
+export async function saveOwnPaymentDetails(input: unknown): Promise<SavePaymentDetailsResult> {
+  try {
+    const loaded = await paymentDetailsContext();
+    return loaded.service.save(loaded.actor, input);
+  } catch {
+    return failure(
+      "PAYMENT_DETAILS_UNAVAILABLE" as const,
+      "Your payment details could not be saved. Try again.",
+    );
   }
 }

@@ -5,7 +5,10 @@ import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
 import { marketplaceNow } from "@/features/marketplace/wanted-source";
 import { requireAccount } from "@/features/presentation/auth/require-account";
-import { readPublicProfile } from "@/modules/profiles/loaders/profile-operations";
+import {
+  readOwnPaymentDetails,
+  readPublicProfile,
+} from "@/modules/profiles/loaders/profile-operations";
 import { listOwnTaxonomyRequests } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
 import { readFreeAllowance } from "@/modules/wanted/loaders/wanted-operations";
 
@@ -51,10 +54,11 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const account = outcome.account;
   // The member's own public card (bio, posted requests) comes from the same
   // read anyone else sees, so what they edit is exactly what others see.
-  const [publicProfile, allowance, entryRequests] = await Promise.all([
+  const [publicProfile, allowance, entryRequests, paymentDetails] = await Promise.all([
     account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
     readFreeAllowance(),
     listOwnTaxonomyRequests(),
+    readOwnPaymentDetails().catch(() => "unavailable" as const),
   ]);
   const profile = publicProfile?.ok ? publicProfile.data : null;
 
@@ -77,7 +81,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           <UiStatus
             kind="success"
             heading="Your Wanted was withdrawn"
-            message="It has left the Board. Any contributions to it, yours included, are in the refund queue and are refunded in full by hand."
+            message="It has left the Board. Any contributions to it, yours included, are in the refund queue and are refunded in full, platform fee included, to the bank account on each payer's profile."
           />
         </div>
       ) : null}
@@ -102,6 +106,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         bio={profile?.bio ?? null}
         allowance={allowance.ok ? allowance.data : null}
         entryRequests={entryRequests.ok ? entryRequests.data : null}
+        paymentDetails={paymentDetails}
       />
     </div>
   );

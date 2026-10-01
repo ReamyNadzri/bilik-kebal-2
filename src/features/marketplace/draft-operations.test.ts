@@ -19,6 +19,8 @@ describe("draft-operations", () => {
         id: "intent-123",
         provider: "toyyibpay",
         amountSen: 2500 as never,
+        feeSen: 250 as never,
+        totalSen: 2750 as never,
         status: "pending",
         paymentUrl: "https://dev.toyyibpay.com/bill-abc",
         expiresAt: new Date(Date.now() + 3600000).toISOString(),
