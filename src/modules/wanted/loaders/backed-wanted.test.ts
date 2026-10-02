@@ -1,12 +1,13 @@
 import type { WantedSummary } from "@/contracts/marketplace";
+import type { BackedWantedRecord } from "../domain/own-backings";
 
 const server = vi.hoisted(() => ({
   getRequestSupabaseClient: vi.fn(),
   getRequestUser: vi.fn(),
 }));
 const repository = vi.hoisted(() => ({
-  listBackedWantedIds: vi.fn(),
-  listWantedByIds: vi.fn(),
+  listOwnBackedWanted: vi.fn(),
+  listWantedByPublicIds: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => server);
@@ -17,64 +18,92 @@ vi.mock("@/modules/identity", () => ({
 }));
 vi.mock("../repositories/supabase-wanted-repository", () => ({
   SupabaseWantedRepository: class {
-    listBackedWantedIds = repository.listBackedWantedIds;
-    listWantedByIds = repository.listWantedByIds;
+    listOwnBackedWanted = repository.listOwnBackedWanted;
+    listWantedByPublicIds = repository.listWantedByPublicIds;
   },
 }));
 
 import { listOwnBackedWanted } from "./wanted-operations";
 
-/** The client's one direct read: internal id to public id. */
-function client(rows: { id: string; public_id: string }[], error: unknown = null) {
-  const inFilter = vi.fn(() => Promise.resolve({ data: error ? null : rows, error }));
-  return { from: vi.fn(() => ({ select: vi.fn(() => ({ in: inFilter })) })), inFilter };
-}
-
+const record = (publicId: string, overrides: Partial<BackedWantedRecord> = {}) =>
+  ({
+    publicId,
+    title: `Title ${publicId}`,
+    status: "open",
+    withdrawn: false,
+    removed: false,
+    backedAt: "2026-10-03T01:00:00Z",
+    refundSen: 0,
+    refundState: "none",
+    ...overrides,
+  }) as BackedWantedRecord;
 const summary = (publicId: string) => ({ id: publicId, title: publicId }) as WantedSummary;
 
 beforeEach(() => {
+  server.getRequestSupabaseClient.mockReset().mockResolvedValue({});
   server.getRequestUser.mockReset().mockResolvedValue({ data: { user: { id: "me" } } });
-  repository.listBackedWantedIds.mockReset();
-  repository.listWantedByIds.mockReset();
+  repository.listOwnBackedWanted.mockReset();
+  repository.listWantedByPublicIds.mockReset();
 });
 
-test("keeps the backing order through the internal-to-public id mapping", async () => {
-  const db = client([
-    { id: "w-1", public_id: "p-1" },
-    { id: "w-2", public_id: "p-2" },
-    { id: "w-3", public_id: "p-3" },
+test("live Wanteds become cards in backing order; closed ones keep their refund", async () => {
+  repository.listOwnBackedWanted.mockResolvedValue([
+    record("p-2"),
+    record("p-gone", {
+      status: "withdrawn",
+      withdrawn: true,
+      refundState: "pending",
+      refundSen: 2200,
+    }),
+    record("p-3"),
+    record("p-1"),
   ]);
-  server.getRequestSupabaseClient.mockResolvedValue(db);
-  repository.listBackedWantedIds.mockResolvedValue(["w-2", "w-3", "w-1"]);
   // Summaries come back in some other order, and one is no longer readable.
-  repository.listWantedByIds.mockResolvedValue([summary("p-1"), summary("p-2")]);
+  repository.listWantedByPublicIds.mockResolvedValue([summary("p-1"), summary("p-2")]);
 
   const result = await listOwnBackedWanted();
 
-  expect(result?.map((item) => item.id)).toEqual(["p-2", "p-1"]);
-  expect(repository.listBackedWantedIds).toHaveBeenCalledWith("me");
-  expect(db.inFilter).toHaveBeenCalledWith("id", ["w-2", "w-3", "w-1"]);
+  expect(result?.live.map((item) => item.id)).toEqual(["p-2", "p-1"]);
+  expect(result?.closed).toEqual([
+    expect.objectContaining({
+      publicId: "p-gone",
+      reason: "withdrawn",
+      refundState: "pending",
+      refundSen: 2200,
+    }),
+  ]);
+  // A closed Wanted is never read as a card.
+  expect(repository.listWantedByPublicIds).toHaveBeenCalledWith(["p-2", "p-3", "p-1"]);
 });
 
-test("gives an empty list to a signed-out reader without reading anything", async () => {
-  server.getRequestSupabaseClient.mockResolvedValue(client([]));
+test("skips the card read when every backing is closed", async () => {
+  repository.listOwnBackedWanted.mockResolvedValue([
+    record("p-x", { status: "expired", refundState: "refunded", refundSen: 1100 }),
+  ]);
+
+  const result = await listOwnBackedWanted();
+
+  expect(result?.live).toEqual([]);
+  expect(result?.closed).toHaveLength(1);
+  expect(repository.listWantedByPublicIds).not.toHaveBeenCalled();
+});
+
+test("gives empty lists to a signed-out reader without reading anything", async () => {
   server.getRequestUser.mockResolvedValue({ data: { user: null } });
 
-  await expect(listOwnBackedWanted()).resolves.toEqual([]);
-  expect(repository.listBackedWantedIds).not.toHaveBeenCalled();
+  await expect(listOwnBackedWanted()).resolves.toEqual({ live: [], closed: [] });
+  expect(repository.listOwnBackedWanted).not.toHaveBeenCalled();
 });
 
 test("gives null when a read fails", async () => {
-  server.getRequestSupabaseClient.mockResolvedValue(client([], new Error("down")));
-  repository.listBackedWantedIds.mockResolvedValue(["w-1"]);
-  repository.listWantedByIds.mockResolvedValue([summary("p-1")]);
+  repository.listOwnBackedWanted.mockResolvedValue([record("p-1")]);
+  repository.listWantedByPublicIds.mockRejectedValue(new Error("down"));
 
   await expect(listOwnBackedWanted()).resolves.toBeNull();
 });
 
 test("gives null when the backing read throws", async () => {
-  server.getRequestSupabaseClient.mockResolvedValue(client([]));
-  repository.listBackedWantedIds.mockRejectedValue(new Error("down"));
+  repository.listOwnBackedWanted.mockRejectedValue(new Error("down"));
 
   await expect(listOwnBackedWanted()).resolves.toBeNull();
 });

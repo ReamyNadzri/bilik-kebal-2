@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import type {
   CampusRegion,
   CommunityPayoutRequestView,
@@ -16,6 +17,7 @@ import { readWantedPictures } from "@/lib/wanted-pictures";
 import { readMemberBadges } from "@/lib/badges";
 import type { Database } from "@/lib/supabase/database.types";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
+import type { BackedWantedRecord } from "../domain/own-backings";
 import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-query";
 import { THREAD_RETENTION_DAYS, wantedThreadState } from "../domain/wanted-thread";
 import type { PersistWantedDraft, StoredWantedDraft, WantedRepository } from "./wanted-repository";
@@ -26,6 +28,20 @@ type WantedRow = Database["public"]["Tables"]["wanted_requests"]["Row"];
 /** Shown where an academic request names no session. */
 const ANY_SESSION = "Any session";
 const PUBLIC_STATUSES = ["open", "reviewing", "expired", "fulfilled", "closed"] as const;
+/** bigint sums may arrive as strings; money stays an integer number of sen. */
+const senColumn = z.coerce.number().int().nonnegative().safe();
+const backedWantedRows = z.array(
+  z.object({
+    public_id: z.string(),
+    title: z.string(),
+    status: z.string(),
+    withdrawn: z.boolean(),
+    removed: z.boolean(),
+    backed_at: z.string(),
+    refund_sen: senColumn,
+    refund_state: z.enum(["none", "pending", "refunded"]),
+  }),
+);
 const KIND_LABEL: Record<WantedKind, string> = {
   academic: "Academic resource",
   missing_item: "Missing item",
@@ -135,28 +151,38 @@ export class SupabaseWantedRepository implements WantedRepository {
     return this.toSummaries(data ?? []);
   }
 
-  /**
-   * Wanteds the member contributed to, excluding their own posts, most
-   * recently backed first. RLS (`contributions_read_own`) limits the read to
-   * the caller's own contributions.
-   */
-  async listBackedWantedIds(memberUserId: string): Promise<string[]> {
-    const contributions = await this.client
-      .from("contributions")
-      .select("wanted_request_id, created_at")
-      .eq("contributor_user_id", memberUserId)
-      .order("created_at", { ascending: false });
-    if (contributions.error) throw contributions.error;
-    const ids = [...new Set((contributions.data ?? []).map((row) => row.wanted_request_id))];
-    if (ids.length === 0) return [];
-    const own = await this.client
+  /** Published Wanteds by public id (a member's live backings). */
+  async listWantedByPublicIds(publicIds: readonly string[]): Promise<WantedSummary[]> {
+    if (publicIds.length === 0) return [];
+    const { data, error } = await this.client
       .from("wanted_requests")
-      .select("id")
-      .in("id", ids)
-      .eq("commissioner_user_id", memberUserId);
-    if (own.error) throw own.error;
-    const posted = new Set((own.data ?? []).map((row) => row.id));
-    return ids.filter((id) => !posted.has(id));
+      .select("*")
+      .in("public_id", [...publicIds])
+      .in("status", [...PUBLIC_STATUSES])
+      .is("vanished_at", null);
+    if (error) throw error;
+    return this.toSummaries(data ?? []);
+  }
+
+  /**
+   * Wanteds the caller contributed to, excluding their own posts, most
+   * recently backed first, withdrawn and removed ones included with their
+   * refund state (public.list_own_backed_wanted, migration 202610200005).
+   * Read with the member's own session: the function answers only for them.
+   */
+  async listOwnBackedWanted(): Promise<BackedWantedRecord[]> {
+    const { data, error } = await this.client.rpc("list_own_backed_wanted");
+    if (error) throw error;
+    return backedWantedRows.parse(data ?? []).map((row) => ({
+      publicId: row.public_id,
+      title: row.title,
+      status: row.status,
+      withdrawn: row.withdrawn,
+      removed: row.removed,
+      backedAt: row.backed_at,
+      refundSen: row.refund_sen,
+      refundState: row.refund_state,
+    }));
   }
 
   /** Fulfilled and resolved Wanteds: the Archive. */

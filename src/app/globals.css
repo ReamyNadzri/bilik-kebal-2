@@ -8334,6 +8334,11 @@ textarea.form-field__input {
   list-style: none;
 }
 
+/* Closed backings follow the live cards on the profile. */
+.wanted-grid + .profile-backings__closed {
+  margin-block-start: var(--space-4);
+}
+
 .reward-code {
   display: flex;
   flex-wrap: wrap;

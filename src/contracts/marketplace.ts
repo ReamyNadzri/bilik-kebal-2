@@ -359,6 +359,36 @@ export interface WantedSummary {
 }
 
 /**
+ * Why a backed Wanted left the Board, as its Backer sees it: withdrawn by its
+ * poster, removed by the Owner, expired without a winner, or (a payment
+ * confirmed after it closed) closed.
+ */
+export type ClosedBackingReason = "withdrawn" | "removed" | "expired" | "closed";
+
+/** none: no refund task; pending: one not yet recorded; refunded: all recorded. */
+export type BackingRefundState = "none" | "pending" | "refunded";
+
+/** A Wanted the member backed that closed and owes or owed them a refund. */
+export interface ClosedBacking {
+  publicId: string;
+  title: string;
+  reason: ClosedBackingReason;
+  refundState: BackingRefundState;
+  /** Contribution + fee over the member's refund tasks for it. */
+  refundSen: Sen;
+  backedAt: string;
+}
+
+/**
+ * The member's own backings (migration 202610200005): live Wanteds as cards,
+ * closed ones with their refund state. Never part of a public profile.
+ */
+export interface OwnBackings {
+  live: WantedSummary[];
+  closed: ClosedBacking[];
+}
+
+/**
  * Retention of a Wanted's chat thread (migration 202610100001). A thread
  * closes when its Wanted leaves open/reviewing; seven days later its messages
  * are deleted, and a missing-item or discussion card leaves the Board too.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ProfileBackings } from "@/components/profile-backings";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
@@ -103,11 +104,10 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         }
       />
 
-      {/* Private: backings are never part of the public profile. */}
-      <ProfileWantedGrid
-        heading="Wanteds you backed"
-        headingId="profile-backed-heading"
-        wanted={backed ?? []}
+      {/* Private: backings are never part of the public profile. A withdrawn,
+          removed or expired Wanted stays listed with its refund. */}
+      <ProfileBackings
+        backings={backed ?? { live: [], closed: [] }}
         now={marketplaceNow()}
         empty={
           <UiStatus
