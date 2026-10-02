@@ -6102,11 +6102,13 @@ textarea.form-field__input {
 }
 
 .dropzone__title {
+  display: block;
   margin: 0 0 var(--space-1);
   font-weight: 700;
 }
 
 .dropzone__hint {
+  display: block;
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
