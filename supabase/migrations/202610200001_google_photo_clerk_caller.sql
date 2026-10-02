@@ -1,5 +1,5 @@
 -- 202610170001 was written after the Clerk identity bridge (202610160001) and brought back
--- private.current_user_id() in two functions. Clerk session subjects look like "user_...", so private.current_user_id()'s
+-- auth.uid() in two functions. Clerk session subjects look like "user_...", so auth.uid()'s
 -- uuid cast throws: "Use my Google photo" and the Sheriff's avatar reset always answered
 -- "could not be saved". Both now identify the caller with private.current_user_id().
 -- Bodies are otherwise unchanged; create or replace keeps the existing grants.
