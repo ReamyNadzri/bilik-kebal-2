@@ -75,7 +75,7 @@ describe("PaymentDetailsForm", () => {
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(String(init?.body))).toEqual({
       accountHolderName: "Aminah Binti Ali",
-      accountNumber: "1122 3344 6789",
+      accountNumber: "112233446789",
       bankCode: "maybank",
       phone: "0123456789",
     });
