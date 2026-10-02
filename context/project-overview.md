@@ -139,6 +139,10 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
   reconciliation alerts) until the payment gateway is applied and its verified
   event flow is operational.
 - Sheriff queues for claims, quarantine, reports, appeals, payout/refund tasks, and bounty exceptions.
+- When a Wanted is withdrawn, removed by the Owner or expires, each Backer is notified that their
+  refund is queued, and the Owner and Platform Sheriffs are notified that the refund queue has
+  work (in-app only, like other payment email it is deferred). A Backer's private "Wanteds you
+  backed" list keeps the closed Wanted with its refund state.
 - Owner controls for payment mode, payment kill switch, fee configuration, taxonomy, storage usage, and provider health.
 - Durable queues, scheduled lifecycle jobs, retryable idempotent handlers, and operational audit logs.
 

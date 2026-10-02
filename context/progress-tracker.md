@@ -1478,3 +1478,51 @@ Verification and deployment state:
 - **Not yet applied** to Cloud: waiting for the user's go-ahead. Deploy order: migrations before the
   app (profile reads and the new PATCH need them).
 - Not verified: `supabase/tests/local/published_wanted_edit.sql` (no local Postgres).
+
+### 2026-10-03 — Refund notices and closed backings (follow-up to item 8)
+
+Request (user, 3 Oct): "If a Wanted you backed is withdrawn or removed, it disappears from 'Wanteds
+you backed'. User should receive a notice. And Sheriff also should have the notice and [it should]
+show up in payment pending for refund."
+
+Built:
+
+- `202610200005_refund_notices.sql` (**not yet applied**): notification kinds
+  `wanted_refund_queued` (to the Backer) and `refund_queue_pending` (to the Owner and every Platform
+  Sheriff), subject = the Wanted's `public_id`. A statement-level `after insert` trigger on
+  `refund_tasks` (transition table) publishes them, so withdrawal, the late-payment trigger, the
+  Owner's removal and expiry are all covered. RPC `list_own_backed_wanted()` (authenticated only,
+  `private.current_user_id()`): one row per Wanted the caller backed and did not post, with status,
+  withdrawn/removed flags, latest backing time, contributed sen, refund sen (contribution + fee
+  over their refund tasks) and refund state `none | pending | refunded`. No other Backer and no
+  removal reason is returned.
+- `/profile` "Wanteds you backed": live Wanteds stay cards; withdrawn, removed and expired ones (and
+  any with a refund owed) stay listed with a plain status line, e.g. "Withdrawn by the poster ·
+  Refund of RM 22.00 pending", "Expired without a winner · Refunded RM 11.00". Only an expired one
+  links (the others have no page for Backers). `OwnBackings` / `ClosedBacking` in
+  `src/contracts/marketplace.ts`; `listOwnBackedWanted` now returns `{ live, closed }`.
+- Inbox copy: the Backer's notice links to `/profile#profile-backed-heading`; the staff notice to
+  `/console/operations?tab=refunds` (the operations page now honours `?tab=`). Both are in-app
+  only: `project-overview.md` defers payment-related email (refunds included) until the gateway is
+  live, so the migration also makes `private.enqueue_notification_email` skip the two kinds.
+- Checked: a Platform Sheriff already saw the Refunds tab and its pending rows (console nav links
+  are shown to all, `PayoutService.listRefundTasks` and RLS allow owner + platform_sheriff; bank
+  details are Owner-only). Nothing about who records a refund changed.
+
+Assumptions:
+
+- One notice per refund episode: a Backer is told once per Wanted when they go from no outstanding
+  refund to one; staff once per Wanted likewise. A second contribution by the same Backer, or the
+  Owner's per-contribution removal loop, does not notify twice; a payment confirmed after every
+  earlier refund was recorded notifies again. Event id = smallest new refund task id in the group.
+- A poster who paid into their own withdrawn Wanted is also told (they are refunded too); their own
+  Wanted is not in "Wanteds you backed".
+- The notice text cannot name the reason (the Owner's removal queues refunds before it marks the
+  Wanted removed), so it says "withdrawn, removed or expired"; the profile line names the reason.
+- Completion stays Owner-only; refund amounts, fees and the ledger are unchanged.
+
+Deploy order: **migration, then the app straight after.** The new profile read needs
+`list_own_backed_wanted` (an app first would show "could not be loaded" for backings); an old app
+after the migration would fail the whole inbox for anyone who receives a new kind (the inbox parses
+kinds with the contract enum), so keep the gap to minutes, ideally with no refund queued in it. Not
+verified: `supabase/tests/local/refund_notices.sql` (no local Postgres).
