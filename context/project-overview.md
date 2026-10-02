@@ -58,7 +58,8 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
   code or part of its name.
 - Taxonomy names are in Malay, as the institution publishes them; the interface stays English.
   Faculties and programmes belong to the institution, not to a campus.
-- The academic session is optional on an academic request.
+- The academic session is optional on an academic request. Sessions are Semester 1 to Semester 6, with no year.
+- A Wanted's description is 10 to 2000 characters.
 - Region lock: open campuses are UiTM Shah Alam, Puncak Alam, Kuala Terengganu, Dungun and Bukit
   Besi, and UMPSA Pekan; the other UiTM branch campuses appear on the map as "coming soon".
 - Institutions: UiTM and UMPSA (Pekan campus only), browsed separately. A member verified at one
@@ -66,16 +67,23 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
   university with a switch (remembered in a cookie). A shared link to another university's Wanted
   opens read-only, naming its university. Posting, backing, claiming, replying and downloading stay
   within the member's own university. This is a filter, not access control: RLS is unchanged.
+- A member's own profile (`/profile`) lists the Wanteds they backed, privately: never on the public `/u/...` profile, and withdrawn or removed Wanteds drop off.
 - Public member profiles show name, avatar, joined date, verification badge and the member's
   public Wanted requests only — never email, evidence, claims or contributions.
 - Hunters wall (user decision 2026-09-28): a second view on the Board (`/board?view=hunters`)
   lists institution-verified members without an active restriction as posters, 10, 15 or 20 to a
   page, each linking to the member's public profile; the homepage shows six at random. Same bar as
   the Board (a verified email). It shows only name, avatar, verified institution and joined month.
-- Changing a published Wanted (user decision 2026-09-28): for one hour after publication the poster
-  may edit the title and description or withdraw it. The window closes early at the first claim
-  (not withdrawn by its Hunter) or, on a missing item or discussion, the first reply from someone
-  else. Bounty, duration, course, campus and every snapshot never change; the previous text is kept.
+- Changing a published Wanted (user decisions 2026-09-28, widened 2026-10-02): for one hour after
+  publication the poster may correct its details or withdraw it. The window closes early at the
+  first claim (not withdrawn by its Hunter) or, on a missing item or discussion, the first reply
+  from someone else. Editable fields by kind: academic resource - title, description, campus,
+  faculty, programme, course code, session, resource type, language, tags; missing item - title,
+  description, campus, last-seen place, tags; discussion - title, description, campus, tags. The
+  university, bounty, duration, fee and policy snapshots, kind and free/paid never change. Each edit
+  keeps the previous details and shows one "Edited by the poster" event; a save that changes nothing
+  records nothing. Values left as published are not re-checked, so a typo can be fixed after a
+  session, course or tag was switched off.
   Withdrawing hides the Wanted permanently and queues every contribution, the poster's own
   included, for a full manual refund by the Owner; no fee is taken. A free request used by a
   withdrawn Wanted is not returned.

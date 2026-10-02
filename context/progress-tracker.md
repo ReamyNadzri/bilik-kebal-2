@@ -1430,3 +1430,51 @@ on a bounty; "banner" means the Owner-awarded badge (Owner, 1st, Developer…); 
   `#variable_conflict use_column`, body otherwise unchanged (applied after a rolled-back dry run:
   completes to `screening`, a second call is harmless, grants unchanged). The client now confirms
   the upload and reports failure instead of success when confirmation fails.
+
+## 2026-10-03 — QA round 3 (`claude/qa-round-3`)
+
+Eleven user reports, in order:
+
+1. "Use my Google photo" failed with "could not be saved". `202610170001` was written after the Clerk
+   bridge (`202610160001`) and reintroduced `auth.uid()` in `use_own_external_avatar` and
+   `console_reset_member_avatar`; a Clerk `sub` is `user_...`, so the uuid cast failed (the Sheriff
+   avatar reset was broken too). Fixed by `202610200001` (both use `private.current_user_id()`). New
+   guard test `src/modules/identity/clerk-caller-guard.test.ts` fails if any function defined after
+   the bridge uses `auth.uid()`.
+2. Photo dialog: the hint now sits below "Choose a photo".
+3. Account number accepts digits only (max 20); a test checks the saved value is sent as digits.
+4. Sessions are Semester 1 to 6, no years. `202610200002` renames the two UiTM rows in place (the
+   Wanteds on them keep their ids), adds 3 to 6 for every institution, and switches off any other
+   session instead of deleting it.
+5. A description needs at least 10 characters: constant `DESCRIPTION_MIN_LENGTH`, and a table
+   constraint in `202610200003`.
+6. Published Wanted edit widened (decided with the user 2 Oct): same first hour and the same claim
+   and reply locks. Fields per kind: academic - title, description, campus, faculty, programme,
+   course code, session, resource type, language, tags; missing item - title, description, campus,
+   last-seen place, tags; discussion - title, description, campus, tags. Never the university,
+   bounty, duration, fee or policy snapshots, kind or free/paid. Each edit adds a revision row with
+   `previous_details` (jsonb) and one "Edited by the poster" event. Values left unchanged are not
+   re-validated, so a since-deactivated session, course or tag does not block a typo fix; a no-op
+   save records nothing. New RPC `update_own_published_wanted_details` (`202610200004`); the old
+   `update_own_published_wanted` is kept and delegates. Server side: `wantedPosterEditSchema` and
+   `WantedEditableDetails` in `src/contracts/marketplace.ts`, the poster service and repository;
+   UI: the edit dialog in `wanted-poster-controls.tsx`, with shared `SelectField` and `TagPicker`.
+7. Course code suggestions are an app-drawn combobox (`CourseCodeCombobox`) lined up with the field;
+   free text is kept.
+8. "Wanteds you backed" appears on `/profile` only. It is private, never on `/u/...`, and withdrawn
+   or removed Wanteds drop off.
+9. Space between "Replying to..." and the comment box.
+10. Claim reviews are a list with a detail panel, like People. Each decision takes a reason from a
+    dropdown plus optional notes; `window.prompt` is gone. The queue shows the Wanted's title and link.
+11. The Console member list and claim list scroll inside a fixed height (`.console-scroll-list`,
+    focusable for keyboard use).
+
+Verification and deployment state:
+
+- Cloud dry runs in rolled-back transactions passed: `202610200001` (a Google member's
+  `use_own_external_avatar` returned the photo URL) and `202610200002`-`04` together (sessions
+  present, a 10-character description accepted, a campus edit produced 1 revision with details and
+  1 event, an identical re-save added nothing, `anon` cannot execute the new function).
+- **Not yet applied** to Cloud: waiting for the user's go-ahead. Deploy order: migrations before the
+  app (profile reads and the new PATCH need them).
+- Not verified: `supabase/tests/local/published_wanted_edit.sql` (no local Postgres).
