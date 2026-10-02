@@ -2426,6 +2426,21 @@ export type Database = {
         Args: { target_wanted_id: string };
         Returns: number;
       };
+      list_own_backed_wanted: {
+        Args: never;
+        Returns: {
+          backed_at: string;
+          contributed_sen: number;
+          kind: string;
+          public_id: string;
+          refund_sen: number;
+          refund_state: string;
+          removed: boolean;
+          status: string;
+          title: string;
+          withdrawn: boolean;
+        }[];
+      };
       list_unresolved_provider_events: {
         Args: { max_rows?: number };
         Returns: {

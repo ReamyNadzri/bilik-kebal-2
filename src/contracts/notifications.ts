@@ -21,6 +21,8 @@ export const notificationKinds = [
   "welcome",
   "wanted_thread_auto_closed",
   "wanted_reply_hidden",
+  "wanted_refund_queued",
+  "refund_queue_pending",
 ] as const;
 export type NotificationKind = (typeof notificationKinds)[number];
 
@@ -56,10 +58,17 @@ export const notificationMessages: Readonly<Record<NotificationKind, string>> = 
     "Your request closed after 30 days without a new message. You can reopen it within 7 days; after that it leaves the Board.",
   wanted_reply_hidden:
     "A Sheriff hid one of your chat messages. Other members can no longer see it. Keep messages within the posting terms.",
+  wanted_refund_queued:
+    "A Wanted you backed was withdrawn, removed or expired before a winner was chosen. A full refund of your contribution and fee is queued; your profile shows its status.",
+  refund_queue_pending:
+    "Refunds are pending for a Wanted that was withdrawn, removed or expired. Open the refund queue.",
 };
 
 /** Where a notification leads, when its subject is a public page. */
 export function notificationHref(kind: NotificationKind, subjectId: string): string | null {
+  // Before the "wanted_" rule: a closed Wanted has no page for its Backers.
+  if (kind === "wanted_refund_queued") return "/profile#profile-backed-heading";
+  if (kind === "refund_queue_pending") return "/console/operations?tab=refunds";
   if (kind.startsWith("wanted_") || kind.startsWith("community_")) return `/wanted/${subjectId}`;
   if (kind.startsWith("taxonomy_request_")) return "/profile#entry-requests";
   if (kind.startsWith("claim_")) return "/claims";
