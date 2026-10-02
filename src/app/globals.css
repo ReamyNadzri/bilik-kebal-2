@@ -7384,7 +7384,7 @@ textarea.form-field__input {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
