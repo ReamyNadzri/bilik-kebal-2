@@ -30,7 +30,7 @@ export type ClaimReviewQueueItem = {
 export const CLAIM_REVIEW_REASONS = {
   approve: [
     { code: "meets_request", label: "Matches the request" },
-    { code: "rights_confirmed", label: "Rights confirmed for release" },
+    { code: "rights_confirmed", label: "Hunter's rights look clear" },
   ],
   request_information: [
     { code: "needs_review", label: "Needs a closer look" },
