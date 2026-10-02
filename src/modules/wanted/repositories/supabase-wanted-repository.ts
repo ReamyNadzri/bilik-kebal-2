@@ -135,6 +135,30 @@ export class SupabaseWantedRepository implements WantedRepository {
     return this.toSummaries(data ?? []);
   }
 
+  /**
+   * Wanteds the member contributed to, excluding their own posts, most
+   * recently backed first. RLS (`contributions_read_own`) limits the read to
+   * the caller's own contributions.
+   */
+  async listBackedWantedIds(memberUserId: string): Promise<string[]> {
+    const contributions = await this.client
+      .from("contributions")
+      .select("wanted_request_id, created_at")
+      .eq("contributor_user_id", memberUserId)
+      .order("created_at", { ascending: false });
+    if (contributions.error) throw contributions.error;
+    const ids = [...new Set((contributions.data ?? []).map((row) => row.wanted_request_id))];
+    if (ids.length === 0) return [];
+    const own = await this.client
+      .from("wanted_requests")
+      .select("id")
+      .in("id", ids)
+      .eq("commissioner_user_id", memberUserId);
+    if (own.error) throw own.error;
+    const posted = new Set((own.data ?? []).map((row) => row.id));
+    return ids.filter((id) => !posted.has(id));
+  }
+
   /** Fulfilled and resolved Wanteds: the Archive. */
   async listArchivedWanted(limit = 60): Promise<WantedSummary[]> {
     const { data, error } = await this.client

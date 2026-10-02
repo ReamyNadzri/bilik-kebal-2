@@ -495,3 +495,36 @@ export async function decideCommunityPayout(
     return unavailable();
   }
 }
+
+/**
+ * Wanteds the signed-in member has backed (not their own posts), most
+ * recently backed first. Private: read with the member's own session, so
+ * row-level security limits the contributions to theirs. Signed out gives an
+ * empty list; an unreadable result gives null.
+ */
+export async function listOwnBackedWanted(): Promise<WantedSummary[] | null> {
+  try {
+    const client = await getRequestSupabaseClient();
+    const {
+      data: { user },
+    } = await getRequestUser();
+    if (!user) return [];
+    const repository = new SupabaseWantedRepository(client);
+    const backedIds = await repository.listBackedWantedIds(user.id);
+    if (backedIds.length === 0) return [];
+    const [summaries, ids] = await Promise.all([
+      repository.listWantedByIds(backedIds),
+      // Summaries carry public ids; map internal ids through the backing order.
+      client.from("wanted_requests").select("id, public_id").in("id", backedIds),
+    ]);
+    if (ids.error) throw ids.error;
+    const publicIdOf = new Map((ids.data ?? []).map((row) => [row.id, row.public_id]));
+    const summaryOf = new Map(summaries.map((summary) => [summary.id, summary]));
+    return backedIds.flatMap((id) => {
+      const summary = summaryOf.get(publicIdOf.get(id) ?? "");
+      return summary ? [summary] : [];
+    });
+  } catch {
+    return null;
+  }
+}
