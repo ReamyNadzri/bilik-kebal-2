@@ -16,9 +16,16 @@ insert into public.campuses (id, institution_id, slug, name, region_open) values
  ('20000000-0000-0000-0000-0000000000a3','10000000-0000-0000-0000-0000000000e1','a-closed','A Closed',false),
  ('20000000-0000-0000-0000-0000000000b1','10000000-0000-0000-0000-0000000000e2','b-main','B Main',true);
 insert into public.faculties (id, institution_id, slug, name) values
- ('30000000-0000-0000-0000-0000000000a1','10000000-0000-0000-0000-0000000000e1','a-science','A Science');
+ ('30000000-0000-0000-0000-0000000000a1','10000000-0000-0000-0000-0000000000e1','a-science','A Science'),
+ ('30000000-0000-0000-0000-0000000000a2','10000000-0000-0000-0000-0000000000e1','a-arts','A Arts'),
+ ('30000000-0000-0000-0000-0000000000b1','10000000-0000-0000-0000-0000000000e2','b-science','B Science');
 insert into public.programmes (id, institution_id, faculty_id, slug, name) values
- ('40000000-0000-0000-0000-0000000000a1','10000000-0000-0000-0000-0000000000e1','30000000-0000-0000-0000-0000000000a1','a-cs','A CS');
+ ('40000000-0000-0000-0000-0000000000a1','10000000-0000-0000-0000-0000000000e1','30000000-0000-0000-0000-0000000000a1','a-cs','A CS'),
+ ('40000000-0000-0000-0000-0000000000a2','10000000-0000-0000-0000-0000000000e1','30000000-0000-0000-0000-0000000000a2','a-history','A History'),
+ ('40000000-0000-0000-0000-0000000000b1','10000000-0000-0000-0000-0000000000e2','30000000-0000-0000-0000-0000000000b1','b-cs','B CS');
+insert into public.academic_sessions (id, institution_id, slug, name) values
+ ('90000000-0000-0000-0000-0000000000a1','10000000-0000-0000-0000-0000000000e1','a-sem-1','A Semester 1'),
+ ('90000000-0000-0000-0000-0000000000b1','10000000-0000-0000-0000-0000000000e2','b-sem-1','B Semester 1');
 insert into public.courses (id, institution_id, programme_id, slug, code, name, active) values
  ('50000000-0000-0000-0000-0000000000a1','10000000-0000-0000-0000-0000000000e1','40000000-0000-0000-0000-0000000000a1','a-mat183','MAT183','MAT183',true),
  ('50000000-0000-0000-0000-0000000000a2','10000000-0000-0000-0000-0000000000e1','40000000-0000-0000-0000-0000000000a1','a-csc510','CSC510','CSC510',true),
@@ -54,9 +61,16 @@ create function pg_temp.edit(p_public uuid, p_title text, p_campus uuid, p_cours
   select public.update_own_published_wanted_details(p_public, p_title, 'A description that is long enough.',
     p_campus, '30000000-0000-0000-0000-0000000000a1', '40000000-0000-0000-0000-0000000000a1', p_course, null,
     '60000000-0000-0000-0000-0000000000a1', '70000000-0000-0000-0000-0000000000a1', p_location, p_tags) $$;
+-- The academic details only; every other argument as the academic Wanted has it by then.
+create function pg_temp.edit_academic(p_public uuid, p_faculty uuid, p_programme uuid, p_session uuid)
+returns void language sql as $$
+  select public.update_own_published_wanted_details(p_public, 'Past year papers for CSC510',
+    'A description that is long enough.', '20000000-0000-0000-0000-0000000000a2', p_faculty, p_programme,
+    '50000000-0000-0000-0000-0000000000a2', p_session, '60000000-0000-0000-0000-0000000000a1',
+    '70000000-0000-0000-0000-0000000000a1', null, array['80000000-0000-0000-0000-0000000000a1'::uuid]) $$;
 do $$
 declare
-  academic uuid; claimed uuid; item uuid; talk uuid; w record; rev record;
+  academic uuid; claimed uuid; item uuid; talk uuid; replied uuid; pulled uuid; w record; rev record;
   poster constant text := '00000000-0000-0000-0000-00000000000a';
   other constant text := '00000000-0000-0000-0000-00000000000b';
   campus_a constant uuid := '20000000-0000-0000-0000-0000000000a1';
@@ -69,12 +83,22 @@ declare
   tag_one constant uuid := '80000000-0000-0000-0000-0000000000a1';
   tag_two constant uuid := '80000000-0000-0000-0000-0000000000a2';
   tag_off constant uuid := '80000000-0000-0000-0000-0000000000a3';
+  faculty_a constant uuid := '30000000-0000-0000-0000-0000000000a1';
+  faculty_arts constant uuid := '30000000-0000-0000-0000-0000000000a2';
+  faculty_b constant uuid := '30000000-0000-0000-0000-0000000000b1';
+  programme_a constant uuid := '40000000-0000-0000-0000-0000000000a1';
+  programme_arts constant uuid := '40000000-0000-0000-0000-0000000000a2';
+  programme_b constant uuid := '40000000-0000-0000-0000-0000000000b1';
+  session_a constant uuid := '90000000-0000-0000-0000-0000000000a1';
+  session_b constant uuid := '90000000-0000-0000-0000-0000000000b1';
   edits constant text := 'public.update_own_published_wanted_details(uuid, text, text, uuid, uuid, uuid, uuid, uuid, uuid, uuid, text, uuid[])';
 begin
   academic := pg_temp.mk('Past year papers for MAT183', 'academic', now() - interval '10 minutes');
   claimed := pg_temp.mk('Lab manual for CHM138 please', 'academic', now() - interval '5 minutes');
   item := pg_temp.mk('Missing blue water bottle', 'missing_item', now() - interval '5 minutes');
   talk := pg_temp.mk('Which elective is lighter?', 'discussion', now() - interval '5 minutes');
+  replied := pg_temp.mk('Tutorial answers for MAT183', 'academic', now() - interval '5 minutes');
+  pulled := pg_temp.mk('Notes for MAT183 chapter 3', 'academic', now() - interval '5 minutes');
 
   -- Who may call it.
   assert not has_function_privilege('anon', edits, 'execute'), 'anon cannot edit';
@@ -129,10 +153,49 @@ begin
     raise exception 'short title accepted';
   exception when invalid_parameter_value then assert sqlerrm = 'wanted_change_invalid', sqlerrm; end;
 
+  -- Faculty, programme and session must belong to the Wanted's own university.
+  begin perform pg_temp.edit_academic(academic, faculty_b, programme_b, null);
+    raise exception 'faculty from another university accepted';
+  exception when invalid_parameter_value then assert sqlerrm = 'wanted_change_invalid', sqlerrm; end;
+  begin perform pg_temp.edit_academic(academic, faculty_a, programme_b, null);
+    raise exception 'programme from another university accepted';
+  exception when invalid_parameter_value then assert sqlerrm = 'wanted_change_invalid', sqlerrm; end;
+  begin perform pg_temp.edit_academic(academic, faculty_a, programme_a, session_b);
+    raise exception 'session from another university accepted';
+  exception when invalid_parameter_value then assert sqlerrm = 'wanted_change_invalid', sqlerrm; end;
+
+  -- The programme must sit under the chosen faculty, whichever of the two changed.
+  begin perform pg_temp.edit_academic(academic, faculty_a, programme_arts, null);
+    raise exception 'programme from another faculty accepted';
+  exception when invalid_parameter_value then assert sqlerrm = 'wanted_change_invalid', sqlerrm; end;
+  begin perform pg_temp.edit_academic(academic, faculty_arts, programme_a, null);
+    raise exception 'faculty without its programme accepted';
+  exception when invalid_parameter_value then assert sqlerrm = 'wanted_change_invalid', sqlerrm; end;
+  assert (select count(*) = 1 from public.wanted_request_revisions
+          where wanted_request_id = (select id from public.wanted_requests where public_id = academic)),
+    'refused edits recorded nothing';
+
+  -- Faculty, programme and session of its own university are accepted (and then put back).
+  perform pg_temp.edit_academic(academic, faculty_arts, programme_arts, session_a);
+  select * into w from public.wanted_requests where public_id = academic;
+  assert w.faculty_id = faculty_arts and w.programme_id = programme_arts and w.academic_session_id = session_a,
+    'own-university academic details changed';
+  perform pg_temp.edit_academic(academic, faculty_a, programme_a, null);
+
   -- A value left as published may stay after it is switched off.
   update public.tags set active = false where id = tag_one;
   perform pg_temp.edit(academic, 'Past year papers for CSC510 (any year)', campus_east, csc510, null, array[tag_one]);
   assert (select title = 'Past year papers for CSC510 (any year)' from public.wanted_requests where public_id = academic), 'kept inactive tag';
+
+  -- previous_details.tag_ids holds the tags as they were before each edit.
+  perform pg_temp.edit(academic, 'Past year papers for CSC510 (any year!)', campus_east, csc510, null, array[tag_two]);
+  select r.* into rev from public.wanted_request_revisions r
+  join public.wanted_requests w2 on w2.id = r.wanted_request_id
+  where w2.public_id = academic and r.previous_title = 'Past year papers for CSC510 (any year)';
+  assert rev.previous_details -> 'tag_ids' = jsonb_build_array(tag_one),
+    'pre-edit tags kept: ' || rev.previous_details::text;
+  assert (select array_agg(tag_id) = array[tag_two] from public.wanted_request_tags
+          where wanted_request_id = rev.wanted_request_id), 'tags replaced';
 
   -- The title-only edit still works and keeps every other detail.
   perform public.update_own_published_wanted(academic, 'Past year papers for CSC510 v2', 'Ten chars!');
@@ -164,6 +227,22 @@ begin
   begin perform pg_temp.edit(claimed, 'Lab manual for CHM138 please (any)', campus_a, mat183);
     raise exception 'edited after a claim';
   exception when insufficient_privilege then assert sqlerrm = 'wanted_change_locked:claim_submitted', sqlerrm; end;
+
+  -- The poster's own reply does not lock it; a reply from someone else does.
+  insert into public.wanted_replies (wanted_request_id, author_user_id, body)
+  select id, poster::uuid, 'Any year is fine' from public.wanted_requests where public_id = replied;
+  perform pg_temp.edit(replied, 'Tutorial answers for MAT183 (any)', campus_a, mat183);
+  insert into public.wanted_replies (wanted_request_id, author_user_id, body)
+  select id, other::uuid, 'I have chapter one' from public.wanted_requests where public_id = replied;
+  begin perform pg_temp.edit(replied, 'Tutorial answers for MAT183 (all)', campus_a, mat183);
+    raise exception 'edited after a reply from someone else';
+  exception when insufficient_privilege then assert sqlerrm = 'wanted_change_locked:reply_received', sqlerrm; end;
+
+  -- A Wanted that is no longer open (here withdrawn) cannot be edited.
+  update public.wanted_requests set status = 'withdrawn', withdrawn_at = now() where public_id = pulled;
+  begin perform pg_temp.edit(pulled, 'Notes for MAT183 chapter 3 and 4', campus_a, mat183);
+    raise exception 'edited a withdrawn Wanted';
+  exception when insufficient_privilege then assert sqlerrm = 'wanted_change_locked:not_open', sqlerrm; end;
 
   -- The hour locks it.
   update public.wanted_requests set published_at = now() - interval '61 minutes' where public_id = talk;
