@@ -2,6 +2,7 @@ import { sen, type Sen } from "./money";
 import { programmesFor } from "./taxonomy";
 import {
   COURSE_CODE_PATTERN,
+  DESCRIPTION_MIN_LENGTH,
   WANTED_DURATION_MAX_DAYS,
   WANTED_DURATION_MIN_DAYS,
   type CommunityWantedInput,
@@ -40,7 +41,7 @@ export const MAX_CONTRIBUTION_SEN = 5000;
 
 const TITLE_MIN = 8;
 const TITLE_MAX = 120;
-const DESCRIPTION_MIN = 20;
+const DESCRIPTION_MIN = DESCRIPTION_MIN_LENGTH;
 const DESCRIPTION_MAX = 2000;
 const TAG_MAX = 5;
 

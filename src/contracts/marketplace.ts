@@ -43,6 +43,9 @@ export type MarketplaceOperationCode =
   | "MARKETPLACE_UNAVAILABLE";
 
 const uuid = z.uuid();
+/** The shortest description a Wanted may have (user, 2 October 2026). */
+export const DESCRIPTION_MIN_LENGTH = 10;
+
 const authoredText = (minimum: number, maximum: number) =>
   z.string().trim().min(minimum).max(maximum);
 const durationDaysSchema = z.number().int().min(3).max(30);
@@ -79,7 +82,7 @@ export const wantedDraftInputSchema = z.object({
     .max(5)
     .refine((ids) => new Set(ids).size === ids.length),
   title: authoredText(8, 120),
-  description: authoredText(20, 2000),
+  description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
   durationDays: durationDaysSchema,
   policyAccepted: z.literal(true),
 });
@@ -125,7 +128,7 @@ export const communityWantedInputSchema = z
     kind: z.enum(["missing_item", "discussion"]),
     campusId: uuid,
     title: authoredText(8, 120),
-    description: authoredText(20, 2000),
+    description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
     durationDays: durationDaysSchema,
     lastSeenLocation: z.string().trim().min(2).max(160).optional(),
     free: z.boolean().default(true),
@@ -159,7 +162,7 @@ export const wantedReplyHideSchema = z.union([
  */
 export const wantedPosterEditSchema = z.object({
   title: authoredText(8, 120),
-  description: authoredText(20, 2000),
+  description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
 });
 export type WantedPosterEditInput = z.input<typeof wantedPosterEditSchema>;
 

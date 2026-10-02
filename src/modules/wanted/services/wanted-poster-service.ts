@@ -1,4 +1,5 @@
 import {
+  DESCRIPTION_MIN_LENGTH,
   wantedPosterEditSchema,
   type EditPublishedWantedResult,
   type ReadWantedChangeWindowResult,
@@ -81,7 +82,7 @@ export class WantedPosterService {
     if (!parsed.success) {
       return failure(
         "VALIDATION_ERROR",
-        "The title needs 8 to 120 characters and the description 20 to 2000.",
+        `The title needs 8 to 120 characters and the description ${DESCRIPTION_MIN_LENGTH} to 2000.`,
       );
     }
     try {
@@ -123,7 +124,7 @@ export class WantedPosterService {
     if (message.includes("wanted_change_invalid"))
       return failure(
         "VALIDATION_ERROR",
-        "The title needs 8 to 120 characters and the description 20 to 2000.",
+        `The title needs 8 to 120 characters and the description ${DESCRIPTION_MIN_LENGTH} to 2000.`,
       );
     return failure("MARKETPLACE_UNAVAILABLE", fallback);
   }
