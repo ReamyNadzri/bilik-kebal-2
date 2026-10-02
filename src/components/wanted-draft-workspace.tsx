@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { ErrorSummary } from "./error-summary";
+import { CourseCodeCombobox } from "./course-code-combobox";
 import { SearchSelect } from "./search-select";
 import { TaxonomyRequestDialog } from "./taxonomy-request-dialog";
 import { UiStatus, type UiStatusKind } from "./ui-status";
@@ -40,7 +41,6 @@ import {
   MAX_DURATION_DAYS,
   MIN_DURATION_DAYS,
   emptyDraft,
-  normaliseCourseCode,
   toCommunityInput,
   toDraftInput,
   validateDraft,
@@ -1293,47 +1293,13 @@ export function WantedDraftWorkspace({
                 error={errorFor("wanted-programme")}
                 onChange={chooseProgramme}
               />
-              <div className="form-field">
-                <label className="form-field__label" htmlFor="wanted-course">
-                  Course code
-                  <span className="form-field__required"> (required)</span>
-                </label>
-                <p className="form-field__hint" id="wanted-course-hint">
-                  Type the subject code in capital letters, for example CSC510.
-                </p>
-                {courseError === undefined ? null : (
-                  <p className="form-field__error" id="wanted-course-error">
-                    {courseError}
-                  </p>
-                )}
-                <input
-                  className="form-field__input"
-                  id="wanted-course"
-                  type="text"
-                  value={values.courseCode}
-                  maxLength={12}
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  list="wanted-course-codes"
-                  aria-invalid={courseError === undefined ? undefined : true}
-                  aria-describedby={
-                    courseError === undefined
-                      ? "wanted-course-hint"
-                      : "wanted-course-hint wanted-course-error"
-                  }
-                  onChange={(event) =>
-                    update({ courseCode: normaliseCourseCode(event.target.value) })
-                  }
-                />
-                <datalist id="wanted-course-codes">
-                  {taxonomy.courses.map((course) => (
-                    <option key={course.id} value={course.code}>
-                      {course.label === course.code ? undefined : course.label}
-                    </option>
-                  ))}
-                </datalist>
-              </div>
+              <CourseCodeCombobox
+                id="wanted-course"
+                value={values.courseCode}
+                courses={taxonomy.courses}
+                error={courseError}
+                onChange={(courseCode) => update({ courseCode })}
+              />
               <SelectField
                 id="wanted-session"
                 label="Academic session"

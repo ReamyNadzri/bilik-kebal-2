@@ -8159,6 +8159,22 @@ textarea.form-field__input {
   color: var(--text-muted);
 }
 
+.course-option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.course-option__code {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.course-option__name {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .allowance-note {
   margin: var(--space-2) 0 0;
   color: var(--text-muted);
