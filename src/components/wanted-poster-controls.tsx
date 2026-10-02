@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type {
-  MarketplaceOperationCode,
-  WantedChangeLock,
-  WantedChangeWindow,
+import {
+  DESCRIPTION_MIN_LENGTH,
+  type MarketplaceOperationCode,
+  type WantedChangeLock,
+  type WantedChangeWindow,
 } from "@/contracts/marketplace";
 import { formatRinggit, type Sen } from "@/features/marketplace/money";
 import { callOperation } from "@/features/presentation/call-operation";
@@ -172,7 +173,9 @@ function EditDialog({
   const descriptionLength = description.trim().length;
   const titleError = titleLength < 8 || titleLength > 120 ? "Use 8 to 120 characters." : undefined;
   const descriptionError =
-    descriptionLength < 20 || descriptionLength > 2000 ? "Use 20 to 2000 characters." : undefined;
+    descriptionLength < DESCRIPTION_MIN_LENGTH || descriptionLength > 2000
+      ? `Use ${DESCRIPTION_MIN_LENGTH} to 2000 characters.`
+      : undefined;
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -241,7 +244,7 @@ function EditDialog({
             Description<span className="form-field__required"> (required)</span>
           </label>
           <p className="form-field__hint" id="edit-wanted-description-hint">
-            20 to 2000 characters.
+            {DESCRIPTION_MIN_LENGTH} to 2000 characters.
           </p>
           {descriptionError ? (
             <p className="form-field__error" id="edit-wanted-description-error">

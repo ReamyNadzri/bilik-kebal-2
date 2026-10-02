@@ -8419,6 +8419,18 @@ textarea.form-field__input {
   background: var(--bg-surface);
 }
 
+/* A long console list scrolls inside its panel instead of growing the page. */
+.console-scroll-list {
+  max-height: min(36rem, 65vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.console-scroll-list:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .people__list > li + li {
   border-top: var(--border-width-1) solid var(--border-subtle);
 }
