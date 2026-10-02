@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { WantedEditableDetails } from "@/contracts/marketplace";
 import { toSen } from "@/features/marketplace/money";
 import { aTaxonomy, TAXONOMY_ID } from "@/features/marketplace/test-support/taxonomy";
@@ -258,5 +258,142 @@ describe("WantedPosterControls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Withdraw this Wanted" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/submitted a claim/);
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  describe("values the university no longer offers", () => {
+    const RETIRED = {
+      faculty: "99999999-9999-4999-8999-999999999991",
+      programme: "99999999-9999-4999-8999-999999999992",
+      session: "99999999-9999-4999-8999-999999999993",
+      resourceType: "99999999-9999-4999-8999-999999999994",
+      language: "99999999-9999-4999-8999-999999999995",
+      tag: "99999999-9999-4999-8999-999999999996",
+    };
+    const retiredDetails: WantedEditableDetails = {
+      ...academicDetails,
+      facultyId: RETIRED.faculty,
+      programmeId: RETIRED.programme,
+      academicSessionId: RETIRED.session,
+      resourceTypeId: RETIRED.resourceType,
+      languageId: RETIRED.language,
+      tagIds: [TAXONOMY_ID.tag, RETIRED.tag],
+    };
+
+    it("still shows each published value, marked as no longer offered", () => {
+      renderControls({
+        editable: retiredDetails,
+        publishedLabels: {
+          faculty: "Faculty of Old Things",
+          programme: "Old Programme",
+          session: "2023/2024",
+          resourceType: "Old type",
+          language: "Latin",
+          tags: ["Final exam", "Old tag"],
+        },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(screen.getByLabelText(/^Faculty/)).toHaveValue(
+        "Faculty of Old Things (no longer offered)",
+      );
+      expect(screen.getByLabelText(/^Programme/)).toHaveValue("Old Programme (no longer offered)");
+      expect(screen.getByLabelText(/^Academic session/)).toHaveDisplayValue(
+        "2023/2024 (no longer offered)",
+      );
+      expect(screen.getByLabelText(/^Resource type/)).toHaveDisplayValue(
+        "Old type (no longer offered)",
+      );
+      expect(screen.getByLabelText(/^Language/)).toHaveDisplayValue("Latin (no longer offered)");
+      expect(screen.getByRole("checkbox", { name: "Old tag (no longer offered)" })).toBeChecked();
+    });
+
+    it("names an unlabelled value generically and keeps it on an unchanged save", async () => {
+      const fetch = respond({ ok: true, data: { state: "edited" } });
+      renderControls({ editable: retiredDetails });
+      fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(screen.getByLabelText(/^Academic session/)).toHaveDisplayValue(
+        "Current choice (no longer offered)",
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+      expect(lastPatchBody(fetch)).toMatchObject({
+        facultyId: RETIRED.faculty,
+        programmeId: RETIRED.programme,
+        academicSessionId: RETIRED.session,
+        resourceTypeId: RETIRED.resourceType,
+        languageId: RETIRED.language,
+        tagIds: [TAXONOMY_ID.tag, RETIRED.tag],
+      });
+    });
+
+    it("lets the poster remove a tag that is no longer offered", async () => {
+      const fetch = respond({ ok: true, data: { state: "edited" } });
+      renderControls({ editable: retiredDetails });
+      fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+      const retired = screen.getByRole("checkbox", { name: "Earlier tag (no longer offered)" });
+      fireEvent.click(retired);
+      expect(retired).not.toBeChecked();
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      await waitFor(() => expect(refresh).toHaveBeenCalled());
+      expect(lastPatchBody(fetch)).toMatchObject({ tagIds: [TAXONOMY_ID.tag] });
+    });
+  });
+
+  describe("dialog focus", () => {
+    it("keeps Tab inside the edit dialog and returns focus to Edit on close", () => {
+      renderControls();
+      const opener = screen.getByRole("button", { name: "Edit" });
+      opener.focus();
+      fireEvent.click(opener);
+      const dialog = screen.getByRole("dialog", { name: "Edit your Wanted" });
+      expect(dialog).toHaveFocus();
+
+      const first = screen.getByRole("button", { name: "Close dialog" });
+      const last = screen.getByRole("button", { name: "Save changes" });
+      last.focus();
+      fireEvent.keyDown(last, { key: "Tab" });
+      expect(first).toHaveFocus();
+      fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+      expect(last).toHaveFocus();
+
+      fireEvent.keyDown(last, { key: "Escape" });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(opener).toHaveFocus();
+    });
+
+    it("keeps focus on the edit dialog while the page clock ticks", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(now));
+      try {
+        renderControls();
+        fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+        const title = screen.getByLabelText(/^Title/);
+        title.focus();
+        act(() => {
+          vi.advanceTimersByTime(30_000);
+        });
+        expect(title).toHaveFocus();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("traps focus in the withdraw dialog and returns it to Withdraw", () => {
+      renderControls();
+      const opener = screen.getByRole("button", { name: "Withdraw" });
+      opener.focus();
+      fireEvent.click(opener);
+      const first = screen.getByRole("button", { name: "Close dialog" });
+      const last = screen.getByRole("button", { name: "Withdraw this Wanted" });
+      last.focus();
+      fireEvent.keyDown(last, { key: "Tab" });
+      expect(first).toHaveFocus();
+
+      fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+      expect(opener).toHaveFocus();
+    });
   });
 });

@@ -28,12 +28,89 @@ export interface WantedPosterControlsProps {
   readonly editable: WantedEditableDetails | null;
   /** The lists of the Wanted's own university; null when they could not be read. */
   readonly taxonomy: MarketplaceTaxonomy | null;
+  /**
+   * The published Wanted's own labels, used to name a value its university
+   * has since stopped offering (the lists above hold active values only).
+   */
+  readonly publishedLabels?: PublishedLabels;
   readonly isFree: boolean;
   readonly grossBountySen: Sen;
   readonly backerCount: number;
   readonly window: WantedChangeWindow;
   /** The render's clock, so the first paint agrees with the server. */
   readonly now: string;
+}
+
+/** The labels shown on the published Wanted; "" or absent when unknown. */
+export interface PublishedLabels {
+  readonly faculty?: string;
+  readonly programme?: string;
+  readonly session?: string;
+  readonly resourceType?: string;
+  readonly language?: string;
+  readonly tags?: readonly string[];
+}
+
+function retiredLabel(label: string | undefined, fallback: string): string {
+  return `${label === undefined || label === "" ? fallback : label} (no longer offered)`;
+}
+
+/**
+ * The lists with the Wanted's own values put back where its university has
+ * since switched them off, marked as no longer offered. The lists hold
+ * active values only, so without this a retired session, faculty or tag
+ * would show as blank while still being sent back unchanged (which the
+ * server allows).
+ */
+function withRetiredChoices(
+  taxonomy: MarketplaceTaxonomy,
+  details: WantedEditableDetails,
+  labels: PublishedLabels,
+): MarketplaceTaxonomy {
+  function keep<T extends TaxonomyItem>(
+    list: readonly T[],
+    id: string | null,
+    make: (id: string) => T,
+  ): T[] {
+    return id === null || id === "" || list.some((entry) => entry.id === id)
+      ? [...list]
+      : [...list, make(id)];
+  }
+  const item = (id: string, label: string): TaxonomyItem => ({ id, slug: "", label });
+  const current = (label: string | undefined) => retiredLabel(label, "Current choice");
+
+  const knownTags = new Set(taxonomy.tags.map((tag) => tag.id));
+  const retiredTagIds = details.tagIds.filter((id) => !knownTags.has(id));
+  const activeLabels = new Set(
+    taxonomy.tags.filter((tag) => details.tagIds.includes(tag.id)).map((tag) => tag.label),
+  );
+  const unmatched = (labels.tags ?? []).filter((label) => !activeLabels.has(label));
+  // A published label pairs with a retired tag only when exactly one of each is left.
+  const tagLabel = (index: number) =>
+    retiredTagIds.length === 1
+      ? retiredLabel(unmatched.length === 1 ? unmatched[0] : undefined, "Earlier tag")
+      : retiredLabel(`Earlier tag ${index + 1}`, "Earlier tag");
+
+  return {
+    ...taxonomy,
+    faculties: keep(taxonomy.faculties, details.facultyId, (id) =>
+      item(id, current(labels.faculty)),
+    ),
+    programmes: keep(taxonomy.programmes, details.programmeId, (id) => ({
+      ...item(id, current(labels.programme)),
+      facultyId: details.facultyId ?? "",
+    })),
+    academicSessions: keep(taxonomy.academicSessions, details.academicSessionId, (id) =>
+      item(id, current(labels.session)),
+    ),
+    resourceTypes: keep(taxonomy.resourceTypes, details.resourceTypeId, (id) =>
+      item(id, current(labels.resourceType)),
+    ),
+    languages: keep(taxonomy.languages, details.languageId, (id) =>
+      item(id, current(labels.language)),
+    ),
+    tags: [...taxonomy.tags, ...retiredTagIds.map((id, index) => item(id, tagLabel(index)))],
+  };
 }
 
 const LOCK_COPY: Readonly<Record<WantedChangeLock, string>> = {
@@ -66,6 +143,7 @@ export function WantedPosterControls({
   wantedId,
   editable,
   taxonomy,
+  publishedLabels = {},
   isFree,
   grossBountySen,
   backerCount,
@@ -134,7 +212,7 @@ export function WantedPosterControls({
         <EditDialog
           wantedId={wantedId}
           details={editable}
-          taxonomy={taxonomy}
+          taxonomy={withRetiredChoices(taxonomy, editable, publishedLabels)}
           onClose={() => setDialog(null)}
         />
       ) : null}
@@ -151,16 +229,57 @@ export function WantedPosterControls({
   );
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * A modal dialog's keyboard behaviour: focus moves in on open, Tab and
+ * Shift+Tab cycle within it, Esc closes it, and focus returns to whatever
+ * opened it once it closes.
+ */
 function useDialogKeys(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    ref.current?.focus();
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Once per open, not per render: the page clock re-renders the parent
+  // every 30 seconds and must not pull focus back to the dialog.
+  useEffect(() => {
+    const dialog = ref.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab" || dialog === null) return;
+      const items = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (first === undefined || last === undefined) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const active = document.activeElement;
+      const inside = active instanceof Node && dialog.contains(active) && active !== dialog;
+      if (event.shiftKey && (!inside || active === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (!inside || active === last)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
+  }, []);
   return ref;
 }
 

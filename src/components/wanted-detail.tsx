@@ -140,6 +140,14 @@ export function WantedDetail({
             wantedId={wanted.id}
             editable={editor?.details ?? null}
             taxonomy={editor?.taxonomy ?? null}
+            publishedLabels={{
+              faculty: wanted.faculty,
+              programme: wanted.programme,
+              session: wanted.session,
+              resourceType: wanted.resourceType,
+              language: wanted.language,
+              tags: wanted.tags,
+            }}
             isFree={wanted.isFree}
             grossBountySen={wanted.grossBountySen}
             backerCount={wanted.backerCount}
