@@ -34,10 +34,17 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "").slice(0, MOBILE_MAX_DIGITS);
 }
 
-/** Bank account numbers are 6 to 20 digits; anything else typed or pasted is dropped. */
+/**
+ * Bank account numbers are 6 to 20 digits. Separators typed or pasted are
+ * dropped, but extra digits are kept so a too-long number is refused, not cut.
+ */
+const ACCOUNT_MIN_DIGITS = 6;
 const ACCOUNT_MAX_DIGITS = 20;
+/** Room for a full-length number written with spaces or dashes between groups. */
+const ACCOUNT_MAX_TYPED = 40;
+const ACCOUNT_LENGTH_ERROR = "Enter the account number: 6 to 20 digits.";
 function accountDigits(value: string): string {
-  return value.replace(/\D/g, "").slice(0, ACCOUNT_MAX_DIGITS);
+  return value.replace(/\D/g, "");
 }
 
 /**
@@ -60,6 +67,11 @@ export function PaymentDetailsForm({ details }: PaymentDetailsFormProps) {
   async function save(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+    if (accountNumber.length < ACCOUNT_MIN_DIGITS || accountNumber.length > ACCOUNT_MAX_DIGITS) {
+      setErrors({ accountNumber: ACCOUNT_LENGTH_ERROR });
+      setNotice({ kind: "error", text: "Check your payment details." });
+      return;
+    }
     setBusy(true);
     setNotice(null);
     setErrors({});
@@ -263,7 +275,7 @@ export function PaymentDetailsForm({ details }: PaymentDetailsFormProps) {
               type="text"
               inputMode="numeric"
               autoComplete="off"
-              maxLength={ACCOUNT_MAX_DIGITS}
+              maxLength={ACCOUNT_MAX_TYPED}
               pattern="[0-9]*"
               required
               value={accountNumber}
