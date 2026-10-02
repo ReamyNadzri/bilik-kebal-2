@@ -156,15 +156,64 @@ export const wantedReplyHideSchema = z.union([
   z.object({ hide: z.literal(false) }),
 ]);
 
+/** An optional id: "" and null both mean none. */
+const optionalId = z
+  .union([uuid, z.literal("")])
+  .nullish()
+  .transform((value) => value || null);
+
 /**
- * The poster corrects a published Wanted in its first hour. Only the text
- * changes; bounty, duration, course and every snapshot stay as published.
+ * The poster corrects a published Wanted in its first hour (migration
+ * 202610200004). Which fields count depends on the kind: an academic Wanted
+ * needs faculty, programme, course code, resource type and language; a missing
+ * item takes a last-seen place; the rest are ignored. University, bounty,
+ * duration, fee and policy snapshots, kind and free/paid stay as published.
  */
 export const wantedPosterEditSchema = z.object({
   title: authoredText(8, 120),
   description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
+  campusId: uuid,
+  facultyId: optionalId,
+  programmeId: optionalId,
+  courseCode: z
+    .union([z.string().trim().regex(COURSE_CODE_PATTERN), z.literal("")])
+    .nullish()
+    .transform((value) => value || null),
+  academicSessionId: optionalId,
+  resourceTypeId: optionalId,
+  languageId: optionalId,
+  lastSeenLocation: z
+    .union([z.string().trim().min(2).max(160), z.string().trim().length(0)])
+    .nullish()
+    .transform((value) => value || null),
+  tagIds: z
+    .array(uuid)
+    .max(5)
+    .refine((ids) => new Set(ids).size === ids.length),
 });
 export type WantedPosterEditInput = z.input<typeof wantedPosterEditSchema>;
+export type ValidatedWantedPosterEdit = z.output<typeof wantedPosterEditSchema>;
+
+/** What the edit dialog starts from: the Wanted as published. */
+export interface WantedEditableDetails {
+  kind: WantedKind;
+  title: string;
+  description: string;
+  campusId: string;
+  facultyId: string | null;
+  programmeId: string | null;
+  courseCode: string | null;
+  academicSessionId: string | null;
+  resourceTypeId: string | null;
+  languageId: string | null;
+  lastSeenLocation: string | null;
+  tagIds: string[];
+}
+
+export type ReadWantedEditableDetailsResult = OperationResult<
+  WantedEditableDetails,
+  MarketplaceOperationCode
+>;
 
 /** Minutes after publication during which the poster may edit or withdraw. */
 export const POSTER_CHANGE_WINDOW_MINUTES = 60;

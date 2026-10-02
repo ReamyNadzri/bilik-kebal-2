@@ -7,6 +7,7 @@ import type {
   CreateWantedDraftResult,
   EditPublishedWantedResult,
   ReadWantedChangeWindowResult,
+  ReadWantedEditableDetailsResult,
   WithdrawWantedResult,
   ListCampusRegionsResult,
   ListWantedRepliesResult,
@@ -245,7 +246,19 @@ export async function readWantedChangeWindow(
   }
 }
 
-/** The poster corrects the title and description in the first hour. */
+/** The poster's Wanted as published, for the edit dialog; refused to everyone else. */
+export async function readEditableWanted(
+  publicId: string,
+): Promise<ReadWantedEditableDetailsResult> {
+  try {
+    const loaded = await context();
+    return loaded.posterService.editableDetails(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+/** The poster corrects the details in the first hour; university, bounty and fee stay. */
 export async function editPublishedWanted(
   publicId: string,
   input: unknown,

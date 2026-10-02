@@ -28,3 +28,21 @@ export async function loadMarketplaceTaxonomy(): Promise<ListTaxonomyResult> {
     institutionId: verifiedInstitutionId ?? (await loadUniversityChoice())?.current.id ?? null,
   });
 }
+
+/**
+ * The catalogue of one named university, for a screen about something that
+ * belongs to it: the edit dialog of a published Wanted offers its own
+ * university's campuses and programmes, whichever university the viewer is
+ * shown elsewhere. The database refuses a value from any other university.
+ */
+export async function loadMarketplaceTaxonomyAt(
+  institutionId: string,
+): Promise<ListTaxonomyResult> {
+  const service = new TaxonomyService(new CachedTaxonomyRepository());
+  const signedIn = await loadAccountContext();
+  return service.list({
+    authenticated: signedIn !== null,
+    emailVerified: Boolean(signedIn?.user.email_confirmed_at),
+    institutionId,
+  });
+}

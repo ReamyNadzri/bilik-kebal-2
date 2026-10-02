@@ -1,12 +1,16 @@
 import type {
   ListWantedQuery,
   MarketplaceOperationCode,
+  MarketplaceTaxonomy,
   WantedChangeWindow,
   WantedDetail,
+  WantedEditableDetails,
   WantedSummary,
 } from "@/contracts/marketplace";
+import { loadMarketplaceTaxonomyAt } from "@/modules/taxonomy/loaders/taxonomy-read";
 import {
   listPublicWanted,
+  readEditableWanted,
   readPublicWanted,
   readWantedChangeWindow,
 } from "@/modules/wanted/loaders/wanted-operations";
@@ -124,6 +128,32 @@ export function readWanted(publicId: string): Promise<MarketplaceRead<WantedDeta
 export async function readOwnChangeWindow(publicId: string): Promise<WantedChangeWindow | null> {
   const result = await read<WantedChangeWindow>(() => readWantedChangeWindow(publicId));
   return result.status === "ready" ? result.data : null;
+}
+
+/** What the poster's edit dialog needs: the Wanted as published and its university's lists. */
+export interface WantedEditor {
+  readonly details: WantedEditableDetails;
+  readonly taxonomy: MarketplaceTaxonomy;
+}
+
+/**
+ * The poster's own Wanted as published, with the catalogue of the Wanted's
+ * university (not the viewer's), for the edit dialog.
+ *
+ * Null for anyone else, and when either read fails: the page then offers no
+ * edit form, and the server refuses a change it would not allow anyway.
+ */
+export async function readOwnWantedEditor(
+  publicId: string,
+  institutionId: string,
+): Promise<WantedEditor | null> {
+  const [details, taxonomy] = await Promise.all([
+    read<WantedEditableDetails>(() => readEditableWanted(publicId)),
+    read<MarketplaceTaxonomy>(() => loadMarketplaceTaxonomyAt(institutionId)),
+  ]);
+  return details.status === "ready" && taxonomy.status === "ready"
+    ? { details: details.data, taxonomy: taxonomy.data }
+    : null;
 }
 
 /**

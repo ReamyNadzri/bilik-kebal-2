@@ -2521,6 +2521,23 @@ export type Database = {
         };
         Returns: string;
       };
+      update_own_published_wanted_details: {
+        Args: {
+          new_academic_session_id: string | null;
+          new_campus_id: string;
+          new_course_id: string | null;
+          new_description: string;
+          new_faculty_id: string | null;
+          new_language_id: string | null;
+          new_last_seen_location: string | null;
+          new_programme_id: string | null;
+          new_resource_type_id: string | null;
+          new_tag_ids: string[];
+          new_title: string;
+          target_public_id: string;
+        };
+        Returns: undefined;
+      };
       update_wanted_draft: {
         Args: {
           academic_session_id: string | null;
