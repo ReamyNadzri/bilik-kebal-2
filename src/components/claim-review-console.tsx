@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ClaimReviewQueueItem } from "@/contracts/claim-reviews";
 import { formatSubmittedAge } from "@/features/marketplace/time";
 import { ClaimReviewDetail, STATUS_LABEL, type ClaimDecision } from "./claim-review-detail";
@@ -22,6 +22,11 @@ export function ClaimReviewConsole() {
   const [busy, setBusy] = useState(false);
   const [decisionError, setDecisionError] = useState("");
   const [notice, setNotice] = useState("");
+  // Where focus goes once the list re-renders after a decision: a claim id
+  // (its row), or "heading" when no other claim is left to move to.
+  const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   async function load() {
     setState({ kind: "loading" });
@@ -72,11 +77,24 @@ export function ClaimReviewConsole() {
       }
       setNotice("Decision recorded.");
       setSelectedId(null);
-      setState((current) =>
-        current.kind === "ready"
-          ? { kind: "ready", items: current.items.filter((row) => row.claimId !== item.claimId) }
-          : current,
-      );
+      if (state.kind === "ready") {
+        const rows = state.items;
+        const index = rows.findIndex((row) => row.claimId === item.claimId);
+        // A claim sent back to its Hunter stays queued; approved or rejected ones leave.
+        const next =
+          decision === "request_information"
+            ? rows.map((row) =>
+                row.claimId === item.claimId
+                  ? { ...row, status: "needs_information" as const }
+                  : row,
+              )
+            : rows.filter((row) => row.claimId !== item.claimId);
+        const others = rows.filter((row) => row.claimId !== item.claimId);
+        const after = rows.slice(index + 1).find((row) => row.claimId !== item.claimId);
+        const target = after ?? others[others.length - 1];
+        setFocusTarget(target ? target.claimId : "heading");
+        setState({ kind: "ready", items: next });
+      }
     } catch {
       setDecisionError("The decision was not recorded. Try again.");
     } finally {
@@ -84,17 +102,30 @@ export function ClaimReviewConsole() {
     }
   }
 
+  useEffect(() => {
+    if (focusTarget === null) return;
+    const row =
+      focusTarget === "heading"
+        ? null
+        : listRef.current?.querySelector<HTMLElement>(`[data-claim-id="${focusTarget}"]`);
+    (row ?? headingRef.current)?.focus();
+    setFocusTarget(null);
+  }, [focusTarget]);
+
   const items = state.kind === "ready" ? state.items : [];
   const selected = items.find((item) => item.claimId === selectedId) ?? null;
   const now = new Date().toISOString();
 
   return (
     <section className="review-console" aria-labelledby="claim-review-heading">
-      <h2 id="claim-review-heading">Claim review queue</h2>
+      <h2 id="claim-review-heading" tabIndex={-1} ref={headingRef}>
+        Claim review queue
+      </h2>
       <p className="review-console__disclaimer">
         Screening is evidence. A human Sheriff records the final decision.
       </p>
-      {notice ? <p role="status">{notice}</p> : null}
+      {/* Always present, so a notice added later is announced. */}
+      <p role="status">{notice}</p>
       {state.kind === "loading" ? (
         <UiStatus kind="loading" heading="Loading claim reviews" />
       ) : null}
@@ -126,6 +157,7 @@ export function ClaimReviewConsole() {
             <ul
               className="people__list console-scroll-list"
               tabIndex={0}
+              ref={listRef}
               aria-label={`${items.length} claim reviews waiting`}
             >
               {items.map((item) => (
@@ -133,6 +165,7 @@ export function ClaimReviewConsole() {
                   <button
                     type="button"
                     className="people-row"
+                    data-claim-id={item.claimId}
                     aria-current={item.claimId === selectedId ? "true" : undefined}
                     onClick={() => {
                       setSelectedId(item.claimId);

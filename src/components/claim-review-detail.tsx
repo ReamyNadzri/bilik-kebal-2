@@ -40,9 +40,15 @@ export function ClaimReviewDetail({
   readonly onClose: () => void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [decision, setDecision] = useState<ClaimDecision>("approve");
-  const [reasonCode, setReasonCode] = useState<string>(CLAIM_REVIEW_REASONS.approve[0].code);
+  // Nothing is preselected: a decision is a deliberate choice, never a default.
+  const [decision, setDecision] = useState<ClaimDecision | null>(null);
+  const [reasonCode, setReasonCode] = useState("");
   const [notes, setNotes] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const returnToSubmit = useRef(false);
+  const ready = decision !== null && reasonCode !== "";
   const headingId = `claim-${item.claimId}`;
 
   // Opening a claim moves focus to it, so a keyboard or screen reader user
@@ -51,15 +57,40 @@ export function ClaimReviewDetail({
     headingRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (confirming) {
+      confirmRef.current?.focus();
+    } else if (returnToSubmit.current) {
+      returnToSubmit.current = false;
+      submitRef.current?.focus();
+    }
+  }, [confirming]);
+
   function chooseDecision(next: ClaimDecision) {
     setDecision(next);
-    setReasonCode(CLAIM_REVIEW_REASONS[next][0].code);
+    setReasonCode("");
+    setConfirming(false);
+  }
+
+  function record() {
+    if (busy || decision === null || reasonCode === "") return;
+    onDecide(decision, reasonCode, notes.trim() || null);
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
-    onDecide(decision, reasonCode, notes.trim() || null);
+    if (busy || !ready) return;
+    // Approving picks the winner and starts fulfilment, so it is confirmed first.
+    if (decision === "approve") {
+      setConfirming(true);
+      return;
+    }
+    record();
+  }
+
+  function cancelConfirm() {
+    returnToSubmit.current = true;
+    setConfirming(false);
   }
 
   return (
@@ -127,9 +158,16 @@ export function ClaimReviewDetail({
             className="form-field__input"
             id={`${headingId}-reason`}
             value={reasonCode}
-            onChange={(event) => setReasonCode(event.target.value)}
+            disabled={decision === null}
+            onChange={(event) => {
+              setReasonCode(event.target.value);
+              setConfirming(false);
+            }}
           >
-            {CLAIM_REVIEW_REASONS[decision].map((reason) => (
+            <option value="">
+              {decision === null ? "Choose a decision first" : "Choose a reason"}
+            </option>
+            {(decision === null ? [] : CLAIM_REVIEW_REASONS[decision]).map((reason) => (
               <option key={reason.code} value={reason.code}>
                 {reason.label}
               </option>
@@ -149,11 +187,41 @@ export function ClaimReviewDetail({
             onChange={(event) => setNotes(event.target.value)}
           />
         </div>
-        <div>
-          <button type="submit" className="button button--primary" disabled={busy}>
-            {busy ? "Recording…" : "Record decision"}
-          </button>
-        </div>
+        {confirming ? (
+          <div className="ops-alert ops-alert--warning" role="group" aria-label="Confirm approval">
+            <p>
+              Approve this claim? This selects it as the winner and starts fulfilment: other open
+              claims on this Wanted are not selected, the Wanted is marked fulfilled, its backers
+              (or the poster of a free request) get access to the file, and any bounty is queued for
+              payout to the Hunter.
+            </p>
+            <div className="profile-form__actions">
+              <button
+                type="button"
+                className="button button--primary"
+                ref={confirmRef}
+                disabled={busy}
+                onClick={record}
+              >
+                {busy ? "Recording…" : "Confirm approval"}
+              </button>
+              <button type="button" className="button button--quiet" onClick={cancelConfirm}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <button
+              type="submit"
+              className="button button--primary"
+              ref={submitRef}
+              disabled={busy || !ready}
+            >
+              {busy ? "Recording…" : "Record decision"}
+            </button>
+          </div>
+        )}
       </form>
     </article>
   );

@@ -74,6 +74,8 @@ describe("ClaimReviewConsole", () => {
       .mockReturnValueOnce(respond({ ok: false, message: "Not allowed." }, false));
     render(<ClaimReviewConsole />);
     fireEvent.click(await screen.findByRole("button", { name: /notes\.pdf/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Reject" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "wrong_file" } });
     fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
     expect(await screen.findByText("Not allowed.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /notes\.pdf/ })).toBeInTheDocument();
@@ -90,5 +92,104 @@ describe("ClaimReviewConsole", () => {
     render(<ClaimReviewConsole />);
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
     expect(screen.getByText("Down.")).toBeInTheDocument();
+  });
+
+  it("starts with no decision, no reason and nothing to submit", async () => {
+    fetchMock.mockReturnValueOnce(respond({ ok: true, data: [ITEM] }));
+    render(<ClaimReviewConsole />);
+    fireEvent.click(await screen.findByRole("button", { name: /notes.pdf/ }));
+
+    for (const radio of screen.getAllByRole("radio")) expect(radio).not.toBeChecked();
+    const reason = screen.getByLabelText("Reason");
+    expect(reason).toBeDisabled();
+    expect(reason).toHaveValue("");
+    const submit = screen.getByRole("button", { name: "Record decision" });
+    expect(submit).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Reject" }));
+    expect(reason).toBeEnabled();
+    expect(reason).toHaveValue("");
+    expect(submit).toBeDisabled();
+    fireEvent.change(reason, { target: { value: "poor_quality" } });
+    expect(submit).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Request information" }));
+    expect(reason).toHaveValue("");
+    expect(submit).toBeDisabled();
+  });
+
+  it("asks to confirm an approval before recording it", async () => {
+    fetchMock
+      .mockReturnValueOnce(respond({ ok: true, data: [ITEM] }))
+      .mockReturnValueOnce(respond({ ok: true, data: { reviewId: "r1" } }));
+    render(<ClaimReviewConsole />);
+    fireEvent.click(await screen.findByRole("button", { name: /notes.pdf/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Approve" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "meets_request" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
+
+    expect(screen.getByText(/Approve this claim?/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm approval" })).toHaveFocus();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText(/Approve this claim?/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Record decision" })).toHaveFocus();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm approval" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      decision: "approve",
+      reasonCode: "meets_request",
+    });
+  });
+
+  it("keeps a claim waiting for the Hunter in the queue with its new status", async () => {
+    fetchMock
+      .mockReturnValueOnce(respond({ ok: true, data: [ITEM] }))
+      .mockReturnValueOnce(respond({ ok: true, data: { reviewId: "r1" } }));
+    render(<ClaimReviewConsole />);
+    fireEvent.click(await screen.findByRole("button", { name: /notes.pdf/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Request information" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "rights_unclear" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
+
+    expect(await screen.findByText("Decision recorded.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /notes.pdf/ })).toHaveTextContent(
+      "Waiting for the Hunter",
+    );
+  });
+
+  it("moves focus to the next claim after a decision, and announces it", async () => {
+    const second = { ...ITEM, claimId: "00000000-0000-4000-8000-000000000002", fileName: "b.pdf" };
+    fetchMock
+      .mockReturnValueOnce(respond({ ok: true, data: [ITEM, second] }))
+      .mockReturnValueOnce(respond({ ok: true, data: { reviewId: "r1" } }));
+    render(<ClaimReviewConsole />);
+    fireEvent.click(await screen.findByRole("button", { name: /notes.pdf/ }));
+    const status = screen.getByRole("status");
+    expect(status).toBeEmptyDOMElement();
+    fireEvent.click(screen.getByRole("radio", { name: "Reject" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "wrong_file" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
+
+    await waitFor(() => expect(status).toHaveTextContent("Decision recorded."));
+    expect(screen.getByRole("button", { name: /b.pdf/ })).toHaveFocus();
+  });
+
+  it("moves focus to the queue heading when the last claim is decided", async () => {
+    fetchMock
+      .mockReturnValueOnce(respond({ ok: true, data: [ITEM] }))
+      .mockReturnValueOnce(respond({ ok: true, data: { reviewId: "r1" } }));
+    render(<ClaimReviewConsole />);
+    fireEvent.click(await screen.findByRole("button", { name: /notes.pdf/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Reject" }));
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "wrong_file" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
+
+    expect(await screen.findByText("No claims are waiting for review")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Claim review queue" })).toHaveFocus();
   });
 });
