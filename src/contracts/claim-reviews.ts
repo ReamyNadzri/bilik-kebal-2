@@ -21,4 +21,24 @@ export type ClaimReviewQueueItem = {
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
+  /** For the reviewer's context and a link; null if the Wanted is not readable. */
+  wantedPublicId: string | null;
+  wantedTitle: string | null;
 };
+
+/** Reason codes offered per decision; the schema still accepts any snake_case code. */
+export const CLAIM_REVIEW_REASONS = {
+  approve: [
+    { code: "meets_request", label: "Matches the request" },
+    { code: "rights_confirmed", label: "Rights confirmed for release" },
+  ],
+  request_information: [
+    { code: "needs_review", label: "Needs a closer look" },
+    { code: "rights_unclear", label: "Rights unclear" },
+  ],
+  reject: [
+    { code: "wrong_file", label: "Wrong or unrelated file" },
+    { code: "poor_quality", label: "Unreadable or incomplete" },
+    { code: "rights_violation", label: "Not the Hunter's to share" },
+  ],
+} as const;

@@ -10,7 +10,7 @@ export class SupabaseClaimReviewRepository implements ClaimReviewRepository {
     const { data, error } = await this.client
       .from("claims")
       .select(
-        "id, wanted_request_id, institution_id, status, file_name, mime_type, size_bytes, created_at",
+        "id, wanted_request_id, institution_id, status, file_name, mime_type, size_bytes, created_at, wanted_requests(public_id, title)",
       )
       .in("status", ["screening", "needs_information", "under_review"])
       .order("created_at", { ascending: true });
@@ -24,6 +24,8 @@ export class SupabaseClaimReviewRepository implements ClaimReviewRepository {
       mimeType: row.mime_type,
       sizeBytes: row.size_bytes,
       createdAt: row.created_at,
+      wantedPublicId: row.wanted_requests?.public_id ?? null,
+      wantedTitle: row.wanted_requests?.title ?? null,
     }));
   }
 
