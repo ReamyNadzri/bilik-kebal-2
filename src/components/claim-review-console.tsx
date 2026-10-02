@@ -24,7 +24,7 @@ export function ClaimReviewConsole() {
   const [notice, setNotice] = useState("");
   // Where focus goes once the list re-renders after a decision: a claim id
   // (its row), or "heading" when no other claim is left to move to.
-  const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const focusTarget = useRef<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -92,7 +92,7 @@ export function ClaimReviewConsole() {
         const others = rows.filter((row) => row.claimId !== item.claimId);
         const after = rows.slice(index + 1).find((row) => row.claimId !== item.claimId);
         const target = after ?? others[others.length - 1];
-        setFocusTarget(target ? target.claimId : "heading");
+        focusTarget.current = target ? target.claimId : "heading";
         setState({ kind: "ready", items: next });
       }
     } catch {
@@ -103,14 +103,15 @@ export function ClaimReviewConsole() {
   }
 
   useEffect(() => {
-    if (focusTarget === null) return;
+    const target = focusTarget.current;
+    if (target === null) return;
+    focusTarget.current = null;
     const row =
-      focusTarget === "heading"
+      target === "heading"
         ? null
-        : listRef.current?.querySelector<HTMLElement>(`[data-claim-id="${focusTarget}"]`);
+        : listRef.current?.querySelector<HTMLElement>(`[data-claim-id="${target}"]`);
     (row ?? headingRef.current)?.focus();
-    setFocusTarget(null);
-  }, [focusTarget]);
+  }, [state]);
 
   const items = state.kind === "ready" ? state.items : [];
   const selected = items.find((item) => item.claimId === selectedId) ?? null;
