@@ -34,6 +34,12 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "").slice(0, MOBILE_MAX_DIGITS);
 }
 
+/** Bank account numbers are 6 to 20 digits; anything else typed or pasted is dropped. */
+const ACCOUNT_MAX_DIGITS = 20;
+function accountDigits(value: string): string {
+  return value.replace(/\D/g, "").slice(0, ACCOUNT_MAX_DIGITS);
+}
+
 /**
  * The member's phone number and bank account, where refunds and payouts are
  * sent. Paying for a Wanted needs them on file. The account number is never
@@ -257,10 +263,11 @@ export function PaymentDetailsForm({ details }: PaymentDetailsFormProps) {
               type="text"
               inputMode="numeric"
               autoComplete="off"
-              maxLength={30}
+              maxLength={ACCOUNT_MAX_DIGITS}
+              pattern="[0-9]*"
               required
               value={accountNumber}
-              onChange={(event) => setAccountNumber(event.target.value)}
+              onChange={(event) => setAccountNumber(accountDigits(event.target.value))}
               {...field("accountNumber")}
             />
           </div>

@@ -42,6 +42,15 @@ describe("PaymentDetailsForm", () => {
     expect(screen.getByText(/before you pay for a Wanted/)).toBeInTheDocument();
   });
 
+  it("keeps only digits when text is typed or pasted into the account number", () => {
+    render(<PaymentDetailsForm details={null} />);
+
+    const input = screen.getByLabelText("Account number");
+    fireEvent.change(input, { target: { value: "1234-56 78ab90" } });
+
+    expect(input).toHaveValue("1234567890");
+  });
+
   it("saves with PUT and shows only the last four digits back", async () => {
     respond({ ok: true, data: saved });
     render(<PaymentDetailsForm details={null} />);
