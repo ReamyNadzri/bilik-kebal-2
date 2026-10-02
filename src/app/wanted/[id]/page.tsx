@@ -9,6 +9,7 @@ import { viewerIsOwner } from "@/modules/wanted/loaders/wanted-report-operations
 import {
   marketplaceNow,
   readOwnChangeWindow,
+  readOwnWantedEditor,
   readSimilarWanted,
   readWanted,
 } from "@/features/marketplace/wanted-source";
@@ -79,6 +80,11 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
     result.status === "ready" ? readSimilarWanted(result.data) : Promise.resolve([]),
     isPoster ? readOwnChangeWindow(id) : Promise.resolve(null),
   ]);
+  // The edit form's details and lists, only while the poster may still edit.
+  const editor =
+    changeWindow !== null && changeWindow.lockedReason === null && wantedAt !== undefined
+      ? await readOwnWantedEditor(id, wantedAt)
+      : null;
 
   return (
     <div className="page-bare">
@@ -116,6 +122,7 @@ export default async function WantedDetailPage({ params }: WantedDetailPageProps
           now={marketplaceNow()}
           account={account}
           changeWindow={changeWindow}
+          editor={editor}
           otherUniversity={otherUniversity}
           isOwner={isOwner}
         />

@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BountyPlate } from "./bounty-plate";
 import { ErrorSummary } from "./error-summary";
 import { CourseCodeCombobox } from "./course-code-combobox";
 import { SearchSelect } from "./search-select";
+import { SelectField } from "./select-field";
+import { MAX_TAGS, requestTag, TagPicker } from "./tag-picker";
 import { TaxonomyRequestDialog } from "./taxonomy-request-dialog";
 import { UiStatus, type UiStatusKind } from "./ui-status";
 import { WantedCard } from "./wanted-card";
@@ -29,7 +31,6 @@ import {
   saveWantedDraft,
 } from "@/features/marketplace/draft-operations";
 import { POSTING_TERMS, TERMS_STATUS, TERMS_VERSION } from "@/features/legal/terms";
-import { callOperation } from "@/features/presentation/call-operation";
 import {
   messageFor,
   toDraftFieldErrors,
@@ -239,76 +240,6 @@ function refusalFor(code: MarketplaceOperationCode | MoneyOperationCode): Refusa
   }
 }
 
-interface SelectFieldProps {
-  readonly id: string;
-  readonly label: string;
-  readonly hint?: string;
-  readonly value: string;
-  readonly options: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly disabled?: boolean;
-  }[];
-  readonly placeholder: string;
-  readonly error: string | undefined;
-  readonly onChange: (value: string) => void;
-  /** Optional fields say so and let the placeholder stand as an answer. */
-  readonly optional?: boolean;
-}
-
-function SelectField({
-  id,
-  label,
-  hint,
-  value,
-  options,
-  placeholder,
-  error,
-  onChange,
-  optional = false,
-}: SelectFieldProps) {
-  const hintId = hint === undefined ? undefined : `${id}-hint`;
-  const errorId = error === undefined ? undefined : `${id}-error`;
-  const describedBy = [hintId, errorId].filter((entry) => entry !== undefined).join(" ");
-
-  return (
-    <div className="form-field">
-      <label className="form-field__label" htmlFor={id}>
-        {label}
-        <span className="form-field__required">{optional ? " (optional)" : " (required)"}</span>
-      </label>
-
-      {hint === undefined ? null : (
-        <p className="form-field__hint" id={hintId}>
-          {hint}
-        </p>
-      )}
-
-      {error === undefined ? null : (
-        <p className="form-field__error" id={errorId}>
-          {error}
-        </p>
-      )}
-
-      <select
-        className="form-field__input"
-        id={id}
-        value={value}
-        aria-invalid={error === undefined ? undefined : true}
-        aria-describedby={describedBy === "" ? undefined : describedBy}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option.id} value={option.id} disabled={option.disabled}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 function SummaryRow({ term, children }: { readonly term: string; readonly children: string }) {
   return (
     <>
@@ -354,9 +285,6 @@ export function WantedDraftWorkspace({
         : { ...givenTaxonomy, tags: [...givenTaxonomy.tags, ...addedTags] },
     [givenTaxonomy, addedTags],
   );
-  const [newTag, setNewTag] = useState("");
-  const [tagNotice, setTagNotice] = useState<string | null>(null);
-  const [addingTag, setAddingTag] = useState(false);
   const [values, setValues] = useState<WantedDraftValues>(emptyDraft);
   const [feedback, setFeedback] = useState<Feedback>({ kind: "none" });
   const [review, setReview] = useState<ReviewState | null>(null);
@@ -424,40 +352,28 @@ export function WantedDraftWorkspace({
     update({ programmeId, facultyId: programme?.facultyId ?? values.facultyId });
   }
 
-  /** Adds the typed tag (or finds it, whatever its case) and ticks it. */
-  async function addOwnTag() {
-    const name = newTag.trim().replace(/\s+/g, " ");
-    if (name === "" || addingTag) return;
-    setTagNotice(null);
+  /**
+   * Adds the typed tag (or finds it, whatever its case) and ticks it.
+   * Resolves to a notice for the reader when it could not.
+   */
+  async function addOwnTag(name: string): Promise<string | null> {
     const known = taxonomy.tags.find((tag) => tag.label.toLowerCase() === name.toLowerCase());
     if (known) {
-      if (!values.tagIds.includes(known.id) && values.tagIds.length < 5) toggleTag(known.id, true);
-      setNewTag("");
-      return;
+      if (!values.tagIds.includes(known.id) && values.tagIds.length < MAX_TAGS) {
+        toggleTag(known.id, true);
+      }
+      return null;
     }
-    if (values.tagIds.length >= 5) {
-      setTagNotice("A request can have up to five tags.");
-      return;
-    }
+    if (values.tagIds.length >= MAX_TAGS) return "A request can have up to five tags.";
     if (mode === "preview") {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       const tag = { id: `preview-tag-${slug}`, slug, label: name };
       setAddedTags((current) => [...current, tag]);
       toggleTag(tag.id, true);
-      setNewTag("");
-      return;
+      return null;
     }
-    setAddingTag(true);
-    const result = await callOperation<TaxonomyItem, string>(
-      "/api/marketplace/tags",
-      { name },
-      "TAXONOMY_UNAVAILABLE",
-    );
-    setAddingTag(false);
-    if (!result.ok) {
-      setTagNotice(result.message || "The tag could not be added. Try again.");
-      return;
-    }
+    const result = await requestTag(name);
+    if (!result.ok) return result.message || "The tag could not be added. Try again.";
     const tag = result.data;
     setAddedTags((current) =>
       current.some((item) => item.id === tag.id) ||
@@ -466,15 +382,7 @@ export function WantedDraftWorkspace({
         : [...current, tag],
     );
     toggleTag(tag.id, true);
-    setNewTag("");
-  }
-
-  function onNewTagKey(event: KeyboardEvent<HTMLInputElement>) {
-    // Enter adds the tag rather than submitting the whole request.
-    if (event.key === "Enter") {
-      event.preventDefault();
-      void addOwnTag();
-    }
+    return null;
   }
 
   function toggleTag(tagId: string, checked: boolean) {
@@ -1334,69 +1242,14 @@ export function WantedDraftWorkspace({
         </div>
 
         {isAcademic ? (
-          <fieldset className="draft-form__fieldset" id="wanted-tags">
-            <legend className="draft-form__legend">Tags (optional, up to five)</legend>
-            {tagError === undefined ? null : (
-              <p className="form-field__error" id="wanted-tags-error">
-                {tagError}
-              </p>
-            )}
-            {taxonomy.tags.length === 0 ? (
-              <p className="form-field__hint">No tags yet. Add the first one below.</p>
-            ) : (
-              <div className="draft-form__choices">
-                {taxonomy.tags.map((tag: TaxonomyItem) => (
-                  <label className="draft-form__choice" key={tag.id}>
-                    <input
-                      type="checkbox"
-                      checked={values.tagIds.includes(tag.id)}
-                      disabled={!values.tagIds.includes(tag.id) && values.tagIds.length >= 5}
-                      onChange={(event) => toggleTag(tag.id, event.target.checked)}
-                    />
-                    {tag.label}
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="form-field draft-form__new-tag">
-              <label className="form-field__label" htmlFor="wanted-new-tag">
-                Add your own tag
-              </label>
-              <p className="form-field__hint" id="wanted-new-tag-hint">
-                Any word that helps classmates find it, for example Past Year or Calculus.
-              </p>
-              {tagNotice === null ? null : (
-                <p className="form-field__error" id="wanted-new-tag-error" role="alert">
-                  {tagNotice}
-                </p>
-              )}
-              <div className="draft-form__new-tag-row">
-                <input
-                  className="form-field__input"
-                  id="wanted-new-tag"
-                  type="text"
-                  maxLength={30}
-                  autoComplete="off"
-                  value={newTag}
-                  aria-describedby={
-                    tagNotice === null
-                      ? "wanted-new-tag-hint"
-                      : "wanted-new-tag-hint wanted-new-tag-error"
-                  }
-                  onChange={(event) => setNewTag(event.target.value)}
-                  onKeyDown={onNewTagKey}
-                />
-                <button
-                  type="button"
-                  className="button button--secondary"
-                  onClick={() => void addOwnTag()}
-                  disabled={addingTag || newTag.trim().length < 2 || values.tagIds.length >= 5}
-                >
-                  {addingTag ? "Adding…" : "Add tag"}
-                </button>
-              </div>
-            </div>
-          </fieldset>
+          <TagPicker
+            idPrefix="wanted"
+            tags={taxonomy.tags}
+            selected={values.tagIds}
+            error={tagError}
+            onToggle={toggleTag}
+            onAdd={addOwnTag}
+          />
         ) : null}
       </section>
 

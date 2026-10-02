@@ -3,19 +3,31 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  COURSE_CODE_PATTERN,
   DESCRIPTION_MIN_LENGTH,
   type MarketplaceOperationCode,
+  type MarketplaceTaxonomy,
+  type TaxonomyItem,
   type WantedChangeLock,
   type WantedChangeWindow,
+  type WantedEditableDetails,
+  type WantedPosterEditInput,
 } from "@/contracts/marketplace";
 import { formatRinggit, type Sen } from "@/features/marketplace/money";
+import { programmesFor } from "@/features/marketplace/taxonomy";
 import { callOperation } from "@/features/presentation/call-operation";
+import { CourseCodeCombobox } from "./course-code-combobox";
 import { FormField } from "./form-field";
+import { SearchSelect } from "./search-select";
+import { SelectField } from "./select-field";
+import { MAX_TAGS, requestTag, TagPicker } from "./tag-picker";
 
 export interface WantedPosterControlsProps {
   readonly wantedId: string;
-  readonly title: string;
-  readonly description: string;
+  /** The Wanted as published; null when it could not be read (no edit form then). */
+  readonly editable: WantedEditableDetails | null;
+  /** The lists of the Wanted's own university; null when they could not be read. */
+  readonly taxonomy: MarketplaceTaxonomy | null;
   readonly isFree: boolean;
   readonly grossBountySen: Sen;
   readonly backerCount: number;
@@ -52,8 +64,8 @@ function clockTime(iso: string): string {
  */
 export function WantedPosterControls({
   wantedId,
-  title,
-  description,
+  editable,
+  taxonomy,
   isFree,
   grossBountySen,
   backerCount,
@@ -81,25 +93,34 @@ export function WantedPosterControls({
     );
   }
 
+  const canEdit = editable !== null && taxonomy !== null;
+
   return (
     <div className="ledger-panel poster-controls">
       <h2 className="ledger-panel__heading">Your Wanted</h2>
       <p className="ledger-panel__body">
-        You can edit the text or withdraw this request until{" "}
+        You can edit the details or withdraw this request until{" "}
         <time dateTime={changeWindow.editableUntil}>{clockTime(changeWindow.editableUntil)}</time> (
         <span className="numeric">
           {remaining} {remaining === 1 ? "minute" : "minutes"}
         </span>{" "}
         left). After that, or once a claim or reply arrives, it is locked as published.
       </p>
+      {canEdit ? null : (
+        <p className="ledger-panel__body">
+          The edit form could not be loaded. Reload the page to try again.
+        </p>
+      )}
       <div className="poster-controls__actions">
-        <button
-          type="button"
-          className="button button--secondary"
-          onClick={() => setDialog("edit")}
-        >
-          Edit text
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => setDialog("edit")}
+          >
+            Edit
+          </button>
+        ) : null}
         <button
           type="button"
           className="button button--danger-outline"
@@ -109,11 +130,11 @@ export function WantedPosterControls({
         </button>
       </div>
 
-      {dialog === "edit" ? (
+      {dialog === "edit" && canEdit ? (
         <EditDialog
           wantedId={wantedId}
-          title={title}
-          description={description}
+          details={editable}
+          taxonomy={taxonomy}
           onClose={() => setDialog(null)}
         />
       ) : null}
@@ -148,43 +169,170 @@ function refusalMessage(code: MarketplaceOperationCode, message: string): string
   if (code === "AUTH_REQUIRED") return "Your session has ended. Sign in again and retry.";
   if (code === "ACCOUNT_RESTRICTED") return "A restriction on your account blocks changes.";
   if (code === "WANTED_NOT_FOUND") return "This Wanted is no longer available to change.";
+  if (code === "INSTITUTION_VERIFICATION_REQUIRED" && message !== "") return message;
   return "Nothing was changed. Check your connection and try again.";
+}
+
+/** The form's values: every choice as a string, "" for none. */
+interface EditValues {
+  title: string;
+  description: string;
+  campusId: string;
+  facultyId: string;
+  programmeId: string;
+  courseCode: string;
+  sessionId: string;
+  resourceTypeId: string;
+  languageId: string;
+  lastSeenLocation: string;
+  tagIds: readonly string[];
+}
+
+function startingValues(details: WantedEditableDetails): EditValues {
+  return {
+    title: details.title,
+    description: details.description,
+    campusId: details.campusId,
+    facultyId: details.facultyId ?? "",
+    programmeId: details.programmeId ?? "",
+    courseCode: details.courseCode ?? "",
+    sessionId: details.academicSessionId ?? "",
+    resourceTypeId: details.resourceTypeId ?? "",
+    languageId: details.languageId ?? "",
+    lastSeenLocation: details.lastSeenLocation ?? "",
+    tagIds: details.tagIds,
+  };
+}
+
+type EditErrors = Partial<Record<keyof EditValues, string>>;
+
+/** The rules the server applies, checked first so a save is not wasted. */
+function editErrors(kind: WantedEditableDetails["kind"], values: EditValues): EditErrors {
+  const errors: EditErrors = {};
+  const titleLength = values.title.trim().length;
+  const descriptionLength = values.description.trim().length;
+  if (titleLength < 8 || titleLength > 120) errors.title = "Use 8 to 120 characters.";
+  if (descriptionLength < DESCRIPTION_MIN_LENGTH || descriptionLength > 2000)
+    errors.description = `Use ${DESCRIPTION_MIN_LENGTH} to 2000 characters.`;
+  if (values.campusId === "") errors.campusId = "Choose a campus.";
+  if (kind === "missing_item") {
+    const place = values.lastSeenLocation.trim().length;
+    if (place === 1 || place > 160) errors.lastSeenLocation = "Use 2 to 160 characters.";
+  }
+  if (kind === "academic") {
+    if (values.facultyId === "") errors.facultyId = "Choose a faculty or college.";
+    if (values.programmeId === "") errors.programmeId = "Choose a programme.";
+    if (!COURSE_CODE_PATTERN.test(values.courseCode))
+      errors.courseCode = "Type a course code such as CSC510.";
+    if (values.resourceTypeId === "") errors.resourceTypeId = "Choose a resource type.";
+    if (values.languageId === "") errors.languageId = "Choose a language.";
+  }
+  return errors;
+}
+
+/** What the server is sent: the fields the kind uses, null for the rest. */
+function toEditInput(
+  kind: WantedEditableDetails["kind"],
+  values: EditValues,
+): WantedPosterEditInput {
+  const academic = kind === "academic";
+  const orNull = (value: string) => (academic && value !== "" ? value : null);
+  return {
+    title: values.title.trim(),
+    description: values.description.trim(),
+    campusId: values.campusId,
+    facultyId: orNull(values.facultyId),
+    programmeId: orNull(values.programmeId),
+    courseCode: orNull(values.courseCode),
+    academicSessionId: orNull(values.sessionId),
+    resourceTypeId: orNull(values.resourceTypeId),
+    languageId: orNull(values.languageId),
+    lastSeenLocation:
+      kind === "missing_item" && values.lastSeenLocation.trim() !== ""
+        ? values.lastSeenLocation.trim()
+        : null,
+    tagIds: [...values.tagIds],
+  };
 }
 
 function EditDialog({
   wantedId,
-  title: initialTitle,
-  description: initialDescription,
+  details,
+  taxonomy,
   onClose,
 }: {
   readonly wantedId: string;
-  readonly title: string;
-  readonly description: string;
+  readonly details: WantedEditableDetails;
+  readonly taxonomy: MarketplaceTaxonomy;
   readonly onClose: () => void;
 }) {
   const router = useRouter();
   const ref = useDialogKeys(onClose);
-  const [title, setTitle] = useState(initialTitle);
-  const [description, setDescription] = useState(initialDescription);
+  const [values, setValues] = useState<EditValues>(() => startingValues(details));
+  const [addedTags, setAddedTags] = useState<readonly TaxonomyItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const titleLength = title.trim().length;
-  const descriptionLength = description.trim().length;
-  const titleError = titleLength < 8 || titleLength > 120 ? "Use 8 to 120 characters." : undefined;
-  const descriptionError =
-    descriptionLength < DESCRIPTION_MIN_LENGTH || descriptionLength > 2000
-      ? `Use ${DESCRIPTION_MIN_LENGTH} to 2000 characters.`
-      : undefined;
+  const kind = details.kind;
+  const academic = kind === "academic";
+  const errors = editErrors(kind, values);
+  const invalid = Object.keys(errors).length > 0;
+  const tags = [...taxonomy.tags, ...addedTags];
+  // Every programme is searchable until a faculty narrows the list.
+  const programmes =
+    values.facultyId === "" ? taxonomy.programmes : programmesFor(taxonomy, values.facultyId);
+
+  function update(patch: Partial<EditValues>) {
+    setValues((current) => ({ ...current, ...patch }));
+  }
+
+  /** A faculty keeps the programme only when it is under that faculty. */
+  function chooseFaculty(facultyId: string) {
+    const programme = taxonomy.programmes.find((option) => option.id === values.programmeId);
+    update({
+      facultyId,
+      programmeId: programme?.facultyId === facultyId ? values.programmeId : "",
+    });
+  }
+
+  /** A programme fills in its own faculty. */
+  function chooseProgramme(programmeId: string) {
+    const programme = taxonomy.programmes.find((option) => option.id === programmeId);
+    update({ programmeId, facultyId: programme?.facultyId ?? values.facultyId });
+  }
+
+  function toggleTag(tagId: string, checked: boolean) {
+    setValues((current) => ({
+      ...current,
+      tagIds: checked ? [...current.tagIds, tagId] : current.tagIds.filter((id) => id !== tagId),
+    }));
+  }
+
+  async function addTag(name: string): Promise<string | null> {
+    const known = tags.find((tag) => tag.label.toLowerCase() === name.toLowerCase());
+    if (known) {
+      if (!values.tagIds.includes(known.id) && values.tagIds.length < MAX_TAGS) {
+        toggleTag(known.id, true);
+      }
+      return null;
+    }
+    if (values.tagIds.length >= MAX_TAGS) return "A request can have up to five tags.";
+    const result = await requestTag(name);
+    if (!result.ok) return result.message || "The tag could not be added. Try again.";
+    const tag = result.data;
+    if (!tags.some((item) => item.id === tag.id)) setAddedTags((current) => [...current, tag]);
+    toggleTag(tag.id, true);
+    return null;
+  }
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (titleError || descriptionError) return;
+    if (invalid) return;
     setSaving(true);
     setError(null);
     const result = await callOperation<{ state: "edited" }, MarketplaceOperationCode>(
       `/api/marketplace/wanted/${encodeURIComponent(wantedId)}`,
-      { title, description },
+      toEditInput(kind, values),
       "MARKETPLACE_UNAVAILABLE",
       "PATCH",
     );
@@ -221,8 +369,8 @@ function EditDialog({
           </button>
         </div>
         <p className="dialog__note">
-          Only the title and description can change. The bounty, duration, course and fee stay as
-          published. The previous text is kept on record.
+          You can correct the details below in the first hour. The university, bounty, duration and
+          fee stay as published. The previous version is kept on record.
         </p>
         {error ? (
           <p className="form-field__error" role="alert">
@@ -233,11 +381,11 @@ function EditDialog({
           id="edit-wanted-title-input"
           label="Title"
           required
-          value={title}
+          value={values.title}
           maxLength={120}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={(event) => update({ title: event.target.value })}
           hint="8 to 120 characters."
-          error={titleError}
+          error={errors.title}
         />
         <div className="form-field">
           <label className="form-field__label" htmlFor="edit-wanted-description">
@@ -246,9 +394,9 @@ function EditDialog({
           <p className="form-field__hint" id="edit-wanted-description-hint">
             {DESCRIPTION_MIN_LENGTH} to 2000 characters.
           </p>
-          {descriptionError ? (
+          {errors.description ? (
             <p className="form-field__error" id="edit-wanted-description-error">
-              {descriptionError}
+              {errors.description}
             </p>
           ) : null}
           <textarea
@@ -257,25 +405,116 @@ function EditDialog({
             rows={6}
             required
             maxLength={2000}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            aria-invalid={descriptionError ? true : undefined}
+            value={values.description}
+            onChange={(event) => update({ description: event.target.value })}
+            aria-invalid={errors.description ? true : undefined}
             aria-describedby={
-              descriptionError
+              errors.description
                 ? "edit-wanted-description-hint edit-wanted-description-error"
                 : "edit-wanted-description-hint"
             }
           />
         </div>
+        <SelectField
+          id="edit-wanted-campus"
+          label="Campus"
+          hint="Campuses marked coming soon are not open for requests yet."
+          value={values.campusId}
+          options={taxonomy.campuses.map((campus) => ({
+            id: campus.id,
+            label: campus.regionOpen ? campus.label : `${campus.label} (coming soon)`,
+            disabled: !campus.regionOpen && campus.id !== details.campusId,
+          }))}
+          placeholder="Choose a campus"
+          error={errors.campusId}
+          onChange={(campusId) => update({ campusId })}
+        />
+        {kind === "missing_item" ? (
+          <FormField
+            id="edit-wanted-last-seen"
+            label="Where did you last see it? (optional)"
+            value={values.lastSeenLocation}
+            maxLength={160}
+            onChange={(event) => update({ lastSeenLocation: event.target.value })}
+            hint="A building or room, for example Library level 2. Do not include phone numbers or addresses."
+            error={errors.lastSeenLocation}
+          />
+        ) : null}
+        {academic ? (
+          <>
+            <SearchSelect
+              id="edit-wanted-faculty"
+              label="Faculty or college"
+              hint="Type part of its name. Choosing a programme fills it in."
+              value={values.facultyId}
+              options={taxonomy.faculties}
+              placeholder="Search faculties and colleges"
+              noun="faculty"
+              nounPlural="faculties"
+              error={errors.facultyId}
+              onChange={chooseFaculty}
+            />
+            <SearchSelect
+              id="edit-wanted-programme"
+              label="Programme"
+              hint="Type the programme code or part of its name."
+              value={values.programmeId}
+              options={programmes}
+              placeholder="Search programmes"
+              noun="programme"
+              error={errors.programmeId}
+              onChange={chooseProgramme}
+            />
+            <CourseCodeCombobox
+              id="edit-wanted-course"
+              value={values.courseCode}
+              courses={taxonomy.courses}
+              error={errors.courseCode}
+              onChange={(courseCode) => update({ courseCode })}
+            />
+            <SelectField
+              id="edit-wanted-session"
+              label="Academic session"
+              hint="Leave as any session if it does not matter."
+              value={values.sessionId}
+              options={taxonomy.academicSessions}
+              placeholder="Any session"
+              optional
+              error={undefined}
+              onChange={(sessionId) => update({ sessionId })}
+            />
+            <SelectField
+              id="edit-wanted-resource-type"
+              label="Resource type"
+              value={values.resourceTypeId}
+              options={taxonomy.resourceTypes}
+              placeholder="Choose a resource type"
+              error={errors.resourceTypeId}
+              onChange={(resourceTypeId) => update({ resourceTypeId })}
+            />
+            <SelectField
+              id="edit-wanted-language"
+              label="Language"
+              value={values.languageId}
+              options={taxonomy.languages}
+              placeholder="Choose a language"
+              error={errors.languageId}
+              onChange={(languageId) => update({ languageId })}
+            />
+          </>
+        ) : null}
+        <TagPicker
+          idPrefix="edit-wanted"
+          tags={tags}
+          selected={values.tagIds}
+          onToggle={toggleTag}
+          onAdd={addTag}
+        />
         <div className="dialog__actions">
           <button type="button" className="button button--quiet" onClick={onClose}>
             Cancel
           </button>
-          <button
-            type="submit"
-            className="button button--primary"
-            disabled={saving || titleError !== undefined || descriptionError !== undefined}
-          >
+          <button type="submit" className="button button--primary" disabled={saving || invalid}>
             {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
