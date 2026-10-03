@@ -6,6 +6,7 @@ import { useSignUp } from "@clerk/nextjs";
 import { ErrorSummary, type FieldError } from "./error-summary";
 import { FormField } from "./form-field";
 import { GoogleIcon } from "./google-icon";
+import { TERMS_CONSENT_ERROR, TermsConsent } from "./terms-consent";
 import { UiStatus } from "./ui-status";
 import {
   clerkErrorField,
@@ -19,10 +20,12 @@ import {
   syncClerkAccount,
   useFinalizeNavigation,
 } from "@/features/presentation/auth/clerk-navigation";
+import { rememberTermsAgreement } from "@/features/legal/pending-agreement";
 import { DEFAULT_SIGNED_IN_PATH } from "@/features/presentation/auth/redirect-target";
 import { useHydrated } from "@/features/presentation/use-hydrated";
 
 const MINIMUM_PASSWORD_LENGTH = 12;
+const TERMS_FIELD = "terms-consent";
 
 type Outcome =
   | { kind: "idle" }
@@ -41,6 +44,7 @@ export function SignUpForm() {
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [outcome, setOutcome] = useState<Outcome>({ kind: "idle" });
   const [resent, setResent] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
   const hydrated = useHydrated();
 
@@ -74,6 +78,13 @@ export function SignUpForm() {
 
   async function handleGoogleSignUp() {
     if (!signUp) return;
+    if (!agreed) {
+      setErrors([{ fieldId: TERMS_FIELD, message: TERMS_CONSENT_ERROR }]);
+      setOutcome({ kind: "idle" });
+      return;
+    }
+    // Recorded once the account exists, on the first page after Google.
+    rememberTermsAgreement();
     setErrors([]);
     setOutcome({ kind: "submitting" });
     markGoogleSignInStarted();
@@ -139,6 +150,10 @@ export function SignUpForm() {
       });
     }
 
+    if (!agreed) {
+      found.push({ fieldId: TERMS_FIELD, message: TERMS_CONSENT_ERROR });
+    }
+
     if (found.length > 0) {
       setErrors(found);
       setOutcome({ kind: "idle" });
@@ -152,6 +167,8 @@ export function SignUpForm() {
 
     setErrors([]);
     setOutcome({ kind: "submitting" });
+    // Recorded once the account exists, on the first page after sign-up.
+    rememberTermsAgreement();
 
     await attempt(async () => {
       // The display name travels as the first name; it becomes the profile name
@@ -339,6 +356,17 @@ export function SignUpForm() {
         autoComplete="new-password"
         required
         error={errorFor("confirm-password")}
+      />
+
+      <TermsConsent
+        id={TERMS_FIELD}
+        checked={agreed}
+        onChange={(value) => {
+          setAgreed(value);
+          if (value)
+            setErrors((current) => current.filter((error) => error.fieldId !== TERMS_FIELD));
+        }}
+        error={errorFor(TERMS_FIELD)}
       />
 
       {/* Clerk's bot protection renders its challenge here when it needs one. */}

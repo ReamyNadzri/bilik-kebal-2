@@ -8,6 +8,7 @@ import { ShellBackButton } from "./shell-back-button";
 import { ShellHeader, ShellMenu, ShellMenuProvider, ShellMenuToggle } from "./shell-menu";
 import { ShellNav } from "./shell-nav";
 import { ThemeMusicProvider, ThemeMusicToggle } from "./theme-music";
+import { LEGAL_LINKS } from "@/features/legal/legal-links";
 import { POST_WANTED_NAV, type NavItem, type NavItemId } from "@/features/presentation/navigation";
 
 export interface AppShellProps {
@@ -150,6 +151,15 @@ export function AppShell({
               <p className="app-shell__footer-cookies">
                 <strong>Cookies.</strong> {COOKIE_SUMMARY}
               </p>
+              <nav className="app-shell__footer-links" aria-label="Legal">
+                <ul>
+                  {LEGAL_LINKS.map((link) => (
+                    <li key={link.href}>
+                      <ShotLink href={link.href}>{link.label}</ShotLink>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
               {process.env.NODE_ENV === "production" ? null : (
                 <p className="app-shell__dev-marker">
                   Development build. Screens marked &ldquo;Development only&rdquo; show fixture

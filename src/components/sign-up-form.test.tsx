@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SignUpForm } from "./sign-up-form";
+import { TERMS_OF_USE_VERSION } from "@/contracts/legal";
 import { clerkHooks, clerkResult } from "@/features/presentation/test-support/clerk-hooks";
 
 const replace = vi.fn();
@@ -40,11 +41,16 @@ function fill(label: RegExp, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 
+function agree() {
+  fireEvent.click(screen.getByRole("checkbox", { name: /18 or older/ }));
+}
+
 function register(password = "a-long-passphrase") {
   fill(/Display name/, "Aina");
   fill(/Email address/, "aina@student.uitm.edu.my");
   fill(/^Password/, password);
   fill(/Confirm password/, password);
+  agree();
   fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 }
 
@@ -57,7 +63,10 @@ beforeEach(() => {
   );
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  window.sessionStorage.clear();
+});
 
 test("checks the fields before asking Clerk", async () => {
   const signUp = fakeSignUp();
@@ -166,6 +175,7 @@ test("leaves 'Creating your account…' when Google never starts", async () => {
     fakeSignUp();
     render(<SignUpForm />);
 
+    agree();
     fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
     expect(await screen.findByRole("button", { name: "Creating your account…" })).toBeDisabled();
 
@@ -176,4 +186,51 @@ test("leaves 'Creating your account…' when Google never starts", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("asks for the 18+ and Terms agreement before creating an account", async () => {
+  const signUp = fakeSignUp();
+  render(<SignUpForm />);
+
+  fill(/Display name/, "Aina");
+  fill(/Email address/, "aina@student.uitm.edu.my");
+  fill(/^Password/, "a-long-passphrase");
+  fill(/Confirm password/, "a-long-passphrase");
+  fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+
+  expect(await screen.findAllByText(/confirm you are 18 or older/)).not.toHaveLength(0);
+  expect(screen.getByRole("checkbox", { name: /18 or older/ })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  expect(signUp.password).not.toHaveBeenCalled();
+  expect(window.sessionStorage.getItem("vaultix.termsAgreement")).toBeNull();
+});
+
+test("does not start Google sign-up until the agreement is ticked", async () => {
+  const signUp = fakeSignUp();
+  render(<SignUpForm />);
+
+  fireEvent.click(screen.getByRole("button", { name: /Continue with Google/ }));
+
+  expect(await screen.findAllByText(/confirm you are 18 or older/)).not.toHaveLength(0);
+  expect(signUp.sso).not.toHaveBeenCalled();
+});
+
+test("remembers the agreement for the first page after the account exists", async () => {
+  fakeSignUp();
+  render(<SignUpForm />);
+
+  register();
+
+  expect(await screen.findByLabelText(/Code from the email/)).toBeInTheDocument();
+  expect(window.sessionStorage.getItem("vaultix.termsAgreement")).toBe(TERMS_OF_USE_VERSION);
+});
+
+test("links the Terms of Use and the Privacy Notice from the agreement", () => {
+  fakeSignUp();
+  render(<SignUpForm />);
+
+  expect(screen.getByRole("link", { name: /Terms of Use/ })).toHaveAttribute("href", "/terms");
+  expect(screen.getByRole("link", { name: /Privacy Notice/ })).toHaveAttribute("href", "/privacy");
 });

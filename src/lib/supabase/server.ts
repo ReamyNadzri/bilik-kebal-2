@@ -127,6 +127,11 @@ export interface CurrentAccountSnapshot extends IdentityRow {
     evidence_delete_after: string;
   } | null;
   has_console_access: boolean;
+  /**
+   * The latest Terms of Use version the member accepted, null for none.
+   * Absent until migration 202610200007 is applied.
+   */
+  terms_accepted_version?: string | null;
 }
 
 /** The snapshot this request read, if any; one per render (React `cache`). */

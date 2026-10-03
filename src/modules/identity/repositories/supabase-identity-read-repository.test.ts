@@ -110,3 +110,32 @@ test("reads a pending request as the trust state when there is no membership", a
     avatarUrl: null,
   });
 });
+
+test("carries the latest accepted Terms version, null when none, absent when unknown", async () => {
+  const account = {
+    user_id: user.id,
+    public_id: "11111111-1111-4111-8111-111111111111",
+    email: user.email,
+    email_verified_at: user.email_confirmed_at,
+    created_at: user.created_at,
+    display_name: "Aina",
+    avatar_object_key: null,
+    avatar_preset: null,
+    external_avatar_url: null,
+    membership: null,
+    restriction: null,
+    latest_request: null,
+    has_console_access: false,
+  };
+  const repository = new SupabaseIdentityReadRepository(client);
+
+  snapshot.current = { ...account, terms_accepted_version: "2026-10-03" };
+  expect((await repository.readAccount(user))?.termsAcceptedVersion).toBe("2026-10-03");
+
+  snapshot.current = { ...account, terms_accepted_version: null };
+  expect((await repository.readAccount(user))?.termsAcceptedVersion).toBeNull();
+
+  // Before migration 202610200007 the key is missing: unknown, so nobody is asked.
+  snapshot.current = account;
+  expect(await repository.readAccount(user)).not.toHaveProperty("termsAcceptedVersion");
+});

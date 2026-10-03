@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProfileBackings } from "@/components/profile-backings";
+import { ProfilePrivacyRequests } from "@/components/profile-privacy-requests";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
@@ -11,6 +12,7 @@ import {
   readOwnPaymentDetails,
   readPublicProfile,
 } from "@/modules/profiles/loaders/profile-operations";
+import { listOwnPrivacyRequests } from "@/modules/legal/loaders/legal-operations";
 import { listOwnBackedWanted } from "@/modules/wanted/loaders/wanted-operations";
 import { listOwnTaxonomyRequests } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
 
@@ -56,13 +58,15 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const account = outcome.account;
   // The member's own public card (bio, posted requests) comes from the same
   // read anyone else sees, so what they edit is exactly what others see.
-  const [publicProfile, nameAllowance, entryRequests, paymentDetails, backed] = await Promise.all([
-    account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
-    readOwnDisplayNameAllowance(),
-    listOwnTaxonomyRequests(),
-    readOwnPaymentDetails().catch(() => "unavailable" as const),
-    listOwnBackedWanted(),
-  ]);
+  const [publicProfile, nameAllowance, entryRequests, paymentDetails, backed, privacyRequests] =
+    await Promise.all([
+      account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
+      readOwnDisplayNameAllowance(),
+      listOwnTaxonomyRequests(),
+      readOwnPaymentDetails().catch(() => "unavailable" as const),
+      listOwnBackedWanted(),
+      listOwnPrivacyRequests(),
+    ]);
   const profile = publicProfile?.ok ? publicProfile.data : null;
 
   return (
@@ -134,6 +138,8 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         entryRequests={entryRequests.ok ? entryRequests.data : null}
         paymentDetails={paymentDetails}
       />
+
+      <ProfilePrivacyRequests requests={privacyRequests.ok ? privacyRequests.data : null} />
     </div>
   );
 }

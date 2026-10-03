@@ -37,6 +37,16 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Automatic institution verification through a controlled domain allowlist and a manual evidence-review route.
 - Star emblem for institution verification, with a tooltip explaining that it does not guarantee resource quality.
 - Owner, Platform Sheriff, and institution-scoped Sheriff access with granular review and finance permissions.
+- Members must be 18 or older. At sign-up (email or Google) a member confirms they are 18 or older
+  and accepts the Terms of Use and Privacy Notice in one required box. Each acceptance is recorded
+  per version (`terms_acceptances`); when the version changes, every signed-in member sees an
+  acceptance screen in place of any page except the legal pages and sign-out until they accept.
+- Public `/terms`, `/privacy` and `/refunds` in English and Malay (`?lang=ms`), linked from the
+  footer, the menu, the sign-up box and the checkout. They name no company or person (decision of
+  2026-10-03). The Refund Policy promises refunds within 1 to 3 days of being queued.
+- Privacy requests (a copy of my data, a correction, a deletion, another question) are sent from
+  the profile and read and answered only by the Owner (Sheriff Console, "Privacy requests"); the
+  answer appears on the member's profile. At most 3 wait at once. No email changes hands.
 
 ### Wanted Board and Bounties
 
@@ -92,6 +102,10 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Gross bounty, Backer count, age, status, and available action shown without previewing unverified content.
 
 ### Contributions, Fees, Payouts, and Refunds
+
+- Payment provider decision of 2026-10-03: **HitPay replaces ToyyibPay**, and the Privacy Notice
+  names HitPay. The code still uses the ToyyibPay adapter until a HitPay integration lands; the
+  ToyyibPay lines below describe that code.
 
 - ToyyibPay payment collection with `Disabled`, `Sandbox`, and allowlisted `Live Limited` modes, plus
   a `Mock` mode: a test gateway inside VAULTIX that runs the real bill, verified-event, ledger,

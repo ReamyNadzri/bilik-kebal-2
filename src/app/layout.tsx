@@ -5,8 +5,10 @@ import type { ReactNode } from "react";
 import { CompactAccount, MenuAccount } from "@/components/account-menu";
 import { ClerkAuthControls } from "@/components/clerk-auth-controls";
 import { AppShell } from "@/components/app-shell";
+import { TermsGate } from "@/components/terms-gate";
 import { GunshotProvider } from "@/components/motion/gunshot-transition";
 import { Tumbleweed } from "@/components/motion/tumbleweed";
+import { TERMS_OF_USE_VERSION } from "@/contracts/legal";
 import { AuthProvider } from "@/features/presentation/auth/auth-provider";
 import { readAccount } from "@/features/presentation/auth/require-account";
 import { SHERIFF_CONSOLE_NAV } from "@/features/presentation/navigation";
@@ -66,6 +68,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
    */
   const roleNav = account?.console.hasAccess === true ? [SHERIFF_CONSOLE_NAV] : [];
   const unreadCount = account ? unread : null;
+  // Unknown (undefined) never asks: an unreadable answer must not lock members out.
+  const termsRequired =
+    account !== null &&
+    account.termsAcceptedVersion !== undefined &&
+    account.termsAcceptedVersion !== TERMS_OF_USE_VERSION;
 
   return (
     <html lang="en" className={`${karla.variable} ${rye.variable} ${silkscreen.variable}`}>
@@ -80,7 +87,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 menuAccount={<MenuAccount />}
                 unreadCount={unreadCount}
               >
-                {children}
+                <TermsGate required={termsRequired}>{children}</TermsGate>
               </AppShell>
               <Tumbleweed />
             </GunshotProvider>

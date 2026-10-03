@@ -286,7 +286,11 @@ export function BackWantedModal({ wanted, onClose }: BackWantedModalProps) {
             <p className="dialog__note">
               The fee is not taken from the bounty: the Hunter receives the whole bounty. If the
               Wanted closes without a winner you are refunded {formatRinggit(charge.totalSen)} in
-              full. The bounty only changes after the payment is confirmed.
+              full. The bounty only changes after the payment is confirmed. See the{" "}
+              <Link href="/refunds" target="_blank" rel="noopener">
+                Refund Policy<span className="visually-hidden"> (opens in a new tab)</span>
+              </Link>
+              .
             </p>
 
             <div className="dialog__actions">

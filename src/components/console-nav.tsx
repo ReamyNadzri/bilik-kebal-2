@@ -8,7 +8,8 @@ export type ConsoleSection =
   | "operations"
   | "people"
   | "moderation"
-  | "badges";
+  | "badges"
+  | "privacy";
 
 const SECTIONS: readonly { id: ConsoleSection; label: string; href: string }[] = [
   { id: "overview", label: "Overview & verification", href: "/console" },
@@ -19,6 +20,7 @@ const SECTIONS: readonly { id: ConsoleSection; label: string; href: string }[] =
   { id: "people", label: "People", href: "/console/people" },
   { id: "moderation", label: "Reports & hidden messages", href: "/console/moderation" },
   { id: "badges", label: "Badges", href: "/console/badges" },
+  { id: "privacy", label: "Privacy requests", href: "/console/privacy" },
 ];
 
 /**
@@ -30,7 +32,7 @@ const SECTIONS: readonly { id: ConsoleSection; label: string; href: string }[] =
  *
  * The tabs are not prefetched. Every section is rendered per request and
  * shares the console's loading state, so a prefetch buys nothing a click does
- * not — while eight of them on every console page cost eight server requests.
+ * not — while nine of them on every console page cost nine server requests.
  */
 export function ConsoleNav({
   current,

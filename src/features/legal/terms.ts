@@ -69,3 +69,56 @@ export const POSTING_TERMS: readonly TermsSection[] = [
     ],
   },
 ];
+
+/**
+ * The same posting terms in Malay, point for point. Change both together: a
+ * point added to one and not the other is a different agreement.
+ */
+export const POSTING_TERMS_MS: readonly TermsSection[] = [
+  {
+    heading: "Apa yang boleh anda minta",
+    points: [
+      "Minta hanya bahan yang dibenarkan untuk dikongsi oleh pelajar: nota anda sendiri, ringkasan, jawapan yang dihuraikan dan hasil kerja yang serupa.",
+      "Jangan minta buku teks penerbit, bahan tutorial berbayar, kertas peperiksaan yang bocor atau belum dikeluarkan, atau dokumen yang dihadkan oleh institusi anda.",
+      "Permintaan barang hilang menerangkan sesuatu yang anda hilang. Jangan siarkan butiran peribadi orang lain, dan aturkan sebarang penyerahan di tempat awam yang selamat.",
+      "Perbincangan mesti sopan dan berkaitan dengan topik. Sheriff boleh menyembunyikan balasan yang melanggar terma ini.",
+      "Tag adalah terbuka: anda boleh menambah sebarang tag yang menerangkan permintaan anda. Sheriff boleh mematikan tag yang menyinggung atau mengelirukan.",
+      "Mana-mana ahli yang disahkan boleh melaporkan permintaan yang melanggar terma ini. Laporan dihantar secara sulit kepada Sheriff dan Owner.",
+    ],
+  },
+  {
+    heading: "Ganjaran dan wang",
+    points: [
+      "Ganjaran (bounty) adalah pilihan. Sebarang permintaan boleh disiarkan secara percuma; permintaan percuma tiada bayaran, tiada yuran dan tiada pembayaran keluar.",
+      "Setiap ahli boleh menyiarkan 3 permintaan percuma kesemuanya. Kod ganjaran menambah lagi; setiap kod boleh ditebus sekali bagi setiap ahli.",
+      "Bagi barang hilang atau perbincangan yang mempunyai ganjaran, anda melepaskannya dengan menamakan ahli yang membantu. Sheriff meluluskan pelepasan itu sebelum sesiapa dibayar.",
+      "Setiap sumbangan kepada ganjaran ialah RM1 hingga RM50. Yuran platform (kini 10% daripada sumbangan, dibundarkan ke bawah kepada sen) dibayar di atas sumbangan itu dan tidak masuk ke dalam ganjaran. Kadarnya ditetapkan apabila permintaan disiarkan dan tidak berubah selepas itu.",
+      "Ganjaran berubah hanya selepas penyedia pembayaran mengesahkan pembayaran terus kepada VAULTIX. Halaan semula kembali ke laman ini bukan pengesahan.",
+      "Yuran platform tidak pernah diambil daripada ganjaran: Hunter yang menang, atau ahli yang dinamakan pada ganjaran yang dilepaskan, menerima keseluruhan ganjaran.",
+      "Jika permintaan yang mempunyai ganjaran tamat tempoh tanpa tuntutan yang diluluskan, atau ditarik balik, setiap sumbangan yang disahkan dan yuran yang dibayar bersamanya dipulangkan sepenuhnya.",
+      "Bayaran balik dan pembayaran keluar dibuat melalui pindahan bank ke akaun dalam profil anda. Tambah nombor telefon dan akaun bank anda sebelum anda membayar atau menuntut ganjaran.",
+      "Jika sesuatu permintaan melanggar terma ini, Owner boleh membuangnya walaupun ia mempunyai ganjaran. Anda kemudiannya kehilangan wang yang anda masukkan ke dalamnya, termasuk yuran platform; setiap Backer lain dipulangkan sepenuhnya. Owner merekodkan sebabnya.",
+    ],
+  },
+  {
+    heading: "Tuntutan, semakan dan akses",
+    points: [
+      "Hanya Sheriff manusia boleh meluluskan tuntutan. Semakan automatik ialah bukti untuk Sheriff, bukan keputusan.",
+      "Satu tuntutan memenangi setiap permintaan. Hunter yang menang menerima keseluruhan ganjaran.",
+      "Penyumbang kepada ganjaran mendapat akses kepada sumber yang diluluskan. Bagi permintaan percuma, orang yang menyiarkannya mendapat akses.",
+      "Sumber menjadi percuma untuk semua 48 jam selepas kelulusan hanya jika Hunter memilih untuk berbuat demikian dan Sheriff mengesahkan hak perkongsian.",
+      "Tuntutan yang ditolak boleh dirayu sekali dalam tempoh 7 hari. Sheriff yang lain memutuskan rayuan itu, dan tarikh tamat serta bayaran balik permintaan itu ditangguhkan sementara itu.",
+    ],
+  },
+  {
+    heading: "Akaun anda dan data anda",
+    points: [
+      "Menyiarkan, membiayai dan menuntut memerlukan pengesahan institusi. Pengesahan e-mel sahaja membolehkan anda melayari.",
+      "Profil awam anda menunjukkan nama paparan, gambar, bio, tarikh menyertai, lencana pengesahan dan permintaan yang anda siarkan. Ia tidak sekali-kali menunjukkan e-mel anda, bukti pengesahan anda, tuntutan anda atau apa yang anda biayai.",
+      "Fail yang dihantar sebagai tuntutan kekal sulit dan dikuarantin sehingga Sheriff membuat keputusan.",
+      "Nama paparan anda boleh ditukar dua kali. Kod pertukaran nama menambah lagi pertukaran.",
+      "Anda boleh memadam akaun anda mulai 30 hari selepas anda menciptanya, apabila tiada pembayaran, pembayaran keluar, bayaran balik atau tuntutan anda yang masih dalam proses. Pemadaman membuang nama, gambar, bio dan butiran bank anda secara kekal. Rekod pembayaran dan audit disimpan, tanpa nama anda, seperti yang dikehendaki oleh undang-undang.",
+      "Akaun yang melanggar terma ini boleh dihadkan. Sekatan direkodkan dan boleh dirayu.",
+    ],
+  },
+];

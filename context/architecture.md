@@ -18,7 +18,7 @@ VAULTIX is a Supabase-centric modular monolith. The web application is deployed 
 | Lightweight backend | Supabase Edge Functions | ToyyibPay callbacks, provider orchestration, and short idempotent tasks |
 | Queue | Supabase Queues (`pgmq`) | Durable asynchronous work and retry coordination |
 | Email | Brevo transactional API + custom SMTP | App notifications use the API; Supabase Auth uses separate SMTP credentials |
-| Payments | ToyyibPay | Sandbox and live contribution collection |
+| Payments | ToyyibPay (code); HitPay decided 2026-10-03 | Sandbox and live contribution collection; the HitPay integration replaces the ToyyibPay adapter |
 | File screening | Isolated container worker, provider selected before public upload | Malware scan, safe conversion, text extraction, and fingerprint generation |
 | Validation | Zod at TypeScript boundaries + PostgreSQL constraints | Reject malformed external input and enforce data invariants |
 | Testing | Vitest + React Testing Library + Playwright + SQL/RLS tests | Unit, integration, access-control, and end-to-end verification |
@@ -142,6 +142,16 @@ Database records store `storage_provider`, `bucket`, `object_key`, checksum, siz
 - Review and finance permissions are granular even when both appear in the Sheriff Console.
 - Sensitive Owner/Sheriff operations require recent authentication. MFA is required before public production launch.
 - RLS is enabled on every user-facing table and private storage bucket. Service-role credentials never reach the browser.
+- Terms of Use acceptance (migration `202610200007`): `terms_versions` lists published versions
+  (latest by `effective_at` is current; a new version is a new migration plus
+  `TERMS_OF_USE_VERSION` in `src/contracts/legal.ts`). `accept_terms(version, confirmed_adult)`
+  records one permanent row per member and version, only for the current version and only with the
+  18+ confirmation. `current_account()` returns `terms_accepted_version`; the root layout's
+  `TermsGate` shows the acceptance screen when it differs from the app's version. A missing key
+  (older database) asks nobody. The gate is presentation; posting keeps its own agreement.
+- Privacy requests (same migration): `submit_privacy_request` for any signed-in member (at most 3
+  open), `list_privacy_requests` and `answer_privacy_request` for the Owner only. RLS: a member
+  reads their own rows, the Owner reads all; nobody writes the tables directly.
 
 ## Money and Provider Flow
 
@@ -203,7 +213,7 @@ Payment mode is one of `disabled`, `mock`, `sandbox`, or `live_limited`. `mock` 
 - Institution-verification evidence: 30 days after the final decision/appeal period.
 - Approved resources: retained while an entitlement or valid release obligation exists; not deleted merely to remain within a free tier.
 - Wanted chat threads (sightings, replies, academic questions): deleted 7 days after the thread closes (found, resolved, auto-closed after 30 quiet days, fulfilled or expired) by the daily `wanted-thread-retention` pg_cron job. A missing-item or discussion card leaves the Board then; a small record (title, dates, reply count) remains. Never deleted while a bounty release is pending, while a paid community bounty is neither released nor fully refunded, within 7 days of an academic claim review, or while an appeal is pending. Hidden (moderated) replies are kept.
-- Ledger, payout/refund, moderation, and audit metadata: retained according to the approved legal retention schedule and never deleted by file cleanup jobs.
+- Ledger, payout/refund, moderation, and audit metadata, Terms acceptances and privacy requests: 7 years (decision of 2026-10-03), never deleted by file cleanup jobs or account deletion; after deletion they point at the anonymised profile. No job deletes them yet.
 - Deleted accounts (`delete_own_account`, migration `202610190003`): open from 30 days after the account was created, and refused while a paid Wanted of theirs is open or under review, a claim of theirs is being reviewed, or a payout or refund to them is unfinished. The profile is anonymised ("Deleted hunter", no picture, bio or bank details), `deleted_at` is set and a permanent `account_deleted` restriction is added; ledger, payout/refund, audit and archive rows are kept and keep pointing at the anonymous profile. The Clerk user is deleted after the database step; the function is idempotent so a retry finishes it.
 - Wanted reports (`wanted_reports`, migration `202610190004`): private evidence for Sheriffs and the Owner (RLS: own reports, or reviewer roles), kept with moderation records; a report changes nothing by itself.
 
