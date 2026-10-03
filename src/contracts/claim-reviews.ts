@@ -42,3 +42,28 @@ export const CLAIM_REVIEW_REASONS = {
     { code: "rights_violation", label: "Not the Hunter's to share" },
   ],
 } as const;
+
+/** Why a reviewer opens a claim's file: shown in the browser, or saved. */
+export const claimFilePurposeSchema = z.enum(["view", "download"]);
+export type ClaimFilePurpose = z.infer<typeof claimFilePurposeSchema>;
+
+/** A short-lived signed URL on the Storage domain for one reviewer request. */
+export type ClaimFileAccess = {
+  url: string;
+  /** ISO time after which the URL no longer works; ask for a new one. */
+  expiresAt: string;
+  mimeType: string;
+};
+
+export type ClaimFileAccessCode =
+  | "VALIDATION_ERROR"
+  | "AUTH_REQUIRED"
+  | "NOT_AUTHORIZED"
+  | "CLAIM_NOT_FOUND"
+  | "PREVIEW_UNSUPPORTED"
+  | "FILE_UNAVAILABLE";
+
+/** MIME types a browser can show by itself; the rest are download-only. */
+export function canViewClaimFileInBrowser(mimeType: string): boolean {
+  return mimeType.startsWith("image/") || mimeType === "application/pdf";
+}

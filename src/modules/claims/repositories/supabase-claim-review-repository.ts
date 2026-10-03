@@ -37,9 +37,10 @@ export class SupabaseClaimReviewRepository implements ClaimReviewRepository {
         ...(input.notes ? { target_notes: input.notes } : {}),
       };
       const { data, error } = await this.client.rpc("approve_winning_claim_and_fulfill", args);
-      if (error || !data)
-        throw new Error(error?.message ?? "Claim approval and fulfillment failed");
-      return data;
+      if (error) throw new Error("Claim approval and fulfillment failed");
+      // The RPC returns the payout task id, and null when there is no bounty to
+      // pay (a free request): the approval is recorded either way.
+      return data ?? input.claimId;
     }
 
     const args = {

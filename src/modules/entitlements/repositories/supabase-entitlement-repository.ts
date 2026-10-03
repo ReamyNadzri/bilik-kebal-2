@@ -1,13 +1,34 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database";
 import type { EntitlementRecord } from "@/contracts/entitlements";
+import {
+  signClaimFile,
+  type ClaimFileLocation,
+  type SignOutcome,
+} from "@/modules/claims/storage/promote-approved-claim-file";
 import type { ClaimDownloadMeta, EntitlementRepository } from "./entitlement-repository";
 
+/**
+ * `client` is the member's session: entitlements and roles are read under RLS.
+ * `admin` (service role, created on first use) reads the claim's file facts,
+ * which RLS hides from a Backer or poster, and signs the file, which no storage
+ * policy lets a member read. The service decides access before either is used.
+ */
 export class SupabaseEntitlementRepository implements EntitlementRepository {
-  constructor(private readonly client: SupabaseClient<Database>) {}
+  private adminClient: SupabaseClient<Database> | null = null;
+
+  constructor(
+    private readonly client: SupabaseClient<Database>,
+    private readonly createAdmin: () => SupabaseClient<Database>,
+  ) {}
+
+  private admin(): SupabaseClient<Database> {
+    this.adminClient ??= this.createAdmin();
+    return this.adminClient;
+  }
 
   async getClaimDownloadMeta(claimId: string): Promise<ClaimDownloadMeta | null> {
-    const { data, error } = await this.client
+    const { data, error } = await this.admin()
       .from("claims")
       .select(
         "id, wanted_request_id, hunter_user_id, institution_id, is_restricted, free_release_opt_in, rights_confirmed_at, status, bucket, object_key, file_name, size_bytes, mime_type",
@@ -83,23 +104,12 @@ export class SupabaseEntitlementRepository implements EntitlementRepository {
     return false;
   }
 
-  async createSignedDownloadUrl(
-    bucket: string,
-    objectKey: string,
+  async signClaimDownload(
+    file: ClaimFileLocation,
     fileName: string,
     expiresInSeconds: number,
-  ): Promise<string> {
-    const { data, error } = await this.client.storage
-      .from(bucket)
-      .createSignedUrl(objectKey, expiresInSeconds, {
-        download: fileName,
-      });
-
-    if (error || !data?.signedUrl) {
-      throw new Error(error?.message ?? "Failed to create signed download URL");
-    }
-
-    return data.signedUrl;
+  ): Promise<SignOutcome> {
+    return signClaimFile(this.admin().storage, file, expiresInSeconds, { download: fileName });
   }
 
   async revokeEntitlementsForWanted(wantedRequestId: string, reason: string): Promise<number> {
