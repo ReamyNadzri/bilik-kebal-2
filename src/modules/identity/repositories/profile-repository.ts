@@ -1,4 +1,4 @@
-import type { Enums } from "@/lib/supabase/database.types";
+import type { Enums } from "@/lib/supabase/database";
 
 import type { IdentityTrust } from "../domain/trust-state";
 

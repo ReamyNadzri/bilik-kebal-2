@@ -47,7 +47,14 @@ export function sortWantedSummaries(
 
 export function wantedDisplayStatus(
   lifecycle:
-    "open" | "reviewing" | "expired" | "fulfilled" | "closed" | "draft" | "awaiting_payment",
+    | "open"
+    | "reviewing"
+    | "expired"
+    | "fulfilled"
+    | "closed"
+    | "withdrawn"
+    | "draft"
+    | "awaiting_payment",
   closesAt: string,
   grossBountySen: number,
   now: number,
@@ -56,6 +63,7 @@ export function wantedDisplayStatus(
     lifecycle === "expired" ||
     lifecycle === "fulfilled" ||
     lifecycle === "closed" ||
+    lifecycle === "withdrawn" ||
     lifecycle === "draft" ||
     lifecycle === "awaiting_payment"
   )

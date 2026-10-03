@@ -1,22 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { WANTED_PICTURE_PRESET_COUNT, type WantedPicture } from "@/contracts/wanted-pictures";
+import type { Database } from "@/lib/supabase/database";
 
-/*
- * `wanted_pictures` arrived after the generated database types
- * (migration 202610120001), so it is read through an untyped client until the
- * types are regenerated.
- */
-type Untyped = SupabaseClient;
-
-interface PictureRow {
-  wanted_request_id: string;
-  preset: number | null;
-  object_key: string | null;
-}
+type Client = SupabaseClient<Database>;
 
 /** Public URL of an uploaded Wanted picture. */
-export function wantedPictureUrl(client: SupabaseClient<never> | SupabaseClient, key: string) {
-  return (client as Untyped).storage.from("wanted-pictures").getPublicUrl(key).data.publicUrl;
+export function wantedPictureUrl(client: Client, key: string) {
+  return client.storage.from("wanted-pictures").getPublicUrl(key).data.publicUrl;
 }
 
 /**
@@ -25,18 +15,18 @@ export function wantedPictureUrl(client: SupabaseClient<never> | SupabaseClient,
  * empty map: a picture is decoration, and the Board must not go down for it.
  */
 export async function readWantedPictures(
-  client: SupabaseClient<never> | SupabaseClient,
+  client: Client,
   wantedIds: readonly string[],
 ): Promise<Map<string, WantedPicture>> {
   const pictures = new Map<string, WantedPicture>();
   if (wantedIds.length === 0) return pictures;
   try {
-    const { data, error } = await (client as Untyped)
+    const { data, error } = await client
       .from("wanted_pictures")
       .select("wanted_request_id, preset, object_key")
       .in("wanted_request_id", [...wantedIds]);
     if (error) return pictures;
-    for (const row of (data ?? []) as PictureRow[]) {
+    for (const row of data ?? []) {
       if (row.object_key) {
         pictures.set(row.wanted_request_id, {
           kind: "upload",

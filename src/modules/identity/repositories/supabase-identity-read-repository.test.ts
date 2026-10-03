@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 
 const snapshot = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("@/lib/supabase/server", () => ({

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type {
   PayoutTaskStatus,
   PayoutTaskView,
@@ -66,10 +66,9 @@ export class SupabasePayoutRepository implements PayoutRepository {
   private async recipients(userIds: readonly string[]): Promise<Map<string, PaymentRecipient>> {
     const found = new Map<string, PaymentRecipient>();
     if (userIds.length === 0) return found;
-    const { data, error } = await (this.client as unknown as SupabaseClient).rpc(
-      "owner_payment_recipients",
-      { target_user_ids: [...new Set(userIds)] },
-    );
+    const { data, error } = await this.client.rpc("owner_payment_recipients", {
+      target_user_ids: [...new Set(userIds)],
+    });
     if (error) return found;
     for (const row of (data ?? []) as RecipientRow[]) {
       found.set(row.user_id, {

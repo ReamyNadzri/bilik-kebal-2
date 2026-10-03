@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MemberBadge } from "@/contracts/console";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 
 /**
  * The Owner-awarded badge each member wears, if any, keyed by user id. Badges

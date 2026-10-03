@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 
 /**
@@ -17,9 +16,7 @@ export async function countUnreadNotifications(): Promise<number | null> {
       data: { user },
     } = await getRequestUser();
     if (!user) return null;
-    // `notifications` is not in the generated types yet (see the notification
-    // repository's additive contract), so this count reads it untyped.
-    const { count, error } = await (client as unknown as SupabaseClient)
+    const { count, error } = await client
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("recipient_user_id", user.id)

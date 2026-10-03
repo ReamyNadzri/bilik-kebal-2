@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { failure } from "@/contracts/operation-result";
 import type { OwnPaymentDetails, SavePaymentDetailsResult } from "@/contracts/payment-details";
 import { auth, clerkClient } from "@clerk/nextjs/server";
@@ -123,9 +122,7 @@ async function paymentDetailsContext() {
   } = await getRequestUser();
   return {
     actor: user ? { userId: user.id } : null,
-    service: new PaymentDetailsService(
-      new SupabasePaymentDetailsRepository(client as unknown as SupabaseClient),
-    ),
+    service: new PaymentDetailsService(new SupabasePaymentDetailsRepository(client)),
   };
 }
 

@@ -6,7 +6,7 @@ import type {
   ConsoleRole,
   HiddenReply,
 } from "@/contracts/console";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 
 type Client = SupabaseClient<Database>;
 

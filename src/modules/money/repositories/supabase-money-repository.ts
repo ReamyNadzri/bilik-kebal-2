@@ -7,7 +7,7 @@ import type {
   VerifiedProviderCallback,
 } from "@/contracts/money";
 import type { Sen } from "@/contracts/marketplace";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type { StoredWantedDraft } from "@/modules/wanted/repositories/wanted-repository";
 import type { WantedRepository } from "@/modules/wanted/repositories/wanted-repository";
 import type { MoneyRepository } from "./money-repository";
@@ -26,32 +26,24 @@ interface PayerBillRow {
   wanted_status: string;
 }
 
-/**
- * The money RPCs from migration 202610180001 are called untyped until the
- * database types are regenerated.
- */
 export class SupabaseMoneyRepository implements MoneyRepository {
   constructor(
     private readonly client: SupabaseClient<Database>,
     private readonly wantedRepository: WantedRepository,
   ) {}
 
-  private get rpcClient(): SupabaseClient {
-    return this.client as unknown as SupabaseClient;
-  }
-
   findDraftForContribution(draftId: string, userId: string): Promise<StoredWantedDraft | null> {
     return this.wantedRepository.findDraft(draftId, userId);
   }
 
   async hasOwnPaymentDetails(): Promise<boolean> {
-    const { data, error } = await this.rpcClient.rpc("my_payment_details");
+    const { data, error } = await this.client.rpc("my_payment_details");
     if (error) throw error;
     return Array.isArray(data) && data.length > 0;
   }
 
   async readBackingFeeRate(wantedPublicId: string): Promise<number | null> {
-    const { data, error } = await this.rpcClient.rpc("backing_fee_rate", {
+    const { data, error } = await this.client.rpc("backing_fee_rate", {
       target_public_id: wantedPublicId,
     });
     if (error) throw error;
@@ -67,7 +59,7 @@ export class SupabaseMoneyRepository implements MoneyRepository {
     provider: PaymentProviderName;
     providerBill: ProviderBill;
   }): Promise<{ intentId: string }> {
-    const { data, error } = await this.rpcClient.rpc("create_contribution_intent", {
+    const { data, error } = await this.client.rpc("create_contribution_intent", {
       amount_sen: input.amountSen,
       draft_id: input.draftId,
       fee_sen: input.feeSen,
@@ -87,7 +79,7 @@ export class SupabaseMoneyRepository implements MoneyRepository {
     provider: PaymentProviderName;
     providerBill: ProviderBill;
   }): Promise<{ intentId: string }> {
-    const { data, error } = await this.rpcClient.rpc("create_backing_intent", {
+    const { data, error } = await this.client.rpc("create_backing_intent", {
       amount_sen: input.amountSen,
       fee_sen: input.feeSen,
       intent_expires_at: input.providerBill.expiresAt,
@@ -100,7 +92,7 @@ export class SupabaseMoneyRepository implements MoneyRepository {
   }
 
   async readOwnBill(billCode: string): Promise<PayerBill | null> {
-    const { data, error } = await this.rpcClient.rpc("my_payment_bill", {
+    const { data, error } = await this.client.rpc("my_payment_bill", {
       target_provider_bill_id: billCode,
     });
     if (error) throw error;
@@ -123,7 +115,7 @@ export class SupabaseMoneyRepository implements MoneyRepository {
   }
 
   async cancelOwnBill(billCode: string): Promise<void> {
-    const { error } = await this.rpcClient.rpc("cancel_own_payment", {
+    const { error } = await this.client.rpc("cancel_own_payment", {
       target_provider_bill_id: billCode,
     });
     if (error) throw error;

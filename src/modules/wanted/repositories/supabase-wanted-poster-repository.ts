@@ -1,36 +1,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { WantedChangeLock, WantedChangeWindow, WantedKind } from "@/contracts/marketplace";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type {
   PublishedWantedChange,
   StoredEditableDetails,
   WantedPosterRepository,
 } from "../services/wanted-poster-service";
 
-/**
- * The poster-change RPCs of migrations 202610130002 and 202610200004. The
- * window and withdrawal RPCs are not yet in the database types, so the client
- * is used untyped for them, as in `supabase-wanted-picture-repository.ts`;
- * the details edit is typed by hand in `database.types.ts`.
- */
-type Untyped = SupabaseClient;
-type Typed = SupabaseClient<Database>;
-
+/** The poster-change RPCs of migrations 202610130002 and 202610200004. */
 export class SupabaseWantedPosterRepository implements WantedPosterRepository {
-  private readonly client: Untyped;
-
-  constructor(client: unknown) {
-    this.client = client as Untyped;
-  }
+  constructor(private readonly client: SupabaseClient<Database>) {}
 
   async readChangeWindow(publicId: string): Promise<WantedChangeWindow | null> {
     const { data, error } = await this.client.rpc("my_wanted_change_window", {
       target_public_id: publicId,
     });
     if (error) throw error;
-    const row = (
-      data as Array<{ editable_until: string; locked_reason: string | null }> | null
-    )?.[0];
+    const row = data?.[0];
     if (!row) return null;
     return {
       editableUntil: new Date(row.editable_until).toISOString(),
@@ -42,7 +28,7 @@ export class SupabaseWantedPosterRepository implements WantedPosterRepository {
     publicId: string,
     posterUserId: string,
   ): Promise<StoredEditableDetails | null> {
-    const client = this.client as unknown as Typed;
+    const client = this.client;
     const { data: row, error } = await client
       .from("wanted_requests")
       .select(
@@ -78,7 +64,7 @@ export class SupabaseWantedPosterRepository implements WantedPosterRepository {
   }
 
   async ensureCourse(programmeId: string, courseCode: string): Promise<string | null> {
-    const { data, error } = await (this.client as unknown as Typed).rpc("ensure_course", {
+    const { data, error } = await this.client.rpc("ensure_course", {
       target_code: courseCode,
       target_programme_id: programmeId,
     });
@@ -88,23 +74,20 @@ export class SupabaseWantedPosterRepository implements WantedPosterRepository {
   }
 
   async updatePublishedWanted(publicId: string, change: PublishedWantedChange) {
-    const { error } = await (this.client as unknown as Typed).rpc(
-      "update_own_published_wanted_details",
-      {
-        target_public_id: publicId,
-        new_title: change.title,
-        new_description: change.description,
-        new_campus_id: change.campusId,
-        new_faculty_id: change.facultyId,
-        new_programme_id: change.programmeId,
-        new_course_id: change.courseId,
-        new_academic_session_id: change.academicSessionId,
-        new_resource_type_id: change.resourceTypeId,
-        new_language_id: change.languageId,
-        new_last_seen_location: change.lastSeenLocation,
-        new_tag_ids: change.tagIds,
-      },
-    );
+    const { error } = await this.client.rpc("update_own_published_wanted_details", {
+      target_public_id: publicId,
+      new_title: change.title,
+      new_description: change.description,
+      new_campus_id: change.campusId,
+      new_faculty_id: change.facultyId,
+      new_programme_id: change.programmeId,
+      new_course_id: change.courseId,
+      new_academic_session_id: change.academicSessionId,
+      new_resource_type_id: change.resourceTypeId,
+      new_language_id: change.languageId,
+      new_last_seen_location: change.lastSeenLocation,
+      new_tag_ids: change.tagIds,
+    });
     if (error) throw error;
   }
 

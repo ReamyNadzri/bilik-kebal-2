@@ -2,7 +2,7 @@ import { resolveAvatarUrl } from "@/lib/avatars";
 import { readMemberBadges } from "@/lib/badges";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DisplayNameAllowance, PublicProfile } from "@/contracts/profiles";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import { SupabaseWantedRepository } from "@/modules/wanted/repositories/supabase-wanted-repository";
 
 type Client = SupabaseClient<Database>;
@@ -40,14 +40,12 @@ export class SupabaseProfileRepository implements ProfileRepository {
 
   /**
    * Read through `current_identity` (migration 202610160003): a Clerk-token
-   * client has no `auth` API. Untyped until the database types are regenerated.
+   * client has no `auth` API.
    */
   async ownPublicId(): Promise<string | null> {
-    const { data, error } = await (this.writeClient as unknown as SupabaseClient).rpc(
-      "current_identity",
-    );
+    const { data, error } = await this.writeClient.rpc("current_identity");
     if (error) throw error;
-    return (data as Array<{ public_id: string }> | null)?.[0]?.public_id ?? null;
+    return data?.[0]?.public_id ?? null;
   }
 
   /**
@@ -72,9 +70,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async ownDisplayNameAllowance(): Promise<DisplayNameAllowance | null> {
-    const { data, error } = await (this.writeClient as unknown as SupabaseClient).rpc(
-      "my_display_name_allowance",
-    );
+    const { data, error } = await this.writeClient.rpc("my_display_name_allowance");
     if (error) return null;
     const row = (Array.isArray(data) ? data[0] : data) as DisplayNameAllowance | undefined;
     return row
@@ -88,9 +84,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async deleteOwnAccount(): Promise<void> {
-    const { error } = await (this.writeClient as unknown as SupabaseClient).rpc(
-      "delete_own_account",
-    );
+    const { error } = await this.writeClient.rpc("delete_own_account");
     if (error) throw error;
   }
 
@@ -109,15 +103,12 @@ export class SupabaseProfileRepository implements ProfileRepository {
 
   /**
    * Back to the Google photo (`use_own_external_avatar`, migration
-   * 202610170001): clears the member's photo and drawn avatar. Untyped until
-   * the database types are regenerated.
+   * 202610170001): clears the member's photo and drawn avatar.
    */
   async chooseOwnExternalAvatar(): Promise<string> {
-    const { data, error } = await (this.writeClient as unknown as SupabaseClient).rpc(
-      "use_own_external_avatar",
-    );
+    const { data, error } = await this.writeClient.rpc("use_own_external_avatar");
     if (error) throw error;
-    return data as string;
+    return data;
   }
 
   async setOwnAvatarPreset(preset: number | null): Promise<void> {
