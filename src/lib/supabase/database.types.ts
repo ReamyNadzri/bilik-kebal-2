@@ -3132,6 +3132,15 @@ export type Database = {
         Returns: string;
       };
       retire_badge: { Args: { target_badge_id: string }; Returns: undefined };
+      review_claim_file_access: {
+        Args: { target_claim_id: string; target_purpose: string };
+        Returns: {
+          bucket: string;
+          file_name: string;
+          mime_type: string;
+          object_key: string;
+        }[];
+      };
       review_institution_verification_request: {
         Args: {
           decision: Database["public"]["Enums"]["verification_request_state"];

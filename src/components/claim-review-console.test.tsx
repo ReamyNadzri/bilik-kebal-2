@@ -44,6 +44,17 @@ describe("ClaimReviewConsole", () => {
     );
   });
 
+  it("offers the claim's file with the not-scanned warning, loading nothing until asked", async () => {
+    fetchMock.mockReturnValueOnce(respond({ ok: true, data: [ITEM] }));
+    render(<ClaimReviewConsole />);
+    fireEvent.click(await screen.findByRole("button", { name: /notes.pdf/ }));
+    expect(screen.getByRole("region", { name: "File" })).toBeInTheDocument();
+    expect(screen.getByText(/not been virus-scanned/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View notes.pdf" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download notes.pdf" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("records a decision with a chosen reason and no prompt", async () => {
     fetchMock
       .mockReturnValueOnce(respond({ ok: true, data: [ITEM] }))
@@ -78,7 +89,7 @@ describe("ClaimReviewConsole", () => {
     fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "wrong_file" } });
     fireEvent.click(screen.getByRole("button", { name: "Record decision" }));
     expect(await screen.findByText("Not allowed.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /notes\.pdf/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^notes\.pdf/ })).toBeInTheDocument();
   });
 
   it("shows the empty state", async () => {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CLAIM_REVIEW_REASONS, type ClaimReviewQueueItem } from "@/contracts/claim-reviews";
+import { ClaimReviewFile } from "./claim-review-file";
 
 export type ClaimDecision = keyof typeof CLAIM_REVIEW_REASONS;
 
@@ -123,6 +124,7 @@ export function ClaimReviewDetail({
         <dt>Submitted</dt>
         <dd>{DATE.format(new Date(item.createdAt))}</dd>
       </dl>
+      <ClaimReviewFile claimId={item.claimId} fileName={item.fileName} mimeType={item.mimeType} />
       <p className="ops-alert ops-alert--info">
         Screening is evidence. Your decision is the record.
       </p>
