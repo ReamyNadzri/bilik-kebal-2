@@ -35,7 +35,9 @@ describe("EntitlementService", () => {
       revocationReason: null,
     }),
     isStaff: vi.fn().mockResolvedValue(false),
-    createSignedDownloadUrl: vi.fn().mockResolvedValue("https://storage.supabase.co/signed-url"),
+    signClaimDownload: vi
+      .fn()
+      .mockResolvedValue({ ok: true, url: "https://storage.supabase.co/signed-url" }),
     revokeEntitlementsForWanted: vi.fn().mockResolvedValue(3),
     ...overrides,
   });
@@ -126,7 +128,7 @@ describe("EntitlementService", () => {
 
   it("returns STORAGE_ERROR if signed URL creation throws", () => {
     const repo = createMockRepo({
-      createSignedDownloadUrl: vi.fn().mockRejectedValue(new Error("Storage unavailable")),
+      signClaimDownload: vi.fn().mockRejectedValue(new Error("Storage unavailable")),
     });
     const service = new EntitlementService(repo);
 
@@ -136,6 +138,25 @@ describe("EntitlementService", () => {
       ok: false,
       code: "STORAGE_ERROR",
     });
+  });
+
+  it("passes the claim's bucket, key and status to the signer, which can repair it", async () => {
+    const repo = createMockRepo();
+    await new EntitlementService(repo).getClaimDownloadUrl("user-contributor", "claim-1");
+    expect(repo.signClaimDownload).toHaveBeenCalledWith(
+      { bucket: "approved", objectKey: "claims/claim-1.pdf", status: "approved" },
+      "lecture-notes.pdf",
+      900,
+    );
+  });
+
+  it("returns STORAGE_ERROR when the file cannot be signed or repaired", () => {
+    const repo = createMockRepo({
+      signClaimDownload: vi.fn().mockResolvedValue({ ok: false, reason: "not_found" }),
+    });
+    return expect(
+      new EntitlementService(repo).getClaimDownloadUrl("user-contributor", "claim-1"),
+    ).resolves.toMatchObject({ ok: false, code: "STORAGE_ERROR" });
   });
 
   it("calls revokeEntitlementsForWanted on repository", async () => {

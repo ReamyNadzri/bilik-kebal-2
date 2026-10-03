@@ -1,3 +1,4 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 import { SupabaseEntitlementRepository } from "../repositories/supabase-entitlement-repository";
 import { EntitlementService } from "./entitlement-service";
@@ -10,7 +11,9 @@ export async function createEntitlementService(): Promise<{
   const { data: auth } = await getRequestUser();
   if (!auth.user) return null;
   return {
-    service: new EntitlementService(new SupabaseEntitlementRepository(client)),
+    service: new EntitlementService(
+      new SupabaseEntitlementRepository(client, createSupabaseAdminClient),
+    ),
     userId: auth.user.id,
   };
 }

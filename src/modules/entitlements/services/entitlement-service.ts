@@ -46,25 +46,29 @@ export class EntitlementService {
       return failure(access.code, access.reason ?? "Access to download this resource was denied.");
     }
 
+    const expiresInSeconds = 900; // 15 minutes
+    let signed;
     try {
-      const expiresInSeconds = 900; // 15 minutes
-      const downloadUrl = await this.repository.createSignedDownloadUrl(
-        claim.bucket,
-        claim.objectKey,
+      // Repairs an approved claim whose file never reached the approved bucket.
+      signed = await this.repository.signClaimDownload(
+        { bucket: claim.bucket, objectKey: claim.objectKey, status: claim.status },
         claim.fileName,
         expiresInSeconds,
       );
-
-      return success({
-        downloadUrl,
-        fileName: claim.fileName,
-        sizeBytes: claim.sizeBytes,
-        mimeType: claim.mimeType,
-        expiresInSeconds,
-      });
     } catch {
+      signed = null;
+    }
+    if (!signed?.ok) {
       return failure("STORAGE_ERROR", "Unable to generate download URL at this time.");
     }
+
+    return success({
+      downloadUrl: signed.url,
+      fileName: claim.fileName,
+      sizeBytes: claim.sizeBytes,
+      mimeType: claim.mimeType,
+      expiresInSeconds,
+    });
   }
 
   async revokeEntitlements(wantedRequestId: string, reason: string): Promise<number> {
