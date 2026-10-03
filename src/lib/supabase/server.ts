@@ -12,7 +12,7 @@ import {
 } from "@/modules/identity/services/clerk-user-sync";
 
 import { createSupabaseAdminClient } from "./admin";
-import type { Database } from "./database.types";
+import type { Database } from "./database";
 
 /**
  * The signed-in member as the server sees them, whichever sign-in produced the
@@ -140,23 +140,17 @@ export function currentAccountSnapshot(userId: string): CurrentAccountSnapshot |
 
 async function readOwnIdentity(): Promise<IdentityRow | null> {
   const client = await getRequestSupabaseClient();
-  // Untyped until the database types are regenerated (migrations 202610160003, 202610170002).
-  const account = await (client as unknown as UntypedRpc).rpc("current_account");
+  const account = await client.rpc("current_account");
   if (!account.error) {
-    const snapshot = (account.data ?? null) as CurrentAccountSnapshot | null;
+    const snapshot = (account.data ?? null) as unknown as CurrentAccountSnapshot | null;
     snapshotHolder().current = snapshot;
     return snapshot;
   }
   // Until migration 202610170002 is applied: the identity alone, as before.
-  const { data, error } = await (client as unknown as UntypedRpc).rpc("current_identity");
+  const { data, error } = await client.rpc("current_identity");
   if (error) throw new Error("IDENTITY_UNAVAILABLE");
-  const rows = (data ?? []) as IdentityRow[];
-  return rows[0] ?? null;
+  return data?.[0] ?? null;
 }
-
-type UntypedRpc = {
-  rpc(name: string): PromiseLike<{ data: unknown; error: unknown }>;
-};
 
 /**
  * A Clerk account the webhook has not reached yet is provisioned now, through

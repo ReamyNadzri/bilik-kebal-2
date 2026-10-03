@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MarketplaceTaxonomy, TaxonomyItem } from "@/contracts/marketplace";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type { TaxonomyRepository } from "./taxonomy-repository";
 
 function item(row: { id: string; slug: string; name: string }): TaxonomyItem {

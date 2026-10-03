@@ -1,20 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database";
 
 import type { ClerkUserSyncInput, ClerkUserSyncRepository } from "../services/clerk-user-sync";
 
 /**
  * `sync_clerk_user` (migration 202610160002) is service-role only, so the
- * client must be the admin client. Untyped until the database types are
- * regenerated.
+ * client must be the admin client.
  */
-type Untyped = SupabaseClient;
-
 export class SupabaseClerkUserSyncRepository implements ClerkUserSyncRepository {
-  private readonly client: Untyped;
-
-  constructor(client: unknown) {
-    this.client = client as Untyped;
-  }
+  constructor(private readonly client: SupabaseClient<Database>) {}
 
   async syncUser(input: ClerkUserSyncInput): Promise<void> {
     const { error } = await this.client.rpc("sync_clerk_user", {

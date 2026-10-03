@@ -11,7 +11,7 @@ import type {
   InstitutionOption,
   VerificationQueueItem,
 } from "@/contracts/identity";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 
 import type { AccountRecord } from "../services/account-view-service";
 import type {

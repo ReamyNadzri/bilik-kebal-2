@@ -15,7 +15,7 @@ import type {
 import { resolveAvatarUrl } from "@/lib/avatars";
 import { readWantedPictures } from "@/lib/wanted-pictures";
 import { readMemberBadges } from "@/lib/badges";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type { DuplicateCandidate } from "../domain/duplicate-ranking";
 import type { BackedWantedRecord } from "../domain/own-backings";
 import { sortWantedSummaries, wantedDisplayStatus } from "../domain/wanted-read-query";
@@ -379,7 +379,7 @@ export class SupabaseWantedRepository implements WantedRepository {
    */
   async listCampusRegions(institutionId: string | null = null): Promise<CampusRegion[]> {
     // One round trip, summed in the database (migration 202610170002).
-    const totals = await (this.client as unknown as SupabaseClient).rpc("campus_region_totals", {
+    const totals = await this.client.rpc("campus_region_totals", {
       target_institution_id: institutionId,
     });
     if (!totals.error) {

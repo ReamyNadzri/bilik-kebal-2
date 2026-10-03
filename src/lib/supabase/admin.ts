@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { resolveSupabasePublicConfig } from "@/lib/config/public-env";
-import type { Database } from "./database.types";
+import type { Database } from "./database";
 
 export function createSupabaseAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

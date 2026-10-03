@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RewardCodeOutcome } from "@/contracts/rewards";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type { RewardCodeRepository } from "../services/reward-code-service";
 
 /** Writes with the member's own session, so `auth.uid()` is the redeemer. */

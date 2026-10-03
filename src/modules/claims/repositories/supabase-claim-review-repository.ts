@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type { ClaimReviewQueueItem } from "@/contracts/claim-reviews";
 import type { ClaimReviewRepository } from "../services/claim-review-service";
 

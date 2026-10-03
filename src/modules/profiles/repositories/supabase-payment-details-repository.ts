@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { bankName, type BankCode, type OwnPaymentDetails } from "@/contracts/payment-details";
+import type { Database } from "@/lib/supabase/database";
 
 export interface PaymentDetailsRepository {
   readOwn(): Promise<OwnPaymentDetails | null>;
@@ -22,10 +23,10 @@ interface OwnRow {
 /**
  * The member's own phone and bank account (migration 202610180001). Written
  * and read through the member's session; the database masks the account
- * number on the way out. Untyped until the database types are regenerated.
+ * number on the way out.
  */
 export class SupabasePaymentDetailsRepository implements PaymentDetailsRepository {
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(private readonly client: SupabaseClient<Database>) {}
 
   async readOwn(): Promise<OwnPaymentDetails | null> {
     const { data, error } = await this.client.rpc("my_payment_details");

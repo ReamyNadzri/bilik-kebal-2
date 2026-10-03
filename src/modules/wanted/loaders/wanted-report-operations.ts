@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { failure, success } from "@/contracts/operation-result";
 import {
   ownerRemoveWantedInputSchema,
@@ -27,10 +26,6 @@ function reason(error: unknown): string {
     : "";
 }
 
-async function client(): Promise<SupabaseClient> {
-  return (await getRequestSupabaseClient()) as unknown as SupabaseClient;
-}
-
 export async function reportWanted(publicId: string, input: unknown): Promise<ReportWantedResult> {
   if (!UUID.test(publicId)) return failure("NOT_FOUND", "This Wanted could not be found.");
   const parsed = reportWantedInputSchema.safeParse(input);
@@ -39,7 +34,7 @@ export async function reportWanted(publicId: string, input: unknown): Promise<Re
   }
   try {
     const { data, error } = await (
-      await client()
+      await getRequestSupabaseClient()
     ).rpc("report_wanted", {
       target_public_id: publicId,
       target_category: parsed.data.category,
@@ -79,7 +74,7 @@ interface ReportRow {
 export async function listWantedReports(): Promise<ListWantedReportsResult> {
   try {
     const { data, error } = await (
-      await client()
+      await getRequestSupabaseClient()
     ).rpc("list_wanted_reports", {
       target_status: "pending",
     });
@@ -109,7 +104,7 @@ export async function dismissWantedReport(id: string): Promise<DismissWantedRepo
   if (!UUID.test(id)) return failure("NOT_FOUND", "That report could not be found.");
   try {
     const { error } = await (
-      await client()
+      await getRequestSupabaseClient()
     ).rpc("dismiss_wanted_report", {
       target_report_id: id,
     });
@@ -135,7 +130,7 @@ export async function ownerRemoveWanted(
   }
   try {
     const { data, error } = await (
-      await client()
+      await getRequestSupabaseClient()
     ).rpc("owner_remove_wanted", {
       target_public_id: publicId,
       target_reason: parsed.data.reason,

@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { failure, success, type OperationResult } from "@/contracts/operation-result";
 import type { TaxonomyItem } from "@/contracts/marketplace";
@@ -42,7 +41,7 @@ export async function addTag(input: unknown): Promise<AddTagResult> {
     return failure("VALIDATION_ERROR", TAG_RULE, { name: [TAG_RULE] });
   }
   try {
-    const client = (await getRequestSupabaseClient()) as unknown as SupabaseClient;
+    const client = await getRequestSupabaseClient();
     const { data, error } = await client.rpc("ensure_tag", { target_name: parsed.data.name });
     if (error) {
       const why = reason(error);
@@ -62,8 +61,8 @@ export async function addTag(input: unknown): Promise<AddTagResult> {
     const row = await client.from("tags").select("slug, name").eq("id", id).maybeSingle();
     return success({
       id,
-      slug: (row.data?.slug as string | undefined) ?? id,
-      label: (row.data?.name as string | undefined) ?? parsed.data.name,
+      slug: row.data?.slug ?? id,
+      label: row.data?.name ?? parsed.data.name,
     });
   } catch {
     return failure("TAXONOMY_UNAVAILABLE", "The tag could not be added. Try again.");

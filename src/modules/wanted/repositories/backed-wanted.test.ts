@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import { SupabaseWantedRepository } from "./supabase-wanted-repository";
 
 const rpc = vi.fn();

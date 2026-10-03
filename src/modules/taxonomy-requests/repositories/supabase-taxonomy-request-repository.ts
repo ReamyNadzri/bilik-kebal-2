@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TaxonomyRequestCategory, TaxonomyRequestView } from "@/contracts/taxonomy-requests";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Database } from "@/lib/supabase/database";
 import type { TaxonomyRequestRepository } from "../services/taxonomy-request-service";
 
 type Client = SupabaseClient<Database>;

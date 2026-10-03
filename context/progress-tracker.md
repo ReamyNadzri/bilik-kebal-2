@@ -1534,3 +1534,28 @@ verified: `supabase/tests/local/refund_notices.sql` (no local Postgres).
   only). The page now reads the console role on the server and passes `isOwner`; for anyone else
   the queues stay visible read-only and the action cell reads "Recorded by the Owner". Access
   control is unchanged: hiding the button is presentation, the server check remains the rule.
+
+## 2026-10-03 — Database types regenerated (`chore/regenerate-database-types`)
+
+- `src/lib/supabase/database.types.ts` is regenerated from the linked project
+  (`supabase gen types typescript --project-id yuzgkjowtcfwqanituta --schema public,graphql_public`,
+  then Prettier) and is no longer hand-edited. It now has every table and function the migrations
+  added since the last generation (`badge_awards`, `notifications`, `wanted_pictures`, the money,
+  Clerk, poster-change, report and hunter functions) and the live nullability.
+- New `src/lib/supabase/database.ts` is the `Database` every client and repository imports. It is
+  the generated type plus a short list of function arguments that take SQL null on purpose (no
+  session, no note, all universities, …): Postgres cannot mark a parameter NOT NULL, so the
+  generator types them as non-null. Regenerating `database.types.ts` loses nothing, and an entry
+  naming a function or argument that no longer exists fails to compile. Add to that list rather
+  than editing the generated file.
+- The `as unknown as SupabaseClient` / `Untyped` casts that worked around missing types are gone
+  (profile, hunters, payment details, money, payouts, Clerk sync, unread count, tag and report
+  operations, Wanted pictures, poster changes, `campus_region_totals`, `current_account`). Typed
+  `Json` results are still cast to their documented shapes.
+- `wantedDisplayStatus` accepts the `withdrawn` status the enum now has and shows it as closed.
+  Every caller already filters withdrawn Wanteds out, so nothing visible changes. No other runtime
+  behaviour changed, and no migration came with this.
+- Checked: `pnpm typecheck` and `pnpm lint` clean. `pnpm vitest run`: 218 files, 1767 tests pass.
+  The 122 unhandled errors from the board, home and map page tests were there before.
+- The `db:types` script still generates from the local stack (`--local`); use the linked command
+  above when no local Postgres is running.

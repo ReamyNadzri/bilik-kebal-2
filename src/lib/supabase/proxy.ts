@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { resolveSupabasePublicConfig } from "@/lib/config/public-env";
 
-import type { Database } from "./database.types";
+import type { Database } from "./database";
 import { LAST_SEEN_COOKIE, MEMBER_IDLE_MS } from "@/lib/idle-policy";
 
 /**

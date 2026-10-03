@@ -2,18 +2,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PublicHunter } from "@/contracts/profiles";
 import { resolveAvatarUrl } from "@/lib/avatars";
 import { readMemberBadges } from "@/lib/badges";
+import type { Database } from "@/lib/supabase/database";
 import type { HuntersRepository } from "../services/hunters-service";
 
 /**
- * `list_public_hunters` of migration 202610140001. It is not yet in the
- * generated database types, so the client is used untyped here, as in
- * `supabase-wanted-poster-repository.ts`. Regenerate the types once the
- * migration is applied and drop the cast.
+ * `list_public_hunters` of migration 202610140001.
  *
  * The client is the viewer's own session: the function checks the viewer's
  * email itself, so no privileged client is needed.
  */
-type Untyped = SupabaseClient;
+type Client = SupabaseClient<Database>;
 
 interface HunterRow {
   publicId: string;
@@ -27,27 +25,19 @@ interface HunterRow {
 }
 
 export class SupabaseHuntersRepository implements HuntersRepository {
-  private readonly client: Untyped;
-
   /**
    * `institutionId` limits the wall to one university
    * (`list_public_hunters_at`, migration 202610150005); null lists everyone.
-   */
-  private readonly badgeClient: Untyped | null;
-
-  /**
+   *
    * `badgeClient` reads each Hunter's Owner-awarded badge; badges are public
    * (migration 202610100004), but finding a Hunter's account from their public
    * id needs the service client. Without it, posters carry no badge.
    */
   constructor(
-    client: unknown,
+    private readonly client: Client,
     private readonly institutionId: string | null = null,
-    badgeClient: unknown = null,
-  ) {
-    this.client = client as Untyped;
-    this.badgeClient = badgeClient as Untyped | null;
-  }
+    private readonly badgeClient: Client | null = null,
+  ) {}
 
   private async badgesFor(
     publicIds: readonly string[],
@@ -60,9 +50,9 @@ export class SupabaseHuntersRepository implements HuntersRepository {
         .select("user_id, public_id")
         .in("public_id", [...publicIds]);
       if (owners.error || !owners.data?.length) return byPublicId;
-      const rows = owners.data as { user_id: string; public_id: string }[];
+      const rows = owners.data;
       const badges = await readMemberBadges(
-        this.badgeClient as never,
+        this.badgeClient,
         rows.map((row) => row.user_id),
       );
       for (const row of rows) {
@@ -88,7 +78,7 @@ export class SupabaseHuntersRepository implements HuntersRepository {
             target_institution_id: this.institutionId,
           });
     if (error) throw error;
-    const body = data as { total: number; items: HunterRow[] } | null;
+    const body = data as unknown as { total: number; items: HunterRow[] } | null;
     const rows = body?.items ?? [];
     const badges = await this.badgesFor(rows.map((row) => row.publicId));
     return {

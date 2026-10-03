@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database, Json } from "@/lib/supabase/database.types";
+import type { Database, Json } from "@/lib/supabase/database";
 import {
   notificationRowSchema,
   type InboxQuery,
