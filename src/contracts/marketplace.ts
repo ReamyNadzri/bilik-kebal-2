@@ -43,6 +43,9 @@ export type MarketplaceOperationCode =
   | "MARKETPLACE_UNAVAILABLE";
 
 const uuid = z.uuid();
+/** The shortest description a Wanted may have (user, 2 October 2026). */
+export const DESCRIPTION_MIN_LENGTH = 10;
+
 const authoredText = (minimum: number, maximum: number) =>
   z.string().trim().min(minimum).max(maximum);
 const durationDaysSchema = z.number().int().min(3).max(30);
@@ -79,7 +82,7 @@ export const wantedDraftInputSchema = z.object({
     .max(5)
     .refine((ids) => new Set(ids).size === ids.length),
   title: authoredText(8, 120),
-  description: authoredText(20, 2000),
+  description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
   durationDays: durationDaysSchema,
   policyAccepted: z.literal(true),
 });
@@ -125,7 +128,7 @@ export const communityWantedInputSchema = z
     kind: z.enum(["missing_item", "discussion"]),
     campusId: uuid,
     title: authoredText(8, 120),
-    description: authoredText(20, 2000),
+    description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
     durationDays: durationDaysSchema,
     lastSeenLocation: z.string().trim().min(2).max(160).optional(),
     free: z.boolean().default(true),
@@ -153,15 +156,64 @@ export const wantedReplyHideSchema = z.union([
   z.object({ hide: z.literal(false) }),
 ]);
 
+/** An optional id: "" and null both mean none. */
+const optionalId = z
+  .union([uuid, z.literal("")])
+  .nullish()
+  .transform((value) => value || null);
+
 /**
- * The poster corrects a published Wanted in its first hour. Only the text
- * changes; bounty, duration, course and every snapshot stay as published.
+ * The poster corrects a published Wanted in its first hour (migration
+ * 202610200004). Which fields count depends on the kind: an academic Wanted
+ * needs faculty, programme, course code, resource type and language; a missing
+ * item takes a last-seen place; the rest are ignored. University, bounty,
+ * duration, fee and policy snapshots, kind and free/paid stay as published.
  */
 export const wantedPosterEditSchema = z.object({
   title: authoredText(8, 120),
-  description: authoredText(20, 2000),
+  description: authoredText(DESCRIPTION_MIN_LENGTH, 2000),
+  campusId: uuid,
+  facultyId: optionalId,
+  programmeId: optionalId,
+  courseCode: z
+    .union([z.string().trim().regex(COURSE_CODE_PATTERN), z.literal("")])
+    .nullish()
+    .transform((value) => value || null),
+  academicSessionId: optionalId,
+  resourceTypeId: optionalId,
+  languageId: optionalId,
+  lastSeenLocation: z
+    .union([z.string().trim().min(2).max(160), z.string().trim().length(0)])
+    .nullish()
+    .transform((value) => value || null),
+  tagIds: z
+    .array(uuid)
+    .max(5)
+    .refine((ids) => new Set(ids).size === ids.length),
 });
 export type WantedPosterEditInput = z.input<typeof wantedPosterEditSchema>;
+export type ValidatedWantedPosterEdit = z.output<typeof wantedPosterEditSchema>;
+
+/** What the edit dialog starts from: the Wanted as published. */
+export interface WantedEditableDetails {
+  kind: WantedKind;
+  title: string;
+  description: string;
+  campusId: string;
+  facultyId: string | null;
+  programmeId: string | null;
+  courseCode: string | null;
+  academicSessionId: string | null;
+  resourceTypeId: string | null;
+  languageId: string | null;
+  lastSeenLocation: string | null;
+  tagIds: string[];
+}
+
+export type ReadWantedEditableDetailsResult = OperationResult<
+  WantedEditableDetails,
+  MarketplaceOperationCode
+>;
 
 /** Minutes after publication during which the poster may edit or withdraw. */
 export const POSTER_CHANGE_WINDOW_MINUTES = 60;
@@ -304,6 +356,36 @@ export interface WantedSummary {
   picture?: WantedPicture | null;
   /** The university it belongs to. Absent in fixtures predating it. */
   institutionId?: string;
+}
+
+/**
+ * Why a backed Wanted left the Board, as its Backer sees it: withdrawn by its
+ * poster, removed by the Owner, expired without a winner, or (a payment
+ * confirmed after it closed) closed.
+ */
+export type ClosedBackingReason = "withdrawn" | "removed" | "expired" | "closed";
+
+/** none: no refund task; pending: one not yet recorded; refunded: all recorded. */
+export type BackingRefundState = "none" | "pending" | "refunded";
+
+/** A Wanted the member backed that closed and owes or owed them a refund. */
+export interface ClosedBacking {
+  publicId: string;
+  title: string;
+  reason: ClosedBackingReason;
+  refundState: BackingRefundState;
+  /** Contribution + fee over the member's refund tasks for it. */
+  refundSen: Sen;
+  backedAt: string;
+}
+
+/**
+ * The member's own backings (migration 202610200005): live Wanteds as cards,
+ * closed ones with their refund state. Never part of a public profile.
+ */
+export interface OwnBackings {
+  live: WantedSummary[];
+  closed: ClosedBacking[];
 }
 
 /**

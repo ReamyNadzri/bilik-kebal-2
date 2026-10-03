@@ -6102,11 +6102,13 @@ textarea.form-field__input {
 }
 
 .dropzone__title {
+  display: block;
   margin: 0 0 var(--space-1);
   font-weight: 700;
 }
 
 .dropzone__hint {
+  display: block;
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -7382,7 +7384,7 @@ textarea.form-field__input {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
@@ -8157,6 +8159,22 @@ textarea.form-field__input {
   color: var(--text-muted);
 }
 
+.course-option {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.course-option__code {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.course-option__name {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .allowance-note {
   margin: var(--space-2) 0 0;
   color: var(--text-muted);
@@ -8316,6 +8334,11 @@ textarea.form-field__input {
   list-style: none;
 }
 
+/* Closed backings follow the live cards on the profile. */
+.wanted-grid + .profile-backings__closed {
+  margin-block-start: var(--space-4);
+}
+
 .reward-code {
   display: flex;
   flex-wrap: wrap;
@@ -8415,6 +8438,18 @@ textarea.form-field__input {
   list-style: none;
   border: var(--border-width-1) solid var(--border-subtle);
   background: var(--bg-surface);
+}
+
+/* A long console list scrolls inside its panel instead of growing the page. */
+.console-scroll-list {
+  max-height: min(36rem, 65vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.console-scroll-list:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .people__list > li + li {

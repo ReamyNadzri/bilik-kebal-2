@@ -1430,3 +1430,99 @@ on a bounty; "banner" means the Owner-awarded badge (Owner, 1st, Developer…); 
   `#variable_conflict use_column`, body otherwise unchanged (applied after a rolled-back dry run:
   completes to `screening`, a second call is harmless, grants unchanged). The client now confirms
   the upload and reports failure instead of success when confirmation fails.
+
+## 2026-10-03 — QA round 3 (`claude/qa-round-3`)
+
+Eleven user reports, in order:
+
+1. "Use my Google photo" failed with "could not be saved". `202610170001` was written after the Clerk
+   bridge (`202610160001`) and reintroduced `auth.uid()` in `use_own_external_avatar` and
+   `console_reset_member_avatar`; a Clerk `sub` is `user_...`, so the uuid cast failed (the Sheriff
+   avatar reset was broken too). Fixed by `202610200001` (both use `private.current_user_id()`). New
+   guard test `src/modules/identity/clerk-caller-guard.test.ts` fails if any function defined after
+   the bridge uses `auth.uid()`.
+2. Photo dialog: the hint now sits below "Choose a photo".
+3. Account number accepts digits only (max 20); a test checks the saved value is sent as digits.
+4. Sessions are Semester 1 to 6, no years. `202610200002` renames the two UiTM rows in place (the
+   Wanteds on them keep their ids), adds 3 to 6 for every institution, and switches off any other
+   session instead of deleting it.
+5. A description needs at least 10 characters: constant `DESCRIPTION_MIN_LENGTH`, and a table
+   constraint in `202610200003`.
+6. Published Wanted edit widened (decided with the user 2 Oct): same first hour and the same claim
+   and reply locks. Fields per kind: academic - title, description, campus, faculty, programme,
+   course code, session, resource type, language, tags; missing item - title, description, campus,
+   last-seen place, tags; discussion - title, description, campus, tags. Never the university,
+   bounty, duration, fee or policy snapshots, kind or free/paid. Each edit adds a revision row with
+   `previous_details` (jsonb) and one "Edited by the poster" event. Values left unchanged are not
+   re-validated, so a since-deactivated session, course or tag does not block a typo fix; a no-op
+   save records nothing. New RPC `update_own_published_wanted_details` (`202610200004`); the old
+   `update_own_published_wanted` is kept and delegates. Server side: `wantedPosterEditSchema` and
+   `WantedEditableDetails` in `src/contracts/marketplace.ts`, the poster service and repository;
+   UI: the edit dialog in `wanted-poster-controls.tsx`, with shared `SelectField` and `TagPicker`.
+7. Course code suggestions are an app-drawn combobox (`CourseCodeCombobox`) lined up with the field;
+   free text is kept.
+8. "Wanteds you backed" appears on `/profile` only. It is private, never on `/u/...`, and withdrawn
+   or removed Wanteds drop off.
+9. Space between "Replying to..." and the comment box.
+10. Claim reviews are a list with a detail panel, like People. Each decision takes a reason from a
+    dropdown plus optional notes; `window.prompt` is gone. The queue shows the Wanted's title and link.
+11. The Console member list and claim list scroll inside a fixed height (`.console-scroll-list`,
+    focusable for keyboard use).
+
+Verification and deployment state:
+
+- Cloud dry runs in rolled-back transactions passed: `202610200001` (a Google member's
+  `use_own_external_avatar` returned the photo URL) and `202610200002`-`04` together (sessions
+  present, a 10-character description accepted, a campus edit produced 1 revision with details and
+  1 event, an identical re-save added nothing, `anon` cannot execute the new function).
+- **Not yet applied** to Cloud: waiting for the user's go-ahead. Deploy order: migrations before the
+  app (profile reads and the new PATCH need them).
+- Not verified: `supabase/tests/local/published_wanted_edit.sql` (no local Postgres).
+
+### 2026-10-03 — Refund notices and closed backings (follow-up to item 8)
+
+Request (user, 3 Oct): "If a Wanted you backed is withdrawn or removed, it disappears from 'Wanteds
+you backed'. User should receive a notice. And Sheriff also should have the notice and [it should]
+show up in payment pending for refund."
+
+Built:
+
+- `202610200005_refund_notices.sql` (**not yet applied**): notification kinds
+  `wanted_refund_queued` (to the Backer) and `refund_queue_pending` (to the Owner and every Platform
+  Sheriff), subject = the Wanted's `public_id`. A statement-level `after insert` trigger on
+  `refund_tasks` (transition table) publishes them, so withdrawal, the late-payment trigger, the
+  Owner's removal and expiry are all covered. RPC `list_own_backed_wanted()` (authenticated only,
+  `private.current_user_id()`): one row per Wanted the caller backed and did not post, with status,
+  withdrawn/removed flags, latest backing time, contributed sen, refund sen (contribution + fee
+  over their refund tasks) and refund state `none | pending | refunded`. No other Backer and no
+  removal reason is returned.
+- `/profile` "Wanteds you backed": live Wanteds stay cards; withdrawn, removed and expired ones (and
+  any with a refund owed) stay listed with a plain status line, e.g. "Withdrawn by the poster ·
+  Refund of RM 22.00 pending", "Expired without a winner · Refunded RM 11.00". Only an expired one
+  links (the others have no page for Backers). `OwnBackings` / `ClosedBacking` in
+  `src/contracts/marketplace.ts`; `listOwnBackedWanted` now returns `{ live, closed }`.
+- Inbox copy: the Backer's notice links to `/profile#profile-backed-heading`; the staff notice to
+  `/console/operations?tab=refunds` (the operations page now honours `?tab=`). Both are in-app
+  only: `project-overview.md` defers payment-related email (refunds included) until the gateway is
+  live, so the migration also makes `private.enqueue_notification_email` skip the two kinds.
+- Checked: a Platform Sheriff already saw the Refunds tab and its pending rows (console nav links
+  are shown to all, `PayoutService.listRefundTasks` and RLS allow owner + platform_sheriff; bank
+  details are Owner-only). Nothing about who records a refund changed.
+
+Assumptions:
+
+- One notice per refund episode: a Backer is told once per Wanted when they go from no outstanding
+  refund to one; staff once per Wanted likewise. A second contribution by the same Backer, or the
+  Owner's per-contribution removal loop, does not notify twice; a payment confirmed after every
+  earlier refund was recorded notifies again. Event id = smallest new refund task id in the group.
+- A poster who paid into their own withdrawn Wanted is also told (they are refunded too); their own
+  Wanted is not in "Wanteds you backed".
+- The notice text cannot name the reason (the Owner's removal queues refunds before it marks the
+  Wanted removed), so it says "withdrawn, removed or expired"; the profile line names the reason.
+- Completion stays Owner-only; refund amounts, fees and the ledger are unchanged.
+
+Deploy order: **migration, then the app straight after.** The new profile read needs
+`list_own_backed_wanted` (an app first would show "could not be loaded" for backings); an old app
+after the migration would fail the whole inbox for anyone who receives a new kind (the inbox parses
+kinds with the contract enum), so keep the gap to minutes, ideally with no refund queued in it. Not
+verified: `supabase/tests/local/refund_notices.sql` (no local Postgres).

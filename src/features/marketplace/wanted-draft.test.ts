@@ -168,7 +168,11 @@ describe("the title and description", () => {
   });
 
   test("refuses a description too short to brief a Hunter", () => {
-    expect(errorFor({ description: "Need notes" }, "wanted-description")).toMatch(/at least/i);
+    expect(errorFor({ description: "A".repeat(9) }, "wanted-description")).toMatch(/at least 10/i);
+  });
+
+  test("accepts a description of exactly 10 characters", () => {
+    expect(errorFor({ description: "A".repeat(10) }, "wanted-description")).toBeUndefined();
   });
 
   test("refuses a description longer than the limit", () => {

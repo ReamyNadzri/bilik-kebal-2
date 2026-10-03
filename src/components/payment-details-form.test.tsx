@@ -42,6 +42,15 @@ describe("PaymentDetailsForm", () => {
     expect(screen.getByText(/before you pay for a Wanted/)).toBeInTheDocument();
   });
 
+  it("keeps only digits when text is typed or pasted into the account number", () => {
+    render(<PaymentDetailsForm details={null} />);
+
+    const input = screen.getByLabelText("Account number");
+    fireEvent.change(input, { target: { value: "1234-56 78ab90" } });
+
+    expect(input).toHaveValue("1234567890");
+  });
+
   it("saves with PUT and shows only the last four digits back", async () => {
     respond({ ok: true, data: saved });
     render(<PaymentDetailsForm details={null} />);
@@ -66,7 +75,7 @@ describe("PaymentDetailsForm", () => {
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(String(init?.body))).toEqual({
       accountHolderName: "Aminah Binti Ali",
-      accountNumber: "1122 3344 6789",
+      accountNumber: "112233446789",
       bankCode: "maybank",
       phone: "0123456789",
     });
@@ -87,6 +96,9 @@ describe("PaymentDetailsForm", () => {
       422,
     );
     render(<PaymentDetailsForm details={null} />);
+    fireEvent.change(screen.getByLabelText("Account number"), {
+      target: { value: "112233446789" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Save payment details" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Check your payment details.");
@@ -113,5 +125,40 @@ describe("PaymentDetailsForm", () => {
     expect(screen.getByLabelText("Mobile number")).toHaveValue("0123456789");
     expect(screen.getByLabelText("Account number")).toHaveValue("");
     expect(screen.getByText(/saved one ends in 6789/)).toBeInTheDocument();
+  });
+
+  it("keeps every digit of a dashed account number pasted whole", () => {
+    render(<PaymentDetailsForm details={null} />);
+
+    const input = screen.getByLabelText("Account number");
+    // The browser cuts a paste at maxLength before onChange strips the dashes.
+    expect(Number(input.getAttribute("maxLength"))).toBeGreaterThanOrEqual(40);
+    fireEvent.change(input, { target: { value: "1234-5678-9012-3456-78" } });
+
+    expect(input).toHaveValue("123456789012345678");
+  });
+
+  it("refuses an account number longer than 20 digits instead of cutting it", () => {
+    render(<PaymentDetailsForm details={null} />);
+
+    const input = screen.getByLabelText("Account number");
+    fireEvent.change(input, { target: { value: "1234567890123456789012" } });
+    expect(input).toHaveValue("1234567890123456789012");
+    fireEvent.click(screen.getByRole("button", { name: "Save payment details" }));
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Enter the account number: 6 to 20 digits.")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Check your payment details.");
+  });
+
+  it("refuses an account number shorter than 6 digits", () => {
+    render(<PaymentDetailsForm details={null} />);
+
+    fireEvent.change(screen.getByLabelText("Account number"), { target: { value: "12345" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save payment details" }));
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(screen.getByText("Enter the account number: 6 to 20 digits.")).toBeInTheDocument();
   });
 });

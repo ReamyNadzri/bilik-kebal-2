@@ -7,6 +7,7 @@ import type {
   CreateWantedDraftResult,
   EditPublishedWantedResult,
   ReadWantedChangeWindowResult,
+  ReadWantedEditableDetailsResult,
   WithdrawWantedResult,
   ListCampusRegionsResult,
   ListWantedRepliesResult,
@@ -22,13 +23,20 @@ import type {
   UpdateWantedDraftResult,
   WantedSummary,
 } from "@/contracts/marketplace";
-import type { ListWantedQuery, ListWantedResult, ReadWantedResult } from "@/contracts/marketplace";
+import type {
+  ClosedBacking,
+  ListWantedQuery,
+  ListWantedResult,
+  OwnBackings,
+  ReadWantedResult,
+} from "@/contracts/marketplace";
 import { failure, success } from "@/contracts/operation-result";
 import { scopedInstitutionId } from "@/contracts/universities";
 import { getMarketplaceTokenSecret, parseServerEnv } from "@/lib/config/server-env";
 import { getRequestSupabaseClient, getRequestUser } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { loadAccountContext, loadUniversityChoice } from "@/modules/identity";
+import { closedBacking } from "../domain/own-backings";
 import type { WantedActor } from "../domain/wanted-policy";
 import { SupabaseWantedPosterRepository } from "../repositories/supabase-wanted-poster-repository";
 import { SupabaseWantedRepository } from "../repositories/supabase-wanted-repository";
@@ -245,7 +253,19 @@ export async function readWantedChangeWindow(
   }
 }
 
-/** The poster corrects the title and description in the first hour. */
+/** The poster's Wanted as published, for the edit dialog; refused to everyone else. */
+export async function readEditableWanted(
+  publicId: string,
+): Promise<ReadWantedEditableDetailsResult> {
+  try {
+    const loaded = await context();
+    return loaded.posterService.editableDetails(loaded.actor, publicId);
+  } catch {
+    return unavailable();
+  }
+}
+
+/** The poster corrects the details in the first hour; university, bounty and fee stay. */
 export async function editPublishedWanted(
   publicId: string,
   input: unknown,
@@ -493,5 +513,41 @@ export async function decideCommunityPayout(
     return loaded.communityService.decidePayout(loaded.actor, requestId, input);
   } catch {
     return unavailable();
+  }
+}
+
+/**
+ * Wanteds the signed-in member has backed (not their own posts), most
+ * recently backed first. Live ones are cards; withdrawn, removed and expired
+ * ones (and any with a refund owed) stay listed with their refund state, so a
+ * Wanted that leaves the Board does not leave the member's list. Private: read
+ * with the member's own session through public.list_own_backed_wanted, which
+ * answers only for the caller. Signed out gives empty lists; an unreadable
+ * result gives null.
+ */
+export async function listOwnBackedWanted(): Promise<OwnBackings | null> {
+  try {
+    const client = await getRequestSupabaseClient();
+    const {
+      data: { user },
+    } = await getRequestUser();
+    if (!user) return { live: [], closed: [] };
+    const repository = new SupabaseWantedRepository(client);
+    const records = await repository.listOwnBackedWanted();
+    const closed: ClosedBacking[] = [];
+    const liveIds: string[] = [];
+    for (const record of records) {
+      const item = closedBacking(record);
+      if (item) closed.push(item);
+      else liveIds.push(record.publicId);
+    }
+    const summaries = liveIds.length > 0 ? await repository.listWantedByPublicIds(liveIds) : [];
+    const summaryOf = new Map(summaries.map((summary) => [summary.id, summary]));
+    return {
+      live: liveIds.flatMap((id) => summaryOf.get(id) ?? []),
+      closed,
+    };
+  } catch {
+    return null;
   }
 }

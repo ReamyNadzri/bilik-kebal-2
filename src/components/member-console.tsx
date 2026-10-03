@@ -119,7 +119,7 @@ export function MemberConsole({ role, members, query, institutions, badges }: Me
             <h2 className="people__heading" id="people-directory">
               Members <span className="people__count">{members.length} shown</span>
             </h2>
-            <ul className="people__list">
+            <ul className="people__list console-scroll-list" tabIndex={0} aria-label="Members">
               {members.map((member) => (
                 <li key={member.publicId}>
                   <MemberRow

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ProfileBackings } from "@/components/profile-backings";
 import { ProfileSettings } from "@/components/profile-settings";
 import { ProfileWantedGrid } from "@/components/profile-wanted-grid";
 import { UiStatus } from "@/components/ui-status";
@@ -10,6 +11,7 @@ import {
   readOwnPaymentDetails,
   readPublicProfile,
 } from "@/modules/profiles/loaders/profile-operations";
+import { listOwnBackedWanted } from "@/modules/wanted/loaders/wanted-operations";
 import { listOwnTaxonomyRequests } from "@/modules/taxonomy-requests/loaders/taxonomy-request-operations";
 
 export const metadata: Metadata = {
@@ -54,11 +56,12 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const account = outcome.account;
   // The member's own public card (bio, posted requests) comes from the same
   // read anyone else sees, so what they edit is exactly what others see.
-  const [publicProfile, nameAllowance, entryRequests, paymentDetails] = await Promise.all([
+  const [publicProfile, nameAllowance, entryRequests, paymentDetails, backed] = await Promise.all([
     account.publicId ? readPublicProfile(account.publicId) : Promise.resolve(null),
     readOwnDisplayNameAllowance(),
     listOwnTaxonomyRequests(),
     readOwnPaymentDetails().catch(() => "unavailable" as const),
+    listOwnBackedWanted(),
   ]);
   const profile = publicProfile?.ok ? publicProfile.data : null;
 
@@ -68,7 +71,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         <div>
           <h1>Profile</h1>
           <p className="page-heading__lede mobile-hide">
-            Your requests first, then your details, verification and codes.
+            Your requests and backings first, then your details, verification and codes.
           </p>
         </div>
         <Link className="button button--primary" href="/wanted/new">
@@ -97,6 +100,29 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             heading="You have not posted a request yet"
             message="Ask for a resource, report a missing item or start a discussion."
             action={<Link href="/wanted/new">Post a Wanted</Link>}
+          />
+        }
+      />
+
+      {/* Private: backings are never part of the public profile. A withdrawn,
+          removed or expired Wanted stays listed with its refund. */}
+      <ProfileBackings
+        backings={backed ?? { live: [], closed: [] }}
+        now={marketplaceNow()}
+        empty={
+          <UiStatus
+            kind={backed === null ? "offline" : "empty"}
+            heading={
+              backed === null
+                ? "Your backings could not be loaded"
+                : "You have not backed a Wanted yet"
+            }
+            message={
+              backed === null
+                ? "Try again shortly. Your backings are safe."
+                : "Add to a bounty from any Wanted on the Board. Only you can see this list."
+            }
+            action={<Link href="/">Browse the Board</Link>}
           />
         }
       />

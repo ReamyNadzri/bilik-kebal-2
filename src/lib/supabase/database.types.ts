@@ -2426,6 +2426,21 @@ export type Database = {
         Args: { target_wanted_id: string };
         Returns: number;
       };
+      list_own_backed_wanted: {
+        Args: never;
+        Returns: {
+          backed_at: string;
+          contributed_sen: number;
+          kind: string;
+          public_id: string;
+          refund_sen: number;
+          refund_state: string;
+          removed: boolean;
+          status: string;
+          title: string;
+          withdrawn: boolean;
+        }[];
+      };
       list_unresolved_provider_events: {
         Args: { max_rows?: number };
         Returns: {
@@ -2520,6 +2535,23 @@ export type Database = {
           target_description: string;
         };
         Returns: string;
+      };
+      update_own_published_wanted_details: {
+        Args: {
+          new_academic_session_id: string | null;
+          new_campus_id: string;
+          new_course_id: string | null;
+          new_description: string;
+          new_faculty_id: string | null;
+          new_language_id: string | null;
+          new_last_seen_location: string | null;
+          new_programme_id: string | null;
+          new_resource_type_id: string | null;
+          new_tag_ids: string[];
+          new_title: string;
+          target_public_id: string;
+        };
+        Returns: undefined;
       };
       update_wanted_draft: {
         Args: {

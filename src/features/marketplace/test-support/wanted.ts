@@ -25,7 +25,7 @@ export function aWanted(overrides: Partial<WantedSummary> = {}): WantedSummary {
     campusId: "shah-alam",
     resourceType: "Lecture notes",
     resourceTypeId: "lecture-notes",
-    session: "Semester 2, 2024/2025",
+    session: "Semester 2",
     sessionId: "2024-2025-sem2",
     grossBountySen: toSen(85),
     backerCount: 6,

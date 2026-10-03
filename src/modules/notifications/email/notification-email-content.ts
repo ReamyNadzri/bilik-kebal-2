@@ -37,6 +37,9 @@ const subjects: Readonly<Record<NotificationKind, string>> = {
   // In-app only; the retention job removes it from the outbox (migration 202610100001).
   wanted_thread_auto_closed: "Your request closed after 30 quiet days",
   wanted_reply_hidden: "A Sheriff hid one of your chat messages",
+  // In-app only: payment-related email is deferred (migration 202610200005).
+  wanted_refund_queued: "Your refund is queued",
+  refund_queue_pending: "Refunds are pending",
 };
 
 const cap = (value: string | undefined) => value?.slice(0, 80).trim() || undefined;

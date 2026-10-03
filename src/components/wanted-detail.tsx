@@ -15,7 +15,11 @@ import { OwnerRemoveWanted } from "./owner-remove-wanted";
 import { WantedReportButton } from "./wanted-report-button";
 import { WantedShareButton } from "./wanted-share-button";
 import type { AccountViewModel } from "@/contracts/identity";
-import type { WantedChangeWindow } from "@/contracts/marketplace";
+import type {
+  MarketplaceTaxonomy,
+  WantedChangeWindow,
+  WantedEditableDetails,
+} from "@/contracts/marketplace";
 import { wantedStatusPresentation } from "@/features/marketplace/status";
 import { formatJoined, formatPostedAge } from "@/features/marketplace/time";
 import type { WantedDetail as Detail, WantedSummary } from "@/features/marketplace/types";
@@ -27,6 +31,14 @@ export interface WantedDetailProps {
   readonly account?: AccountViewModel | null;
   /** The poster's edit-or-withdraw window; null for everyone else. */
   readonly changeWindow?: WantedChangeWindow | null;
+  /**
+   * The poster's edit form: the Wanted as published and its university's
+   * lists. Null for everyone else, once locked, or when it could not be read.
+   */
+  readonly editor?: {
+    readonly details: WantedEditableDetails;
+    readonly taxonomy: MarketplaceTaxonomy;
+  } | null;
   /**
    * The Wanted's university, when the reader is verified at another one: the
    * page is then read-only, since only its own members can take part.
@@ -61,6 +73,7 @@ export function WantedDetail({
   now,
   account,
   changeWindow = null,
+  editor = null,
   otherUniversity = null,
   isOwner = false,
 }: WantedDetailProps) {
@@ -125,8 +138,16 @@ export function WantedDetail({
         {isPoster && changeWindow ? (
           <WantedPosterControls
             wantedId={wanted.id}
-            title={wanted.title}
-            description={wanted.description}
+            editable={editor?.details ?? null}
+            taxonomy={editor?.taxonomy ?? null}
+            publishedLabels={{
+              faculty: wanted.faculty,
+              programme: wanted.programme,
+              session: wanted.session,
+              resourceType: wanted.resourceType,
+              language: wanted.language,
+              tags: wanted.tags,
+            }}
             isFree={wanted.isFree}
             grossBountySen={wanted.grossBountySen}
             backerCount={wanted.backerCount}

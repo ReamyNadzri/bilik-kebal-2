@@ -38,7 +38,7 @@ test.describe("Marketplace Bounty Creation and Claim Lifecycle", () => {
       .selectOption({ label: "Faculty of Computer and Mathematical Sciences" });
     await page.getByLabel("Programme").selectOption({ label: "Bachelor of Computer Science" });
     await page.getByLabel("Course").selectOption({ label: "CSC510 Database Systems" });
-    await page.getByLabel("Academic session").selectOption({ label: "Semester 2, 2024/2025" });
+    await page.getByLabel("Academic session").selectOption({ label: "Semester 2" });
     await page.getByLabel("Resource type").selectOption({ label: "Lecture notes" });
     await page.getByLabel("Language").selectOption({ label: "English" });
     await page.getByRole("radio", { name: "14 days" }).check();

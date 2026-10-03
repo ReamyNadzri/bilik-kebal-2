@@ -5,7 +5,8 @@ import type { PayoutTaskView, RefundTaskView } from "@/contracts/payouts";
 import { OwnerPayoutQueue } from "./owner-payout-queue";
 import { OwnerRefundQueue } from "./owner-refund-queue";
 
-type Tab = "payouts" | "refunds" | "expiry";
+export type OperationsTab = "payouts" | "refunds" | "expiry";
+type Tab = OperationsTab;
 
 const TABS: readonly Tab[] = ["payouts", "refunds", "expiry"];
 
@@ -19,8 +20,13 @@ function refusalMessage(body: unknown, fallback: string): string {
   return fallback;
 }
 
-export function OperationalConsole() {
-  const [activeTab, setActiveTab] = useState<Tab>("payouts");
+export function OperationalConsole({
+  initialTab = "payouts",
+}: {
+  /** The queue shown first, e.g. refunds when opened from a refund notice. */
+  readonly initialTab?: OperationsTab;
+} = {}) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
     payouts: null,
     refunds: null,

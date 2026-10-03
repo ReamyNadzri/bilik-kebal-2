@@ -84,7 +84,7 @@ export function aTaxonomy(overrides: Partial<MarketplaceTaxonomy> = {}): Marketp
         programmeId: ID.otherProgramme,
       },
     ],
-    academicSessions: [{ id: ID.session, slug: "2024-2025-sem2", label: "Semester 2, 2024/2025" }],
+    academicSessions: [{ id: ID.session, slug: "2024-2025-sem2", label: "Semester 2" }],
     resourceTypes: [{ id: ID.resourceType, slug: "lecture-notes", label: "Lecture notes" }],
     languages: [{ id: ID.language, slug: "english", label: "English" }],
     tags: TAGS,

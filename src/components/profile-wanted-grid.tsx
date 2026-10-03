@@ -7,13 +7,21 @@ export interface ProfileWantedGridProps {
   readonly wanted: readonly WantedSummary[];
   readonly now: string;
   readonly empty: ReactNode;
+  /** Distinct per grid when a page shows more than one. */
+  readonly headingId?: string;
 }
 
 /** A member's posted Wanteds as a grid of posters, newest first. */
-export function ProfileWantedGrid({ heading, wanted, now, empty }: ProfileWantedGridProps) {
+export function ProfileWantedGrid({
+  heading,
+  wanted,
+  now,
+  empty,
+  headingId = "profile-grid-heading",
+}: ProfileWantedGridProps) {
   return (
-    <section className="board-surface profile-grid" aria-labelledby="profile-grid-heading">
-      <h2 id="profile-grid-heading" className="board-surface__heading">
+    <section className="board-surface profile-grid" aria-labelledby={headingId}>
+      <h2 id={headingId} className="board-surface__heading">
         {heading}
       </h2>
       {wanted.length === 0 ? (

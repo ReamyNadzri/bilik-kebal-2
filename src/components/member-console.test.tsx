@@ -200,3 +200,18 @@ test("a Sheriff can see the Owner but not manage them", () => {
   expect(screen.getByText(/Only the Owner manages the Owner/)).toBeInTheDocument();
   expect(screen.queryByRole("form")).not.toBeInTheDocument();
 });
+
+test("the member list scrolls inside a fixed height and can be focused for the keyboard", () => {
+  render(
+    <MemberConsole
+      role="owner"
+      members={[member]}
+      query=""
+      institutions={[{ id: "i1", name: "UiTM" }]}
+      badges={[]}
+    />,
+  );
+  const list = screen.getByRole("list", { name: "Members" });
+  expect(list).toHaveAttribute("tabindex", "0");
+  expect(list).toHaveClass("console-scroll-list");
+});

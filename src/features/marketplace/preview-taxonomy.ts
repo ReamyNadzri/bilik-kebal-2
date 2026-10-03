@@ -56,7 +56,14 @@ const COURSES: readonly (readonly [string, string, number])[] = [
   ["LAW416", "Malaysian Legal System", 3],
 ];
 
-const SESSIONS = ["Semester 2, 2024/2025", "Semester 1, 2024/2025", "Semester 2, 2023/2024"];
+const SESSIONS = [
+  "Semester 1",
+  "Semester 2",
+  "Semester 3",
+  "Semester 4",
+  "Semester 5",
+  "Semester 6",
+];
 
 const RESOURCE_TYPES = [
   "Lecture notes",

@@ -27,7 +27,7 @@ test("labels the campus, resource type and session rather than running them toge
   renderCard({
     campus: "UiTM Shah Alam",
     resourceType: "Lecture notes",
-    session: "Semester 2, 2024/2025",
+    session: "Semester 2",
   });
 
   const details = screen.getByRole("group", { name: /request details/i });
@@ -37,7 +37,7 @@ test("labels the campus, resource type and session rather than running them toge
   expect(within(details).getByText("Type")).toBeInTheDocument();
   expect(within(details).getByText("Lecture notes")).toBeInTheDocument();
   expect(within(details).getByText("Session")).toBeInTheDocument();
-  expect(within(details).getByText("Semester 2, 2024/2025")).toBeInTheDocument();
+  expect(within(details).getByText("Semester 2")).toBeInTheDocument();
 });
 
 test("shows the gross bounty formatted in Ringgit", () => {

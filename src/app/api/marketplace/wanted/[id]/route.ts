@@ -14,7 +14,7 @@ export async function GET(
   return marketplaceResponse(await readPublicWanted(id));
 }
 
-/** The poster corrects the title and description within an hour of publishing. */
+/** The poster corrects the details within an hour of publishing. */
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },

@@ -270,11 +270,10 @@ describe("the intake form", () => {
   });
 
   test("suggests the course codes already in use", () => {
-    const { container } = renderWorkspace();
+    renderWorkspace();
 
-    const input = screen.getByLabelText(/^Course code/);
-    const suggestions = container.querySelector(`datalist#${input.getAttribute("list")}`);
-    expect(suggestions?.querySelector('option[value="CSC510"]')).not.toBeNull();
+    fireEvent.focus(screen.getByRole("combobox", { name: /^Course code/ }));
+    expect(screen.getByRole("option", { name: /CSC510/ })).toBeInTheDocument();
   });
 
   test("marks a campus outside the open regions as coming soon and unselectable", () => {
