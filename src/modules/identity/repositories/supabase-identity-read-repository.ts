@@ -158,6 +158,9 @@ export class SupabaseIdentityReadRepository implements EvidenceReadRepository {
       hasActiveRestriction: snapshot.restriction !== null,
       restrictionExpiresAt: snapshot.restriction?.expires_at ?? null,
       hasConsoleAccess: snapshot.has_console_access,
+      ...(snapshot.terms_accepted_version !== undefined
+        ? { termsAcceptedVersion: snapshot.terms_accepted_version }
+        : {}),
       institution:
         membership?.institution_name != null
           ? { id: membership.institution_id, name: membership.institution_name }

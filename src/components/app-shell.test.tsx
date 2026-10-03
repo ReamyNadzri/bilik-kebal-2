@@ -64,6 +64,27 @@ test("keeps the skip link as the first focusable element", () => {
   expect(focusable[0]).toHaveAttribute("href", "#main-content");
 });
 
+test("links the Terms of Use, Privacy Notice and Refund Policy", () => {
+  renderShell();
+
+  const legal = screen.getAllByRole("navigation", { name: "Legal" });
+  expect(legal.length).toBeGreaterThan(0);
+  for (const nav of legal) {
+    expect(within(nav).getByRole("link", { name: "Terms of Use" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
+    expect(within(nav).getByRole("link", { name: "Privacy Notice" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(within(nav).getByRole("link", { name: "Refund Policy" })).toHaveAttribute(
+      "href",
+      "/refunds",
+    );
+  }
+});
+
 test("renders page content inside the main landmark", () => {
   renderShell();
 

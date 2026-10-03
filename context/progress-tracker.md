@@ -1594,3 +1594,65 @@ verified: `supabase/tests/local/refund_notices.sql` (no local Postgres).
   approval copy do not depend on it). `SUPABASE_SERVICE_ROLE_KEY` must be set wherever the app runs:
   approvals still record without it, but the copy, downloads and reviewer file access fail.
 - Not verified: `supabase/tests/local/claim_file_review_access.sql` (no local Postgres).
+
+## 2026-10-03 — Legal pages, Terms acceptance (18+) and privacy requests (`claude/legal-pages`)
+
+Decisions of 2026-10-03 (user): show what VAULTIX collects, why, who receives it, retention and
+rights, but **no company or personal details**; public `/terms` and `/refunds` (and `/privacy`) with
+footer links; record Terms acceptance at sign-up; members must be **18+**; include **Malay**;
+privacy requests through an **in-app form**; financial and audit records kept **7 years**; refunds
+paid **within 1 to 3 days** of being queued; existing members **asked to accept** on their next
+visit; the payment provider is now **HitPay** and email is **Brevo**.
+
+- Pages: `/terms`, `/privacy`, `/refunds` (`src/features/legal/`, `src/components/legal-page.tsx`),
+  English and Malay via `?lang=ms`, each text marked with its `lang`. The Terms of Use are new
+  general sections plus the existing posting terms (now also in Malay, `POSTING_TERMS_MS`). A test
+  keeps both languages the same shape, section by section.
+- Links: footer, compact menu (the footer is hidden below 720 px), the sign-up box, the acceptance
+  screen and the checkout modal (Refund Policy).
+- Acceptance: migration `202610200007_terms_acceptance_and_privacy_requests` adds
+  `terms_versions` (first row `2026-10-03`), `terms_acceptances` and `accept_terms()`, and
+  `current_account()` now returns `terms_accepted_version`. Sign-up requires one box (18+, Terms,
+  Privacy) before email or Google sign-up; the tick is kept in session storage and recorded on the
+  first page after the account exists. `TermsGate` in the root layout shows the acceptance screen
+  to anyone who has not accepted the current version (Google sign-ups from the sign-in page,
+  existing members, future versions), except on the legal pages and sign-out.
+  `TERMS_OF_USE_VERSION` (`src/contracts/legal.ts`) is separate from the posting policy version
+  saved on each Wanted.
+- Privacy requests: `privacy_requests`, `submit_privacy_request` (any signed-in member, 3 open at
+  most), `list_privacy_requests` / `answer_privacy_request` (Owner only). Profile section "Privacy
+  requests"; Sheriff Console tab "Privacy requests" (Owner only, like Badges).
+- Types: the migration is not applied to the linked project yet, so its tables and functions are
+  typed in `src/lib/supabase/database.ts` (`PendingTables` / `PendingFunctions`, shapes from
+  `supabase gen types` on a local database). After the migration is applied and the types are
+  regenerated, those entries fail to compile until deleted.
+- Checked: `pnpm typecheck`, `pnpm lint`, `pnpm format:check` (for the files changed here) and
+  `pnpm vitest run` (230 files, 1881 tests; the 122 unhandled errors from the board, home and map
+  page tests are older). New: `supabase/tests/local/terms_and_privacy.sql` passes on Postgres 16
+  (Docker), with access control, idempotency, the 3-request limit and RLS isolation. In the same
+  run `list_public_hunters.sql`, `owner_removal_forfeiture.sql` and `poster_edit_withdraw.sql`
+  fail; they fail identically without this migration, so they are older. Viewed in the browser:
+  the three pages in both languages, footer and menu links, the sign-up box at 360 px.
+- Not verified end to end: the acceptance screen and privacy requests against Supabase Cloud,
+  because the migration is not applied there.
+
+Deploy order: **migration, then the app.** An app without the migration asks nobody (the account
+read has no `terms_accepted_version`), so the gap is safe. After deploy every signed-in member sees
+the acceptance screen once.
+
+Open questions (not decided; nothing was assumed):
+
+- Legal review of the Terms of Use, Privacy Notice and Refund Policy, and a native-speaker review of
+  the Malay. The general Terms sections (conduct, uploads, moderation) were drafted from the
+  accepted product rules and contain no governing-law or liability clause.
+- The PDPA expects a privacy notice to identify the data user; the notice names no one by the
+  user's decision (accepted risk).
+- Whether the payment provider's own charge (HitPay's fee) is refunded. The Refund Policy promises
+  the contribution and the platform fee only, as the posting terms do.
+- A support channel for payment problems (a payment taken but not shown, a late refund). The
+  privacy request form is for privacy only; the Refund Policy names no contact.
+- Non-members (for example a lecturer whose notes were uploaded) cannot report copyright: reporting
+  and privacy requests need an account.
+- The Owner is not notified of a new privacy request, and the member is not notified of the answer
+  (inbox kinds unchanged); both see it on their pages.
+- The HitPay integration itself: the code still uses the ToyyibPay adapter.

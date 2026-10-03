@@ -22,6 +22,8 @@ export interface AccountRecord {
   /** When a timeout ends; null for a permanent restriction or none. */
   restrictionExpiresAt?: string | null;
   hasConsoleAccess: boolean;
+  /** Latest Terms of Use version accepted; null for none, undefined when unknown. */
+  termsAcceptedVersion?: string | null;
 }
 
 export function toAccountViewModel(record: AccountRecord): AccountViewModel {
@@ -48,6 +50,9 @@ export function toAccountViewModel(record: AccountRecord): AccountViewModel {
     institution: record.institution,
     latestVerificationRequest: record.latestVerificationRequest,
     trust,
+    ...(record.termsAcceptedVersion !== undefined
+      ? { termsAcceptedVersion: record.termsAcceptedVersion }
+      : {}),
     ...(record.hasActiveRestriction && record.restrictionExpiresAt
       ? { restrictedUntil: record.restrictionExpiresAt }
       : {}),

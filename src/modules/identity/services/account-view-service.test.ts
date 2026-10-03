@@ -26,4 +26,14 @@ describe("toAccountViewModel", () => {
       false,
     );
   });
+
+  test("passes the accepted Terms version through, and leaves it out when unknown", () => {
+    expect(toAccountViewModel({ ...base, termsAcceptedVersion: "2026-10-03" })).toMatchObject({
+      termsAcceptedVersion: "2026-10-03",
+    });
+    expect(
+      toAccountViewModel({ ...base, termsAcceptedVersion: null }).termsAcceptedVersion,
+    ).toBeNull();
+    expect(toAccountViewModel(base)).not.toHaveProperty("termsAcceptedVersion");
+  });
 });

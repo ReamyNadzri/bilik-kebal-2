@@ -89,6 +89,12 @@ export interface AccountViewModel {
   console: { hasAccess: boolean };
   /** Present while a timeout runs: when it lifts by itself. */
   restrictedUntil?: string;
+  /**
+   * The latest Terms of Use version the member accepted; null when they have
+   * accepted none. Absent when it could not be read, and then nobody is asked
+   * to accept: an unknown answer must not lock members out.
+   */
+  termsAcceptedVersion?: string | null;
 }
 
 export type AccountViewResult = OperationResult<

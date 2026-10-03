@@ -22,6 +22,7 @@ import {
   type NavItem,
   type NavItemId,
 } from "@/features/presentation/navigation";
+import { LEGAL_LINKS } from "@/features/legal/legal-links";
 import { COMPACT_QUERY } from "@/features/presentation/viewport";
 
 /**
@@ -248,6 +249,16 @@ export function ShellMenu({ account = null, currentNavId, roleNav = [] }: ShellM
             <ul className="shell-menu__nav">
               {[...MARKETPLACE_NAV, ...roleNav].map((item) => (
                 <MenuLink key={item.id} item={item} current={current === item.id} />
+              ))}
+            </ul>
+          </nav>
+
+          <nav className="shell-menu__legal" aria-label="Legal">
+            <ul>
+              {LEGAL_LINKS.map((link) => (
+                <li key={link.href}>
+                  <ShotLink href={link.href}>{link.label}</ShotLink>
+                </li>
               ))}
             </ul>
           </nav>
