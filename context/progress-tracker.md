@@ -1559,3 +1559,38 @@ verified: `supabase/tests/local/refund_notices.sql` (no local Postgres).
   The 122 unhandled errors from the board, home and map page tests were there before.
 - The `db:types` script still generates from the local stack (`--local`); use the linked command
   above when no local Postgres is running.
+
+## 2026-10-03 — Claim file access (`claude/claim-file-access`)
+
+- **Bug (confirmed on Cloud): approved files never reached the `approved` bucket.**
+  `approve_winning_claim_and_fulfill` sets `claims.bucket = 'approved'`, but nothing copied the
+  object, so it stayed in `quarantine` and every download failed to sign (Cloud: one approved claim,
+  object only in quarantine, one entitlement). Fix: after the approval commits,
+  `ClaimReviewService` copies `quarantine/<key>` to `approved/<key>` with the service role
+  (`src/modules/claims/storage/promote-approved-claim-file.ts`, Storage API copy by key; an object
+  already there counts as success). A failed copy keeps the recorded approval and logs
+  `claims.approved_file_promotion_failed` (claim id only). The download path self-heals: signing an
+  approved claim's file that is missing from `approved` copies it and signs again, which repairs the
+  existing Cloud claim on its first download. The quarantined original is not deleted (retention).
+- **Bug: approving a free request reported failure.** The approval RPC returns null when there is no
+  bounty (no payout task), and the repository treated null as an error, so the reviewer saw "Review
+  could not be recorded" although the approval had committed. Null is now success.
+- **Bug: Backers and posters could not download.** `claims` RLS lets only the Hunter and reviewers
+  read a claim row, and no storage policy lets a member read `approved`, so the download route
+  answered 404 to an entitled poster or Backer and could not sign for anyone. The download path now
+  reads the claim's file facts and signs with the service role; the decision is still the
+  entitlement policy, with the member's own entitlement and role rows read under RLS. Entitlement
+  rules are unchanged.
+- **Decision with the user: reviewer access to the raw claim file.** While the scanner is not
+  deployed, the Owner, Platform Sheriffs and Institution Sheriffs of the claim's institution may
+  view (images inline on click, PDF in a new tab) or download (every type) the raw quarantined file
+  through a 5-minute signed URL on the Storage domain. Each access is audited
+  (`claim.file_viewed` / `claim.file_downloaded` in `identity_audit_events`). The panel warns that
+  the file has not been virus-scanned and not to turn on editing or macros. Migration
+  `202610200006_claim_file_review_access.sql` adds `public.review_claim_file_access`; the RPC is
+  hand-added to `database.types.ts`, so regenerate the types after applying it.
+- **Not yet applied.** Migration `202610200006` is not applied on Cloud. Deploy order: migration,
+  then the app (the reviewer File buttons answer 503 until the function exists; downloads and the
+  approval copy do not depend on it). `SUPABASE_SERVICE_ROLE_KEY` must be set wherever the app runs:
+  approvals still record without it, but the copy, downloads and reviewer file access fail.
+- Not verified: `supabase/tests/local/claim_file_review_access.sql` (no local Postgres).

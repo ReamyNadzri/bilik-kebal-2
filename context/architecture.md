@@ -169,6 +169,31 @@ Payment mode is one of `disabled`, `mock`, `sandbox`, or `live_limited`. `mock` 
 5. Exact known duplicates may be blocked. Near matches and policy signals become reviewer evidence only.
 6. A Sheriff decision publishes one idempotent event. Approval closes the bounty, grants entitlements, schedules optional release, and creates one payout task.
 7. Raw unreviewed content must not enter application logs, analytics, email, or notification payloads.
+8. Approval moves the file (migration `202609290001` sets `claims.bucket = 'approved'`; the copy is
+   server-side, 2026-10-03). After `approve_winning_claim_and_fulfill` commits, the server copies
+   `quarantine/<object_key>` to `approved/<object_key>` with the service role (Storage API copy by
+   key; `src/modules/claims/storage/promote-approved-claim-file.ts`). The copy is idempotent (an
+   existing object counts as done) and a failure never undoes the recorded approval: it logs
+   `claims.approved_file_promotion_failed` with the claim id only. The download path repairs it: when
+   signing an approved claim's file finds no object in `approved`, the same function copies it and
+   signs again. The quarantined original is kept for the retention period below.
+9. Downloads (`GET /api/claims/[id]/download`): the entitlement policy decides with the member's
+   entitlement and role rows read under RLS; the claim's file facts are read and the 15-minute URL is
+   signed with the service role, because RLS hides claim rows from Backers and posters and no storage
+   policy lets a member read `approved` or `quarantine`.
+10. Reviewer access to the raw file (decided with the user 2026-10-03, while the scanner is not
+    deployed): `public.review_claim_file_access(claim, purpose)` (migration `202610200006`) lets the
+    Owner, a Platform Sheriff or an Institution Sheriff of the claim's institution (never the claim's
+    Hunter) open a file of a claim that is screening, waiting for information, under review,
+    approved, rejected or not selected. Each call writes `claim.file_viewed` or
+    `claim.file_downloaded` to `identity_audit_events` (claim id, purpose, status; no key, no
+    content). `GET /api/claims/reviews/[claimId]/file?purpose=view|download` calls it with the
+    member's session, then signs a **5-minute** URL with the service role and returns it as
+    `private, no-store` JSON; the file is served by the Storage domain, never read or proxied by the
+    app. `view` is only for images and PDF (422 otherwise); `download` names the file. The review
+    panel loads an image preview only on "Show preview", opens a PDF in a new tab (the browser's
+    viewer), offers Download for every type, and warns that the file has not been virus-scanned.
+    When the scanner ships, previews should move to its safe derivatives.
 
 ## Retention
 
