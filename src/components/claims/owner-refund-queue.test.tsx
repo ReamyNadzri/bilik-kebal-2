@@ -44,7 +44,7 @@ describe("OwnerRefundQueue", () => {
   });
 
   it("renders task rows with correct money amount in RM", () => {
-    render(<OwnerRefundQueue tasks={mockTasks} />);
+    render(<OwnerRefundQueue canRecord tasks={mockTasks} />);
 
     expect(screen.getByText("Farid Contributor")).toBeInTheDocument();
     // A refund returns the contribution and the fee paid on top of it.
@@ -59,7 +59,7 @@ describe("OwnerRefundQueue", () => {
 
   it("opens modal and submits refund completion successfully", async () => {
     const onCompleteRefund = vi.fn().mockResolvedValue({ ok: true });
-    render(<OwnerRefundQueue tasks={mockTasks} onCompleteRefund={onCompleteRefund} />);
+    render(<OwnerRefundQueue canRecord tasks={mockTasks} onCompleteRefund={onCompleteRefund} />);
 
     const refundBtn = screen.getByRole("button", {
       name: /process refund of rm 22\.00/i,
@@ -90,7 +90,7 @@ describe("OwnerRefundQueue", () => {
   });
 
   it("displays validation error when reference is too short", async () => {
-    render(<OwnerRefundQueue tasks={mockTasks} />);
+    render(<OwnerRefundQueue canRecord tasks={mockTasks} />);
 
     const refundBtn = screen.getByRole("button", {
       name: /process refund of rm 22\.00/i,
@@ -106,5 +106,35 @@ describe("OwnerRefundQueue", () => {
     expect(
       screen.getByText(/external reference must be at least 3 characters/i),
     ).toBeInTheDocument();
+  });
+});
+
+describe("OwnerRefundQueue for a Sheriff", () => {
+  it("shows pending refunds without the Owner-only Process refund button", () => {
+    render(
+      <OwnerRefundQueue
+        tasks={[
+          {
+            id: "refund-1",
+            wantedRequestId: "wanted-1",
+            contributionId: "contrib-1",
+            contributorUserId: "u-contrib-1",
+            contributorDisplayName: "Farid Contributor",
+            amountSen: 2000,
+            feeSen: 200,
+            status: "pending",
+            externalReference: null,
+            refundMethod: null,
+            evidenceNotes: null,
+            completedAt: null,
+            ownerUserId: null,
+            createdAt: "2026-09-24T10:00:00Z",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("Farid Contributor")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /process refund/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Recorded by the Owner")).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ConsoleNav } from "@/components/console-nav";
 import { OperationalConsole, type OperationsTab } from "@/components/claims/operational-console";
 import { requireAccount } from "@/features/presentation/auth/require-account";
+import { readConsoleRole } from "@/modules/console/loaders/console-operations";
 
 export const metadata: Metadata = {
   title: "Operations & Payouts | VAULTIX",
@@ -14,7 +15,7 @@ interface OperationsPageProps {
 }
 
 export default async function OperationsConsolePage({ searchParams }: OperationsPageProps) {
-  await requireAccount("/console/operations");
+  const [, role] = await Promise.all([requireAccount("/console/operations"), readConsoleRole()]);
   // ?tab=refunds is where a refund notice leads; anything else opens payouts.
   // (A client module's constants are references here, so the list is local.)
   const requested = (await searchParams)?.tab;
@@ -24,7 +25,7 @@ export default async function OperationsConsolePage({ searchParams }: Operations
   return (
     <>
       <ConsoleNav current="operations" />
-      <OperationalConsole initialTab={initialTab} />
+      <OperationalConsole initialTab={initialTab} isOwner={role.ok && role.data === "owner"} />
     </>
   );
 }

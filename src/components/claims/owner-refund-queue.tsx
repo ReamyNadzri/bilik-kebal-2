@@ -8,6 +8,8 @@ export interface OwnerRefundQueueProps {
   tasks: readonly RefundTaskView[];
   isLoading?: boolean;
   onRefresh?: () => void;
+  /** Only the Owner records a refund; Sheriffs see the queue read-only. The server enforces it too. */
+  canRecord?: boolean;
   onCompleteRefund?: (
     taskId: string,
     payload: {
@@ -42,6 +44,7 @@ export function OwnerRefundQueue({
   isLoading = false,
   onRefresh,
   onCompleteRefund,
+  canRecord = false,
 }: OwnerRefundQueueProps) {
   const [selectedTask, setSelectedTask] = useState<RefundTaskView | null>(null);
   const [externalReference, setExternalReference] = useState("");
@@ -213,7 +216,9 @@ export function OwnerRefundQueue({
                     </td>
                     <td className="ops-table__meta">{formatDate(task.createdAt)}</td>
                     <td className="ops-table__end">
-                      {isPending ? (
+                      {isPending && !canRecord ? (
+                        <span className="ops-table__meta">Recorded by the Owner</span>
+                      ) : isPending ? (
                         <button
                           type="button"
                           onClick={() => handleOpenCompleteModal(task)}
