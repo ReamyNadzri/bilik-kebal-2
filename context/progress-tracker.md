@@ -1622,10 +1622,9 @@ visit; the payment provider is now **HitPay** and email is **Brevo**.
 - Privacy requests: `privacy_requests`, `submit_privacy_request` (any signed-in member, 3 open at
   most), `list_privacy_requests` / `answer_privacy_request` (Owner only). Profile section "Privacy
   requests"; Sheriff Console tab "Privacy requests" (Owner only, like Badges).
-- Types: the migration is not applied to the linked project yet, so its tables and functions are
-  typed in `src/lib/supabase/database.ts` (`PendingTables` / `PendingFunctions`, shapes from
-  `supabase gen types` on a local database). After the migration is applied and the types are
-  regenerated, those entries fail to compile until deleted.
+- **Applied to Supabase Cloud** on 2026-10-03 with `supabase db push --linked` after a dry run
+  (only this migration was pending). The database types were regenerated from the linked project
+  (134 lines added, nothing else changed) and the temporary pending types in `database.ts` removed.
 - Checked: `pnpm typecheck`, `pnpm lint`, `pnpm format:check` (for the files changed here) and
   `pnpm vitest run` (230 files, 1881 tests; the 122 unhandled errors from the board, home and map
   page tests are older). New: `supabase/tests/local/terms_and_privacy.sql` passes on Postgres 16
@@ -1633,8 +1632,8 @@ visit; the payment provider is now **HitPay** and email is **Brevo**.
   run `list_public_hunters.sql`, `owner_removal_forfeiture.sql` and `poster_edit_withdraw.sql`
   fail; they fail identically without this migration, so they are older. Viewed in the browser:
   the three pages in both languages, footer and menu links, the sign-up box at 360 px.
-- Not verified end to end: the acceptance screen and privacy requests against Supabase Cloud,
-  because the migration is not applied there.
+- Not verified end to end on Cloud with a signed-in member: the acceptance screen and privacy
+  requests (verified in tests and on local Postgres only).
 
 Deploy order: **migration, then the app.** An app without the migration asks nobody (the account
 read has no `terms_accepted_version`), so the gap is safe. After deploy every signed-in member sees

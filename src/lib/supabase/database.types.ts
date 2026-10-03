@@ -1630,6 +1630,57 @@ export type Database = {
           },
         ];
       };
+      privacy_requests: {
+        Row: {
+          answer: string | null;
+          answered_at: string | null;
+          answered_by: string | null;
+          created_at: string;
+          details: string;
+          id: string;
+          kind: string;
+          status: string;
+          user_id: string;
+        };
+        Insert: {
+          answer?: string | null;
+          answered_at?: string | null;
+          answered_by?: string | null;
+          created_at?: string;
+          details: string;
+          id?: string;
+          kind: string;
+          status?: string;
+          user_id: string;
+        };
+        Update: {
+          answer?: string | null;
+          answered_at?: string | null;
+          answered_by?: string | null;
+          created_at?: string;
+          details?: string;
+          id?: string;
+          kind?: string;
+          status?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "privacy_requests_answered_by_fkey";
+            columns: ["answered_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "privacy_requests_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           avatar_object_key: string | null;
@@ -2086,6 +2137,63 @@ export type Database = {
             referencedColumns: ["user_id"];
           },
         ];
+      };
+      terms_acceptances: {
+        Row: {
+          accepted_at: string;
+          confirmed_adult: boolean;
+          id: string;
+          terms_version: string;
+          user_id: string;
+        };
+        Insert: {
+          accepted_at?: string;
+          confirmed_adult: boolean;
+          id?: string;
+          terms_version: string;
+          user_id: string;
+        };
+        Update: {
+          accepted_at?: string;
+          confirmed_adult?: boolean;
+          id?: string;
+          terms_version?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "terms_acceptances_terms_version_fkey";
+            columns: ["terms_version"];
+            isOneToOne: false;
+            referencedRelation: "terms_versions";
+            referencedColumns: ["version"];
+          },
+          {
+            foreignKeyName: "terms_acceptances_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      terms_versions: {
+        Row: {
+          created_at: string;
+          effective_at: string;
+          version: string;
+        };
+        Insert: {
+          created_at?: string;
+          effective_at: string;
+          version: string;
+        };
+        Update: {
+          created_at?: string;
+          effective_at?: string;
+          version?: string;
+        };
+        Relationships: [];
       };
       wanted_duplicate_checks: {
         Row: {
@@ -2605,6 +2713,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_terms: {
+        Args: { confirmed_adult: boolean; target_version: string };
+        Returns: string;
+      };
+      answer_privacy_request: {
+        Args: { target_answer: string; target_request_id: string };
+        Returns: undefined;
+      };
       approve_winning_claim_and_fulfill: {
         Args: {
           target_claim_id: string;
@@ -2883,6 +2999,20 @@ export type Database = {
           status: string;
           title: string;
           withdrawn: boolean;
+        }[];
+      };
+      list_privacy_requests: {
+        Args: { target_status?: string };
+        Returns: {
+          answer: string;
+          answered_at: string;
+          created_at: string;
+          details: string;
+          id: string;
+          kind: string;
+          member_display_name: string;
+          member_public_id: string;
+          status: string;
         }[];
       };
       list_public_hunters: {
@@ -3193,6 +3323,10 @@ export type Database = {
           target_claim_id: string;
           target_description: string;
         };
+        Returns: string;
+      };
+      submit_privacy_request: {
+        Args: { target_details: string; target_kind: string };
         Returns: string;
       };
       submit_taxonomy_request: {
