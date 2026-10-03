@@ -224,41 +224,7 @@ export function AvatarEditor({ onSaved, onClose }: AvatarEditorProps) {
               <span className="avatar-editor__mask" aria-hidden="true" />
             </div>
 
-            <div className="form-field slider-field">
-              <label className="form-field__label" htmlFor="avatar-zoom">
-                Zoom
-              </label>
-              <input
-                className="slider"
-                id="avatar-zoom"
-                type="range"
-                min={1}
-                max={3}
-                step={0.01}
-                value={transform.zoom}
-                aria-valuetext={`${Math.round(transform.zoom * 100)}%`}
-                onChange={(event) => patch({ zoom: Number(event.target.value) })}
-              />
-            </div>
-
-            <div className="form-field slider-field">
-              <label className="form-field__label" htmlFor="avatar-straighten">
-                Straighten
-              </label>
-              <input
-                className="slider"
-                id="avatar-straighten"
-                type="range"
-                min={-45}
-                max={45}
-                step={1}
-                value={transform.straighten}
-                aria-valuetext={`${transform.straighten} degrees`}
-                onChange={(event) => patch({ straighten: Number(event.target.value) })}
-              />
-            </div>
-
-            <div className="dialog__actions avatar-editor__tools">
+            <div className="avatar-editor__tools">
               <button
                 type="button"
                 className="button button--secondary button--compact"
@@ -281,14 +247,58 @@ export function AvatarEditor({ onSaved, onClose }: AvatarEditorProps) {
                 Reset
               </button>
             </div>
+
+            <div className="form-field">
+              <label className="form-field__label" htmlFor="avatar-zoom">
+                Zoom
+              </label>
+              <div className="slider-field__row">
+                <input
+                  className="slider"
+                  id="avatar-zoom"
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  value={transform.zoom}
+                  aria-valuetext={`${Math.round(transform.zoom * 100)}%`}
+                  onChange={(event) => patch({ zoom: Number(event.target.value) })}
+                />
+                <output className="slider-field__value numeric" htmlFor="avatar-zoom">
+                  {Math.round(transform.zoom * 100)}%
+                </output>
+              </div>
+            </div>
+
+            <div className="form-field">
+              <label className="form-field__label" htmlFor="avatar-straighten">
+                Straighten
+              </label>
+              <div className="slider-field__row">
+                <input
+                  className="slider"
+                  id="avatar-straighten"
+                  type="range"
+                  min={-45}
+                  max={45}
+                  step={1}
+                  value={transform.straighten}
+                  aria-valuetext={`${transform.straighten} degrees`}
+                  onChange={(event) => patch({ straighten: Number(event.target.value) })}
+                />
+                <output className="slider-field__value numeric" htmlFor="avatar-straighten">
+                  {transform.straighten}°
+                </output>
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="dialog__actions">
+        <div className="dialog__actions dialog__actions--ruled">
           {image !== null && step !== "choose" ? (
             <button
               type="button"
-              className="button button--quiet"
+              className="button button--quiet dialog__actions-aside"
               onClick={() => {
                 setImage(null);
                 setStep("choose");

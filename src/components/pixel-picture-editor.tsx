@@ -258,17 +258,22 @@ export function PixelPictureEditor({
               <label className="form-field__label" htmlFor="pixel-zoom">
                 Zoom
               </label>
-              <input
-                className="slider pixel-editor__zoom"
-                id="pixel-zoom"
-                type="range"
-                min={1}
-                max={4}
-                step={0.01}
-                value={framing.zoom}
-                aria-valuetext={`${Math.round(framing.zoom * 100)}%`}
-                onChange={(event) => setFraming({ ...framing, zoom: Number(event.target.value) })}
-              />
+              <div className="slider-field__row">
+                <input
+                  className="slider"
+                  id="pixel-zoom"
+                  type="range"
+                  min={1}
+                  max={4}
+                  step={0.01}
+                  value={framing.zoom}
+                  aria-valuetext={`${Math.round(framing.zoom * 100)}%`}
+                  onChange={(event) => setFraming({ ...framing, zoom: Number(event.target.value) })}
+                />
+                <output className="slider-field__value numeric" htmlFor="pixel-zoom">
+                  {Math.round(framing.zoom * 100)}%
+                </output>
+              </div>
             </div>
 
             <fieldset className="draft-form__fieldset">
@@ -304,7 +309,7 @@ export function PixelPictureEditor({
           </div>
         )}
 
-        <div className="dialog__actions pixel-editor__footer">
+        <div className="dialog__actions dialog__actions--ruled">
           <button type="button" className="button button--quiet" onClick={onClose} disabled={busy}>
             Cancel
           </button>

@@ -1674,3 +1674,16 @@ Two layout fixes from review screenshots; no behaviour changed.
   this change), and Prettier on the changed files. Viewed both layouts at 1280 px and 360 px in a
   static page built from the real `globals.css` and fonts, because the local app cannot start
   without Clerk keys in `.env.local`.
+
+### 2026-10-03 follow-up: profile picture editor matches (`main`)
+
+- **Change your picture** (`src/components/avatar-editor.tsx`): Rotate left, Rotate right and
+  Reset are three equal buttons under the photo (two plus a full-width Reset at phone width).
+  Zoom and Straighten span the width with their value beside them (`100%`, `0°`). Choose another
+  sits left and Save picture right in a ruled footer. The doubled form margins are removed.
+- Both picture editors' sliders now use `slider-field__row` with an `<output>`, as the stylesheet's
+  slider rule asks: the value is shown as text, not only as a thumb position.
+- The ruled footer is shared as `dialog__actions--ruled`, with `dialog__actions-aside` for a
+  secondary choice held left; `pixel-editor__footer` and `pixel-editor__zoom` are gone.
+- Checked as before: typecheck, lint, build, 1881 tests (the same 122 older unhandled errors), and
+  both dialogs viewed at 1280 px and 360 px in the static `globals.css` page.

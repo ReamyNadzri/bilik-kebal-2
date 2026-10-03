@@ -3084,11 +3084,6 @@ textarea.form-field__input {
   gap: var(--space-3);
 }
 
-.pixel-editor__zoom {
-  display: block;
-  width: 100%;
-}
-
 /* Three equal pixel sizes on one row; stacked on a phone. */
 .pixel-editor__grids {
   display: grid;
@@ -3113,12 +3108,6 @@ textarea.form-field__input {
 
 .pixel-editor__retro {
   justify-self: start;
-}
-
-.pixel-editor__footer {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: var(--border-width-1) solid var(--border-subtle);
 }
 
 @media (max-width: 30rem) {
@@ -6109,6 +6098,19 @@ textarea.form-field__input {
   gap: var(--space-2);
 }
 
+/* The closing row of a dialog whose body holds its own controls: ruled off
+   so the final choice is never mistaken for one of the tools above it. */
+.dialog__actions--ruled {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+/* A secondary choice held to the left, away from the final one. */
+.dialog__actions-aside {
+  margin-right: auto;
+}
+
 .dialog__stack {
   display: flex;
   flex-direction: column;
@@ -7646,8 +7648,26 @@ textarea.form-field__input {
   outline-offset: -2px;
 }
 
+/* The body's gap spaces the controls, so their usual form margins go. */
+.avatar-editor > .form-field {
+  margin: 0;
+}
+
+/* Rotate left, Rotate right and Reset as three equal buttons. */
 .avatar-editor__tools {
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+@media (max-width: 30rem) {
+  .avatar-editor__tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .avatar-editor__tools > :last-child {
+    grid-column: 1 / -1;
+  }
 }
 
 /* --------------------------------------------------------------------------
