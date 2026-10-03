@@ -1526,3 +1526,11 @@ Deploy order: **migration, then the app straight after.** The new profile read n
 after the migration would fail the whole inbox for anyone who receives a new kind (the inbox parses
 kinds with the contract enum), so keep the gap to minutes, ideally with no refund queued in it. Not
 verified: `supabase/tests/local/refund_notices.sql` (no local Postgres).
+
+### 2026-10-03 follow-up: Owner-only record buttons (`claude/refund-button-owner-only`)
+
+- A Platform Sheriff saw "Process refund" (and "Record payout") in `/console/operations`; the
+  server already refused them (`record_owner_refund_completion` / payout completion are Owner
+  only). The page now reads the console role on the server and passes `isOwner`; for anyone else
+  the queues stay visible read-only and the action cell reads "Recorded by the Owner". Access
+  control is unchanged: hiding the button is presentation, the server check remains the rule.

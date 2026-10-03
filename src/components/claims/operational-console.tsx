@@ -22,9 +22,12 @@ function refusalMessage(body: unknown, fallback: string): string {
 
 export function OperationalConsole({
   initialTab = "payouts",
+  isOwner = false,
 }: {
   /** The queue shown first, e.g. refunds when opened from a refund notice. */
   readonly initialTab?: OperationsTab;
+  /** Shows the Owner-only record buttons; the server refuses anyone else regardless. */
+  readonly isOwner?: boolean;
 } = {}) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({
@@ -165,11 +168,21 @@ export function OperationalConsole({
 
       <div role="tabpanel" id={`ops-panel-${activeTab}`} aria-labelledby={`ops-tab-${activeTab}`}>
         {activeTab === "payouts" && (
-          <OwnerPayoutQueue tasks={payouts} isLoading={isLoading} onRefresh={loadData} />
+          <OwnerPayoutQueue
+            canRecord={isOwner}
+            tasks={payouts}
+            isLoading={isLoading}
+            onRefresh={loadData}
+          />
         )}
 
         {activeTab === "refunds" && (
-          <OwnerRefundQueue tasks={refunds} isLoading={isLoading} onRefresh={loadData} />
+          <OwnerRefundQueue
+            canRecord={isOwner}
+            tasks={refunds}
+            isLoading={isLoading}
+            onRefresh={loadData}
+          />
         )}
 
         {activeTab === "expiry" && (

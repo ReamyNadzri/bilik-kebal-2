@@ -56,3 +56,17 @@ test("a refund notice's link opens the refunds queue with its pending rows", asy
   expect(within(panel).getByText("Farid Backer")).toBeInTheDocument();
   expect(within(panel).getByText("Pending", { selector: ".status-stamp" })).toBeInTheDocument();
 });
+
+test("a Sheriff sees pending refunds but not the Owner-only Process refund button", async () => {
+  stubQueues([pendingRefund]);
+  render(<OperationalConsole initialTab="refunds" />);
+  expect(await screen.findByText("Farid Backer")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /process refund/i })).not.toBeInTheDocument();
+  expect(screen.getByText("Recorded by the Owner")).toBeInTheDocument();
+});
+
+test("the Owner gets the Process refund button", async () => {
+  stubQueues([pendingRefund]);
+  render(<OperationalConsole initialTab="refunds" isOwner />);
+  expect(await screen.findByRole("button", { name: /process refund/i })).toBeInTheDocument();
+});
