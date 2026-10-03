@@ -237,50 +237,7 @@ export function PixelPictureEditor({
               </figure>
             </div>
 
-            <div className="form-field slider-field">
-              <label className="form-field__label" htmlFor="pixel-zoom">
-                Zoom
-              </label>
-              <input
-                className="slider"
-                id="pixel-zoom"
-                type="range"
-                min={1}
-                max={4}
-                step={0.01}
-                value={framing.zoom}
-                aria-valuetext={`${Math.round(framing.zoom * 100)}%`}
-                onChange={(event) => setFraming({ ...framing, zoom: Number(event.target.value) })}
-              />
-            </div>
-
-            <fieldset className="draft-form__fieldset">
-              <legend className="draft-form__legend">Pixel size</legend>
-              <div className="draft-form__choices">
-                {PIXEL_GRIDS.map((grid) => (
-                  <label className="draft-form__choice" key={grid.cells}>
-                    <input
-                      type="radio"
-                      name="pixel-grid"
-                      checked={cells === grid.cells}
-                      onChange={() => setCells(grid.cells)}
-                    />
-                    {grid.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <label className="draft-form__choice">
-              <input
-                type="checkbox"
-                checked={retro}
-                onChange={(event) => setRetro(event.target.checked)}
-              />
-              Retro colours (fewer shades, like an old game)
-            </label>
-
-            <div className="dialog__actions">
+            <div className="pixel-editor__tools">
               <button
                 type="button"
                 className="button button--quiet button--compact"
@@ -296,10 +253,58 @@ export function PixelPictureEditor({
                 Choose another image
               </button>
             </div>
+
+            <div className="form-field">
+              <label className="form-field__label" htmlFor="pixel-zoom">
+                Zoom
+              </label>
+              <input
+                className="slider pixel-editor__zoom"
+                id="pixel-zoom"
+                type="range"
+                min={1}
+                max={4}
+                step={0.01}
+                value={framing.zoom}
+                aria-valuetext={`${Math.round(framing.zoom * 100)}%`}
+                onChange={(event) => setFraming({ ...framing, zoom: Number(event.target.value) })}
+              />
+            </div>
+
+            <fieldset className="draft-form__fieldset">
+              <legend className="draft-form__legend">Pixel size</legend>
+              <div className="pixel-editor__grids">
+                {PIXEL_GRIDS.map((grid) => (
+                  <label className="draft-form__choice pixel-editor__grid" key={grid.cells}>
+                    <input
+                      type="radio"
+                      name="pixel-grid"
+                      checked={cells === grid.cells}
+                      onChange={() => setCells(grid.cells)}
+                    />
+                    <span className="pixel-editor__grid-text">
+                      {grid.name}{" "}
+                      <span className="pixel-editor__grid-size">
+                        {grid.cells} × {grid.cells}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <label className="draft-form__choice pixel-editor__retro">
+              <input
+                type="checkbox"
+                checked={retro}
+                onChange={(event) => setRetro(event.target.checked)}
+              />
+              Retro colours (fewer shades, like an old game)
+            </label>
           </div>
         )}
 
-        <div className="dialog__actions">
+        <div className="dialog__actions pixel-editor__footer">
           <button type="button" className="button button--quiet" onClick={onClose} disabled={busy}>
             Cancel
           </button>

@@ -1655,3 +1655,22 @@ Open questions (not decided; nothing was assumed):
 - The Owner is not notified of a new privacy request, and the member is not notified of the answer
   (inbox kinds unchanged); both see it on their pages.
 - The HitPay integration itself: the code still uses the ToyyibPay adapter.
+
+## 2026-10-03 — Picture editor buttons and profile name hint (`main`)
+
+Two layout fixes from review screenshots; no behaviour changed.
+
+- **Pixel picture editor** (`src/components/pixel-picture-editor.tsx`, used for both Wanted pictures
+  and the profile picture): the old layout had two right-aligned rows of buttons that wrapped
+  unevenly. Now Reset crop and Choose another image sit one under each picture, the Zoom slider
+  spans the full width, the three pixel sizes are equal tiles on one row (name over size; stacked
+  at phone width), Retro colours is no longer full width, and Cancel and Use this picture sit
+  alone in a ruled footer. The doubled form margins inside the body are removed. `PIXEL_GRIDS`
+  now carries `name` instead of `label`; the size is rendered from `cells`.
+- **Profile "Your details"**: the "You can change it N more times" hint now sits under the
+  Display name input (`form-field__hint--after`), so the Display name and Email inputs line up.
+- Checked: `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm test` (230 files, 1881 tests; the
+  122 unhandled errors from the board, home and map page tests are older and identical without
+  this change), and Prettier on the changed files. Viewed both layouts at 1280 px and 360 px in a
+  static page built from the real `globals.css` and fonts, because the local app cannot start
+  without Clerk keys in `.env.local`.

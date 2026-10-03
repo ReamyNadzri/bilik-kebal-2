@@ -2,9 +2,9 @@ import { WANTED_PICTURE_SIZE_PX } from "@/contracts/wanted-pictures";
 
 /** How coarse the pixel grid of an uploaded Wanted picture is: cells per side. */
 export const PIXEL_GRIDS = [
-  { cells: 16, label: "Chunky (16 × 16)" },
-  { cells: 24, label: "Classic (24 × 24)" },
-  { cells: 32, label: "Fine (32 × 32)" },
+  { cells: 16, name: "Chunky" },
+  { cells: 24, name: "Classic" },
+  { cells: 32, name: "Fine" },
 ] as const;
 export type PixelGrid = (typeof PIXEL_GRIDS)[number]["cells"];
 

@@ -2280,6 +2280,10 @@ textarea {
   color: var(--text-muted);
 }
 
+.form-field__hint--after {
+  margin: var(--space-2) 0 0;
+}
+
 .form-field__error {
   margin: 0 0 var(--space-2);
   font-size: var(--text-sm);
@@ -3065,6 +3069,66 @@ textarea.form-field__input {
 .pixel-editor__caption {
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* The body's gap spaces the controls, so their usual form margins go. */
+.pixel-editor__body > .form-field,
+.pixel-editor__body > .draft-form__fieldset {
+  margin: 0;
+}
+
+/* Reset crop and Choose another image sit one under each picture. */
+.pixel-editor__tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+}
+
+.pixel-editor__zoom {
+  display: block;
+  width: 100%;
+}
+
+/* Three equal pixel sizes on one row; stacked on a phone. */
+.pixel-editor__grids {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.pixel-editor__grid {
+  padding-inline: var(--space-3);
+}
+
+.pixel-editor__grid-text {
+  display: grid;
+  line-height: 1.25;
+}
+
+.pixel-editor__grid-size {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.pixel-editor__retro {
+  justify-self: start;
+}
+
+.pixel-editor__footer {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-width-1) solid var(--border-subtle);
+}
+
+@media (max-width: 30rem) {
+  .pixel-editor__grids {
+    grid-template-columns: 1fr;
+  }
+
+  .pixel-editor__grid-text {
+    display: block;
+  }
 }
 
 .picture-controls {

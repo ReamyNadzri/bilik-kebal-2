@@ -302,13 +302,6 @@ export function ProfileSettings({
               <label className="form-field__label" htmlFor="profile-display-name">
                 Display name
               </label>
-              {namesLeft === null ? null : (
-                <p className="form-field__hint" id="profile-display-name-hint">
-                  {nameLocked
-                    ? "You have used your name changes. A name change code adds more."
-                    : `You can change it ${namesLeft} more time${namesLeft === 1 ? "" : "s"}.`}
-                </p>
-              )}
               <input
                 className="form-field__input"
                 id="profile-display-name"
@@ -320,6 +313,17 @@ export function ProfileSettings({
                 aria-describedby={namesLeft === null ? undefined : "profile-display-name-hint"}
                 onChange={(event) => setDisplayName(event.target.value)}
               />
+              {/* Under the input, so it lines up with the email beside it. */}
+              {namesLeft === null ? null : (
+                <p
+                  className="form-field__hint form-field__hint--after"
+                  id="profile-display-name-hint"
+                >
+                  {nameLocked
+                    ? "You have used your name changes. A name change code adds more."
+                    : `You can change it ${namesLeft} more time${namesLeft === 1 ? "" : "s"}.`}
+                </p>
+              )}
             </div>
             <div className="form-field">
               <label className="form-field__label" htmlFor="profile-email">
