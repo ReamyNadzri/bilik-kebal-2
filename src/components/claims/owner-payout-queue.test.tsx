@@ -56,7 +56,7 @@ describe("OwnerPayoutQueue", () => {
   });
 
   it("renders task rows with correct money calculations in RM", () => {
-    render(<OwnerPayoutQueue tasks={mockTasks} />);
+    render(<OwnerPayoutQueue canRecord tasks={mockTasks} />);
 
     expect(screen.getByText("Ahmad Albab")).toBeInTheDocument();
     // The Hunter is paid the whole bounty; the fee was paid on top by the Backers.
@@ -73,7 +73,7 @@ describe("OwnerPayoutQueue", () => {
 
   it("opens modal and submits payout completion successfully", async () => {
     const onCompletePayout = vi.fn().mockResolvedValue({ ok: true });
-    render(<OwnerPayoutQueue tasks={mockTasks} onCompletePayout={onCompletePayout} />);
+    render(<OwnerPayoutQueue canRecord tasks={mockTasks} onCompletePayout={onCompletePayout} />);
 
     const disburseBtn = screen.getByRole("button", {
       name: /complete payout for rm 50\.00/i,
@@ -107,7 +107,7 @@ describe("OwnerPayoutQueue", () => {
   });
 
   it("displays validation error when reference is too short", async () => {
-    render(<OwnerPayoutQueue tasks={mockTasks} />);
+    render(<OwnerPayoutQueue canRecord tasks={mockTasks} />);
 
     const disburseBtn = screen.getByRole("button", {
       name: /complete payout for rm 50\.00/i,
@@ -123,5 +123,12 @@ describe("OwnerPayoutQueue", () => {
     expect(
       screen.getByText(/external reference must be at least 3 characters/i),
     ).toBeInTheDocument();
+  });
+
+  it("hides the Owner-only Record payout button from a Sheriff", () => {
+    render(<OwnerPayoutQueue tasks={mockTasks} />);
+    expect(screen.getByText("Ahmad Albab", { selector: "td *, td" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /complete payout/i })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Recorded by the Owner").length).toBeGreaterThan(0);
   });
 });
