@@ -1687,3 +1687,28 @@ Two layout fixes from review screenshots; no behaviour changed.
   secondary choice held left; `pixel-editor__footer` and `pixel-editor__zoom` are gone.
 - Checked as before: typecheck, lint, build, 1881 tests (the same 122 older unhandled errors), and
   both dialogs viewed at 1280 px and 360 px in the static `globals.css` page.
+
+## 2026-10-08 second background track: Dead or Alive (`claude/second-theme-track`)
+
+Request (user, 2026-10-08): "It should be only one background music; now add the Dead or Alive loop, so it
+will have two background musics." Then: "After putting in the background music, push to main."
+
+- `public/audio/vaultix-dead-or-alive-loop.mp3` (1.94 MB, 128 kbps, 44.1 kHz, 121.349 s): the user's chase
+  song extended to a seamless 119.349 s loop (source only, no added parts), with one second of the loop on
+  each side like the theme. Built in `brag-output-2026-10-02-music/work/t6x/build_loop.py` (not committed;
+  keep it to re-render) and turned down 3.5 dB to sit with the theme (-17.9 vs -17.5 LUFS).
+- `ThemeMusic` plays `THEME_TRACKS` in turn (theme, Dead or Alive, theme ...) instead of looping one file.
+  Each lap is its own `AudioBufferSourceNode` with its own gain, scheduled on the audio clock 5 s ahead by
+  a 1 s interval; handovers are 1 s crossfades inside the files' one-second margins. The next file is
+  fetched while the current one plays; if it fails, the current track goes round again (a seamless
+  self-handover) and the next is retried. Only the first file's failure reaches the status message.
+  `THEME_TRACK` becomes `THEME_TRACKS`. The toggle, mute, hidden-tab pause and unlock behaviour are
+  unchanged.
+- Ownership of the Dead or Alive recording is not confirmed (it came as an MP3 from the user); recorded
+  here as an open question before any public launch.
+- Verified: theme-music suite 26 tests (5 new: two tracks, first lap and prefetch, handover crossfade
+  timings, back to the theme, fallback when the next file fails, no scheduling after unmount); full suite
+  230 files / 1886 tests; typecheck; lint. Decoding the new MP3: seam step 0.073 against an in-loop 99.9th
+  percentile of 0.080; the margins match the loop at 0.997-0.998. Not verified in a browser (the browser
+  connection was unavailable this session).
+

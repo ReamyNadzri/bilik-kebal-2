@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
-import { THEME_PREFERENCE_KEY, THEME_TRACK, ThemeMusic } from "./theme-music";
+import { THEME_PREFERENCE_KEY, THEME_TRACKS, ThemeMusic } from "./theme-music";
 
 const detachEffects = vi.hoisted(() => vi.fn());
 vi.mock("./sound-effects", () => ({
@@ -12,12 +12,14 @@ vi.mock("./sound-effects", () => ({
  * jsdom has no Web Audio, so a fake context stands in: `allowed` is the
  * browser's autoplay policy (a refused `resume()` stays pending, as it does in
  * Chrome), `active` is whether the visitor has already interacted with the
- * page, and `fetchOk` decides whether the file arrives.
+ * page, `fetchOk` decides whether the files arrive and `failing` lists any
+ * single file that does not.
  */
 const audio = vi.hoisted(() => ({
   allowed: false,
   active: false,
   fetchOk: true,
+  failing: new Set<string>(),
   contexts: [] as FakeAudioContext[],
 }));
 
@@ -32,20 +34,35 @@ class FakeParam {
   });
 }
 
+class FakeGain {
+  gain = new FakeParam();
+  connect = vi.fn();
+  disconnect = vi.fn();
+}
+
+/** What the fake decoder hands back: which file it came from. */
+interface FakeBuffer {
+  readonly duration: number;
+  readonly src: string;
+}
+
 class FakeSource {
-  buffer: unknown = null;
+  buffer: FakeBuffer | null = null;
   loop = false;
   loopStart = 0;
   loopEnd = 0;
+  onended: (() => void) | null = null;
   connect = vi.fn();
+  disconnect = vi.fn();
   start = vi.fn();
+  stop = vi.fn();
 }
 
 class FakeAudioContext extends EventTarget {
   state: "suspended" | "running" | "closed" = "suspended";
   currentTime = 10;
   destination = {};
-  gainNode = { gain: new FakeParam(), connect: vi.fn() };
+  gains: FakeGain[] = [];
   sources: FakeSource[] = [];
 
   constructor() {
@@ -53,8 +70,17 @@ class FakeAudioContext extends EventTarget {
     audio.contexts.push(this);
   }
 
+  /** The first gain made is the theme's master; each track's voice gets its own after it. */
+  get gainNode() {
+    const master = this.gains[0];
+    if (master === undefined) throw new Error("No gain was created");
+    return master;
+  }
+
   createGain() {
-    return this.gainNode;
+    const gain = new FakeGain();
+    this.gains.push(gain);
+    return gain;
   }
 
   createBufferSource() {
@@ -79,8 +105,8 @@ class FakeAudioContext extends EventTarget {
     return Promise.resolve();
   }
 
-  decodeAudioData() {
-    return Promise.resolve({ duration: 122 });
+  decodeAudioData(data: { src: string }): Promise<FakeBuffer> {
+    return Promise.resolve({ duration: 122, src: data.src });
   }
 
   private setState(state: FakeAudioContext["state"]) {
@@ -90,16 +116,21 @@ class FakeAudioContext extends EventTarget {
   }
 }
 
-const fetchMock = vi.fn(async () =>
-  audio.fetchOk
-    ? { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(8) }
-    : { ok: false, status: 500, arrayBuffer: async () => new ArrayBuffer(0) },
+const fetchMock = vi.fn(async (src: string) =>
+  audio.fetchOk && !audio.failing.has(src)
+    ? { ok: true, status: 200, arrayBuffer: async () => ({ src }) }
+    : { ok: false, status: 500, arrayBuffer: async () => ({ src }) },
 );
+
+function fetchesOf(src: string) {
+  return fetchMock.mock.calls.filter(([called]) => called === src).length;
+}
 
 beforeEach(() => {
   audio.allowed = false;
   audio.active = false;
   audio.fetchOk = true;
+  audio.failing = new Set();
   audio.contexts = [];
   fetchMock.mockClear();
   detachEffects.mockClear();
@@ -146,20 +177,107 @@ test("offers a Music toggle and does not fetch the file until it plays", async (
   expect(audio.contexts).toHaveLength(0);
 });
 
-test("loops the one theme without a gap, between the loop points inside the file", async () => {
+const [THEME, DEAD_OR_ALIVE] = THEME_TRACKS;
+const lap = (track: (typeof THEME_TRACKS)[number]) => track.loopEnd - track.loopStart;
+
+/** Moves the fake clock to `seconds` and lets the scheduler look ahead. */
+async function playUntil(seconds: number) {
+  context().currentTime = seconds;
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1000);
+  });
+}
+
+test("there are two background tracks: the VAULTIX theme, then Dead or Alive", () => {
+  expect(THEME_TRACKS.map((track) => track.title)).toEqual(["VAULTIX Theme", "Dead or Alive"]);
+});
+
+test("starts with the theme from its loop point, and fetches the next track while it plays", async () => {
   audio.active = true;
   audio.allowed = true;
   await renderMusic();
 
-  expect(fetchMock).toHaveBeenCalledWith(THEME_TRACK.src);
   expect(context().sources).toHaveLength(1);
   const [source] = context().sources;
-  expect(source).toMatchObject({
-    loop: true,
-    loopStart: THEME_TRACK.loopStart,
-    loopEnd: THEME_TRACK.loopEnd,
+  expect(source?.buffer?.src).toBe(THEME.src);
+  expect(source?.start).toHaveBeenCalledWith(10, THEME.loopStart);
+  expect(fetchesOf(THEME.src)).toBe(1);
+  expect(fetchesOf(DEAD_OR_ALIVE.src)).toBe(1);
+});
+
+test("hands over to the next track at the end of the lap, crossfading inside the files' margins", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  audio.active = true;
+  audio.allowed = true;
+  await renderMusic();
+  const handover = 10 + lap(THEME);
+
+  await playUntil(handover - 10);
+  expect(context().sources).toHaveLength(1); // not yet: it schedules a few seconds ahead
+
+  await playUntil(handover - 4);
+  expect(context().sources).toHaveLength(2);
+  const [first, second] = context().sources;
+  expect(second?.buffer?.src).toBe(DEAD_OR_ALIVE.src);
+  // Half a second either side of the handover, inside the second of loop each file carries.
+  expect(second?.start).toHaveBeenCalledWith(handover - 0.5, DEAD_OR_ALIVE.loopStart - 0.5);
+  expect(first?.stop).toHaveBeenCalledWith(handover + 0.5);
+  const [, firstVoice, secondVoice] = context().gains;
+  expect(firstVoice?.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, handover + 0.5);
+  expect(secondVoice?.gain.setValueAtTime).toHaveBeenCalledWith(0, handover - 0.5);
+  expect(secondVoice?.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, handover + 0.5);
+});
+
+test("comes back to the theme after the last track", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  audio.active = true;
+  audio.allowed = true;
+  await renderMusic();
+  const first = 10 + lap(THEME);
+  const second = first + lap(DEAD_OR_ALIVE);
+
+  await playUntil(first - 4);
+  await playUntil(second - 4);
+
+  expect(context().sources).toHaveLength(3);
+  const third = context().sources[2];
+  expect(third?.buffer?.src).toBe(THEME.src);
+  expect(third?.start).toHaveBeenCalledWith(second - 0.5, THEME.loopStart - 0.5);
+});
+
+test("when the next track cannot be loaded, the theme goes round again without a gap", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  audio.active = true;
+  audio.allowed = true;
+  audio.failing.add(DEAD_OR_ALIVE.src);
+  await renderMusic();
+  const handover = 10 + lap(THEME);
+
+  await playUntil(handover - 4);
+
+  expect(context().sources).toHaveLength(2);
+  const again = context().sources[1];
+  expect(again?.buffer?.src).toBe(THEME.src);
+  expect(again?.start).toHaveBeenCalledWith(handover - 0.5, THEME.loopStart - 0.5);
+  // Only the first file's failure is worth telling the visitor about.
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  expect(toggle()).toHaveAttribute("aria-pressed", "true");
+});
+
+test("stops scheduling tracks once the shell unmounts", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  audio.active = true;
+  audio.allowed = true;
+  const { unmount } = await renderMusic();
+  const made = context();
+
+  unmount();
+  made.currentTime = 10 + lap(THEME) - 4;
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
   });
-  expect(source?.start).toHaveBeenCalledWith(0, THEME_TRACK.loopStart);
+
+  expect(made.sources).toHaveLength(1);
 });
 
 test("plays straight away when the visitor has already interacted with the page", async () => {
@@ -222,7 +340,7 @@ test("one press that fires several gesture events starts the theme once", async 
 
   expect(audio.contexts).toHaveLength(1);
   expect(context().sources).toHaveLength(1);
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchesOf(THEME.src)).toBe(1);
 });
 
 test("does not start on Escape, which is not a gesture that unlocks sound", async () => {
@@ -275,7 +393,7 @@ test("turning it off mutes the theme only, and is remembered on the next visit",
   // Sound is unlocked for the effects, but the theme is neither fetched nor started.
   expect(context().state).toBe("running");
   expect(context().sources).toHaveLength(0);
-  expect(fetchMock).not.toHaveBeenCalledWith(THEME_TRACK.src);
+  expect(fetchMock).not.toHaveBeenCalled();
 });
 
 test("with the music muted, sound effects still have a running context", async () => {
@@ -308,7 +426,7 @@ test("turning it back on carries on from where it stopped instead of starting ov
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
   expect(context().state).toBe("running");
   expect(context().sources).toHaveLength(1);
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(fetchesOf(THEME.src)).toBe(1);
 });
 
 test("a later interaction does not restart it after the visitor turned it off", async () => {
@@ -382,7 +500,7 @@ test("says so when the file cannot be loaded, and pressing Music tries again", a
     fireEvent.click(toggle());
   });
 
-  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(fetchesOf(THEME.src)).toBe(2);
   expect(toggle()).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });

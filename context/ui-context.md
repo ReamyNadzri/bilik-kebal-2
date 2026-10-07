@@ -59,17 +59,22 @@ No component may hardcode a final colour value. Temporary development tokens mus
 
 ## Sound
 
-- The sound is the provisional theme and three short effects. The theme is one original two-minute loop,
-  `public/audio/vaultix-theme-loop.mp3`, grown from the brag videos' spaghetti-western cue (A minor,
-  120 BPM, whistle, fingerpicked guitar, gallop drums) and synthesised with no samples. It runs on
-  without a break: the end leads straight back into the whistle hook, with no fade and no silence.
-  The handoff may replace `THEME_TRACK`; the component (`src/components/theme-music.tsx`) does not
-  change.
-- It plays through Web Audio, not an `<audio loop>` element, because an element leaves a short
-  gap at every lap. The file carries one second of the loop on each side and the player loops
-  between 1.0 s and 121.0 s (`loopStart`/`loopEnd`), so the seam lands on the same sample
-  whatever delay the MP3 decoder adds. A replacement file must keep that layout or change the
-  loop points.
+- The sound is two provisional background tracks and three short effects. The tracks play in turn,
+  one two-minute lap each, round and round: the VAULTIX theme, `public/audio/vaultix-theme-loop.mp3`,
+  grown from the brag videos' spaghetti-western cue (A minor, 120 BPM, whistle, fingerpicked guitar,
+  gallop drums) and synthesised with no samples; then Dead or Alive,
+  `public/audio/vaultix-dead-or-alive-loop.mp3` (A minor, 140 BPM, a guitar intro and a gallop),
+  the user's supplied chase song extended to a 1:59 loop. Both are matched in loudness (about
+  -17.5 LUFS). Neither has a fade or a silence, and neither does a handover.
+  The handoff may replace `THEME_TRACKS`; the component (`src/components/theme-music.tsx`) does
+  not change.
+- It plays through Web Audio, not an `<audio>` element, because an element leaves a short gap at
+  every lap. Each file carries one second of its loop on each side; a lap runs from `loopStart`
+  (1.0 s) to `loopEnd` (121.0 s for the theme, 120.34893 s for Dead or Alive) whatever delay the
+  MP3 decoder adds. Each handover is scheduled on the audio clock a few seconds ahead, as a
+  one-second crossfade inside those margins. If the next file cannot be loaded, the current track
+  goes round again seamlessly and the next one is tried at the following handover. A replacement
+  file must keep that layout or change the loop points.
 - It plays behind every screen and carries on across navigation. It is on by default: browsers
   refuse sound until the visitor interacts, so it starts on the visitor's first click, tap or key
   press, fading in. Web Audio does not appear in the operating system's media controls.

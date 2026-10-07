@@ -14,14 +14,18 @@ import { PixelIcon } from "./pixel-icon";
 import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
 
 /**
- * The VAULTIX theme behind every screen: one original two-minute loop that
- * runs on without a break.
+ * The music behind every screen: two-minute loops played in turn, the VAULTIX
+ * theme and then Dead or Alive, round and round without a break.
  *
- * It plays through Web Audio rather than an `<audio loop>` element, because an
+ * It plays through Web Audio rather than an `<audio>` element, because an
  * element leaves a short gap at every lap (the MP3's padding and the seek back
- * to the start). The file carries one second of the loop on each side, so the
- * buffer loops between `loopStart` and `loopEnd` and lands on the same sample
- * whatever delay the decoder added.
+ * to the start). Each file carries one second of its loop on each side, so a
+ * lap runs from `loopStart` to `loopEnd` whatever delay the decoder added, and
+ * every handover is scheduled on the audio clock a few seconds ahead: the next
+ * track fades in over the last half second of the lap while this one fades out
+ * over the first half second of its margin. The second of loop on each side
+ * makes that crossfade seamless even when a track hands over to itself, which
+ * is what happens when the next file cannot be loaded.
  *
  * Mounted once in the shell, which the root layout keeps across client-side
  * navigation, so the music carries on from page to page instead of
@@ -43,24 +47,38 @@ import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
  * while the tab is hidden.
  *
  * Provisional audio, like every other provisional brand asset: the designer's
- * handoff replaces `THEME_TRACK` without touching this component.
+ * handoff replaces `THEME_TRACKS` without touching this component.
  *
  * The one audio graph lives in `ThemeMusicProvider`; any number of
  * `ThemeMusicToggle`s drive it. The desktop rail and the compact menu each
  * show one, and only one is ever displayed at a time.
  */
-export const THEME_TRACK = {
-  src: "/audio/vaultix-theme-loop.mp3",
-  title: "VAULTIX Theme",
-  /** Seconds into the file where the seamless loop begins and ends. */
-  loopStart: 1,
-  loopEnd: 121,
-} as const;
+export const THEME_TRACKS = [
+  {
+    src: "/audio/vaultix-theme-loop.mp3",
+    title: "VAULTIX Theme",
+    /** Seconds into the file where the seamless loop begins and ends. */
+    loopStart: 1,
+    loopEnd: 121,
+  },
+  {
+    src: "/audio/vaultix-dead-or-alive-loop.mp3",
+    title: "Dead or Alive",
+    loopStart: 1,
+    loopEnd: 120.34893,
+  },
+] as const;
+type ThemeTrack = (typeof THEME_TRACKS)[number];
 export const THEME_PREFERENCE_KEY = "vaultix.themeMusic";
 
 const TARGET_VOLUME = 0.45;
 const FADE_SECONDS = 1.5;
 const MUTE_FADE_SECONDS = 0.3;
+/** The handover crossfade; half of it on each side, inside the files' one-second margins. */
+const CROSSFADE_SECONDS = 1;
+/** How far ahead of a handover the next track is scheduled on the audio clock. */
+const LOOKAHEAD_SECONDS = 5;
+const SCHEDULER_INTERVAL_MS = 1000;
 /** How long to wait for the browser to allow sound before treating it as refused. */
 const RESUME_TIMEOUT_MS = 400;
 /** The events a browser accepts as the gesture that unlocks sound. */
@@ -103,6 +121,54 @@ function writeEnabled(enabled: boolean) {
 const TOGGLE_ATTRIBUTE = "data-theme-music-toggle";
 const STATUS_ID = "theme-music-status";
 
+/** The track whose lap was scheduled last, and the audio-clock time that lap hands over. */
+interface ScheduledLap {
+  readonly index: number;
+  readonly handover: number;
+}
+
+function nextIndex(index: number): number {
+  return (index + 1) % THEME_TRACKS.length;
+}
+
+/**
+ * One lap of `track` into `output`, starting at `at` on the audio clock. With
+ * `crossfade`, it enters half a crossfade early from inside the file's margin.
+ * Resolves the time the lap hands over to the next one.
+ */
+function scheduleLap(
+  context: AudioContext,
+  output: AudioNode,
+  track: ThemeTrack,
+  buffer: AudioBuffer,
+  at: number,
+  crossfade: boolean,
+): number {
+  const half = CROSSFADE_SECONDS / 2;
+  const lapEnd = Math.min(track.loopEnd, buffer.duration - half);
+  const handover = at + (lapEnd - track.loopStart);
+  const voice = context.createGain();
+  voice.connect(output);
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(voice);
+  if (crossfade) {
+    voice.gain.setValueAtTime(0, at - half);
+    voice.gain.linearRampToValueAtTime(1, at + half);
+    source.start(at - half, track.loopStart - half);
+  } else {
+    source.start(at, track.loopStart);
+  }
+  voice.gain.setValueAtTime(1, handover - half);
+  voice.gain.linearRampToValueAtTime(0, handover + half);
+  source.stop(handover + half);
+  source.onended = () => {
+    source.disconnect();
+    voice.disconnect();
+  };
+  return handover;
+}
+
 interface ThemeMusicContextValue {
   readonly playing: boolean;
   readonly toggle: () => void;
@@ -130,8 +196,10 @@ function whenRunning(context: AudioContext, timeoutMs: number): Promise<boolean>
 export function ThemeMusicProvider({ children }: { readonly children: ReactNode }) {
   const contextRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const bufferRef = useRef<Promise<AudioBuffer> | null>(null);
+  const lapRef = useRef<ScheduledLap | null>(null);
+  const schedulerRef = useRef<number | null>(null);
+  const pendingRef = useRef(new Map<number, Promise<AudioBuffer>>());
+  const loadedRef = useRef(new Map<number, AudioBuffer>());
   const startingRef = useRef<Promise<PlayResult> | null>(null);
   const enabledRef = useRef(true);
   const resumeOnShowRef = useRef(false);
@@ -139,21 +207,56 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const loadBuffer = useCallback((context: AudioContext): Promise<AudioBuffer> => {
-    if (bufferRef.current !== null) return bufferRef.current;
-    const pending = fetch(THEME_TRACK.src)
+  const loadBuffer = useCallback((context: AudioContext, index: number): Promise<AudioBuffer> => {
+    const known = pendingRef.current.get(index);
+    if (known !== undefined) return known;
+    const track = THEME_TRACKS[index];
+    if (track === undefined) return Promise.reject(new Error(`No theme track ${index}`));
+    const pending = fetch(track.src)
       .then((response) => {
         if (!response.ok) throw new Error(`The theme music answered ${response.status}`);
         return response.arrayBuffer();
       })
       .then((data) => context.decodeAudioData(data));
-    // A failed load is forgotten, so pressing Music tries again.
-    pending.catch(() => {
-      if (bufferRef.current === pending) bufferRef.current = null;
-    });
-    bufferRef.current = pending;
+    pending.then(
+      (buffer) => loadedRef.current.set(index, buffer),
+      // A failed load is forgotten, so it is tried again: by Music, or at the next handover.
+      () => {
+        if (pendingRef.current.get(index) === pending) pendingRef.current.delete(index);
+      },
+    );
+    pendingRef.current.set(index, pending);
     return pending;
   }, []);
+
+  /** Fetches a track ahead of its turn; a failure only means the current one goes round again. */
+  const prefetch = useCallback(
+    (context: AudioContext, index: number) => {
+      loadBuffer(context, index).catch(() => undefined);
+    },
+    [loadBuffer],
+  );
+
+  /**
+   * Schedules the next lap a few seconds before the current one hands over:
+   * the next track if its file is here, otherwise the current one again.
+   */
+  const scheduleAhead = useCallback(() => {
+    const context = contextRef.current;
+    const gain = gainRef.current;
+    const lap = lapRef.current;
+    if (context === null || gain === null || lap === null) return;
+    if (context.currentTime < lap.handover - LOOKAHEAD_SECONDS) return;
+    const wanted = nextIndex(lap.index);
+    const ready = loadedRef.current.get(wanted);
+    const index = ready === undefined ? lap.index : wanted;
+    const buffer = ready ?? loadedRef.current.get(lap.index);
+    const track = THEME_TRACKS[index];
+    if (buffer === undefined || track === undefined) return;
+    const handover = scheduleLap(context, gain, track, buffer, lap.handover, true);
+    lapRef.current = { index, handover };
+    prefetch(context, ready === undefined ? wanted : nextIndex(index));
+  }, [prefetch]);
 
   const start = useCallback(
     async (context: AudioContext, gain: GainNode): Promise<PlayResult> => {
@@ -163,7 +266,7 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
 
       let buffer: AudioBuffer;
       try {
-        buffer = await loadBuffer(context);
+        buffer = await loadBuffer(context, 0);
       } catch {
         setPlaying(false);
         setFailed(true);
@@ -175,15 +278,12 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
         return "blocked";
       }
 
-      if (sourceRef.current === null) {
-        const source = context.createBufferSource();
-        source.buffer = buffer;
-        source.loop = true;
-        source.loopStart = THEME_TRACK.loopStart;
-        source.loopEnd = Math.min(THEME_TRACK.loopEnd, buffer.duration);
-        source.connect(gain);
-        source.start(0, THEME_TRACK.loopStart);
-        sourceRef.current = source;
+      if (lapRef.current === null) {
+        const first = THEME_TRACKS[0];
+        const handover = scheduleLap(context, gain, first, buffer, context.currentTime, false);
+        lapRef.current = { index: 0, handover };
+        prefetch(context, nextIndex(0));
+        schedulerRef.current ??= window.setInterval(scheduleAhead, SCHEDULER_INTERVAL_MS);
       }
       const now = context.currentTime;
       gain.gain.cancelScheduledValues(now);
@@ -193,7 +293,7 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       setPlaying(true);
       return "playing";
     },
-    [loadBuffer],
+    [loadBuffer, prefetch, scheduleAhead],
   );
 
   /** The one AudioContext, created on first use, with the effects routed through it. */
@@ -321,7 +421,9 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       const context = contextRef.current;
       contextRef.current = null;
       gainRef.current = null;
-      sourceRef.current = null;
+      lapRef.current = null;
+      if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
+      schedulerRef.current = null;
       detachEffectsRef.current?.();
       detachEffectsRef.current = null;
       void context?.close();
