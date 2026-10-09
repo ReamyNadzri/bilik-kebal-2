@@ -286,6 +286,12 @@ export function DuelLobby({
               })}
             </ul>
           )}
+          {opponents.length === 0 ? null : (
+            <p className="duel-field__aside">
+              More hunters join this list once they have {DUEL_GHOST_MIN_SHOTS} clean shots, from
+              duels or practice. You never appear in your own list.
+            </p>
+          )}
         </section>
       </div>
       {footer}

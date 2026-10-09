@@ -93,6 +93,13 @@ describe("DuelLobby", () => {
     expect(props.onPractice).toHaveBeenCalledWith("hard");
   });
 
+  it("says when more hunters will join the list", () => {
+    renderLobby();
+    expect(
+      screen.getByText(/More hunters join this list once they have 5 clean shots/),
+    ).toBeInTheDocument();
+  });
+
   it("explains an empty opponent list", () => {
     renderLobby({ lobby: { ...lobby, opponents: [] } });
     expect(screen.getByText(/No ghosts to duel yet/)).toBeInTheDocument();
