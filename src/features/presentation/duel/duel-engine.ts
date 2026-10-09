@@ -637,12 +637,7 @@ export class DuelEngine {
     L.translate(O.x, O.y);
     L.scale(O.sc, O.sc);
     if (round.practice) {
-      const hit = round.winner === "you" && revT >= 0 ? revT : -1;
-      L.rotate(
-        hit >= 0
-          ? Math.sin(hit * 0.03) * 0.4 * Math.max(0, 1 - hit / 1100)
-          : Math.sin(t * 0.0018) * 0.04,
-      );
+      // The practice dummy stands still: no sway, no wobble when hit.
       if (this.dummy) {
         const hh = 62;
         const ww = (hh * this.dummy.naturalWidth) / this.dummy.naturalHeight;

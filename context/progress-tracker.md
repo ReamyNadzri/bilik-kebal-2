@@ -1720,7 +1720,8 @@ HTML prototype), and wire it to the system. Decisions from the user: real oppone
 (a member's ghost fires around their captured average, never faster than their captured fastest; no
 live presence), and the record **stored on the server per account**.
 
-- Migration `202610210001_duel.sql` (written, **not applied**): `duel_records`, `duel_rounds`,
+- Migration `202610210001_duel.sql` (applied to the `vaultix` project on 2026-10-09 by the user
+  through the SQL editor; recorded in `supabase_migrations.schema_migrations` by hand): `duel_records`, `duel_rounds`,
   `duel_practice_shots`, RLS own-row reads, writes only through security-definer functions
   `duel_record`, `list_duel_opponents`, `start_duel`, `finish_duel`, `record_duel_practice`,
   `set_duel_listing`, `reset_duel_record`. The database draws the ghost's time when a round opens and
@@ -1730,12 +1731,13 @@ live presence), and the record **stored on the server per account**.
 - A ghost is listed after 5 clean shots, while `listed` and not restricted; others see its name,
   picture, verified campus, average and fastest draw. Only the challenger's record changes.
 - `src/modules/duel` (service, repository, loader), `src/contracts/duel.ts`, routes under
-  `/api/duel`. The repository calls the new functions through a narrow untyped view until the
-  database types are regenerated; drop it then.
+  `/api/duel`. Database types carry the duel tables and functions (spliced in from the generated
+  types); `finish_duel.reaction_ms` and `record_duel_practice.reaction_ms` are nullable arguments.
 - Frontend: `/duel` page, lobby and full-screen stage (`src/components/duel`), canvas port of the
   prototype's live path (`src/features/presentation/duel`: art, rules, audio, engine). Dead prototype
   code (three.js renderer, side-view stand-off, weapon list) was not ported. Assets in `public/duel`
-  (`dark-timber` re-encoded to WebP, 1.8 MB to 92 KB). Press Start 2P is loaded only by the Duel.
+  (no lobby background of its own: the handoff's `dark-timber` is already the site's ground
+  texture, and a second copy showed as two backgrounds). Press Start 2P is loaded only by the Duel.
 - Deviations from the prototype, for safety or the backend: the intro flicker runs at 200 ms, not
   100 ms (WCAG 2.3.1, under three flashes a second); reduced motion removes the shake and softens the
   full-screen flashes; a press within 100 ms of the signal is a foul (README's PvP rule); the
@@ -1743,13 +1745,14 @@ live presence), and the record **stored on the server per account**.
   server decides it; leaving after a round is decided still records it (keepalive request).
 - Theme music: `useThemeMusicHold` silences the site theme while the Duel is mounted (a hold gain
   after the theme gain); the Duel's own track loops only in the lobby and follows the Music toggle.
-- Navigation: Duel joins the rail's Account group (pixel revolver icon) and the compact menu.
+- Way in: a "Duel at high noon" teaser on the front page (after the Hunters wall), not the
+  navigation (user, 2026-10-09). The practice dummy is static (user): no sway, no hit wobble.
 - Verified: migration and its assertions (`supabase/tests/local/duel.sql`) in PGlite against a stub
   of the identity tables (no local Postgres on this machine); full suite 233 files / 1922 tests;
   typecheck; lint; production build. Played in the browser on a fixture lobby with the API stubbed:
   intro, standoff, win, loss with the blood reveal, two fouls, rematch on Space, Escape returning
   focus, and a real refused write ("Sign in to duel.") on the result card.
-- Open questions: applying the migration to the Supabase project; whether practice shots should feed
+- Open questions: whether practice shots should feed
   the ghost's average (they do now, so a member can calibrate it); scripted presses of 100+ ms can
   still fake a fast ghost, as the browser measures the reaction (only a server-timed signal would
   stop that); retention of duel rows.

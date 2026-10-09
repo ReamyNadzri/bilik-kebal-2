@@ -941,6 +941,142 @@ export type Database = {
           },
         ];
       };
+      duel_practice_shots: {
+        Row: {
+          created_at: string;
+          foul: boolean;
+          hit: boolean;
+          id: string;
+          level: string;
+          reaction_ms: number | null;
+          target_ms: number;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          foul?: boolean;
+          hit: boolean;
+          id?: string;
+          level: string;
+          reaction_ms?: number | null;
+          target_ms: number;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          foul?: boolean;
+          hit?: boolean;
+          id?: string;
+          level?: string;
+          reaction_ms?: number | null;
+          target_ms?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "duel_practice_shots_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      duel_records: {
+        Row: {
+          best_reaction_ms: number | null;
+          deaths: number;
+          draws: number;
+          kills: number;
+          listed: boolean;
+          reaction_count: number;
+          reaction_sum_ms: number;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          best_reaction_ms?: number | null;
+          deaths?: number;
+          draws?: number;
+          kills?: number;
+          listed?: boolean;
+          reaction_count?: number;
+          reaction_sum_ms?: number;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          best_reaction_ms?: number | null;
+          deaths?: number;
+          draws?: number;
+          kills?: number;
+          listed?: boolean;
+          reaction_count?: number;
+          reaction_sum_ms?: number;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "duel_records_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
+      duel_rounds: {
+        Row: {
+          challenger_id: string;
+          finished_at: string | null;
+          fouls: number | null;
+          id: string;
+          opponent_id: string;
+          opponent_ms: number;
+          outcome: string | null;
+          reaction_ms: number | null;
+          started_at: string;
+        };
+        Insert: {
+          challenger_id: string;
+          finished_at?: string | null;
+          fouls?: number | null;
+          id?: string;
+          opponent_id: string;
+          opponent_ms: number;
+          outcome?: string | null;
+          reaction_ms?: number | null;
+          started_at?: string;
+        };
+        Update: {
+          challenger_id?: string;
+          finished_at?: string | null;
+          fouls?: number | null;
+          id?: string;
+          opponent_id?: string;
+          opponent_ms?: number;
+          outcome?: string | null;
+          reaction_ms?: number | null;
+          started_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "duel_rounds_challenger_id_fkey";
+            columns: ["challenger_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+          {
+            foreignKeyName: "duel_rounds_opponent_id_fkey";
+            columns: ["opponent_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["user_id"];
+          },
+        ];
+      };
       entitlements: {
         Row: {
           claim_id: string;
@@ -2952,6 +3088,7 @@ export type Database = {
         Args: { target_report_id: string };
         Returns: undefined;
       };
+      duel_record: { Args: never; Returns: Json };
       edit_own_wanted_reply: {
         Args: { new_body: string; target_reply_id: string };
         Returns: undefined;
@@ -2974,10 +3111,15 @@ export type Database = {
         Args: { target_wanted_id: string };
         Returns: number;
       };
+      finish_duel: {
+        Args: { fouls: number; reaction_ms: number; round_id: string };
+        Returns: Json;
+      };
       lift_account_restriction: {
         Args: { target_user_id: string };
         Returns: undefined;
       };
+      list_duel_opponents: { Args: never; Returns: Json };
       list_notifications: {
         Args: {
           before_created_at?: string;
@@ -3181,6 +3323,10 @@ export type Database = {
         };
         Returns: string;
       };
+      record_duel_practice: {
+        Args: { foul: boolean; level: string; reaction_ms: number };
+        Returns: Json;
+      };
       record_notification_email_failure: {
         Args: {
           is_retryable: boolean;
@@ -3253,6 +3399,7 @@ export type Database = {
         };
         Returns: string;
       };
+      reset_duel_record: { Args: never; Returns: undefined };
       resolve_own_community_wanted: {
         Args: { target_public_id: string };
         Returns: undefined;
@@ -3283,6 +3430,7 @@ export type Database = {
         Args: { target_reason: string; target_wanted_id: string };
         Returns: number;
       };
+      set_duel_listing: { Args: { listed: boolean }; Returns: boolean };
       set_member_badge: {
         Args: { target_badge_id: string; target_public_id: string };
         Returns: undefined;
@@ -3313,6 +3461,7 @@ export type Database = {
         Args: { hide: boolean; reason_code?: string; target_reply_id: string };
         Returns: undefined;
       };
+      start_duel: { Args: { opponent_public_id: string }; Returns: Json };
       submit_claim_appeal: {
         Args: { target_claim_id: string; target_reason: string };
         Returns: string;

@@ -269,6 +269,24 @@ export default async function HomePage() {
 
       <HomeHunters hunters={hunters} />
 
+      <section className="map-teaser duel-teaser" aria-labelledby="home-duel-title">
+        <Image
+          className="map-teaser__art duel-teaser__art"
+          src="/duel/street.png"
+          alt=""
+          fill
+          sizes="(min-width: 56rem) 70rem, 100vw"
+        />
+        <h2 id="home-duel-title">Duel at high noon</h2>
+        <p className="mobile-hide">
+          Face another hunter&rsquo;s ghost. It draws as fast as they really do: when the screen
+          says SHOOT, the faster draw wins.
+        </p>
+        <Link className="button button--brass" href="/duel">
+          Duel a hunter <span aria-hidden="true">→</span>
+        </Link>
+      </section>
+
       <section className="home-lower" aria-label="Explore and rules">
         <div className="map-teaser">
           <Image

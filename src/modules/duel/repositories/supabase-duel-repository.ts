@@ -13,18 +13,6 @@ import type { DuelRepository } from "../services/duel-service";
 
 type Client = SupabaseClient<Database>;
 
-/**
- * The functions of migration 202610210001 are not in the generated types until
- * the migration is applied and `database.types.ts` is regenerated; until then
- * they are called through this narrow untyped view. Drop it after regenerating.
- */
-type UntypedRpc = {
-  rpc(
-    name: string,
-    args?: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: { message: string } | null }>;
-};
-
 interface OpponentRow {
   publicId: string;
   displayName: string;
@@ -47,18 +35,21 @@ interface OpponentRow {
 export class SupabaseDuelRepository implements DuelRepository {
   constructor(private readonly client: Client) {}
 
-  private async call<T>(name: string, args?: Record<string, unknown>): Promise<T> {
-    const { data, error } = await (this.client as unknown as UntypedRpc).rpc(name, args);
+  /** The functions answer JSON shaped by the migration; this names its shape. */
+  private static read<T>({ data, error }: { data: unknown; error: unknown }): T {
     if (error) throw error;
     return data as T;
   }
 
-  record(): Promise<DuelRecord> {
-    return this.call<DuelRecord>("duel_record");
+  async record(): Promise<DuelRecord> {
+    return SupabaseDuelRepository.read<DuelRecord>(await this.client.rpc("duel_record"));
   }
 
   async opponents(): Promise<DuelOpponent[]> {
-    const rows = (await this.call<OpponentRow[] | null>("list_duel_opponents")) ?? [];
+    const rows =
+      SupabaseDuelRepository.read<OpponentRow[] | null>(
+        await this.client.rpc("list_duel_opponents"),
+      ) ?? [];
     return rows.map((row) => ({
       publicId: row.publicId,
       displayName: row.displayName,
@@ -77,35 +68,39 @@ export class SupabaseDuelRepository implements DuelRepository {
     }));
   }
 
-  startDuel(opponentPublicId: string): Promise<DuelRoundStart> {
-    return this.call<DuelRoundStart>("start_duel", { opponent_public_id: opponentPublicId });
+  async startDuel(opponentPublicId: string): Promise<DuelRoundStart> {
+    return SupabaseDuelRepository.read<DuelRoundStart>(
+      await this.client.rpc("start_duel", { opponent_public_id: opponentPublicId }),
+    );
   }
 
-  finishDuel(roundId: string, reactionMs: number | null, fouls: number): Promise<DuelRoundResult> {
-    return this.call<DuelRoundResult>("finish_duel", {
-      fouls,
-      reaction_ms: reactionMs,
-      round_id: roundId,
-    });
+  async finishDuel(
+    roundId: string,
+    reactionMs: number | null,
+    fouls: number,
+  ): Promise<DuelRoundResult> {
+    return SupabaseDuelRepository.read<DuelRoundResult>(
+      await this.client.rpc("finish_duel", { fouls, reaction_ms: reactionMs, round_id: roundId }),
+    );
   }
 
-  recordPractice(
+  async recordPractice(
     level: DuelPracticeLevel,
     reactionMs: number | null,
     foul: boolean,
   ): Promise<DuelPracticeResult> {
-    return this.call<DuelPracticeResult>("record_duel_practice", {
-      foul,
-      level,
-      reaction_ms: reactionMs,
-    });
+    return SupabaseDuelRepository.read<DuelPracticeResult>(
+      await this.client.rpc("record_duel_practice", { foul, level, reaction_ms: reactionMs }),
+    );
   }
 
-  setListing(listed: boolean): Promise<boolean> {
-    return this.call<boolean>("set_duel_listing", { listed });
+  async setListing(listed: boolean): Promise<boolean> {
+    return SupabaseDuelRepository.read<boolean>(
+      await this.client.rpc("set_duel_listing", { listed }),
+    );
   }
 
   async reset(): Promise<void> {
-    await this.call<null>("reset_duel_record");
+    SupabaseDuelRepository.read<null>(await this.client.rpc("reset_duel_record"));
   }
 }

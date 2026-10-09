@@ -162,7 +162,7 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 
 ### Duel (minigame)
 
-- A western quick-draw game at `/duel` for members with a verified email
+- A western quick-draw game at `/duel`, reached from the front page, for members with a verified email
   (design_handoff_vaultix_duel). The opponents are other members' ghosts: once a member has 5 clean
   shots, others can duel a ghost that fires around that member's real average reaction, never
   faster than their real fastest. Only the challenger's record changes.

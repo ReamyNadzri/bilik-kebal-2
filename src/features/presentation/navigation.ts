@@ -7,15 +7,7 @@
  */
 
 export type NavItemId =
-  | "board"
-  | "map"
-  | "claims"
-  | "archive"
-  | "notifications"
-  | "duel"
-  | "profile"
-  | "console"
-  | "post";
+  "board" | "map" | "claims" | "archive" | "notifications" | "profile" | "console" | "post";
 
 export interface NavItem {
   readonly id: NavItemId;
@@ -38,13 +30,9 @@ export const MARKETPLACE_NAV: readonly NavItem[] = [
   { id: "archive", label: "Archive", href: "/archive" },
 ] as const;
 
-/** The quick-draw minigame: a diversion, kept apart from the marketplace. */
-export const DUEL_NAV: NavItem = { id: "duel", label: "Duel", href: "/duel" };
-
 /** Account utilities. Secondary to the marketplace, never hidden from it. */
 export const ACCOUNT_NAV: readonly NavItem[] = [
   { id: "notifications", label: "Notifications", href: "/notifications" },
-  DUEL_NAV,
 ] as const;
 
 /**
@@ -105,10 +93,6 @@ export function activeNavId(pathname: string): NavItemId | null {
 
   if (pathname.startsWith("/notifications")) {
     return "notifications";
-  }
-
-  if (pathname.startsWith("/duel")) {
-    return "duel";
   }
 
   if (pathname.startsWith("/profile")) {

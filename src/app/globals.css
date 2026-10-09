@@ -10648,7 +10648,6 @@ a.missing-poster:focus-visible {
 .duel-stage {
   --duel-ink: #0d0805;
   --duel-ink-3: #1b1109;
-  --duel-page-bg: #160d08;
   --duel-black: #000000;
   --duel-parchment: #f3e6c8;
   --duel-parchment-light: #f7ecd2;
@@ -10686,11 +10685,20 @@ a.missing-poster:focus-visible {
   --duel-font-pixel: var(--font-family-press-start), "Press Start 2P", ui-monospace, monospace;
 }
 
+/* The Duel sits on the site's own wood background, like every other page. */
 .duel-page {
   min-height: 100%;
-  background: var(--duel-page-bg) url("/duel/dark-timber.webp") center top / cover no-repeat;
   font-family: var(--font-ui);
   color: var(--duel-text);
+}
+
+/* The front page's way in to the Duel, a map-teaser over the Duel's street. */
+.duel-teaser {
+  min-height: 14rem;
+}
+
+.duel-teaser__art {
+  image-rendering: pixelated;
 }
 
 .duel-lobby {
