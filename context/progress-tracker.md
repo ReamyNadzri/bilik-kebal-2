@@ -1787,3 +1787,27 @@ outlined so it stands out from the street. Decisions from the user: a reward is 
 - Open questions: alternate accounts can still act as easy ghosts for "beat 10 different hunters"
   (each needs a verified email; the claimer needs institution verification); whether reward
   achievements should require the opponents to be institution verified too.
+
+## 2026-10-10 Achievement badges and topic rewards (`claude/duel`)
+
+Request (user, 2026-10-10): use the supplied badge sheet (50 badges, grey until earned, in colour
+once earned); each of the 7 topics, when complete, gives 2 free requests that expire in a month.
+
+- Badges: the sheet (1024 x 1536, transparent) was cut by its opaque pixels into
+  `public/duel/badges/01.webp` … `50.webp` (184 px, about 10 KB each), numbered as the catalogue's
+  `sort`; the red glow below 80% opacity was dropped. Locked badges are greyed with a CSS filter.
+- Migration `202610210003_duel_topic_rewards.sql` (written, **not applied**): `duel_topic_rewards`
+  (one per member, topic and month; 2 credits; `expires_at` a month after the claim),
+  `claim_duel_topic`, the month's read now returns each badge `number` and the 7 `topics`, and the
+  three single-achievement rewards of `202610210002` are switched off (claims already made keep
+  counting). `private.free_request_allowance` now spends, for each free Wanted, the soonest-expiring
+  topic credit live when it was posted; credits that expire unused stop counting
+  (`private.lapsed_topic_credits`, pure and tested on its own).
+- Up to 14 free requests a month per member. The Speed topic rests on reactions the browser
+  measures, so a scripted member can finish it; institution verification is the only brake. Open
+  question for the Owner.
+- The single-achievement claim route is replaced by `POST /api/duel/topics/[topic]`.
+- Live data on 2026-10-10: three members have played; two have the 5 clean shots that list a
+  ghost, so each member sees at most two opponents.
+- Verified: the three duel migrations and four assertion scripts in PGlite; unit suite; typecheck;
+  lint; the badges, topic states and card layout seen in the browser on fixtures.

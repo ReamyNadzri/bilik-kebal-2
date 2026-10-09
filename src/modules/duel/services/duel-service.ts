@@ -1,6 +1,6 @@
 import { failure, success } from "@/contracts/operation-result";
 import {
-  type ClaimDuelAchievementResult,
+  type ClaimDuelTopicResult,
   type DuelAchievements,
   type DuelLeader,
   type DuelLeaderboardResult,
@@ -35,7 +35,7 @@ export interface DuelRepository {
   setListing(listed: boolean): Promise<boolean>;
   reset(): Promise<void>;
   achievements(): Promise<DuelAchievements>;
-  claimAchievement(id: string): Promise<"claimed" | "already_claimed">;
+  claimTopic(topic: string): Promise<"claimed" | "already_claimed">;
   leaderboard(): Promise<DuelLeader[]>;
 }
 
@@ -44,7 +44,7 @@ export interface DuelActor {
   readonly emailVerified: boolean;
 }
 
-const ACHIEVEMENT_ID = /^[a-z0-9_]{2,40}$/;
+const TOPIC = /^[A-Za-z]{2,24}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function databaseMessage(error: unknown): string {
@@ -80,13 +80,13 @@ function refusal(error: unknown) {
   if (message.includes("duel_round_expired") || message.includes("duel_round_too_fast")) {
     return failure("ROUND_EXPIRED" as const, "This duel did not count. Start a new one.");
   }
-  if (message.includes("duel_achievement_not_found")) {
-    return failure("ACHIEVEMENT_NOT_FOUND" as const, "That achievement has no reward to claim.");
+  if (message.includes("duel_topic_not_found")) {
+    return failure("TOPIC_NOT_FOUND" as const, "That topic has no reward to claim.");
   }
-  if (message.includes("duel_achievement_incomplete")) {
+  if (message.includes("duel_topic_incomplete")) {
     return failure(
-      "ACHIEVEMENT_INCOMPLETE" as const,
-      "Finish this achievement first. Progress counts this month's duels only.",
+      "TOPIC_INCOMPLETE" as const,
+      "Finish every achievement in this topic first. Progress counts this month only.",
     );
   }
   if (message.includes("duel_reward_not_eligible")) {
@@ -188,17 +188,14 @@ export class DuelService {
     }
   }
 
-  async claimAchievement(
-    actor: DuelActor | null,
-    achievementId: string,
-  ): Promise<ClaimDuelAchievementResult> {
+  async claimTopic(actor: DuelActor | null, topic: string): Promise<ClaimDuelTopicResult> {
     const refused = this.guard(actor);
     if (refused) return refused;
-    if (!ACHIEVEMENT_ID.test(achievementId)) {
-      return failure("ACHIEVEMENT_NOT_FOUND", "That achievement has no reward to claim.");
+    if (!TOPIC.test(topic)) {
+      return failure("TOPIC_NOT_FOUND", "That topic has no reward to claim.");
     }
     try {
-      return success({ outcome: await this.repository.claimAchievement(achievementId) });
+      return success({ outcome: await this.repository.claimTopic(topic) });
     } catch (error) {
       return refusal(error);
     }

@@ -22,7 +22,6 @@ declare
   answer jsonb;
   item jsonb;
   i integer;
-  before_bonus integer;
   this_month timestamptz := private.duel_month_start(private.duel_month(now()));
 begin
   -- Hunter 1: 30 wins against hunters 3–12 (three each), in order, then a loss
@@ -52,7 +51,8 @@ begin
 
   select x into item from jsonb_array_elements(answer -> 'items') x where x ->> 'id' = 'wins_30';
   assert (item ->> 'progress')::int = 30 and (item ->> 'done')::boolean, 'thirty wins, last month left out: ' || item::text;
-  assert (item ->> 'grantsFreeRequest')::boolean and not (item ->> 'claimed')::boolean, 'a reward, unclaimed';
+  -- Since 202610210003 single achievements grant nothing; topics do.
+  assert not (item ->> 'grantsFreeRequest')::boolean, 'no single reward';
   select x into item from jsonb_array_elements(answer -> 'items') x where x ->> 'id' = 'beaten_10';
   assert (item ->> 'progress')::int = 10, 'ten different hunters';
   select x into item from jsonb_array_elements(answer -> 'items') x where x ->> 'id' = 'streak_10';
@@ -74,37 +74,9 @@ begin
   select x into item from jsonb_array_elements(answer -> 'items') x where x ->> 'id' = 'hall_of_fame';
   assert (item ->> 'done')::boolean, 'more than 25 others done: ' || item::text;
 
-  -- Claiming: only reward achievements, only when done, once a month.
-  begin perform public.claim_duel_achievement('first_blood'); raise exception 'claimed a plain one';
+  -- No single achievement can be claimed any more.
+  begin perform public.claim_duel_achievement('wins_30'); raise exception 'claimed a single achievement';
   exception when no_data_found then assert sqlerrm = 'duel_achievement_not_found', sqlerrm; end;
-  before_bonus := (select bonus from private.free_request_allowance(star));
-  assert public.claim_duel_achievement('wins_30') = 'claimed', 'claimed';
-  assert public.claim_duel_achievement('wins_30') = 'already_claimed', 'once a month';
-  assert public.claim_duel_achievement('beaten_10') = 'claimed', 'second reward';
-  assert (select bonus from private.free_request_allowance(star)) = before_bonus + 2, 'two more free requests';
-  select x into item from jsonb_array_elements(public.duel_achievements_this_month() -> 'items') x
-  where x ->> 'id' = 'wins_30';
-  assert (item ->> 'claimed')::boolean, 'shown as claimed';
-
-  -- Last month's claim does not block this month's.
-  update public.duel_achievement_rewards set month = (private.duel_month(now()) - interval '1 month')::date
-  where achievement_id = 'wins_30';
-  assert public.claim_duel_achievement('wins_30') = 'claimed', 'a new month, a new claim';
-
-  -- Verified, but nothing played this month: nothing to claim.
-  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000114', true);
-  begin perform public.claim_duel_achievement('hall_of_fame'); raise exception 'claimed unfinished';
-  exception when raise_exception then assert sqlerrm = 'duel_achievement_incomplete', sqlerrm; end;
-
-  -- Not institution verified: achievements yes, rewards no.
-  perform set_config('request.jwt.claim.sub', plain::text, true);
-  for i in 0..29 loop
-    insert into public.duel_rounds (challenger_id, opponent_id, opponent_ms, started_at, finished_at, outcome, reaction_ms, fouls)
-    values (plain, star, 400, this_month + make_interval(mins => i), this_month + make_interval(mins => i, secs => 8), 'win', 280, 0);
-  end loop;
-  assert not (public.duel_achievements_this_month() ->> 'rewardEligible')::boolean, 'not eligible';
-  begin perform public.claim_duel_achievement('wins_30'); raise exception 'unverified claimed';
-  exception when insufficient_privilege then assert sqlerrm = 'duel_reward_not_eligible', sqlerrm; end;
 
   -- The leaderboard: 10 duels or more, by K/D, hidden ghosts left out.
   insert into public.duel_records (user_id, kills, deaths, draws, listed) values

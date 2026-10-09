@@ -119,9 +119,9 @@ export class SupabaseDuelRepository implements DuelRepository {
     );
   }
 
-  async claimAchievement(id: string): Promise<"claimed" | "already_claimed"> {
+  async claimTopic(topic: string): Promise<"claimed" | "already_claimed"> {
     const outcome = SupabaseDuelRepository.read<string>(
-      await this.client.rpc("claim_duel_achievement", { achievement_id: id }),
+      await this.client.rpc("claim_duel_topic", { topic }),
     );
     return outcome === "already_claimed" ? "already_claimed" : "claimed";
   }

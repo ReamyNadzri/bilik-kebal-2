@@ -171,10 +171,11 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Practice field: five fixed targets (700 to 210 ms) that do not count toward K/D.
 - The front page's Duel panel shows the top three hunters by all-time K/D, from 10 duels up;
   hidden ghosts and restricted members are left out.
-- 50 achievements at the foot of the Duel page, counted from the month's own duels and practice
-  (Malaysia time) and starting again on the 1st. Three (Legend of the West: 30 wins; Town Tamer:
-  10 different hunters beaten; Hall of Fame: 25 other achievements) each let an
-  institution-verified member claim +1 free request, once a month. No money is involved.
+- 50 achievements at the foot of the Duel page, each with its badge (grey until earned),
+  counted from the month's own duels and practice (Malaysia time) and starting again on the 1st.
+  They sit in 7 topics (Showdowns, Grit, Rivals, Streaks, Speed, Practice, Dedication); finishing
+  every achievement of a topic lets an institution-verified member claim 2 free requests, once a
+  month per topic, which expire one month after the claim. No money is involved.
 
 ## Scope
 

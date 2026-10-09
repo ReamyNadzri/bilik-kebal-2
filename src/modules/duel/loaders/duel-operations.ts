@@ -1,6 +1,6 @@
 import { failure, type OperationResult } from "@/contracts/operation-result";
 import type {
-  ClaimDuelAchievementResult,
+  ClaimDuelTopicResult,
   DuelLeaderboardResult,
   DuelListingResult,
   DuelLobbyResult,
@@ -55,8 +55,8 @@ export const recordDuelPractice = (input: unknown): Promise<DuelPracticeShotResu
 export const setDuelListing = (input: unknown): Promise<DuelListingResult> =>
   run(({ actor, service }) => service.setListing(actor, input));
 
-export const claimDuelAchievement = (achievementId: string): Promise<ClaimDuelAchievementResult> =>
-  run(({ actor, service }) => service.claimAchievement(actor, achievementId));
+export const claimDuelTopic = (topic: string): Promise<ClaimDuelTopicResult> =>
+  run(({ actor, service }) => service.claimTopic(actor, topic));
 
 /** The front page's top three by K/D. */
 export const loadDuelLeaderboard = (): Promise<DuelLeaderboardResult> =>

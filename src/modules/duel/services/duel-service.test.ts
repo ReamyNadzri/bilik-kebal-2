@@ -21,7 +21,9 @@ const achievements: DuelAchievements = {
   month: "2026-10",
   resetsAt: "2026-10-31T16:00:00.000Z",
   rewardEligible: true,
+  topicCredits: 2,
   items: [],
+  topics: [],
 };
 
 function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
@@ -42,7 +44,7 @@ function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
     setListing: vi.fn().mockImplementation((listed: boolean) => Promise.resolve(listed)),
     reset: vi.fn().mockResolvedValue(undefined),
     achievements: vi.fn().mockResolvedValue(achievements),
-    claimAchievement: vi.fn().mockResolvedValue("claimed"),
+    claimTopic: vi.fn().mockResolvedValue("claimed"),
     leaderboard: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -198,38 +200,36 @@ describe("DuelService practice, listing and reset", () => {
 });
 
 describe("DuelService achievements and leaderboard", () => {
-  it("claims a reward achievement by its id", async () => {
+  it("claims a finished topic by its name", async () => {
     const repo = repository();
-    await expect(new DuelService(repo).claimAchievement(actor, "wins_30")).resolves.toEqual({
+    await expect(new DuelService(repo).claimTopic(actor, "Streaks")).resolves.toEqual({
       ok: true,
       data: { outcome: "claimed" },
     });
-    expect(repo.claimAchievement).toHaveBeenCalledWith("wins_30");
+    expect(repo.claimTopic).toHaveBeenCalledWith("Streaks");
   });
 
-  it("refuses a malformed id before the database", async () => {
+  it("refuses a malformed topic before the database", async () => {
     const repo = repository();
-    await expect(new DuelService(repo).claimAchievement(actor, "../wins")).resolves.toMatchObject({
-      code: "ACHIEVEMENT_NOT_FOUND",
+    await expect(new DuelService(repo).claimTopic(actor, "../streaks")).resolves.toMatchObject({
+      code: "TOPIC_NOT_FOUND",
     });
-    expect(repo.claimAchievement).not.toHaveBeenCalled();
+    expect(repo.claimTopic).not.toHaveBeenCalled();
   });
 
-  it("explains an unfinished achievement and a member who is not institution verified", async () => {
+  it("explains an unfinished topic and a member who is not institution verified", async () => {
     const unfinished = new DuelService(
-      repository({
-        claimAchievement: vi.fn().mockRejectedValue(databaseError("duel_achievement_incomplete")),
-      }),
+      repository({ claimTopic: vi.fn().mockRejectedValue(databaseError("duel_topic_incomplete")) }),
     );
-    await expect(unfinished.claimAchievement(actor, "wins_30")).resolves.toMatchObject({
-      code: "ACHIEVEMENT_INCOMPLETE",
+    await expect(unfinished.claimTopic(actor, "Streaks")).resolves.toMatchObject({
+      code: "TOPIC_INCOMPLETE",
     });
     const unverified = new DuelService(
       repository({
-        claimAchievement: vi.fn().mockRejectedValue(databaseError("duel_reward_not_eligible")),
+        claimTopic: vi.fn().mockRejectedValue(databaseError("duel_reward_not_eligible")),
       }),
     );
-    const result = await unverified.claimAchievement(actor, "wins_30");
+    const result = await unverified.claimTopic(actor, "Streaks");
     expect(result).toMatchObject({ code: "REWARD_NOT_ELIGIBLE" });
     expect(result.ok ? "" : result.message).toContain("institution");
   });

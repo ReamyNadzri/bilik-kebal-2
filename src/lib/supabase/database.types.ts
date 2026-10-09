@@ -2889,6 +2889,7 @@ export type Database = {
         Returns: undefined;
       };
       claim_duel_achievement: { Args: { achievement_id: string }; Returns: string };
+      claim_duel_topic: { Args: { topic: string }; Returns: string };
       claim_notification_email_batch: {
         Args: { batch_size?: number };
         Returns: {

@@ -41,7 +41,9 @@ const lobby: DuelLobbyData = {
     month: "2026-10",
     resetsAt: "2026-10-31T16:00:00.000Z",
     rewardEligible: true,
+    topicCredits: 2,
     items: [],
+    topics: [],
   },
 };
 

@@ -352,20 +352,20 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
   }, []);
 
   const claim = useCallback(
-    async (id: string) => {
-      setClaiming(id);
+    async (topic: string) => {
+      setClaiming(topic);
       setClaimMessage(null);
       const answer = await callOperation<
         { outcome: "claimed" | "already_claimed" },
         DuelOperationCode
-      >(`/api/duel/achievements/${encodeURIComponent(id)}`, {}, UNAVAILABLE);
+      >(`/api/duel/topics/${encodeURIComponent(topic)}`, {}, UNAVAILABLE);
       if (answer.ok) {
         setClaimMessage({
           ok: true,
           text:
             answer.data.outcome === "claimed"
-              ? "Free request added. You can post one more free Wanted."
-              : "You already claimed this free request this month.",
+              ? `${topic} complete: 2 free requests added. Use them within a month.`
+              : `You already claimed the ${topic} free requests this month.`,
         });
         await refreshLobby();
       } else {

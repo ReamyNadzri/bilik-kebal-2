@@ -105,6 +105,8 @@ export interface DuelOpponent {
  */
 export interface DuelAchievement {
   id: string;
+  /** 1 to 50: its place in the catalogue, and its badge (`/duel/badges/NN.webp`). */
+  number: number;
   category: string;
   title: string;
   description: string;
@@ -112,10 +114,24 @@ export interface DuelAchievement {
   /** Capped at the target. */
   progress: number;
   done: boolean;
-  /** Finishing it lets an institution-verified member claim +1 free request, once a month. */
+  /** Retired by migration 202610210003: topics give the rewards now. Always false. */
   grantsFreeRequest: boolean;
-  /** The free request was claimed this month. */
   claimed: boolean;
+}
+
+/**
+ * One of the 7 topics the achievements are grouped in. Finishing every
+ * achievement of a topic in a month lets an institution-verified member claim
+ * `topicCredits` free requests, which expire one month after the claim.
+ */
+export interface DuelTopic {
+  category: string;
+  total: number;
+  done: number;
+  /** Claimed this month. */
+  claimed: boolean;
+  /** When this month's claimed free requests expire; null until claimed. */
+  expiresAt: string | null;
 }
 
 export interface DuelAchievements {
@@ -125,7 +141,10 @@ export interface DuelAchievements {
   resetsAt: string;
   /** Institution verified and not restricted: may claim the free requests. */
   rewardEligible: boolean;
+  /** Free requests a finished topic gives. */
+  topicCredits: number;
   items: DuelAchievement[];
+  topics: DuelTopic[];
 }
 
 export interface DuelLobby {
@@ -178,8 +197,8 @@ export type DuelOperationCode =
   | "TOO_SOON"
   | "ROUND_NOT_FOUND"
   | "ROUND_EXPIRED"
-  | "ACHIEVEMENT_NOT_FOUND"
-  | "ACHIEVEMENT_INCOMPLETE"
+  | "TOPIC_NOT_FOUND"
+  | "TOPIC_INCOMPLETE"
   | "REWARD_NOT_ELIGIBLE"
   | "DUEL_UNAVAILABLE";
 
@@ -189,7 +208,7 @@ export type FinishDuelResult = OperationResult<DuelRoundResult, DuelOperationCod
 export type DuelPracticeShotResult = OperationResult<DuelPracticeResult, DuelOperationCode>;
 export type DuelListingResult = OperationResult<{ listed: boolean }, DuelOperationCode>;
 export type ResetDuelRecordResult = OperationResult<{ reset: true }, DuelOperationCode>;
-export type ClaimDuelAchievementResult = OperationResult<
+export type ClaimDuelTopicResult = OperationResult<
   { outcome: "claimed" | "already_claimed" },
   DuelOperationCode
 >;
