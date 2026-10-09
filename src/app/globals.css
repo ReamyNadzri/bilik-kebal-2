@@ -119,6 +119,11 @@
   /* Money */
   --money-ink: #7d1f19;
   --money-ink-on-dark: #f3e6c8;
+  /* A payment code's own ground: a QR needs a plain white quiet zone to scan,
+     whatever the theme does around it. */
+  --bg-code: #ffffff;
+  /* One step of the hard pixel frames on the payment screen. */
+  --pixel-step: 4px;
 
   /* Map */
   --map-sea: #0d3550;
@@ -9835,6 +9840,535 @@ button.capture-poster__hunt {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* --------------------------------------------------------------------------
+   Direct payment request (draft design 2026-10-09, development preview)
+
+   Pixel art lives in VAULTIX's own chrome: step pictures, notched frames,
+   the pixel family on labels. The DuitNow and Touch 'n Go marks and the
+   supplied QR are shown as they are, never redrawn.
+   -------------------------------------------------------------------------- */
+
+.pay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 52rem;
+}
+
+/* A notched pixel border: four offset shadows leave the corners open. */
+.pay-amount__plate,
+.pay-qr__frame,
+.pay-step__number {
+  margin: var(--pixel-step);
+  box-shadow:
+    0 calc(-1 * var(--pixel-step)) 0 0 var(--pixel-frame),
+    0 var(--pixel-step) 0 0 var(--pixel-frame),
+    calc(-1 * var(--pixel-step)) 0 0 0 var(--pixel-frame),
+    var(--pixel-step) 0 0 0 var(--pixel-frame);
+}
+
+.pay__head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background:
+    linear-gradient(var(--paper-wash), var(--paper-wash)),
+    var(--texture-paper) center / cover no-repeat,
+    var(--bg-poster);
+  border: var(--border-width-2) solid var(--border-poster);
+  box-shadow: var(--shadow-poster);
+  color: var(--text-poster);
+}
+
+.pay__eyebrow {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.pay__title {
+  margin: 0;
+  color: var(--text-poster-heading);
+}
+
+.pay__for {
+  margin: 0;
+}
+
+.pay-step,
+.pay-history {
+  padding: clamp(var(--space-4), 2.2vw, 1.75rem);
+  background: var(--bg-canvas);
+  border: var(--border-width-2) solid var(--border-default);
+  box-shadow: var(--shadow-panel);
+}
+
+.pay-step__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.pay-step__art {
+  flex: 0 0 auto;
+  width: 3rem;
+  height: 3rem;
+  shape-rendering: crispEdges;
+}
+
+.pay-step__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.pay-step__number {
+  --pixel-frame: var(--accent-brass);
+
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+}
+
+/* A figure never breaks between "RM" and the amount, at any width. */
+.pay .money-breakdown__row dd {
+  white-space: nowrap;
+}
+
+.pay-step__note {
+  margin: var(--space-3) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.pay-amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.pay-amount__plate {
+  --pixel-frame: var(--accent-brass);
+
+  padding: var(--space-3) var(--space-5);
+  background: var(--accent-ink);
+}
+
+.pay-amount__label {
+  margin: 0;
+  color: var(--accent-brass);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.pay-amount__total {
+  margin: 0;
+  color: var(--money-ink-on-dark);
+  font-family: var(--font-money);
+  font-size: var(--text-3xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: var(--leading-tight);
+}
+
+.pay-amount__copy {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}
+
+.pay-amount__notice {
+  min-height: 1.25em;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.pay-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  shape-rendering: crispEdges;
+}
+
+.pay-icon--large {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  margin: 0 auto var(--space-2);
+  color: var(--text-muted);
+}
+
+.pay-recipient {
+  margin: 0 0 var(--space-4);
+}
+
+.pay-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-4);
+}
+
+.pay-method {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-2) solid var(--border-subtle);
+  text-align: center;
+}
+
+.pay-method__logo {
+  width: auto;
+  height: 3.5rem;
+}
+
+.pay-method__title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.pay-method__missing {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 10rem;
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--bg-subtle);
+  border: var(--border-width-2) dashed var(--border-dashed);
+  color: var(--text-muted);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.pay-method__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.pay-qr {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.pay-qr__frame {
+  --pixel-frame: var(--accent-ink);
+
+  padding: var(--space-3);
+  background: var(--bg-code);
+}
+
+.pay-qr__image {
+  display: block;
+  width: min(15rem, 62vw);
+  height: auto;
+}
+
+.pay-qr__caption {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.pay-proof {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pay-proof__heading {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.pay-proof .dropzone {
+  position: relative;
+  margin-bottom: 0;
+}
+
+.dropzone--invalid {
+  border-color: var(--state-error);
+}
+
+.pay-proof__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+}
+
+.pay-proof > .button {
+  justify-self: start;
+}
+
+.pay-proof__preview {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: var(--border-width-2) dashed var(--state-warning);
+  font-size: var(--text-sm);
+}
+
+.pay-proof__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.pay-history__heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.pay-history__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pay-history__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-width-1) dashed var(--border-dashed);
+}
+
+.ui-status--success {
+  border-left-color: var(--state-success);
+}
+
+.ui-status--success .ui-status__label {
+  color: var(--state-success);
+}
+
+.pay-preview-states ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pay-preview-states a {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-pixel);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.pay-preview-states a[aria-current="page"] {
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+}
+
+/* --------------------------------------------------------------------------
+   Developer reference: payment device API (unlisted, draft)
+
+   A long technical page on paper. Fields and responses are cards, never a
+   table, so a narrow screen keeps every word; only code scrolls inside its
+   own block.
+   -------------------------------------------------------------------------- */
+
+.api-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 52rem;
+}
+
+.api-doc__head {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.api-doc__head h1,
+.api-doc__head .lede {
+  margin: 0;
+}
+
+.api-doc__eyebrow {
+  margin: 0;
+  color: var(--text-soft);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.api-doc__toc,
+.api-doc__section {
+  padding: clamp(var(--space-4), 2.2vw, 1.75rem);
+  background: var(--bg-canvas);
+  border: var(--border-width-2) solid var(--border-default);
+  box-shadow: var(--shadow-panel);
+}
+
+.api-doc__toc h2,
+.api-doc__section h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xl);
+}
+
+.api-doc__section h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.api-doc__toc ol {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.api-doc code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+}
+
+.api-doc__endpoint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+}
+
+.api-doc__method {
+  padding: 0.125rem var(--space-2);
+  background: var(--accent-brass);
+  color: var(--bg-rail);
+  font-family: var(--font-pixel);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-pixel);
+}
+
+.api-doc__code {
+  max-width: 100%;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  background: var(--accent-ink);
+  color: var(--accent-ink-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.api-doc__code code {
+  overflow-wrap: normal;
+}
+
+.api-doc__code:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.api-doc__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+}
+
+.api-doc__columns h3 {
+  margin-top: 0;
+}
+
+.api-doc__fields,
+.api-doc__responses {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.api-doc__field,
+.api-doc__response {
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: var(--border-width-1) solid var(--border-subtle);
+}
+
+.api-doc__field dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  font-weight: 700;
+}
+
+.api-doc__type {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.api-doc__field dd {
+  margin: var(--space-1) 0 0;
+}
+
+.api-doc__response p {
+  margin: 0;
+}
+
+.api-doc__status {
+  margin-bottom: var(--space-1);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-pixel);
+  text-transform: uppercase;
+}
+
+.api-doc__action {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.api-doc__source {
+  margin: var(--space-4) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 /* --------------------------------------------------------------------------
