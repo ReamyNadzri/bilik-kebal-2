@@ -16,9 +16,13 @@ vi.mock("@/modules/wanted/loaders/wanted-operations", () => ({
 
 vi.mock("@/modules/profiles/loaders/hunters-operations", () => ({ sampleHunters }));
 
+const loadDuelLeaderboard = vi.hoisted(() => vi.fn());
+vi.mock("@/modules/duel/loaders/duel-operations", () => ({ loadDuelLeaderboard }));
+
 beforeEach(() => {
   listPublicWanted.mockReset().mockResolvedValue({ ok: true, data: [aWanted()] });
   sampleHunters.mockReset().mockResolvedValue({ ok: true, data: [] });
+  loadDuelLeaderboard.mockReset().mockResolvedValue({ ok: true, data: [] });
 });
 
 function refused(code: string) {

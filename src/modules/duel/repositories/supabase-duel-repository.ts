@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  DuelAchievements,
+  DuelLeader,
   DuelOpponent,
   DuelPracticeLevel,
   DuelPracticeResult,
@@ -12,6 +14,17 @@ import type { Database } from "@/lib/supabase/database";
 import type { DuelRepository } from "../services/duel-service";
 
 type Client = SupabaseClient<Database>;
+
+interface LeaderRow {
+  publicId: string;
+  displayName: string;
+  avatarObjectKey: string | null;
+  avatarPreset: number | null;
+  externalAvatarUrl: string | null;
+  kills: number;
+  deaths: number;
+  draws: number;
+}
 
 interface OpponentRow {
   publicId: string;
@@ -98,6 +111,38 @@ export class SupabaseDuelRepository implements DuelRepository {
     return SupabaseDuelRepository.read<boolean>(
       await this.client.rpc("set_duel_listing", { listed }),
     );
+  }
+
+  async achievements(): Promise<DuelAchievements> {
+    return SupabaseDuelRepository.read<DuelAchievements>(
+      await this.client.rpc("duel_achievements_this_month"),
+    );
+  }
+
+  async claimAchievement(id: string): Promise<"claimed" | "already_claimed"> {
+    const outcome = SupabaseDuelRepository.read<string>(
+      await this.client.rpc("claim_duel_achievement", { achievement_id: id }),
+    );
+    return outcome === "already_claimed" ? "already_claimed" : "claimed";
+  }
+
+  async leaderboard(): Promise<DuelLeader[]> {
+    const rows =
+      SupabaseDuelRepository.read<LeaderRow[] | null>(await this.client.rpc("duel_leaderboard")) ??
+      [];
+    return rows.map((row) => ({
+      publicId: row.publicId,
+      displayName: row.displayName,
+      avatarUrl: resolveAvatarUrl(
+        this.client,
+        row.avatarObjectKey,
+        row.avatarPreset,
+        row.externalAvatarUrl,
+      ),
+      kills: Number(row.kills),
+      deaths: Number(row.deaths),
+      draws: Number(row.draws),
+    }));
   }
 
   async reset(): Promise<void> {

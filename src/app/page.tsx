@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { DuelLeaderboard } from "@/components/duel/duel-leaderboard";
 import { HomeHunters } from "@/components/home-hunters";
 import { UiStatus } from "@/components/ui-status";
 import { WantedCard } from "@/components/wanted-card";
@@ -9,6 +10,7 @@ import { UniversitySwitch } from "@/components/university-switch";
 import { listFeaturedWanted, marketplaceNow } from "@/features/marketplace/wanted-source";
 import { loadUniversityChoice } from "@/modules/identity";
 import { viewOnlyUniversities } from "@/contracts/universities";
+import { loadDuelLeaderboard } from "@/modules/duel/loaders/duel-operations";
 import { sampleHunters } from "@/modules/profiles/loaders/hunters-operations";
 
 export const metadata: Metadata = {
@@ -80,10 +82,11 @@ const SUBMISSION_RULES = [
  * VAULTIX is.
  */
 export default async function HomePage() {
-  const [featured, hunters, university] = await Promise.all([
+  const [featured, hunters, university, leaders] = await Promise.all([
     listFeaturedWanted(),
     sampleHunters(6),
     loadUniversityChoice(),
+    loadDuelLeaderboard(),
   ]);
   const viewOnly = viewOnlyUniversities(university);
   const now = marketplaceNow();
@@ -277,14 +280,17 @@ export default async function HomePage() {
           fill
           sizes="(min-width: 56rem) 70rem, 100vw"
         />
-        <h2 id="home-duel-title">Duel at high noon</h2>
-        <p className="mobile-hide">
-          Face another hunter&rsquo;s ghost. It draws as fast as they really do: when the screen
-          says SHOOT, the faster draw wins.
-        </p>
-        <Link className="button button--brass" href="/duel">
-          Duel a hunter <span aria-hidden="true">→</span>
-        </Link>
+        <div className="duel-teaser__pitch">
+          <h2 id="home-duel-title">Duel at high noon</h2>
+          <p className="mobile-hide">
+            Face another hunter&rsquo;s ghost. It draws as fast as they really do: when the screen
+            says SHOOT, the faster draw wins.
+          </p>
+          <Link className="button button--brass" href="/duel">
+            Duel a hunter <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+        <DuelLeaderboard result={leaders} />
       </section>
 
       <section className="home-lower" aria-label="Explore and rules">

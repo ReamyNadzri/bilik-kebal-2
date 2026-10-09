@@ -10692,9 +10692,111 @@ a.missing-poster:focus-visible {
   color: var(--duel-text);
 }
 
-/* The front page's way in to the Duel, a map-teaser over the Duel's street. */
+/* The front page's way in to the Duel, a map-teaser over the Duel's street,
+   with the top three by K/D on the right. */
 .duel-teaser {
   min-height: 14rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.duel-teaser__pitch {
+  display: flex;
+  flex: 1 1 18rem;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.duel-teaser__pitch .button {
+  align-self: flex-start;
+}
+
+.duel-leaders {
+  --duel-place-1: #e2b85a;
+  --duel-place-2: #d8d0bc;
+  --duel-place-3: #c98a54;
+  --duel-leaders-veil: rgba(13, 8, 5, 0.78);
+
+  flex: 0 1 20rem;
+  min-width: min(100%, 16rem);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-on-dark);
+  background: var(--duel-leaders-veil);
+  border: var(--border-width-2) solid var(--border-default);
+}
+
+.duel-leaders__title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-on-dark-strong);
+}
+
+.duel-leaders__note {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.duel-leaders__note a {
+  color: var(--text-on-dark-strong);
+}
+
+.duel-leaders__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duel-leaders__item {
+  display: grid;
+  grid-template-columns: 2.5rem 36px minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.duel-leaders__place {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+}
+
+.duel-leaders__item--1 .duel-leaders__place {
+  color: var(--duel-place-1);
+}
+
+.duel-leaders__item--2 .duel-leaders__place {
+  color: var(--duel-place-2);
+}
+
+.duel-leaders__item--3 .duel-leaders__place {
+  color: var(--duel-place-3);
+}
+
+.duel-leaders__avatar {
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+.duel-leaders__name {
+  overflow: hidden;
+  font-weight: 700;
+  color: var(--text-on-dark-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duel-leaders__kd {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--text-on-dark-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .duel-teaser__art {
@@ -11603,6 +11705,163 @@ a.missing-poster:focus-visible {
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
+}
+
+/* The month's achievements, at the foot of the Duel page. */
+.duel-ach {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.duel-ach__intro {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--duel-text-light);
+}
+
+.duel-ach__intro strong {
+  color: var(--duel-gold-pale);
+}
+
+.duel-ach__message {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--duel-parchment-light);
+  background: var(--duel-green);
+}
+
+.duel-ach__group {
+  display: grid;
+  gap: 8px;
+}
+
+.duel-ach__category {
+  margin: 6px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  color: var(--duel-gold);
+}
+
+.duel-ach__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duel-ach__card {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 12px;
+  background: var(--duel-wood);
+  border: 2px solid var(--duel-wood-edge);
+  box-shadow: var(--duel-shadow-block);
+}
+
+.duel-ach__card--done {
+  border-color: var(--duel-gold);
+}
+
+.duel-ach__card--reward {
+  background: var(--duel-red-shadow);
+  border-color: var(--duel-red);
+}
+
+.duel-ach__card--reward.duel-ach__card--done {
+  border-color: var(--duel-gold-pale);
+}
+
+.duel-ach__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.duel-ach__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.15;
+  color: var(--duel-parchment);
+}
+
+.duel-ach__done {
+  flex: none;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--duel-rank-greenhorn);
+}
+
+.duel-ach__description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--duel-text-light);
+}
+
+.duel-ach__reward {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--duel-gold-pale);
+}
+
+.duel-ach__progress {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.duel-ach__progress progress {
+  flex: 1;
+  height: 8px;
+  appearance: none;
+  background: var(--duel-wood-deep);
+  border: 1px solid var(--duel-wood-rim);
+}
+
+.duel-ach__progress progress::-webkit-progress-bar {
+  background: var(--duel-wood-deep);
+}
+
+.duel-ach__progress progress::-webkit-progress-value {
+  background: var(--duel-gold);
+}
+
+.duel-ach__progress progress::-moz-progress-bar {
+  background: var(--duel-gold);
+}
+
+.duel-ach__count {
+  font-size: 12px;
+  color: var(--duel-muted-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.duel-ach__reward-state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--duel-parchment);
+}
+
+.duel-ach__reward-state a {
+  color: var(--duel-gold-pale);
+}
+
+.duel-ach__claim {
+  min-height: 40px;
+  border-color: var(--duel-parchment);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import type { DuelRecord } from "@/contracts/duel";
+import type { DuelAchievements, DuelRecord } from "@/contracts/duel";
 import { DuelService, type DuelRepository } from "./duel-service";
 
 const actor = { userId: "00000000-0000-4000-8000-000000000002", emailVerified: true };
@@ -15,6 +15,13 @@ const emptyRecord: DuelRecord = {
   listed: true,
   history: [],
   practice: {},
+};
+
+const achievements: DuelAchievements = {
+  month: "2026-10",
+  resetsAt: "2026-10-31T16:00:00.000Z",
+  rewardEligible: true,
+  items: [],
 };
 
 function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
@@ -34,6 +41,9 @@ function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
     recordPractice: vi.fn().mockResolvedValue({ hit: true, targetMs: 350, youMs: 300 }),
     setListing: vi.fn().mockImplementation((listed: boolean) => Promise.resolve(listed)),
     reset: vi.fn().mockResolvedValue(undefined),
+    achievements: vi.fn().mockResolvedValue(achievements),
+    claimAchievement: vi.fn().mockResolvedValue("claimed"),
+    leaderboard: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -58,7 +68,7 @@ describe("DuelService.lobby", () => {
     const repo = repository();
     await expect(new DuelService(repo).lobby(actor)).resolves.toEqual({
       ok: true,
-      data: { record: emptyRecord, opponents: [] },
+      data: { record: emptyRecord, opponents: [], achievements },
     });
   });
 
@@ -184,5 +194,65 @@ describe("DuelService practice, listing and reset", () => {
       data: { reset: true },
     });
     expect(repo.reset).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DuelService achievements and leaderboard", () => {
+  it("claims a reward achievement by its id", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).claimAchievement(actor, "wins_30")).resolves.toEqual({
+      ok: true,
+      data: { outcome: "claimed" },
+    });
+    expect(repo.claimAchievement).toHaveBeenCalledWith("wins_30");
+  });
+
+  it("refuses a malformed id before the database", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).claimAchievement(actor, "../wins")).resolves.toMatchObject({
+      code: "ACHIEVEMENT_NOT_FOUND",
+    });
+    expect(repo.claimAchievement).not.toHaveBeenCalled();
+  });
+
+  it("explains an unfinished achievement and a member who is not institution verified", async () => {
+    const unfinished = new DuelService(
+      repository({
+        claimAchievement: vi.fn().mockRejectedValue(databaseError("duel_achievement_incomplete")),
+      }),
+    );
+    await expect(unfinished.claimAchievement(actor, "wins_30")).resolves.toMatchObject({
+      code: "ACHIEVEMENT_INCOMPLETE",
+    });
+    const unverified = new DuelService(
+      repository({
+        claimAchievement: vi.fn().mockRejectedValue(databaseError("duel_reward_not_eligible")),
+      }),
+    );
+    const result = await unverified.claimAchievement(actor, "wins_30");
+    expect(result).toMatchObject({ code: "REWARD_NOT_ELIGIBLE" });
+    expect(result.ok ? "" : result.message).toContain("institution");
+  });
+
+  it("shows the leaderboard only to a member who may see the Hunters", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).leaderboard(null)).resolves.toMatchObject({
+      code: "AUTH_REQUIRED",
+    });
+    await expect(new DuelService(repo).leaderboard(actor)).resolves.toEqual({ ok: true, data: [] });
+  });
+});
+
+describe("DuelService.lobby without achievements", () => {
+  it("still opens when this month's achievements cannot be read", async () => {
+    const service = new DuelService(
+      repository({
+        achievements: vi.fn().mockRejectedValue(databaseError("function does not exist")),
+      }),
+    );
+    await expect(service.lobby(actor)).resolves.toMatchObject({
+      ok: true,
+      data: { achievements: null },
+    });
   });
 });

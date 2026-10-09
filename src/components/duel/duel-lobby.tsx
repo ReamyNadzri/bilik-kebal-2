@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   DUEL_GHOST_MIN_SHOTS,
   DUEL_PRACTICE_LEVELS,
@@ -22,6 +22,8 @@ export interface DuelLobbyProps {
   readonly onPractice: (level: DuelPracticeLevel) => void;
   readonly onListing: (listed: boolean) => void;
   readonly onReset: () => void;
+  /** Shown under the record and the field, across the whole width. */
+  readonly footer?: ReactNode;
 }
 
 const OUTCOME_CHIP = { win: "W", lose: "L", draw: "D" } as const;
@@ -60,6 +62,7 @@ export function DuelLobby({
   onPractice,
   onListing,
   onReset,
+  footer = null,
 }: DuelLobbyProps) {
   const { record, opponents } = lobby;
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -285,6 +288,7 @@ export function DuelLobby({
           )}
         </section>
       </div>
+      {footer}
     </div>
   );
 }

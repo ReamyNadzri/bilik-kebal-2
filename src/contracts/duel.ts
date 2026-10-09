@@ -98,10 +98,55 @@ export interface DuelOpponent {
   draws: number;
 }
 
+/**
+ * One of the 50 monthly achievements (migration 202610210002). Progress is
+ * worked out by the database from this month's own duels and practice shots
+ * (Malaysia time), so it resets on the first of every month.
+ */
+export interface DuelAchievement {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  target: number;
+  /** Capped at the target. */
+  progress: number;
+  done: boolean;
+  /** Finishing it lets an institution-verified member claim +1 free request, once a month. */
+  grantsFreeRequest: boolean;
+  /** The free request was claimed this month. */
+  claimed: boolean;
+}
+
+export interface DuelAchievements {
+  /** `YYYY-MM`, Malaysia time. */
+  month: string;
+  /** When this month's progress starts again from zero. */
+  resetsAt: string;
+  /** Institution verified and not restricted: may claim the free requests. */
+  rewardEligible: boolean;
+  items: DuelAchievement[];
+}
+
 export interface DuelLobby {
   record: DuelRecord;
   opponents: DuelOpponent[];
+  /** Null when this month's achievements could not be read; the rest of the Duel still works. */
+  achievements: DuelAchievements | null;
 }
+
+/** A place on the front page's top three: all-time K/D, from 10 duels up. */
+export interface DuelLeader {
+  publicId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  kills: number;
+  deaths: number;
+  draws: number;
+}
+
+/** Duels a member needs before they can appear on the leaderboard. */
+export const DUEL_LEADERBOARD_MIN_DUELS = 10;
 
 export interface DuelRoundStart {
   roundId: string;
@@ -133,6 +178,9 @@ export type DuelOperationCode =
   | "TOO_SOON"
   | "ROUND_NOT_FOUND"
   | "ROUND_EXPIRED"
+  | "ACHIEVEMENT_NOT_FOUND"
+  | "ACHIEVEMENT_INCOMPLETE"
+  | "REWARD_NOT_ELIGIBLE"
   | "DUEL_UNAVAILABLE";
 
 export type DuelLobbyResult = OperationResult<DuelLobby, DuelOperationCode>;
@@ -141,3 +189,8 @@ export type FinishDuelResult = OperationResult<DuelRoundResult, DuelOperationCod
 export type DuelPracticeShotResult = OperationResult<DuelPracticeResult, DuelOperationCode>;
 export type DuelListingResult = OperationResult<{ listed: boolean }, DuelOperationCode>;
 export type ResetDuelRecordResult = OperationResult<{ reset: true }, DuelOperationCode>;
+export type ClaimDuelAchievementResult = OperationResult<
+  { outcome: "claimed" | "already_claimed" },
+  DuelOperationCode
+>;
+export type DuelLeaderboardResult = OperationResult<DuelLeader[], DuelOperationCode>;

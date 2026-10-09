@@ -1756,3 +1756,34 @@ live presence), and the record **stored on the server per account**.
   the ghost's average (they do now, so a member can calibrate it); scripted presses of 100+ ms can
   still fake a fast ghost, as the browser measures the reaction (only a server-timed signal would
   stop that); retention of duel rows.
+
+## 2026-10-10 Duel leaderboard and monthly achievements (`claude/duel`)
+
+Request (user, 2026-10-09): the top 1, 2 and 3 by K/D on the front page, on the right; 50
+achievements that reset every month, one to three of which grant a free bounty; the practice dummy
+outlined so it stands out from the street. Decisions from the user: a reward is **+1 free request**
+(the existing allowance, no money); the leaderboard ranks **all-time** K/D; only
+**institution-verified** members may claim a reward.
+
+- Migration `202610210002_duel_achievements.sql` (written, **not applied**): the catalogue
+  `duel_achievements` (50 rows), `duel_achievement_rewards` (one per member, achievement and month),
+  `duel_achievements_this_month`, `claim_duel_achievement`, `duel_leaderboard`, and
+  `private.free_request_allowance` replaced to add claimed rewards to the bonus. Progress is never
+  stored: it is worked out from the month's duels and practice each time it is read, so the reset
+  needs no job. Months run on Malaysia time.
+- Rewards are tied to volume and variety (30 wins, 10 different hunters beaten, 25 other
+  achievements), never to speed alone, because the browser measures each reaction. At most three
+  free requests a month per member.
+- Where it shows: a "Top guns" panel on the right of the front page's Duel teaser (same audience
+  as the Hunters wall), and the achievements at the foot of the Duel page with a Claim button on
+  finished reward achievements. If the achievements cannot be read, the Duel still opens without
+  them.
+- The practice dummy has a 2 px ink outline, built once from its sprite.
+- Verified: both duel migrations and their assertions in PGlite (stub identity tables); full suite
+  235 files / 1936 tests; typecheck; lint; production build. Seen in the browser on fixtures: the
+  leaderboard panel, the achievements grid and claim states, the outlined dummy.
+- Database types: the three new functions were added by hand in the shape `supabase gen types`
+  writes; the two new tables appear when the types are next regenerated.
+- Open questions: alternate accounts can still act as easy ghosts for "beat 10 different hunters"
+  (each needs a verified email; the claimer needs institution verification); whether reward
+  achievements should require the opponents to be institution verified too.

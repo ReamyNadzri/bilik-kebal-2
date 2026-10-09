@@ -2888,6 +2888,7 @@ export type Database = {
         Args: { target_provider_bill_id: string };
         Returns: undefined;
       };
+      claim_duel_achievement: { Args: { achievement_id: string }; Returns: string };
       claim_notification_email_batch: {
         Args: { batch_size?: number };
         Returns: {
@@ -3088,6 +3089,8 @@ export type Database = {
         Args: { target_report_id: string };
         Returns: undefined;
       };
+      duel_achievements_this_month: { Args: never; Returns: Json };
+      duel_leaderboard: { Args: never; Returns: Json };
       duel_record: { Args: never; Returns: Json };
       edit_own_wanted_reply: {
         Args: { new_body: string; target_reply_id: string };

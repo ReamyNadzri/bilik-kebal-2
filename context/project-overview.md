@@ -169,6 +169,12 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - The database draws the ghost's time and decides each round; K/D, history and practice stats are
   stored per account. A member can hide their ghost or reset their record at any time.
 - Practice field: five fixed targets (700 to 210 ms) that do not count toward K/D.
+- The front page's Duel panel shows the top three hunters by all-time K/D, from 10 duels up;
+  hidden ghosts and restricted members are left out.
+- 50 achievements at the foot of the Duel page, counted from the month's own duels and practice
+  (Malaysia time) and starting again on the 1st. Three (Legend of the West: 30 wins; Town Tamer:
+  10 different hunters beaten; Hall of Fame: 25 other achievements) each let an
+  institution-verified member claim +1 free request, once a month. No money is involved.
 
 ## Scope
 

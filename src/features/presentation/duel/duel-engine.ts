@@ -105,6 +105,36 @@ function setText(el: HTMLElement | undefined, text: string, color?: string) {
   if (color && el.style.color !== color) el.style.color = color;
 }
 
+/**
+ * A sprite with an ink outline `px` image pixels wide, so the straw dummy
+ * stands out from the dusty street behind it.
+ */
+function outlineSprite(im: HTMLImageElement, px: number): HTMLCanvasElement {
+  const w = im.naturalWidth + px * 2;
+  const h = im.naturalHeight + px * 2;
+  const silhouette = document.createElement("canvas");
+  silhouette.width = w;
+  silhouette.height = h;
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  const s = silhouette.getContext("2d");
+  const o = out.getContext("2d");
+  if (!s || !o) return out;
+  s.drawImage(im, px, px);
+  s.globalCompositeOperation = "source-in";
+  s.fillStyle = INK;
+  s.fillRect(0, 0, w, h);
+  o.imageSmoothingEnabled = false;
+  for (let dx = -px; dx <= px; dx += 1) {
+    for (let dy = -px; dy <= px; dy += 1) {
+      if (dx * dx + dy * dy <= px * px + 1) o.drawImage(silhouette, dx, dy);
+    }
+  }
+  o.drawImage(im, px, px);
+  return out;
+}
+
 function layer(): CanvasRenderingContext2D | null {
   const c = document.createElement("canvas");
   c.width = W * 2;
@@ -137,7 +167,7 @@ export class DuelEngine {
 
   private street: HTMLCanvasElement = buildStreet();
   private introBackdrop: HTMLCanvasElement | null = null;
-  private dummy: HTMLImageElement | null = null;
+  private dummy: HTMLCanvasElement | null = null;
   private faces: Record<"meFace" | "meBust" | "oppFace" | "oppBust", HTMLCanvasElement | null> = {
     meFace: null,
     meBust: null,
@@ -158,7 +188,7 @@ export class DuelEngine {
       if (im) this.introBackdrop = fitCanvas(im);
     });
     void scenePicture("/duel/dummy.png").then((im) => {
-      this.dummy = im;
+      if (im) this.dummy = outlineSprite(im, 2);
     });
   }
 
@@ -640,7 +670,7 @@ export class DuelEngine {
       // The practice dummy stands still: no sway, no wobble when hit.
       if (this.dummy) {
         const hh = 62;
-        const ww = (hh * this.dummy.naturalWidth) / this.dummy.naturalHeight;
+        const ww = (hh * this.dummy.width) / this.dummy.height;
         L.drawImage(this.dummy, -ww / 2, -hh, ww, hh);
       }
     } else {

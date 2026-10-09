@@ -37,6 +37,12 @@ const lobby: DuelLobbyData = {
     practice: { hard: { tries: 5, hits: 2, bestMs: 301, averageMs: 362 } },
   },
   opponents: [ghost],
+  achievements: {
+    month: "2026-10",
+    resetsAt: "2026-10-31T16:00:00.000Z",
+    rewardEligible: true,
+    items: [],
+  },
 };
 
 function renderLobby(overrides: Partial<DuelLobbyProps> = {}) {

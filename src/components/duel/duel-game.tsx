@@ -26,6 +26,7 @@ import {
 import { usePrefersReducedMotion } from "@/components/motion/gunshot-transition";
 import { useThemeMusicHold } from "@/components/theme-music";
 import { duelPixelFont } from "./duel-font";
+import { DuelAchievementsSection } from "./duel-achievements";
 import { DuelLobby } from "./duel-lobby";
 
 type Phase = "lobby" | "intro" | "standoff" | "result";
@@ -71,6 +72,8 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
   const [resultNote, setResultNote] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [claiming, setClaiming] = useState<string | null>(null);
+  const [claimMessage, setClaimMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   const musicOn = useThemeMusicHold();
 
@@ -348,6 +351,31 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
     setBusy(false);
   }, []);
 
+  const claim = useCallback(
+    async (id: string) => {
+      setClaiming(id);
+      setClaimMessage(null);
+      const answer = await callOperation<
+        { outcome: "claimed" | "already_claimed" },
+        DuelOperationCode
+      >(`/api/duel/achievements/${encodeURIComponent(id)}`, {}, UNAVAILABLE);
+      if (answer.ok) {
+        setClaimMessage({
+          ok: true,
+          text:
+            answer.data.outcome === "claimed"
+              ? "Free request added. You can post one more free Wanted."
+              : "You already claimed this free request this month.",
+        });
+        await refreshLobby();
+      } else {
+        setClaimMessage({ ok: false, text: answer.message });
+      }
+      setClaiming(null);
+    },
+    [refreshLobby],
+  );
+
   const reset = useCallback(async () => {
     setBusy(true);
     setNotice(null);
@@ -384,6 +412,16 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
         onPractice={(level) => begin({ kind: "practice", level })}
         onListing={(listed) => void setListing(listed)}
         onReset={() => void reset()}
+        footer={
+          lobby.achievements === null ? null : (
+            <DuelAchievementsSection
+              achievements={lobby.achievements}
+              claiming={claiming}
+              message={claimMessage}
+              onClaim={(id) => void claim(id)}
+            />
+          )
+        }
       />
 
       {/* On the body, above the shell and its stacking contexts. */}

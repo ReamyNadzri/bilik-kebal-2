@@ -1,5 +1,9 @@
 import { failure, success } from "@/contracts/operation-result";
 import {
+  type ClaimDuelAchievementResult,
+  type DuelAchievements,
+  type DuelLeader,
+  type DuelLeaderboardResult,
   duelListingInputSchema,
   duelPracticeInputSchema,
   finishDuelInputSchema,
@@ -30,6 +34,9 @@ export interface DuelRepository {
   ): Promise<DuelPracticeResult>;
   setListing(listed: boolean): Promise<boolean>;
   reset(): Promise<void>;
+  achievements(): Promise<DuelAchievements>;
+  claimAchievement(id: string): Promise<"claimed" | "already_claimed">;
+  leaderboard(): Promise<DuelLeader[]>;
 }
 
 export interface DuelActor {
@@ -37,6 +44,7 @@ export interface DuelActor {
   readonly emailVerified: boolean;
 }
 
+const ACHIEVEMENT_ID = /^[a-z0-9_]{2,40}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function databaseMessage(error: unknown): string {
@@ -72,6 +80,21 @@ function refusal(error: unknown) {
   if (message.includes("duel_round_expired") || message.includes("duel_round_too_fast")) {
     return failure("ROUND_EXPIRED" as const, "This duel did not count. Start a new one.");
   }
+  if (message.includes("duel_achievement_not_found")) {
+    return failure("ACHIEVEMENT_NOT_FOUND" as const, "That achievement has no reward to claim.");
+  }
+  if (message.includes("duel_achievement_incomplete")) {
+    return failure(
+      "ACHIEVEMENT_INCOMPLETE" as const,
+      "Finish this achievement first. Progress counts this month's duels only.",
+    );
+  }
+  if (message.includes("duel_reward_not_eligible")) {
+    return failure(
+      "REWARD_NOT_ELIGIBLE" as const,
+      "Free requests go to institution-verified hunters. Verify your institution to claim it.",
+    );
+  }
   if (message.includes("duel_reaction_invalid") || message.includes("duel_listing_invalid")) {
     return failure("VALIDATION_ERROR" as const, "That shot could not be recorded.");
   }
@@ -96,11 +119,13 @@ export class DuelService {
     const refused = this.guard(actor);
     if (refused) return refused;
     try {
-      const [record, opponents] = await Promise.all([
+      const [record, opponents, achievements] = await Promise.all([
         this.repository.record(),
         this.repository.opponents(),
+        // Achievements are a side table: the Duel still opens without them.
+        this.repository.achievements().catch(() => null),
       ]);
-      return success({ record, opponents });
+      return success({ record, opponents, achievements });
     } catch (error) {
       return refusal(error);
     }
@@ -158,6 +183,33 @@ export class DuelService {
     if (!parsed.success) return failure("VALIDATION_ERROR", "Choose whether others may duel you.");
     try {
       return success({ listed: await this.repository.setListing(parsed.data.listed) });
+    } catch (error) {
+      return refusal(error);
+    }
+  }
+
+  async claimAchievement(
+    actor: DuelActor | null,
+    achievementId: string,
+  ): Promise<ClaimDuelAchievementResult> {
+    const refused = this.guard(actor);
+    if (refused) return refused;
+    if (!ACHIEVEMENT_ID.test(achievementId)) {
+      return failure("ACHIEVEMENT_NOT_FOUND", "That achievement has no reward to claim.");
+    }
+    try {
+      return success({ outcome: await this.repository.claimAchievement(achievementId) });
+    } catch (error) {
+      return refusal(error);
+    }
+  }
+
+  /** The front page's top three. Anyone who may see the Hunters may see it. */
+  async leaderboard(actor: DuelActor | null): Promise<DuelLeaderboardResult> {
+    const refused = this.guard(actor);
+    if (refused) return refused;
+    try {
+      return success(await this.repository.leaderboard());
     } catch (error) {
       return refusal(error);
     }
