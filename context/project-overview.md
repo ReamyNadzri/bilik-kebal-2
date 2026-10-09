@@ -106,6 +106,15 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Payment provider decision of 2026-10-03: **HitPay replaces ToyyibPay**, and the Privacy Notice
   names HitPay. The code still uses the ToyyibPay adapter until a HitPay integration lands; the
   ToyyibPay lines below describe that code.
+- **Decision of 2026-10-10, accepted, not implemented** (design:
+  `docs/superpowers/specs/2026-10-10-vaultix-paydesk-design.md`): new Wanteds will be paid through
+  **Paydesk**, a separate payment app, by the business recipient's DuitNow QR or Touch 'n Go link.
+  The member types the full contribution, the bounty shows it in full, and a **3% platform fee is
+  deducted only when money leaves escrow**: at payout (Hunter receives bounty minus 3%) and at
+  refund (each contribution returned minus its own 3%), rounded down to the sen. An Owner/admin
+  approves every payment in Paydesk at first. Wanteds published before the switch keep the 10%
+  on-top model below for life. Until the switch ships, the lines below remain the live rules, and
+  the Terms of Use and Refund Policy must change before it does.
 
 - ToyyibPay payment collection with `Disabled`, `Sandbox`, and allowlisted `Live Limited` modes, plus
   a `Mock` mode: a test gateway inside VAULTIX that runs the real bill, verified-event, ledger,

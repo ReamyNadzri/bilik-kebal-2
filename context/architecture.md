@@ -159,6 +159,12 @@ Database records store `storage_provider`, `bucket`, `object_key`, checksum, siz
 
 ## Money and Provider Flow
 
+Accepted 2026-10-10, not implemented: a third provider, **Paydesk** (a separate app with its own
+database), whose signed `payment.confirmed` event plays the role of the verified provider callback
+below. The flow, the new fee model (3% deducted at payout and refund, none on top) and its ledger
+entries are specified in `docs/superpowers/specs/2026-10-10-vaultix-paydesk-design.md` §9.1 and
+`docs/integration/paydesk-vaultix-contract.md`. The steps below describe the live code.
+
 1. The server creates a bill with the configured gateway (ToyyibPay, or the `mock` test gateway) for the contribution plus the platform fee on top, with an unguessable internal reference; the database recomputes the fee from the snapshotted rate and refuses a bill whose fee differs. A payer must have a phone number and bank account on file.
 2. A signed/verified provider callback is treated as a delivery attempt, not as unquestioned truth.
 3. The callback is stored, deduplicated by provider identifiers, validated against the expected bill, and reconciled through a provider status lookup where necessary.

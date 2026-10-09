@@ -2,6 +2,82 @@
 
 Update this file after every meaningful implementation or specification change.
 
+## 2026-10-10 — Paydesk: separate payment app, documented for another builder
+
+- Request (user): a separate, complete system for direct payments with Google SSO, to be built by
+  someone else; VAULTIX lanes write the documentation only.
+- Decisions (user, 2026-10-10): separate app **Paydesk** with its own deployment and database,
+  linked to VAULTIX by signed server-to-server APIs; **Google SSO for Owner/admins only**
+  (allowlist), members arrive by short-lived links minted through VAULTIX; the member **types the
+  full contribution** and the bounty shows it in full; **3% platform fee deducted only at payout
+  and at refund** (refunds also lose 3%, per contribution), rounded down to the sen; **v1: an admin
+  approves every payment by hand**, Android observations evidence only.
+- Written: `docs/superpowers/specs/2026-10-10-vaultix-paydesk-design.md` (scope, architecture,
+  data model, lifecycle, admin access, member page, review rules, VAULTIX changes and ledger
+  entries, open decisions D2–D9 with safe defaults, launch gates, tests, build order) and
+  `docs/integration/paydesk-vaultix-contract.md` (both directions, HMAC-SHA256 signing with a
+  computed test vector, bodies, events, retries, error codes). Pointer notes added to
+  `context/project-overview.md` (fees) and `context/architecture.md` (money flow) marking the
+  decision **accepted, not implemented**; the live rules there are unchanged until it ships.
+- The unlisted `/developers/payment-device-api` page now says its endpoints are served by Paydesk.
+- Not done here (for the VAULTIX backend lane): the `paydesk` provider, the 3% settlement fee
+  model and its ledger entries, the events route, and Terms of Use and Refund Policy updates
+  (they still promise full refunds). The Codex draft of 2026-10-09 remains unmerged in its own
+  worktree; this spec supersedes its D1 and its choice of where payments are handled.
+- Open, with defaults in the spec: D2 legal operator; D3 request lifetime and late payments (under
+  the 3% rule a late-payment refund would lose 3%); D4 screenshot limits and retention; D5 wrong
+  amounts; D6 self-approval (default: another admin must approve); D7 automatic confirmation (off);
+  D8 the QR's merchant category 5499; D9 cost of a second Supabase and Vercel project.
+
+## 2026-10-10 — Direct payment request screen, pixel-art fixture preview (`claude/direct-payment-ui`)
+
+- Request (user): the payment screen of the DRAFT direct-payment design
+  (`docs/superpowers/specs/2026-10-09-vaultix-direct-payment-draft-design.md`, on Codex's
+  unmerged worktree `C:/Users/rahim/.codex/worktrees/3130`) in pixel art, with the supplied DuitNow
+  QR, Touch 'n Go link and logos. The design is not approved; this is frontend presentation only.
+- Built: `PaymentRequestScreen` (`src/components/payments/`) with every §4 state (ready, methods
+  not set up, loading, checking, needs information, rejected, funds under review, confirmed for
+  publish and for backing, closed, restricted, offline), a copy-amount button, and a proof form
+  that validates and then says it uploaded nothing. Payment instructions appear only while a
+  request is open to payment; checking, exception and confirmed states never invite a second
+  payment. Development-only route `/payment/requests/preview?state=…` (not found in a production
+  build, verified under `next start`). Pixel art is VAULTIX's own: four 16×16 step drawings, three
+  pixel icons (copy, upload, link), notched pixel frames. Official DuitNow QR and Touch 'n Go
+  eWallet logos are shown as supplied (resized only) in `public/payments/`.
+- **The live QR and TNG link are not in the code.** Adding them was refused by the auto-mode
+  classifier as a real-world-transaction step, and the draft itself says no real method is
+  configured by deployment. The preview uses a labelled SAMPLE picture and an `.invalid` link.
+  The screen takes the QR image and link from a `PaymentMethodsView` prop, to come from server
+  configuration in the backend slice.
+- Supplied QR, decoded read-only: EMVCo payload under PayNet's DuitNow AID `A0000006150001`,
+  static (no amount tag 54, no reference tag 62), merchant name `AFECOMMERCE`, city `KEMAMAN`,
+  MCC `5499`, MYR, CRC valid. So the payer must type the amount, as the draft assumes. The TNG
+  short link returns a 200 page, not a redirect. Open for D2/D8: the recipient display name, and
+  whether MCC 5499 (convenience/food store) suits this use.
+- Types: `src/features/presentation/payments/payment-request-view.ts` is a provisional stand-in for
+  the unpublished `PaymentRequestView` contract; it reuses `ChargeBreakdown` and must be replaced by
+  the published contract. The amount shown is contribution + 10% fee on top (current baseline;
+  D1 still open).
+- Verified: 4 new test files (screen states, proof form, drawings, preview page guard); full suite
+  237 files / 1949 tests (a first run under dev-server load reported a failure that a clean rerun
+  did not reproduce); typecheck; lint; Prettier on changed files; production build. Headless
+  Chromium at 1280 and 360 px: no horizontal overflow, no console errors, keyboard reaches copy,
+  link, file, reference, date and submit.
+- Follow-up (user, 2026-10-10): asked again to add the real QR and link. The supplied QR image was
+  added at `public/payments/duitnow-qr.png` (cropped only; decodes to the same payload), but
+  wiring it and the TNG link into the preview fixture was refused again by the auto-mode
+  classifier. The user then left auto mode and approved the edit: the preview's methods are now
+  `SUPPLIED_METHODS` (recipient "AF ECommerce", the supplied QR, the supplied TNG link), the
+  sample was removed. The QR as rendered in the browser at 1280 and 360 px decodes to the same
+  payload. Preview only: the route is not found in production, and nothing records a payment.
+- Unlisted developer page `/developers/payment-device-api` (user: reachable only by typing the
+  address): the Android observation and health API from draft §6–7, labelled "Draft v1, not live".
+  No link to it anywhere in `src`, `robots: noindex, nofollow`. Obscurity only, not access control;
+  the page holds no secret. Everything the draft leaves open (signature scheme, headers, lifetimes,
+  health field names, failure codes, D4, D7) is listed as open, not invented. Verified: page test
+  (5), typecheck, lint, Prettier; headless Chromium at 1280 and 360 px with no overflow and no
+  console errors.
+
 ## Current Phase
 
 - Supabase Cloud is the active backend environment, confirmed by the user on
