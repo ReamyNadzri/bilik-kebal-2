@@ -221,6 +221,8 @@ Payment mode is one of `disabled`, `mock`, `sandbox`, or `live_limited`. `mock` 
 - Deleted accounts (`delete_own_account`, migration `202610190003`): open from 30 days after the account was created, and refused while a paid Wanted of theirs is open or under review, a claim of theirs is being reviewed, or a payout or refund to them is unfinished. The profile is anonymised ("Deleted hunter", no picture, bio or bank details), `deleted_at` is set and a permanent `account_deleted` restriction is added; ledger, payout/refund, audit and archive rows are kept and keep pointing at the anonymous profile. The Clerk user is deleted after the database step; the function is idempotent so a retry finishes it.
 - Duel rounds, practice shots and records (migration `202610210001`): kept until the member resets
   their own record (`reset_duel_record`) or the profile is deleted; no job prunes them yet.
+- Online Duel rooms (`duel_rooms`, migration `202610210004`): kept after they close; no job prunes
+  them yet. Their results are copied into `duel_rounds` (kind `live`), one row per member.
 - Claimed Duel achievement rewards (`duel_achievement_rewards`, migration `202610210002`): kept, as
   each one is a free request counted by `private.free_request_allowance`; a reset of the record
   does not remove them.

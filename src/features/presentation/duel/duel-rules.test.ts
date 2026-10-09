@@ -1,5 +1,9 @@
+import type { DuelRoomResult } from "@/contracts/duel";
 import {
   duelResultCopy,
+  newOnlineRound,
+  onlineResultCopy,
+  resolveOnline,
   heartbeatInterval,
   killDeathRatio,
   newRound,
@@ -154,5 +158,81 @@ describe("numbers", () => {
   it("tightens the heartbeat from 1 s to 330 ms", () => {
     expect(heartbeatInterval(900)).toBe(1000);
     expect(heartbeatInterval(20000)).toBe(330);
+  });
+});
+
+describe("online rounds", () => {
+  const result = (overrides: Partial<DuelRoomResult>): DuelRoomResult => ({
+    outcome: "win",
+    reason: "shots",
+    youMs: 240,
+    themMs: 300,
+    yourFouls: 0,
+    theirFouls: 0,
+    kills: 1,
+    deaths: 0,
+    draws: 0,
+    ...overrides,
+  });
+
+  it("takes the signal from the server and never decides on its own", () => {
+    const r = newOnlineRound(0, 4000);
+    expect(r.signalAt).toBe(4000);
+    expect(press(r, 4240, 0)).toBe("shot");
+    expect(r.you).toBe(240);
+    expect(r.winner).toBeNull();
+    expect(press(r, 4300, 0)).toBe("ignored");
+    expect(timeout(r, 99999)).toBe(false);
+  });
+
+  it("drops the gun on a first foul and waits for the server on a second", () => {
+    const first = newOnlineRound(0, 4000);
+    expect(press(first, 1000, 0)).toBe("foul");
+    expect(first.foulRetry).toBe(true);
+    const second = newOnlineRound(0, 4000);
+    expect(press(second, 1000, 1)).toBe("foul-out");
+    expect(second.foul).toBe(true);
+    expect(second.winner).toBeNull();
+  });
+
+  it("plays out the server's decision from now", () => {
+    const won = newOnlineRound(0, 4000);
+    press(won, 4240, 0);
+    resolveOnline(won, 4600, result({}));
+    expect(won).toMatchObject({ winner: "you", you: 240, opponentMs: 300, shotAt: 4600 });
+
+    const lost = newOnlineRound(0, 4000);
+    press(lost, 4350, 0);
+    resolveOnline(lost, 4700, result({ outcome: "lose", youMs: 350, themMs: 280 }));
+    expect(lost).toMatchObject({ winner: "opp", lateYou: 350, you: null, opponentMs: 280 });
+
+    const fouled = newOnlineRound(0, 4000);
+    resolveOnline(fouled, 1200, result({ outcome: "lose", reason: "fouls", youMs: null }));
+    expect(fouled).toMatchObject({ winner: "opp", foul: true, shotAt: 1520 });
+  });
+
+  it("words each online result", () => {
+    expect(onlineResultCopy(result({}), "Aisyah")).toMatchObject({
+      title: "YOU WIN",
+      line: "Aisyah is eliminated.",
+      you: "240 ms",
+      them: "300 ms",
+    });
+    expect(onlineResultCopy(result({ reason: "fouls", themMs: null }), "Aisyah")).toMatchObject({
+      line: "Aisyah drew before the signal twice.",
+      them: "Foul ×2",
+    });
+    expect(onlineResultCopy(result({ reason: "left", themMs: null }), "Aisyah").line).toBe(
+      "Aisyah left the duel.",
+    );
+    expect(
+      onlineResultCopy(
+        result({ outcome: "draw", reason: "no_shots", youMs: null, themMs: null }),
+        "A",
+      ).line,
+    ).toBe("Neither hunter fired.");
+    expect(
+      onlineResultCopy(result({ outcome: "lose", reason: "fouls", youMs: null }), "A").you,
+    ).toBe("Foul ×2");
   });
 });

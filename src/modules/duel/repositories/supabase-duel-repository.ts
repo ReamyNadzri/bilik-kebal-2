@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  DuelOpenRoom,
+  DuelRoomPerson,
+  DuelRoomState,
   DuelAchievements,
   DuelLeader,
   DuelOpponent,
@@ -14,6 +17,17 @@ import type { Database } from "@/lib/supabase/database";
 import type { DuelRepository } from "../services/duel-service";
 
 type Client = SupabaseClient<Database>;
+
+interface PersonRow {
+  publicId: string;
+  displayName: string;
+  avatarObjectKey: string | null;
+  avatarPreset: number | null;
+  externalAvatarUrl: string | null;
+  averageMs: number | null;
+}
+
+type RoomRow = Omit<DuelRoomState, "opponent"> & { opponent: PersonRow | null };
 
 interface LeaderRow {
   publicId: string;
@@ -143,6 +157,79 @@ export class SupabaseDuelRepository implements DuelRepository {
       deaths: Number(row.deaths),
       draws: Number(row.draws),
     }));
+  }
+
+  private person(row: PersonRow): DuelRoomPerson {
+    return {
+      publicId: row.publicId,
+      displayName: row.displayName,
+      avatarUrl: resolveAvatarUrl(
+        this.client,
+        row.avatarObjectKey,
+        row.avatarPreset,
+        row.externalAvatarUrl,
+      ),
+      averageMs: row.averageMs === null ? null : Number(row.averageMs),
+    };
+  }
+
+  private roomView(response: { data: unknown; error: unknown }): DuelRoomState {
+    const row = SupabaseDuelRepository.read<RoomRow>(response);
+    return {
+      ...row,
+      opponent: row.opponent ? this.person(row.opponent) : null,
+      serverNow: Number(row.serverNow),
+    };
+  }
+
+  async openRoom(): Promise<DuelRoomState> {
+    return this.roomView(await this.client.rpc("open_duel_room"));
+  }
+
+  async openRooms(): Promise<DuelOpenRoom[]> {
+    const rows =
+      SupabaseDuelRepository.read<{ code: string; openedAt: string; host: PersonRow }[] | null>(
+        await this.client.rpc("list_open_duel_rooms"),
+      ) ?? [];
+    return rows.map((row) => ({
+      code: row.code,
+      openedAt: row.openedAt,
+      host: this.person(row.host),
+    }));
+  }
+
+  async joinRoom(code: string): Promise<DuelRoomState> {
+    return this.roomView(await this.client.rpc("join_duel_room", { room_code: code }));
+  }
+
+  async roomState(roomId: string): Promise<DuelRoomState> {
+    return this.roomView(await this.client.rpc("duel_room_state", { room_id: roomId }));
+  }
+
+  async roomShot(
+    roomId: string,
+    roundNumber: number,
+    reactionMs: number | null,
+    foul: boolean,
+  ): Promise<DuelRoomState> {
+    return this.roomView(
+      await this.client.rpc("submit_duel_room_shot", {
+        foul,
+        reaction_ms: reactionMs,
+        room_id: roomId,
+        round_number: roundNumber,
+      }),
+    );
+  }
+
+  async rematchRoom(roomId: string): Promise<DuelRoomState> {
+    return this.roomView(await this.client.rpc("rematch_duel_room", { room_id: roomId }));
+  }
+
+  async leaveRoom(roomId: string): Promise<void> {
+    SupabaseDuelRepository.read<null>(
+      await this.client.rpc("leave_duel_room", { room_id: roomId }),
+    );
   }
 
   async reset(): Promise<void> {

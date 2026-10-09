@@ -3093,6 +3093,7 @@ export type Database = {
       duel_achievements_this_month: { Args: never; Returns: Json };
       duel_leaderboard: { Args: never; Returns: Json };
       duel_record: { Args: never; Returns: Json };
+      duel_room_state: { Args: { room_id: string }; Returns: Json };
       edit_own_wanted_reply: {
         Args: { new_body: string; target_reply_id: string };
         Returns: undefined;
@@ -3119,6 +3120,8 @@ export type Database = {
         Args: { fouls: number; reaction_ms: number; round_id: string };
         Returns: Json;
       };
+      join_duel_room: { Args: { room_code: string }; Returns: Json };
+      leave_duel_room: { Args: { room_id: string }; Returns: undefined };
       lift_account_restriction: {
         Args: { target_user_id: string };
         Returns: undefined;
@@ -3132,6 +3135,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      list_open_duel_rooms: { Args: never; Returns: Json };
       list_own_backed_wanted: {
         Args: never;
         Returns: {
@@ -3266,6 +3270,7 @@ export type Database = {
           locked_reason: string;
         }[];
       };
+      open_duel_room: { Args: never; Returns: Json };
       owner_payment_recipients: {
         Args: { target_user_ids: string[] };
         Returns: {
@@ -3379,6 +3384,7 @@ export type Database = {
         Returns: undefined;
       };
       redeem_reward_code: { Args: { target_code: string }; Returns: string };
+      rematch_duel_room: { Args: { room_id: string }; Returns: Json };
       remove_wanted_picture: {
         Args: { reason_code: string; target_wanted_ref: string };
         Returns: undefined;
@@ -3477,6 +3483,10 @@ export type Database = {
           target_description: string;
         };
         Returns: string;
+      };
+      submit_duel_room_shot: {
+        Args: { foul: boolean; reaction_ms: number; room_id: string; round_number: number };
+        Returns: Json;
       };
       submit_privacy_request: {
         Args: { target_details: string; target_kind: string };

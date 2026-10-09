@@ -169,6 +169,10 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - The database draws the ghost's time and decides each round; K/D, history and practice stats are
   stored per account. A member can hide their ghost or reset their record at any time.
 - Practice field: five fixed targets (700 to 210 ms) that do not count toward K/D.
+- Online duels: a member opens a room, listed in the Duel lobby and shareable as a link
+  (`/duel?room=CODE`); when another member joins, the duel starts. The server times each round
+  and decides it; one retry after a foul, a second foul loses; leaving after SHOOT! loses. Online
+  duels count for both members (K/D, history, leaderboard, achievements).
 - The front page's Duel panel shows the top three hunters by all-time K/D, from 10 duels up;
   hidden ghosts and restricted members are left out.
 - 50 achievements at the foot of the Duel page, each with its badge (grey until earned),

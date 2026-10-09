@@ -1,4 +1,4 @@
-import type { DuelAchievements, DuelRecord } from "@/contracts/duel";
+import type { DuelAchievements, DuelRecord, DuelRoomState } from "@/contracts/duel";
 import { DuelService, type DuelRepository } from "./duel-service";
 
 const actor = { userId: "00000000-0000-4000-8000-000000000002", emailVerified: true };
@@ -26,6 +26,19 @@ const achievements: DuelAchievements = {
   topics: [],
 };
 
+const roomState: DuelRoomState = {
+  roomId: "55555555-5555-4555-8555-555555555555",
+  code: "ABC234",
+  status: "open",
+  role: "host",
+  opponent: null,
+  duelNo: 0,
+  round: null,
+  result: null,
+  rematch: { you: false, them: false },
+  serverNow: 1,
+};
+
 function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
   return {
     record: vi.fn().mockResolvedValue(emptyRecord),
@@ -45,6 +58,13 @@ function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
     reset: vi.fn().mockResolvedValue(undefined),
     achievements: vi.fn().mockResolvedValue(achievements),
     claimTopic: vi.fn().mockResolvedValue("claimed"),
+    openRoom: vi.fn().mockResolvedValue(roomState),
+    openRooms: vi.fn().mockResolvedValue([]),
+    joinRoom: vi.fn().mockResolvedValue(roomState),
+    roomState: vi.fn().mockResolvedValue(roomState),
+    roomShot: vi.fn().mockResolvedValue(roomState),
+    rematchRoom: vi.fn().mockResolvedValue(roomState),
+    leaveRoom: vi.fn().mockResolvedValue(undefined),
     leaderboard: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -254,5 +274,63 @@ describe("DuelService.lobby without achievements", () => {
       ok: true,
       data: { achievements: null },
     });
+  });
+});
+
+describe("DuelService online rooms", () => {
+  const roomId = roomState.roomId;
+
+  it("opens, reads and leaves a room for a signed-in member only", async () => {
+    const repo = repository();
+    const service = new DuelService(repo);
+    await expect(service.openRoom(null)).resolves.toMatchObject({ code: "AUTH_REQUIRED" });
+    await expect(service.openRoom(actor)).resolves.toEqual({ ok: true, data: roomState });
+    await expect(service.roomState(actor, roomId)).resolves.toMatchObject({ ok: true });
+    await expect(service.leaveRoom(actor, roomId)).resolves.toEqual({
+      ok: true,
+      data: { left: true },
+    });
+    expect(repo.leaveRoom).toHaveBeenCalledWith(roomId);
+  });
+
+  it("joins by a 6-character code, in capitals", async () => {
+    const repo = repository();
+    const service = new DuelService(repo);
+    await service.joinRoom(actor, { code: "abc234" });
+    expect(repo.joinRoom).toHaveBeenCalledWith("ABC234");
+    await expect(service.joinRoom(actor, { code: "ABC" })).resolves.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+    await expect(service.joinRoom(actor, { code: "ABC10O" })).resolves.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+  });
+
+  it("sends a shot or a foul, and refuses a shot without a time", async () => {
+    const repo = repository();
+    const service = new DuelService(repo);
+    await service.roomShot(actor, roomId, { roundNumber: 2, reactionMs: 240, foul: false });
+    expect(repo.roomShot).toHaveBeenCalledWith(roomId, 2, 240, false);
+    await service.roomShot(actor, roomId, { roundNumber: 2, reactionMs: null, foul: true });
+    expect(repo.roomShot).toHaveBeenCalledWith(roomId, 2, null, true);
+    await expect(
+      service.roomShot(actor, roomId, { roundNumber: 2, reactionMs: null, foul: false }),
+    ).resolves.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(
+      service.roomShot(actor, "not-a-room", { roundNumber: 2, reactionMs: 240, foul: false }),
+    ).resolves.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("explains a room that is gone or taken", async () => {
+    const taken = new DuelService(
+      repository({ joinRoom: vi.fn().mockRejectedValue(databaseError("duel_room_unavailable")) }),
+    );
+    await expect(taken.joinRoom(actor, { code: "ABC234" })).resolves.toMatchObject({
+      code: "ROOM_UNAVAILABLE",
+    });
+    const gone = new DuelService(
+      repository({ roomState: vi.fn().mockRejectedValue(databaseError("duel_room_not_found")) }),
+    );
+    await expect(gone.roomState(actor, roomId)).resolves.toMatchObject({ code: "ROOM_NOT_FOUND" });
   });
 });

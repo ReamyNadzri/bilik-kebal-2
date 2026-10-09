@@ -4,6 +4,13 @@ import {
   type DuelAchievements,
   type DuelLeader,
   type DuelLeaderboardResult,
+  type DuelOpenRoom,
+  type DuelOpenRoomsResult,
+  type DuelRoomResultEnvelope,
+  type DuelRoomState,
+  type LeaveDuelRoomResult,
+  duelRoomShotInputSchema,
+  joinDuelRoomInputSchema,
   duelListingInputSchema,
   duelPracticeInputSchema,
   finishDuelInputSchema,
@@ -37,6 +44,18 @@ export interface DuelRepository {
   achievements(): Promise<DuelAchievements>;
   claimTopic(topic: string): Promise<"claimed" | "already_claimed">;
   leaderboard(): Promise<DuelLeader[]>;
+  openRoom(): Promise<DuelRoomState>;
+  openRooms(): Promise<DuelOpenRoom[]>;
+  joinRoom(code: string): Promise<DuelRoomState>;
+  roomState(roomId: string): Promise<DuelRoomState>;
+  roomShot(
+    roomId: string,
+    roundNumber: number,
+    reactionMs: number | null,
+    foul: boolean,
+  ): Promise<DuelRoomState>;
+  rematchRoom(roomId: string): Promise<DuelRoomState>;
+  leaveRoom(roomId: string): Promise<void>;
 }
 
 export interface DuelActor {
@@ -93,6 +112,18 @@ function refusal(error: unknown) {
     return failure(
       "REWARD_NOT_ELIGIBLE" as const,
       "Free requests go to institution-verified hunters. Verify your institution to claim it.",
+    );
+  }
+  if (message.includes("duel_room_not_found")) {
+    return failure(
+      "ROOM_NOT_FOUND" as const,
+      "That room was not found. Check the code or open a new room.",
+    );
+  }
+  if (message.includes("duel_room_unavailable")) {
+    return failure(
+      "ROOM_UNAVAILABLE" as const,
+      "That room is no longer open: someone else joined, or the host left.",
     );
   }
   if (message.includes("duel_reaction_invalid") || message.includes("duel_listing_invalid")) {
@@ -210,6 +241,78 @@ export class DuelService {
     } catch (error) {
       return refusal(error);
     }
+  }
+
+  /** Runs a room operation for a signed-in member, mapping refusals to sentences. */
+  private async room<T>(
+    actor: DuelActor | null,
+    operation: () => Promise<T>,
+  ): Promise<{ ok: true; data: T } | Extract<DuelRoomResultEnvelope, { ok: false }>> {
+    const refused = this.guard(actor);
+    if (refused) return refused;
+    try {
+      return success(await operation());
+    } catch (error) {
+      return refusal(error);
+    }
+  }
+
+  openRoom(actor: DuelActor | null): Promise<DuelRoomResultEnvelope> {
+    return this.room(actor, () => this.repository.openRoom());
+  }
+
+  openRooms(actor: DuelActor | null): Promise<DuelOpenRoomsResult> {
+    return this.room(actor, () => this.repository.openRooms());
+  }
+
+  async joinRoom(actor: DuelActor | null, input: unknown): Promise<DuelRoomResultEnvelope> {
+    const parsed = joinDuelRoomInputSchema.safeParse(input);
+    if (actor && !parsed.success) {
+      return failure("VALIDATION_ERROR", "Room codes are 6 letters and numbers.");
+    }
+    return this.room(actor, () => this.repository.joinRoom(parsed.data?.code.toUpperCase() ?? ""));
+  }
+
+  async roomState(actor: DuelActor | null, roomId: string): Promise<DuelRoomResultEnvelope> {
+    if (actor && !UUID.test(roomId)) return failure("ROOM_NOT_FOUND", "That room was not found.");
+    return this.room(actor, () => this.repository.roomState(roomId));
+  }
+
+  async roomShot(
+    actor: DuelActor | null,
+    roomId: string,
+    input: unknown,
+  ): Promise<DuelRoomResultEnvelope> {
+    const parsed = duelRoomShotInputSchema.safeParse(input);
+    if (
+      actor &&
+      (!UUID.test(roomId) ||
+        !parsed.success ||
+        (!parsed.data.foul && parsed.data.reactionMs === null))
+    ) {
+      return failure("VALIDATION_ERROR", "That shot could not be recorded.");
+    }
+    return this.room(actor, () =>
+      this.repository.roomShot(
+        roomId,
+        parsed.data?.roundNumber ?? 0,
+        parsed.data?.reactionMs ?? null,
+        parsed.data?.foul ?? false,
+      ),
+    );
+  }
+
+  async rematchRoom(actor: DuelActor | null, roomId: string): Promise<DuelRoomResultEnvelope> {
+    if (actor && !UUID.test(roomId)) return failure("ROOM_NOT_FOUND", "That room was not found.");
+    return this.room(actor, () => this.repository.rematchRoom(roomId));
+  }
+
+  async leaveRoom(actor: DuelActor | null, roomId: string): Promise<LeaveDuelRoomResult> {
+    if (actor && !UUID.test(roomId)) return failure("ROOM_NOT_FOUND", "That room was not found.");
+    return this.room(actor, async () => {
+      await this.repository.leaveRoom(roomId);
+      return { left: true as const };
+    });
   }
 
   async reset(actor: DuelActor | null): Promise<ResetDuelRecordResult> {

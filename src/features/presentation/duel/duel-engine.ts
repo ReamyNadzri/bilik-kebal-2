@@ -20,15 +20,19 @@ import {
   revolverSide,
   type Pt,
 } from "./duel-art";
+import type { DuelRoomResult } from "@/contracts/duel";
 import type { DuelAudio } from "./duel-audio";
 import { pixelPicture, scenePicture } from "./duel-pictures";
 import {
   duelResultCopy,
   heartbeatInterval,
+  newOnlineRound,
   newRound,
+  onlineResultCopy,
   practiceResultCopy,
   press,
   recordedReaction,
+  resolveOnline,
   timeout,
   type ResultCopy,
   type Round,
@@ -65,7 +69,27 @@ export type Ticket = Promise<{ ok: true; opponentMs: number } | { ok: false; mes
 
 export type Match =
   | { readonly kind: "duel"; readonly opponent: Fighter; readonly ticket: Ticket }
-  | { readonly kind: "practice"; readonly name: string; readonly targetMs: number };
+  | { readonly kind: "practice"; readonly name: string; readonly targetMs: number }
+  /** Another member, live: the server times every round and decides it. */
+  | { readonly kind: "online"; readonly opponent: Fighter };
+
+/** One online round, already mapped onto this page's clock (`performance.now()`). */
+export interface OnlineRoundPlan {
+  readonly number: number;
+  readonly startAt: number;
+  /** SHOOT! shows this long after `startAt`. */
+  readonly signalDelay: number;
+  readonly yourFouls: number;
+  /** Who caused this restart, if a foul did. */
+  readonly lastFoul: "you" | "them" | null;
+}
+
+export interface OnlineShot {
+  readonly roundNumber: number;
+  /** Ms from this page's SHOOT! to the press; null for a foul. */
+  readonly reactionMs: number | null;
+  readonly foul: boolean;
+}
 
 export interface Decision {
   /** The reaction the database should record, or null. */
@@ -80,6 +104,8 @@ export interface EngineCallbacks {
   readonly onDecided: (decision: Decision) => void;
   readonly onResult: (copy: ResultCopy) => void;
   readonly onAbort: (message: string) => void;
+  /** Online: the member fired, or fouled; the page sends it to the server. */
+  readonly onOnlineShot?: (shot: OnlineShot) => void;
 }
 
 type Phase = "idle" | "intro" | "standoff" | "result";
@@ -163,6 +189,14 @@ export class DuelEngine {
   private nextBeat: number | null = null;
   private lastBeat: number | null = null;
   private dropFrom: Pt | null = null;
+  private plan: OnlineRoundPlan | null = null;
+  private roundNumber = 0;
+  private notice: string | null = null;
+  private onlineResult: DuelRoomResult | null = null;
+  /** The timer line under a notice that stops a round. */
+  private noticeTimer = "";
+  /** Online: when a round nobody fired in shows its result card. */
+  private finishAt: number | null = null;
   private lastHand: Pt = [OTS.me.x, OTS.me.y];
 
   private street: HTMLCanvasElement = buildStreet();
@@ -215,10 +249,26 @@ export class DuelEngine {
     this.introEnd = null;
     this.introTypedAt = null;
     this.ticketFailed = null;
+    this.plan = null;
+    this.roundNumber = 0;
+    this.notice = null;
+    this.onlineResult = null;
+    this.finishAt = null;
     this.opponentMs = match.kind === "practice" ? match.targetMs : null;
     this.faces.oppFace = null;
     this.faces.oppBust = null;
-    if (match.kind === "duel") {
+    if (match.kind === "online") {
+      // The intro plays until the server's start time; nothing in it can skip ahead.
+      this.introStart = performance.now();
+      this.vsCue = false;
+      this.audio.cue("intro");
+      void pixelPicture(match.opponent.pictureUrl, 18, "face").then(
+        (c) => (this.faces.oppFace = c),
+      );
+      void pixelPicture(match.opponent.pictureUrl, 88, "bust").then(
+        (c) => (this.faces.oppBust = c),
+      );
+    } else if (match.kind === "duel") {
       this.introStart = performance.now();
       this.vsCue = false;
       this.audio.cue("intro");
@@ -248,8 +298,60 @@ export class DuelEngine {
 
   /** Space or a tap on the stage. */
   press(): void {
-    if (this.phase === "intro") this.confirmIntro();
-    else if (this.phase === "standoff") this.pressStandoff();
+    if (this.phase === "intro") {
+      if (this.match?.kind !== "online") this.confirmIntro();
+    } else if (this.phase === "standoff") this.pressStandoff();
+  }
+
+  /**
+   * Online: the server's timing for a round. The first round starts the
+   * standoff when its time comes; a later one is a restart after a foul.
+   */
+  scheduleRound(plan: OnlineRoundPlan): void {
+    if (this.match?.kind !== "online" || plan.number <= this.roundNumber) return;
+    if (this.plan?.number === plan.number) return;
+    this.plan = plan;
+    const round = this.round;
+    if (round && plan.lastFoul === "them" && !round.winner) {
+      round.halted = true;
+      this.notice = "THEY DREW EARLY!";
+      this.noticeTimer = "They dropped their gun. One more chance…";
+    }
+  }
+
+  /** Online: the server's decision, played out from now. */
+  resolve(result: DuelRoomResult): void {
+    const round = this.round;
+    if (this.match?.kind !== "online" || !round || this.onlineResult) return;
+    this.onlineResult = result;
+    if (result.reason === "no_shots") {
+      // Nobody fired: nobody falls.
+      round.halted = true;
+      this.notice = "NO SHOT FIRED";
+      this.noticeTimer = "";
+      this.finishAt = performance.now() + 1200;
+      return;
+    }
+    this.notice = null;
+    round.halted = false;
+    resolveOnline(round, performance.now() - round.startedAt, result);
+  }
+
+  private beginOnlineRound(plan: OnlineRoundPlan) {
+    this.round = newOnlineRound(plan.startAt, plan.signalDelay);
+    this.roundNumber = plan.number;
+    this.fouls = plan.yourFouls;
+    this.plan = null;
+    this.notice = null;
+    this.finishAt = null;
+    this.cues = new Set();
+    this.nextBeat = null;
+    this.lastBeat = null;
+    this.dropFrom = null;
+    if (this.phase !== "standoff") {
+      this.phase = "standoff";
+      this.callbacks.onStandoff();
+    }
   }
 
   /**
@@ -268,6 +370,7 @@ export class DuelEngine {
   }
 
   private pendingDecision(): Decision | null {
+    if (this.match?.kind === "online") return null;
     const round = this.round;
     if (!round?.winner || this.decided || round.foulRetry) return null;
     this.decided = true;
@@ -314,6 +417,22 @@ export class DuelEngine {
       this.fouls += 1;
       this.audio.cue("foul");
     }
+    if (round.online) {
+      if (effect === "foul" || effect === "foul-out") {
+        this.callbacks.onOnlineShot?.({
+          roundNumber: this.roundNumber,
+          reactionMs: null,
+          foul: true,
+        });
+      } else if (effect === "shot" && round.you !== null && round.you <= 5000) {
+        this.callbacks.onOnlineShot?.({
+          roundNumber: this.roundNumber,
+          reactionMs: Math.max(100, Math.round(round.you)),
+          foul: false,
+        });
+      }
+      return;
+    }
     // A duel lost on time waits for a late press; anything else is final now.
     if (effect === "win" || effect === "draw" || effect === "foul-out") this.decide();
   }
@@ -330,7 +449,9 @@ export class DuelEngine {
     this.callbacks.onResult(
       match.kind === "practice"
         ? practiceResultCopy(round)
-        : duelResultCopy(round, match.opponent.name),
+        : match.kind === "online" && this.onlineResult
+          ? onlineResultCopy(this.onlineResult, match.opponent.name)
+          : duelResultCopy(round, match.opponent.name),
     );
   }
 
@@ -342,6 +463,17 @@ export class DuelEngine {
     if (!x) return;
     x.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
     x.imageSmoothingEnabled = false;
+
+    if (this.finishAt !== null && now >= this.finishAt && this.phase === "standoff") {
+      this.finishAt = null;
+      this.finish();
+    }
+
+    // Online, every round begins at the server's moment, whatever is on screen.
+    if (this.match?.kind === "online" && this.plan && now >= this.plan.startAt) {
+      setOpacity(el.dialog, 0);
+      this.beginOnlineRound(this.plan);
+    }
 
     if (this.phase === "intro") {
       const t = now - this.introStart;
@@ -372,7 +504,9 @@ export class DuelEngine {
     const round = this.round;
     if (!round) return;
     const t = now - round.startedAt;
-    if (round.foulRetry) {
+    if (round.online) {
+      // The server restarts the round; see scheduleRound.
+    } else if (round.foulRetry) {
       if (round.foulAt !== null && t >= round.foulAt + 2200) {
         this.beginStandoff(now);
         return;
@@ -393,7 +527,7 @@ export class DuelEngine {
       this.audio.cue("steady");
       this.audio.speak("steady");
     }
-    if (t >= round.signalAt && !round.foulRetry && cue("signal")) {
+    if (t >= round.signalAt && !round.foulRetry && !round.halted && cue("signal")) {
       this.audio.cue("signal");
       if (!round.foul) this.audio.speak("shoot");
     }
@@ -403,7 +537,7 @@ export class DuelEngine {
       this.audio.cue("fire");
     }
     // The heartbeat, from 900 ms until the signal.
-    if (!this.cues.has("signal") && !round.foul && !round.winner && t > 900) {
+    if (!this.cues.has("signal") && !round.foul && !round.winner && !round.halted && t > 900) {
       this.nextBeat ??= t;
       if (t >= this.nextBeat) {
         this.lastBeat = t;
@@ -412,7 +546,7 @@ export class DuelEngine {
       }
     }
     const pulse =
-      this.lastBeat === null || this.cues.has("signal") || round.winner
+      this.lastBeat === null || this.cues.has("signal") || round.winner || round.halted
         ? 0
         : (Math.exp(-(t - this.lastBeat) / 130) +
             (t - this.lastBeat > 170 ? 0.7 * Math.exp(-(t - this.lastBeat - 170) / 120) : 0)) *
@@ -431,7 +565,10 @@ export class DuelEngine {
     let message = "";
     let color = CREAM;
     if (this.phase === "result") message = "";
-    else if (round.foulRetry) {
+    else if (round.halted && this.notice) {
+      message = this.notice;
+      color = GOLD;
+    } else if (round.foulRetry) {
       message = "FOUL!";
       color = GOLD;
     } else if (round.foul) {
@@ -453,7 +590,8 @@ export class DuelEngine {
 
     let timer = "";
     if (round.foulRetry) timer = "You dropped your gun. One more chance…";
-    if (this.phase !== "result" && t >= round.signalAt && !round.foul) {
+    if (round.halted) timer = this.noticeTimer;
+    if (this.phase !== "result" && t >= round.signalAt && !round.foul && !round.halted) {
       const shown =
         round.winner === "you" || round.winner === "draw"
           ? round.you
@@ -461,11 +599,16 @@ export class DuelEngine {
             ? round.practice
               ? (round.lateYou ?? round.opponentMs)
               : round.opponentMs
-            : t - round.signalAt;
+            : round.you !== null
+              ? round.you
+              : t - round.signalAt;
       timer = `${Math.round(shown ?? 0)} ms`;
     }
     setText(el.timer, timer);
-    setOpacity(el.hint, this.phase === "standoff" && !round.foul && t < round.signalAt ? 1 : 0);
+    setOpacity(
+      el.hint,
+      this.phase === "standoff" && !round.foul && !round.halted && t < round.signalAt ? 1 : 0,
+    );
   }
 
   private drawIntro(x: CanvasRenderingContext2D, t: number, el: StageElements) {
@@ -617,6 +760,10 @@ export class DuelEngine {
             : easeOut(clamp01((t - shotAt + 110) / 110))) *
           (1 - fallT * 0.6)
         );
+      }
+      // Online, your gun comes up the moment you fire; the server says who fell.
+      if (who === "me" && round.online && round.you !== null && round.pressAt !== null) {
+        return easeOut(clamp01((t - round.pressAt) / DRAW_ANIMATION));
       }
       if (who === "me" && round.lateYou !== null) {
         return easeOut(clamp01((t - round.signalAt - round.lateYou) / 120)) * (1 - fallT * 0.6);

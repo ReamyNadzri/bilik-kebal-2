@@ -57,7 +57,8 @@ export interface DuelHistoryItem {
   outcome: DuelOutcome;
   /** Null when the member never fired, or fouled twice. */
   youMs: number | null;
-  themMs: number;
+  /** Null when an online opponent never fired, or fouled out. */
+  themMs: number | null;
   fouls: number;
   at: string;
 }
@@ -189,6 +190,77 @@ export interface DuelPracticeResult {
   youMs: number | null;
 }
 
+/**
+ * Online duels (migration 202610210004). A member opens a room; another joins
+ * it from the lobby or by its link, and the duel starts. The database decides
+ * when the standoff starts, when SHOOT! shows and who won; each browser maps
+ * those moments onto its own clock with `serverNow`.
+ */
+export const DUEL_ROOM_CODE = /^[A-HJ-NP-Za-hj-np-z2-9]{6}$/;
+
+export const joinDuelRoomInputSchema = z.object({
+  code: z.string().trim().regex(DUEL_ROOM_CODE),
+});
+export const duelRoomShotInputSchema = z.object({
+  roundNumber: z.number().int().min(1),
+  reactionMs: reaction,
+  foul: z.boolean(),
+});
+
+export interface DuelRoomPerson {
+  publicId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  averageMs: number | null;
+}
+
+export interface DuelOpenRoom {
+  code: string;
+  openedAt: string;
+  host: DuelRoomPerson;
+}
+
+export interface DuelRoomRound {
+  /** Counts up each time a foul restarts the duel. */
+  number: number;
+  /** When the standoff starts and when SHOOT! shows, on the server's clock. */
+  startsAt: string;
+  signalAt: string;
+  yourFouls: number;
+  theirFouls: number;
+  youShot: boolean;
+  theyShot: boolean;
+  /** Who caused the latest restart. */
+  lastFoul: "you" | "them" | null;
+}
+
+export interface DuelRoomResult {
+  outcome: DuelOutcome;
+  reason: "shots" | "fouls" | "left" | "no_shots";
+  youMs: number | null;
+  themMs: number | null;
+  yourFouls: number;
+  theirFouls: number;
+  kills: number;
+  deaths: number;
+  draws: number;
+}
+
+export interface DuelRoomState {
+  roomId: string;
+  code: string;
+  status: "open" | "playing" | "finished" | "closed";
+  role: "host" | "guest";
+  opponent: DuelRoomPerson | null;
+  duelNo: number;
+  round: DuelRoomRound | null;
+  /** The current duel's result, once decided. */
+  result: DuelRoomResult | null;
+  rematch: { you: boolean; them: boolean };
+  /** The server's clock when this was read, in ms since the epoch. */
+  serverNow: number;
+}
+
 export type DuelOperationCode =
   | "AUTH_REQUIRED"
   | "EMAIL_NOT_VERIFIED"
@@ -200,6 +272,8 @@ export type DuelOperationCode =
   | "TOPIC_NOT_FOUND"
   | "TOPIC_INCOMPLETE"
   | "REWARD_NOT_ELIGIBLE"
+  | "ROOM_NOT_FOUND"
+  | "ROOM_UNAVAILABLE"
   | "DUEL_UNAVAILABLE";
 
 export type DuelLobbyResult = OperationResult<DuelLobby, DuelOperationCode>;
@@ -213,3 +287,6 @@ export type ClaimDuelTopicResult = OperationResult<
   DuelOperationCode
 >;
 export type DuelLeaderboardResult = OperationResult<DuelLeader[], DuelOperationCode>;
+export type DuelRoomResultEnvelope = OperationResult<DuelRoomState, DuelOperationCode>;
+export type DuelOpenRoomsResult = OperationResult<DuelOpenRoom[], DuelOperationCode>;
+export type LeaveDuelRoomResult = OperationResult<{ left: true }, DuelOperationCode>;

@@ -1811,3 +1811,35 @@ once earned); each of the 7 topics, when complete, gives 2 free requests that ex
   ghost, so each member sees at most two opponents.
 - Verified: the three duel migrations and four assertion scripts in PGlite; unit suite; typecheck;
   lint; the badges, topic states and card layout seen in the browser on fixtures.
+
+## 2026-10-10 Online Duels (`claude/duel`)
+
+Request (user, 2026-10-10): "make online: open room, when the player joins the game starts".
+Decisions from the user: online duels count for both members; one retry after a foul (as against
+ghosts); open rooms are listed for any member with a verified email, and joinable by link.
+
+- Migration `202610210004_duel_rooms.sql` (written, **not applied**): `duel_rooms` (code, host,
+  guest, status, duel and round numbers, server times `starts_at` / `signal_at`, both members'
+  shots, fouls, outcome, rematch flags, last-seen times), `open_duel_room`, `list_open_duel_rooms`,
+  `join_duel_room`, `duel_room_state`, `submit_duel_room_shot`, `rematch_duel_room`,
+  `leave_duel_room`. `duel_rounds.opponent_ms` becomes nullable (an online opponent may never fire)
+  and gains `kind` (`ghost` | `live`); `duel_record()` orders ties steadily.
+- Rules (database): a duel starts 6 s after the join (4 s after a rematch); SHOOT! 2.8–9.3 s after
+  the standoff starts; a first foul restarts the round 2.5 s later for both, a second loses; both
+  shots in, or 4 s after SHOOT!, decides it (faster wins, within 15 ms a draw, one shot beats none,
+  none is a draw); a member not seen for 15 s loses a live round, or closes the room before SHOOT!;
+  leaving after SHOOT! loses. The other member's reaction is revealed only with the result.
+- Browser: no Realtime; the room is read every 350 ms during a duel (1.5 s while waiting). Each read
+  carries the server clock, mapped onto `performance.now()` by `ServerClock` (quickest round trip);
+  reactions are measured from the member's own SHOOT!, so clock error never decides a duel. The
+  engine gained an `online` match: it reports presses and plays out the server's decision.
+- Production note: Vercel functions run in `iad1` and Supabase in `ap-southeast-1` (see the
+  performance remediation), so each read crosses the Pacific; a decision reaches players a few
+  hundred ms after both shots. Moving functions to `sin1` would tighten it.
+- Verified: four migrations and five assertion scripts in PGlite; unit suite; typecheck; lint;
+  production build. In the browser against an in-page copy of the room rules: open a room, a second
+  member joins and the duel starts by itself, SHOOT! at the server's moment, the faster shot wins,
+  rematch, own foul (gun drops, LAST CHANCE), their foul (THEY DREW EARLY!), no shots (a quiet
+  draw), joining from the open-rooms list.
+- Open questions: retention of closed rooms; abuse of rooms (a member could open many and leave);
+  whether online duels should need institution verification.

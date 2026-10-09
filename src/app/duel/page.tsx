@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DuelGame } from "@/components/duel/duel-game";
 import { UiStatus } from "@/components/ui-status";
+import { DUEL_ROOM_CODE } from "@/contracts/duel";
 import { requireAccount } from "@/features/presentation/auth/require-account";
 import { loadDuelLobby } from "@/modules/duel/loaders/duel-operations";
 
@@ -13,8 +14,15 @@ export const metadata: Metadata = {
 /** The member's own record; never cached. */
 export const dynamic = "force-dynamic";
 
-export default async function DuelPage() {
-  const outcome = await requireAccount("/duel");
+export default async function DuelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ room?: string | string[] }>;
+}) {
+  const { room } = await searchParams;
+  const roomCode =
+    typeof room === "string" && DUEL_ROOM_CODE.test(room) ? room.toUpperCase() : null;
+  const outcome = await requireAccount(roomCode ? `/duel?room=${roomCode}` : "/duel");
   if (outcome.kind === "unavailable") {
     return (
       <div className="panel">
@@ -54,6 +62,7 @@ export default async function DuelPage() {
         initialLobby={lobby.data}
         playerName={account.displayName}
         playerPicture={account.avatarUrl}
+        initialRoomCode={roomCode}
       />
     </div>
   );

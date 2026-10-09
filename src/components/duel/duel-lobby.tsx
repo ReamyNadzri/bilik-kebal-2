@@ -24,6 +24,8 @@ export interface DuelLobbyProps {
   readonly onReset: () => void;
   /** Shown under the record and the field, across the whole width. */
   readonly footer?: ReactNode;
+  /** Online duels, shown above the ghosts. */
+  readonly online?: ReactNode;
 }
 
 const OUTCOME_CHIP = { win: "W", lose: "L", draw: "D" } as const;
@@ -63,6 +65,7 @@ export function DuelLobby({
   onListing,
   onReset,
   footer = null,
+  online = null,
 }: DuelLobbyProps) {
   const { record, opponents } = lobby;
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -228,8 +231,9 @@ export function DuelLobby({
             })}
           </ul>
 
+          {online}
           <div className="duel-field__heading duel-field__heading--opponents">
-            <h2 className="duel-field__title">Opponents</h2>
+            <h2 className="duel-field__title">Ghost opponents</h2>
             <span className="duel-field__aside">
               Real hunters&rsquo; ghosts: they shoot around their real average draw
             </span>

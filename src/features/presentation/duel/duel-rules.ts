@@ -4,6 +4,7 @@ import {
   DUEL_MAX_REACTION_MS,
   DUEL_MIN_REACTION_MS,
   type DuelOutcome,
+  type DuelRoomResult,
 } from "@/contracts/duel";
 
 /**
@@ -17,9 +18,16 @@ import {
 export interface Round {
   readonly startedAt: number;
   readonly signalAt: number;
-  /** When the opponent fires, after the signal. A practice target's is its target time. */
-  readonly opponentMs: number;
+  /**
+   * When the opponent fires, after the signal. A practice target's is its
+   * target time. Online it is unknown, and infinite, until the server decides.
+   */
+  opponentMs: number;
   readonly practice: boolean;
+  /** An online round: only the server decides it, through `resolveOnline`. */
+  readonly online: boolean;
+  /** Online: the round was stopped by the other member's foul. */
+  halted: boolean;
   winner: "you" | "opp" | "draw" | null;
   /** When the deciding shot was fired, since the standoff began. */
   shotAt: number | null;
@@ -45,6 +53,8 @@ export function newRound(
     signalAt: signalDelay(practice, random),
     opponentMs,
     practice,
+    online: false,
+    halted: false,
     winner: null,
     shotAt: null,
     you: null,
@@ -64,7 +74,19 @@ export function signalDelay(practice: boolean, random: () => number = Math.rando
 /** Duels allow a draw window; the practice field has none. */
 const drawWindow = (round: Round) => (round.practice ? 0 : DUEL_DRAW_WINDOW_MS);
 
-export type PressEffect = "ignored" | "late" | "foul" | "foul-out" | "win" | "draw";
+/**
+ * An online round, timed by the server: the standoff starts at `startedAt`
+ * and SHOOT! shows `signalDelay` ms later.
+ */
+export function newOnlineRound(startedAt: number, signalDelay: number): Round {
+  return {
+    ...newRound(startedAt, false, Number.POSITIVE_INFINITY),
+    signalAt: signalDelay,
+    online: true,
+  };
+}
+
+export type PressEffect = "ignored" | "late" | "foul" | "foul-out" | "win" | "draw" | "shot";
 
 /**
  * Space or a tap at `t`. `foulsBefore` counts this duel's earlier fouls.
@@ -80,7 +102,8 @@ export function press(round: Round, t: number, foulsBefore: number): PressEffect
     }
     return "ignored";
   }
-  if (round.foulRetry) return "ignored";
+  if (round.foulRetry || round.halted) return "ignored";
+  if (round.online && (round.foul || round.you !== null)) return "ignored";
   if (t < round.signalAt + DUEL_MIN_REACTION_MS) {
     round.foul = true;
     round.pressAt = t;
@@ -89,12 +112,18 @@ export function press(round: Round, t: number, foulsBefore: number): PressEffect
       round.foulAt = t;
       return "foul";
     }
+    // Online, the server announces the loss.
+    if (round.online) return "foul-out";
     round.winner = "opp";
     round.shotAt = t + 320;
     return "foul-out";
   }
   const you = t - round.signalAt;
   round.you = you;
+  if (round.online) {
+    round.pressAt = t;
+    return "shot";
+  }
   if (you < round.opponentMs - drawWindow(round)) {
     round.winner = "you";
     round.shotAt = t;
@@ -115,7 +144,7 @@ export function press(round: Round, t: number, foulsBefore: number): PressEffect
 
 /** The opponent fires once the member has had their chance. True when that decided it now. */
 export function timeout(round: Round, t: number): boolean {
-  if (round.winner || round.foulRetry) return false;
+  if (round.winner || round.foulRetry || round.online) return false;
   if (t < round.signalAt + round.opponentMs + drawWindow(round)) return false;
   round.winner = "opp";
   round.shotAt = round.signalAt + round.opponentMs;
@@ -242,5 +271,87 @@ export function practiceResultCopy(round: Round): ResultCopy {
     line: `The target is ${target} ms.`,
     you: round.lateYou === null ? "No shot" : formatMs(round.lateYou),
     them: `${target} ms`,
+  };
+}
+
+/**
+ * Applies the server's decision to an online round at `t` (ms since its
+ * standoff began): the winner fires now and the reveal follows.
+ */
+export function resolveOnline(round: Round, t: number, result: DuelRoomResult): void {
+  if (round.winner) return;
+  round.opponentMs = result.themMs ?? Number.POSITIVE_INFINITY;
+  if (result.outcome === "win") {
+    round.winner = "you";
+    round.you = result.youMs ?? round.you;
+    round.shotAt = t;
+  } else if (result.outcome === "draw") {
+    round.winner = "draw";
+    round.you = result.youMs ?? round.you;
+    round.shotAt = t;
+  } else {
+    round.winner = "opp";
+    if (result.reason === "fouls") {
+      round.foul = true;
+      round.shotAt = t + 320;
+    } else {
+      round.lateYou = result.youMs ?? round.you;
+      round.you = null;
+      round.shotAt = t;
+    }
+  }
+}
+
+/** The result card's words for an online duel. */
+export function onlineResultCopy(result: DuelRoomResult, opponentName: string): ResultCopy {
+  const you = formatMs(result.youMs);
+  const them = formatMs(result.themMs);
+  if (result.outcome === "draw") {
+    return result.reason === "no_shots"
+      ? {
+          title: "DRAW",
+          tone: "draw",
+          line: "Neither hunter fired.",
+          you: "No shot",
+          them: "No shot",
+        }
+      : {
+          title: "DRAW",
+          tone: "draw",
+          line: "You both fired at the same moment. Both hunters fall.",
+          you,
+          them,
+        };
+  }
+  if (result.outcome === "win") {
+    const line =
+      result.reason === "fouls"
+        ? `${opponentName} drew before the signal twice.`
+        : result.reason === "left"
+          ? `${opponentName} left the duel.`
+          : `${opponentName} is eliminated.`;
+    return {
+      title: "YOU WIN",
+      tone: "win",
+      line,
+      you: result.youMs === null ? "—" : you,
+      them: result.reason === "fouls" ? "Foul ×2" : result.themMs === null ? "No shot" : them,
+    };
+  }
+  if (result.reason === "fouls") {
+    return {
+      title: "ELIMINATED",
+      tone: "lose",
+      line: "Two fouls. You drew before the signal twice.",
+      you: "Foul ×2",
+      them,
+    };
+  }
+  return {
+    title: "ELIMINATED",
+    tone: "lose",
+    line: result.reason === "left" ? "You left the duel." : `${opponentName} drew first.`,
+    you: result.youMs === null ? "No shot" : you,
+    them,
   };
 }

@@ -23,6 +23,7 @@ type NullableArgs = KnownArgs<{
   post_wanted_reply: "parent_reply";
   publish_community_wanted: "target_last_seen_location";
   record_duel_practice: "reaction_ms";
+  submit_duel_room_shot: "reaction_ms";
   report_wanted: "target_details";
   request_community_payout: "target_note";
   set_member_badge: "target_badge_id";

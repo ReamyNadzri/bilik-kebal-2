@@ -2,6 +2,9 @@ import { failure, type OperationResult } from "@/contracts/operation-result";
 import type {
   ClaimDuelTopicResult,
   DuelLeaderboardResult,
+  DuelOpenRoomsResult,
+  DuelRoomResultEnvelope,
+  LeaveDuelRoomResult,
   DuelListingResult,
   DuelLobbyResult,
   DuelPracticeShotResult,
@@ -61,6 +64,27 @@ export const claimDuelTopic = (topic: string): Promise<ClaimDuelTopicResult> =>
 /** The front page's top three by K/D. */
 export const loadDuelLeaderboard = (): Promise<DuelLeaderboardResult> =>
   run(({ actor, service }) => service.leaderboard(actor));
+
+export const openDuelRoom = (): Promise<DuelRoomResultEnvelope> =>
+  run(({ actor, service }) => service.openRoom(actor));
+
+export const listOpenDuelRooms = (): Promise<DuelOpenRoomsResult> =>
+  run(({ actor, service }) => service.openRooms(actor));
+
+export const joinDuelRoom = (input: unknown): Promise<DuelRoomResultEnvelope> =>
+  run(({ actor, service }) => service.joinRoom(actor, input));
+
+export const readDuelRoom = (roomId: string): Promise<DuelRoomResultEnvelope> =>
+  run(({ actor, service }) => service.roomState(actor, roomId));
+
+export const shootInDuelRoom = (roomId: string, input: unknown): Promise<DuelRoomResultEnvelope> =>
+  run(({ actor, service }) => service.roomShot(actor, roomId, input));
+
+export const rematchDuelRoom = (roomId: string): Promise<DuelRoomResultEnvelope> =>
+  run(({ actor, service }) => service.rematchRoom(actor, roomId));
+
+export const leaveDuelRoom = (roomId: string): Promise<LeaveDuelRoomResult> =>
+  run(({ actor, service }) => service.leaveRoom(actor, roomId));
 
 export const resetDuelRecord = (): Promise<ResetDuelRecordResult> =>
   run(({ actor, service }) => service.reset(actor));

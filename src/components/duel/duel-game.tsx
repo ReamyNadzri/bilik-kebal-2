@@ -10,12 +10,20 @@ import {
   type DuelOperationCode,
   type DuelPracticeLevel,
   type DuelPracticeResult,
+  type DuelRoomPerson,
+  type DuelRoomResult,
+  type DuelRoomState,
   type DuelRoundResult,
   type DuelRoundStart,
 } from "@/contracts/duel";
 import { callOperation, readOperation } from "@/features/presentation/call-operation";
 import { DuelAudio } from "@/features/presentation/duel/duel-audio";
-import { DuelEngine, type Decision, type Ticket } from "@/features/presentation/duel/duel-engine";
+import {
+  DuelEngine,
+  type Decision,
+  type OnlineShot,
+  type Ticket,
+} from "@/features/presentation/duel/duel-engine";
 import {
   formatMs,
   killDeathRatio,
@@ -28,17 +36,24 @@ import { useThemeMusicHold } from "@/components/theme-music";
 import { duelPixelFont } from "./duel-font";
 import { DuelAchievementsSection } from "./duel-achievements";
 import { DuelLobby } from "./duel-lobby";
+import { DuelOnlinePanel } from "./duel-online-panel";
+import { useDuelRoom } from "./use-duel-room";
 
 type Phase = "lobby" | "intro" | "standoff" | "result";
 
 type Current =
   | { readonly kind: "duel"; readonly opponent: DuelOpponent }
-  | { readonly kind: "practice"; readonly level: DuelPracticeLevel };
+  | { readonly kind: "practice"; readonly level: DuelPracticeLevel }
+  | { readonly kind: "online"; readonly opponent: DuelRoomPerson };
+/** A match this page runs itself: a ghost duel or practice. */
+type LocalMatch = Exclude<Current, { readonly kind: "online" }>;
 
 export interface DuelGameProps {
   readonly initialLobby: DuelLobbyData;
   readonly playerName: string;
   readonly playerPicture: string | null;
+  /** A room code from a shared link, joined on arrival. */
+  readonly initialRoomCode?: string | null;
 }
 
 const UNAVAILABLE: DuelOperationCode = "DUEL_UNAVAILABLE";
@@ -64,7 +79,12 @@ function settleOnLeave(path: string, body: unknown) {
  * by the server, which decides it; this screen only plays it out and reports
  * the member's reaction. Leaving after a round is decided still reports it.
  */
-export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGameProps) {
+export function DuelGame({
+  initialLobby,
+  playerName,
+  playerPicture,
+  initialRoomCode = null,
+}: DuelGameProps) {
   const [phase, setPhase] = useState<Phase>("lobby");
   const [lobby, setLobby] = useState(initialLobby);
   const [current, setCurrent] = useState<Current | null>(null);
@@ -96,6 +116,8 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
   const timer = useRef<HTMLDivElement>(null);
   const hint = useRef<HTMLDivElement>(null);
   const againButton = useRef<HTMLButtonElement>(null);
+  /** The room hook's shot sender, for the engine built once at mount. */
+  const shootRef = useRef<((shot: OnlineShot) => void) | null>(null);
 
   const changePhase = useCallback((next: Phase) => {
     phaseRef.current = next;
@@ -155,7 +177,10 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
     [refreshLobby],
   );
 
+  const leaveRoomRef = useRef<() => void>(() => undefined);
+
   const toLobby = useCallback(() => {
+    if (currentRef.current?.kind === "online") leaveRoomRef.current();
     const engine = engineRef.current;
     const pending = engine?.stop() ?? null;
     if (pending) void settle(pending, true);
@@ -182,6 +207,7 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
           setNotice(reason);
           changePhase("lobby");
         },
+        onOnlineShot: (shot) => shootRef.current?.(shot),
       },
       reducedMotion,
     );
@@ -221,7 +247,7 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
   }, []);
 
   const begin = useCallback(
-    (next: Current) => {
+    (next: LocalMatch) => {
       const engine = engineRef.current;
       if (!engine) return;
       audioRef.current?.unlock();
@@ -267,10 +293,73 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
     [changePhase],
   );
 
+  /** An online duel begins: the server has two members in the room. */
+  const startOnline = useCallback(
+    (state: DuelRoomState) => {
+      const engine = engineRef.current;
+      const opponent = state.opponent;
+      if (!engine || !opponent) return;
+      audioRef.current?.unlock();
+      audioRef.current?.setMusic(false);
+      setNotice(null);
+      setResult(null);
+      setResultNote(null);
+      const next: Current = { kind: "online", opponent };
+      currentRef.current = next;
+      setCurrent(next);
+      returnFocusRef.current = "duel-online-open";
+      engine.start({
+        kind: "online",
+        opponent: { name: opponent.displayName, pictureUrl: opponent.avatarUrl },
+      });
+      changePhase("intro");
+    },
+    [changePhase],
+  );
+
+  const onlineClosed = useCallback(
+    (reason: string | null) => {
+      if (currentRef.current?.kind === "online" && phaseRef.current !== "lobby") {
+        engineRef.current?.stop();
+        changePhase("lobby");
+        setResult(null);
+        void refreshLobby();
+      }
+      if (reason) setNotice(reason);
+    },
+    [changePhase, refreshLobby],
+  );
+
+  const onlineDecided = useCallback((decided: DuelRoomResult) => {
+    setLobby((before) => ({
+      ...before,
+      record: {
+        ...before.record,
+        kills: decided.kills,
+        deaths: decided.deaths,
+        draws: decided.draws,
+      },
+    }));
+  }, []);
+
+  const online = useDuelRoom({
+    engine: () => engineRef.current,
+    inLobby: phase === "lobby",
+    initialCode: initialRoomCode,
+    onStart: startOnline,
+    onClosed: onlineClosed,
+    onDecided: onlineDecided,
+  });
+  useEffect(() => {
+    shootRef.current = online.shoot;
+    leaveRoomRef.current = online.leave;
+  }, [online.shoot, online.leave]);
+
   const rematch = useCallback(() => {
     const playing = currentRef.current;
-    if (playing) begin(playing);
-  }, [begin]);
+    if (playing?.kind === "online") online.rematch();
+    else if (playing) begin(playing);
+  }, [begin, online]);
 
   // Space (or Enter) fires and skips; Escape leaves. Only while the stage is up.
   useEffect(() => {
@@ -391,13 +480,26 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
   }, [refreshLobby]);
 
   const opponentName =
-    current?.kind === "duel"
+    current?.kind === "duel" || current?.kind === "online"
       ? current.opponent.displayName
       : `Target · ${DUEL_PRACTICE_LEVELS.find((level) => level.id === current?.level)?.name ?? ""}`;
   const opponentSub =
     current?.kind === "duel"
       ? `${rankOf(current.opponent.averageMs)} · ${current.opponent.institutionName ?? "VAULTIX hunter"}`
-      : "PRACTICE FIELD";
+      : current?.kind === "online"
+        ? `ONLINE · AVG ${formatMs(current.opponent.averageMs).toUpperCase()}`
+        : "PRACTICE FIELD";
+  const room = online.room;
+  const againLabel =
+    current?.kind === "practice"
+      ? "AGAIN"
+      : current?.kind === "online" && room
+        ? room.rematch.you
+          ? "WAITING…"
+          : room.rematch.them
+            ? "ACCEPT REMATCH"
+            : "REMATCH"
+        : "REMATCH";
   const practiceStats = current?.kind === "practice" ? lobby.record.practice[current.level] : null;
 
   return (
@@ -412,6 +514,17 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
         onPractice={(level) => begin({ kind: "practice", level })}
         onListing={(listed) => void setListing(listed)}
         onReset={() => void reset()}
+        online={
+          <DuelOnlinePanel
+            hosting={room?.status === "open" ? room : null}
+            rooms={online.openRooms}
+            busy={online.busy}
+            error={online.error}
+            onOpen={() => void online.open()}
+            onClose={online.leave}
+            onJoin={(code) => void online.join(code)}
+          />
+        }
         footer={
           lobby.achievements === null ? null : (
             <DuelAchievementsSection
@@ -562,6 +675,11 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
                           </div>
                         </dl>
                       )}
+                      {current?.kind === "online" && room?.rematch.them && !room.rematch.you ? (
+                        <p className="duel-result__line" role="status">
+                          {opponentName} wants a rematch.
+                        </p>
+                      ) : null}
                       {resultNote === null ? null : (
                         <p className="duel-result__note" role="alert">
                           {resultNote}
@@ -574,7 +692,7 @@ export function DuelGame({ initialLobby, playerName, playerPicture }: DuelGamePr
                           className="duel-button"
                           onClick={rematch}
                         >
-                          {current?.kind === "practice" ? "AGAIN" : "REMATCH"}
+                          {againLabel}
                           <span className="duel-key" aria-hidden="true">
                             SPACE
                           </span>

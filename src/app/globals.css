@@ -11707,6 +11707,93 @@ a.missing-poster:focus-visible {
   gap: 10px;
 }
 
+/* Online duels in the lobby. */
+.duel-online {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.duel-online__start {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.duel-online__join {
+  display: flex;
+  gap: 8px;
+}
+
+.duel-online__input {
+  width: 9.5rem;
+  min-height: 46px;
+  padding: 0 12px;
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--duel-parchment);
+  background: var(--duel-wood-deep);
+  border: 2px solid var(--duel-wood-edge);
+}
+
+.duel-online__hosting {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: var(--duel-wood);
+  border: 2px solid var(--duel-gold);
+  box-shadow: var(--duel-shadow-block);
+}
+
+.duel-online__label {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--duel-gold);
+}
+
+.duel-online__code {
+  margin: 0;
+  font-family: var(--duel-font-pixel);
+  font-size: clamp(22px, 4vw, 32px);
+  letter-spacing: 0.18em;
+  color: var(--duel-parchment-light);
+}
+
+.duel-online__wait,
+.duel-online__link {
+  margin: 0;
+  font-size: 14px;
+  color: var(--duel-text-light);
+}
+
+.duel-online__link {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--duel-muted-light);
+  user-select: all;
+}
+
+.duel-online__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.duel-online__rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 236px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* The month's achievements, at the foot of the Duel page. */
 .duel-ach {
   display: grid;
