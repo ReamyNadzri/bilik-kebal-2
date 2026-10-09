@@ -160,6 +160,16 @@ VAULTIX is an English-first, production-oriented academic resource bounty market
 - Owner controls for payment mode, payment kill switch, fee configuration, taxonomy, storage usage, and provider health.
 - Durable queues, scheduled lifecycle jobs, retryable idempotent handlers, and operational audit logs.
 
+### Duel (minigame)
+
+- A western quick-draw game at `/duel` for members with a verified email
+  (design_handoff_vaultix_duel). The opponents are other members' ghosts: once a member has 5 clean
+  shots, others can duel a ghost that fires around that member's real average reaction, never
+  faster than their real fastest. Only the challenger's record changes.
+- The database draws the ghost's time and decides each round; K/D, history and practice stats are
+  stored per account. A member can hide their ghost or reset their record at any time.
+- Practice field: five fixed targets (700 to 210 ms) that do not count toward K/D.
+
 ## Scope
 
 ### In Scope

@@ -31,6 +31,7 @@ export interface ShellNavProps {
 /** Account utilities carry a small icon; the word always travels with it. */
 const ACCOUNT_ICONS: Partial<Record<NavItemId, PixelIconName>> = {
   notifications: "bell",
+  duel: "revolver",
   profile: "person",
 };
 

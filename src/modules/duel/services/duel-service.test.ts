@@ -1,0 +1,188 @@
+import type { DuelRecord } from "@/contracts/duel";
+import { DuelService, type DuelRepository } from "./duel-service";
+
+const actor = { userId: "00000000-0000-4000-8000-000000000002", emailVerified: true };
+const roundId = "33333333-3333-4333-8333-333333333333";
+const opponentPublicId = "44444444-4444-4444-8444-444444444444";
+
+const emptyRecord: DuelRecord = {
+  kills: 0,
+  deaths: 0,
+  draws: 0,
+  bestMs: null,
+  averageMs: null,
+  shots: 0,
+  listed: true,
+  history: [],
+  practice: {},
+};
+
+function repository(overrides: Partial<DuelRepository> = {}): DuelRepository {
+  return {
+    record: vi.fn().mockResolvedValue(emptyRecord),
+    opponents: vi.fn().mockResolvedValue([]),
+    startDuel: vi.fn().mockResolvedValue({ roundId, opponentMs: 300 }),
+    finishDuel: vi.fn().mockResolvedValue({
+      outcome: "win",
+      youMs: 250,
+      themMs: 300,
+      fouls: 0,
+      kills: 1,
+      deaths: 0,
+      draws: 0,
+    }),
+    recordPractice: vi.fn().mockResolvedValue({ hit: true, targetMs: 350, youMs: 300 }),
+    setListing: vi.fn().mockImplementation((listed: boolean) => Promise.resolve(listed)),
+    reset: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+const databaseError = (message: string) => Object.assign(new Error(message), { message });
+
+describe("DuelService guards", () => {
+  it("refuses a visitor and an unverified email before the database", async () => {
+    const repo = repository();
+    const service = new DuelService(repo);
+    await expect(service.lobby(null)).resolves.toMatchObject({ code: "AUTH_REQUIRED" });
+    await expect(
+      service.start({ ...actor, emailVerified: false }, { opponentPublicId }),
+    ).resolves.toMatchObject({ code: "EMAIL_NOT_VERIFIED" });
+    expect(repo.record).not.toHaveBeenCalled();
+    expect(repo.startDuel).not.toHaveBeenCalled();
+  });
+});
+
+describe("DuelService.lobby", () => {
+  it("reads the record and the opponents together", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).lobby(actor)).resolves.toEqual({
+      ok: true,
+      data: { record: emptyRecord, opponents: [] },
+    });
+  });
+
+  it("never passes database wording to the browser", async () => {
+    const service = new DuelService(
+      repository({
+        opponents: vi.fn().mockRejectedValue(databaseError("relation does not exist")),
+      }),
+    );
+    const result = await service.lobby(actor);
+    expect(result).toMatchObject({ code: "DUEL_UNAVAILABLE" });
+    expect(JSON.stringify(result)).not.toContain("relation");
+  });
+});
+
+describe("DuelService rounds", () => {
+  it("starts a round against a ghost by public id", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).start(actor, { opponentPublicId })).resolves.toEqual({
+      ok: true,
+      data: { roundId, opponentMs: 300 },
+    });
+    expect(repo.startDuel).toHaveBeenCalledWith(opponentPublicId);
+  });
+
+  it("checks the opponent id", async () => {
+    const repo = repository();
+    await expect(
+      new DuelService(repo).start(actor, { opponentPublicId: "not-an-id" }),
+    ).resolves.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(repo.startDuel).not.toHaveBeenCalled();
+  });
+
+  it("explains an opponent who left the list and a duel started too soon", async () => {
+    const hidden = new DuelService(
+      repository({
+        startDuel: vi.fn().mockRejectedValue(databaseError("duel_opponent_unavailable")),
+      }),
+    );
+    await expect(hidden.start(actor, { opponentPublicId })).resolves.toMatchObject({
+      code: "OPPONENT_UNAVAILABLE",
+    });
+    const hurried = new DuelService(
+      repository({ startDuel: vi.fn().mockRejectedValue(databaseError("duel_too_soon")) }),
+    );
+    await expect(hurried.start(actor, { opponentPublicId })).resolves.toMatchObject({
+      code: "TOO_SOON",
+    });
+  });
+
+  it("finishes a round with the reaction and fouls", async () => {
+    const repo = repository();
+    const result = await new DuelService(repo).finish(actor, roundId, {
+      reactionMs: 250,
+      fouls: 0,
+    });
+    expect(result).toMatchObject({ ok: true, data: { outcome: "win" } });
+    expect(repo.finishDuel).toHaveBeenCalledWith(roundId, 250, 0);
+  });
+
+  it("accepts no shot, and refuses impossible reactions and too many fouls", async () => {
+    const repo = repository();
+    const service = new DuelService(repo);
+    await service.finish(actor, roundId, { reactionMs: null, fouls: 2 });
+    expect(repo.finishDuel).toHaveBeenCalledWith(roundId, null, 2);
+    for (const input of [
+      { reactionMs: 99, fouls: 0 },
+      { reactionMs: 5001, fouls: 0 },
+      { reactionMs: 250.5, fouls: 0 },
+      { reactionMs: 250, fouls: 3 },
+      { reactionMs: 250 },
+    ]) {
+      await expect(service.finish(actor, roundId, input)).resolves.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    }
+    await expect(
+      service.finish(actor, "../other", { reactionMs: 250, fouls: 0 }),
+    ).resolves.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(repo.finishDuel).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads an expired or scripted round as one that did not count", async () => {
+    for (const reason of ["duel_round_expired", "duel_round_too_fast"]) {
+      const service = new DuelService(
+        repository({ finishDuel: vi.fn().mockRejectedValue(databaseError(reason)) }),
+      );
+      await expect(
+        service.finish(actor, roundId, { reactionMs: 250, fouls: 0 }),
+      ).resolves.toMatchObject({ code: "ROUND_EXPIRED" });
+    }
+  });
+});
+
+describe("DuelService practice, listing and reset", () => {
+  it("records a practice shot on a known level only", async () => {
+    const repo = repository();
+    const service = new DuelService(repo);
+    await expect(
+      service.practice(actor, { level: "hard", reactionMs: 300, foul: false }),
+    ).resolves.toMatchObject({ ok: true, data: { hit: true } });
+    expect(repo.recordPractice).toHaveBeenCalledWith("hard", 300, false);
+    await expect(
+      service.practice(actor, { level: "godlike", reactionMs: 300, foul: false }),
+    ).resolves.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("shows or hides the ghost", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).setListing(actor, { listed: false })).resolves.toEqual({
+      ok: true,
+      data: { listed: false },
+    });
+    await expect(new DuelService(repo).setListing(actor, { listed: "no" })).resolves.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+  });
+
+  it("resets the member's own record", async () => {
+    const repo = repository();
+    await expect(new DuelService(repo).reset(actor)).resolves.toEqual({
+      ok: true,
+      data: { reset: true },
+    });
+    expect(repo.reset).toHaveBeenCalledTimes(1);
+  });
+});

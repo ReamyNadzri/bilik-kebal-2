@@ -52,6 +52,10 @@ import { attachSoundEffects, preloadSoundEffects } from "./sound-effects";
  * The one audio graph lives in `ThemeMusicProvider`; any number of
  * `ThemeMusicToggle`s drive it. The desktop rail and the compact menu each
  * show one, and only one is ever displayed at a time.
+ *
+ * A screen with music of its own (the Duel) holds the theme with
+ * `useThemeMusicHold`: the theme fades out while it is mounted and back in
+ * when it leaves, and the Music toggle goes on meaning "music on" there.
  */
 export const THEME_TRACKS = [
   {
@@ -73,6 +77,8 @@ export const THEME_PREFERENCE_KEY = "vaultix.themeMusic";
 
 const TARGET_VOLUME = 0.45;
 const FADE_SECONDS = 1.5;
+/** How quickly the theme gives way to, and returns after, a screen's own music. */
+const HOLD_FADE_SECONDS = 0.6;
 const MUTE_FADE_SECONDS = 0.3;
 /** The handover crossfade; half of it on each side, inside the files' one-second margins. */
 const CROSSFADE_SECONDS = 1;
@@ -172,6 +178,8 @@ function scheduleLap(
 interface ThemeMusicContextValue {
   readonly playing: boolean;
   readonly toggle: () => void;
+  /** Silences the theme until the returned release is called. */
+  readonly hold: () => () => void;
 }
 
 const ThemeMusicContext = createContext<ThemeMusicContextValue | null>(null);
@@ -196,6 +204,9 @@ function whenRunning(context: AudioContext, timeoutMs: number): Promise<boolean>
 export function ThemeMusicProvider({ children }: { readonly children: ReactNode }) {
   const contextRef = useRef<AudioContext | null>(null);
   const gainRef = useRef<GainNode | null>(null);
+  /** After the theme's own gain: silent while a screen holds the theme. */
+  const holdGainRef = useRef<GainNode | null>(null);
+  const holdsRef = useRef(0);
   const lapRef = useRef<ScheduledLap | null>(null);
   const schedulerRef = useRef<number | null>(null);
   const pendingRef = useRef(new Map<number, Promise<AudioBuffer>>());
@@ -303,7 +314,11 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       if (context === null) return null;
       const gain = context.createGain();
       gain.gain.value = 0;
-      gain.connect(context.destination);
+      const holdGain = context.createGain();
+      holdGain.gain.value = holdsRef.current > 0 ? 0 : 1;
+      gain.connect(holdGain);
+      holdGain.connect(context.destination);
+      holdGainRef.current = holdGain;
       contextRef.current = context;
       detachEffectsRef.current = attachSoundEffects(context);
       gainRef.current = gain;
@@ -421,6 +436,7 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
       const context = contextRef.current;
       contextRef.current = null;
       gainRef.current = null;
+      holdGainRef.current = null;
       lapRef.current = null;
       if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
       schedulerRef.current = null;
@@ -443,7 +459,28 @@ export function ThemeMusicProvider({ children }: { readonly children: ReactNode 
     }
   }, [mute, play, playing]);
 
-  const value = useMemo(() => ({ playing, toggle }), [playing, toggle]);
+  const hold = useCallback(() => {
+    const ramp = (to: number) => {
+      const context = contextRef.current;
+      const holdGain = holdGainRef.current;
+      if (context === null || holdGain === null) return;
+      const now = context.currentTime;
+      holdGain.gain.cancelScheduledValues(now);
+      holdGain.gain.setValueAtTime(holdGain.gain.value, now);
+      holdGain.gain.linearRampToValueAtTime(to, now + HOLD_FADE_SECONDS);
+    };
+    holdsRef.current += 1;
+    ramp(0);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      holdsRef.current -= 1;
+      if (holdsRef.current === 0) ramp(1);
+    };
+  }, []);
+
+  const value = useMemo(() => ({ playing, toggle, hold }), [playing, toggle, hold]);
 
   return (
     <ThemeMusicContext.Provider value={value}>
@@ -511,4 +548,17 @@ export function ThemeMusic() {
       <ThemeMusicToggle />
     </ThemeMusicProvider>
   );
+}
+
+/**
+ * Silences the theme while the calling screen is mounted, for a screen that
+ * plays music of its own. Returns whether music is on: the visitor's choice
+ * on the Music toggle, which that screen's music should follow. Outside a
+ * provider (in isolation, in tests) music is off.
+ */
+export function useThemeMusicHold(): boolean {
+  const music = useContext(ThemeMusicContext);
+  const hold = music?.hold;
+  useEffect(() => (hold ? hold() : undefined), [hold]);
+  return music?.playing ?? false;
 }

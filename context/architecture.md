@@ -38,6 +38,10 @@ Use current stable versions verified at implementation time and pin exact versio
 - `payouts` - manual payout task, Owner release record, evidence, and future provider adapter.
 - `notifications` - in-app events, email delivery, retries, and user preferences where allowed.
 - `audit` - append-only security, finance, access, configuration, and moderation events.
+- `duel` - the quick-draw minigame (migration `202610210001`): each member's record and reaction
+  times, rounds against other members' ghosts, practice shots and the hide-my-ghost choice. The
+  database draws each ghost's time and decides each round; the browser only reports the member's
+  own reaction. Touches no money, entitlement or moderation state.
 
 ### Notification inbox foundation (2026-09-23)
 
@@ -215,6 +219,8 @@ Payment mode is one of `disabled`, `mock`, `sandbox`, or `live_limited`. `mock` 
 - Wanted chat threads (sightings, replies, academic questions): deleted 7 days after the thread closes (found, resolved, auto-closed after 30 quiet days, fulfilled or expired) by the daily `wanted-thread-retention` pg_cron job. A missing-item or discussion card leaves the Board then; a small record (title, dates, reply count) remains. Never deleted while a bounty release is pending, while a paid community bounty is neither released nor fully refunded, within 7 days of an academic claim review, or while an appeal is pending. Hidden (moderated) replies are kept.
 - Ledger, payout/refund, moderation, and audit metadata, Terms acceptances and privacy requests: 7 years (decision of 2026-10-03), never deleted by file cleanup jobs or account deletion; after deletion they point at the anonymised profile. No job deletes them yet.
 - Deleted accounts (`delete_own_account`, migration `202610190003`): open from 30 days after the account was created, and refused while a paid Wanted of theirs is open or under review, a claim of theirs is being reviewed, or a payout or refund to them is unfinished. The profile is anonymised ("Deleted hunter", no picture, bio or bank details), `deleted_at` is set and a permanent `account_deleted` restriction is added; ledger, payout/refund, audit and archive rows are kept and keep pointing at the anonymous profile. The Clerk user is deleted after the database step; the function is idempotent so a retry finishes it.
+- Duel rounds, practice shots and records (migration `202610210001`): kept until the member resets
+  their own record (`reset_duel_record`) or the profile is deleted; no job prunes them yet.
 - Wanted reports (`wanted_reports`, migration `202610190004`): private evidence for Sheriffs and the Owner (RLS: own reports, or reviewer roles), kept with moderation records; a report changes nothing by itself.
 
 ## Member console

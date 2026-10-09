@@ -17,6 +17,7 @@ import { PixelIcon } from "./pixel-icon";
 import { useIntentPrefetch } from "./shell-nav";
 import { ThemeMusicToggle } from "./theme-music";
 import {
+  DUEL_NAV,
   MARKETPLACE_NAV,
   activeNavId,
   type NavItem,
@@ -247,7 +248,7 @@ export function ShellMenu({ account = null, currentNavId, roleNav = [] }: ShellM
 
           <nav aria-label="Primary">
             <ul className="shell-menu__nav">
-              {[...MARKETPLACE_NAV, ...roleNav].map((item) => (
+              {[...MARKETPLACE_NAV, ...roleNav, DUEL_NAV].map((item) => (
                 <MenuLink key={item.id} item={item} current={current === item.id} />
               ))}
             </ul>

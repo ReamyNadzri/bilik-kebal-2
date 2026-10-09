@@ -222,7 +222,8 @@ test("hands over to the next track at the end of the lap, crossfading inside the
   // Half a second either side of the handover, inside the second of loop each file carries.
   expect(second?.start).toHaveBeenCalledWith(handover - 0.5, DEAD_OR_ALIVE.loopStart - 0.5);
   expect(first?.stop).toHaveBeenCalledWith(handover + 0.5);
-  const [, firstVoice, secondVoice] = context().gains;
+  // The theme gain and the hold gain come first, then one gain per lap.
+  const [, , firstVoice, secondVoice] = context().gains;
   expect(firstVoice?.gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, handover + 0.5);
   expect(secondVoice?.gain.setValueAtTime).toHaveBeenCalledWith(0, handover - 0.5);
   expect(secondVoice?.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, handover + 0.5);
